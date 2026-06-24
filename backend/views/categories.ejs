@@ -1,0 +1,27 @@
+<% const nav='categories'; %>
+<%- include('partials/head', { title: 'Categories' }) %>
+<h1>Categories</h1>
+<form method="POST" action="/categories" class="form-row">
+  <input name="emoji" placeholder="✨" maxlength="2" style="width:60px" />
+  <input name="title" placeholder="Title" required />
+  <input name="tagline" placeholder="Tagline" />
+  <button class="btn primary">Add</button>
+</form>
+<table class="table"><thead><tr><th></th><th>Title</th><th>Tagline</th><th></th></tr></thead><tbody>
+<% categories.forEach(c => { %>
+<tr>
+  <form method="POST" action="/categories/<%= c.id %>?_method=PUT">
+    <td><input name="emoji" value="<%= c.emoji %>" style="width:50px" /></td>
+    <td><input name="title" value="<%= c.title %>" required /></td>
+    <td><input name="tagline" value="<%= c.tagline || '' %>" /></td>
+    <td class="actions">
+      <button class="btn">Save</button>
+  </form>
+      <form method="POST" action="/categories/<%= c.id %>?_method=DELETE" onsubmit="return confirm('Delete this category and all its services?')" style="display:inline">
+        <button class="btn danger">Delete</button>
+      </form>
+    </td>
+</tr>
+<% }) %>
+</tbody></table>
+<%- include('partials/foot') %>

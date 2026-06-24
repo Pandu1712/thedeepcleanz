@@ -1,0 +1,14 @@
+<% const nav=''; %>
+<%- include('partials/head', { title: 'Login · TheDeep CleanerZ Admin' }) %>
+<div class="login-wrap">
+  <form method="POST" action="/login" class="login-card">
+    <div class="brand center"><span class="dot"></span> TheDeep CleanerZ <small>Admin</small></div>
+    <h1>Sign in</h1>
+    <% if (flash.error && flash.error.length) { %><div class="flash error"><%= flash.error[0] %></div><% } %>
+    <label>Username<input name="username" required autofocus /></label>
+    <label>Password<input name="password" type="password" required /></label>
+    <button class="btn primary">Sign in</button>
+    <p class="hint">Default: <code>admin</code> / <code>admin123</code></p>
+  </form>
+</div>
+<%- include('partials/foot') %>

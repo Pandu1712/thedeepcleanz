@@ -1,0 +1,36 @@
+<% const nav='services'; %>
+<%- include('partials/head', { title: 'Services' }) %>
+<h1>Services</h1>
+<form method="POST" action="/services" class="form-row wrap">
+  <select name="categoryId" required>
+    <% categories.forEach(c => { %><option value="<%= c.id %>"><%= c.title %></option><% }) %>
+  </select>
+  <input name="title" placeholder="Title" required />
+  <input name="price" type="number" placeholder="Price" required style="width:110px" />
+  <input name="description" placeholder="Description" style="flex:1;min-width:200px" />
+  <input name="includes" placeholder="Includes (comma separated)" style="flex:1;min-width:200px" />
+  <button class="btn primary">Add</button>
+</form>
+
+<table class="table"><thead><tr><th>Category</th><th>Title</th><th>Price</th><th>Description</th><th>Includes</th><th></th></tr></thead><tbody>
+<% services.forEach(s => { %>
+<tr>
+  <form method="POST" action="/services/<%= s.id %>?_method=PUT">
+    <td><select name="categoryId">
+      <% categories.forEach(c => { %><option value="<%= c.id %>" <%= c.id===s.categoryId?'selected':'' %>><%= c.title %></option><% }) %>
+    </select></td>
+    <td><input name="title" value="<%= s.title %>" required /></td>
+    <td><input name="price" type="number" value="<%= s.price %>" style="width:90px" /></td>
+    <td><input name="description" value="<%= s.description || '' %>" /></td>
+    <td><input name="includes" value="<%= (s.includes||[]).join(', ') %>" /></td>
+    <td class="actions">
+      <button class="btn">Save</button>
+  </form>
+      <form method="POST" action="/services/<%= s.id %>?_method=DELETE" onsubmit="return confirm('Delete this service?')" style="display:inline">
+        <button class="btn danger">Delete</button>
+      </form>
+    </td>
+</tr>
+<% }) %>
+</tbody></table>
+<%- include('partials/foot') %>

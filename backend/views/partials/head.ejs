@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title><%= typeof title !== 'undefined' ? title : 'TheDeep CleanerZ Admin' %></title>
+<link rel="stylesheet" href="/styles.css" />
+</head><body>
+<% if (typeof user !== 'undefined' && user) { %>
+<aside class="sidebar">
+  <div class="brand"><span class="dot"></span> TheDeep CleanerZ <small>Admin</small></div>
+  <nav>
+    <a href="/" class="<%= nav==='dashboard'?'active':'' %>">Dashboard</a>
+    <a href="/categories" class="<%= nav==='categories'?'active':'' %>">Categories</a>
+    <a href="/services" class="<%= nav==='services'?'active':'' %>">Services</a>
+    <a href="/bookings" class="<%= nav==='bookings'?'active':'' %>">Bookings</a>
+  </nav>
+  <form action="/logout" method="POST" class="logout"><button>Logout (<%= user.username %>)</button></form>
+</aside>
+<% } %>
+<main class="<%= (typeof user !== 'undefined' && user) ? 'with-sidebar' : '' %>">
+<% if (typeof flash !== 'undefined') { %>
+  <% if (flash.success && flash.success.length) { %><div class="flash success"><%= flash.success[0] %></div><% } %>
+  <% if (flash.error && flash.error.length) { %><div class="flash error"><%= flash.error[0] %></div><% } %>
+<% } %>

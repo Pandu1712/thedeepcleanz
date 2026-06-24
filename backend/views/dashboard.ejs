@@ -1,0 +1,17 @@
+<% const nav='dashboard'; %>
+<%- include('partials/head', { title: 'Dashboard' }) %>
+<h1>Dashboard</h1>
+<div class="stats">
+  <div class="stat"><span class="num"><%= counts.categories %></span><span>Categories</span></div>
+  <div class="stat"><span class="num"><%= counts.services %></span><span>Services</span></div>
+  <div class="stat"><span class="num"><%= counts.bookings %></span><span>Bookings</span></div>
+</div>
+<h2>Recent bookings</h2>
+<% if (!recentBookings.length) { %><p class="muted">No bookings yet.</p><% } else { %>
+<table class="table"><thead><tr><th>When</th><th>Name</th><th>Phone</th><th>Service</th></tr></thead><tbody>
+<% recentBookings.forEach(b => { %>
+  <tr><td><%= b.createdAt %></td><td><%= b.name || '—' %></td><td><%= b.phone || '—' %></td><td><%= b.serviceTitle || '—' %></td></tr>
+<% }) %>
+</tbody></table>
+<% } %>
+<%- include('partials/foot') %>

@@ -1,0 +1,20 @@
+<% const nav='bookings'; %>
+<%- include('partials/head', { title: 'Bookings' }) %>
+<h1>Bookings</h1>
+<% if (!bookings.length) { %><p class="muted">No bookings yet.</p><% } else { %>
+<table class="table"><thead><tr><th>Created</th><th>Name</th><th>Phone</th><th>Service</th><th>Date</th><th>Slot</th><th>Total</th><th></th></tr></thead><tbody>
+<% bookings.forEach(b => { %>
+  <tr>
+    <td><%= b.createdAt %></td>
+    <td><%= b.name || '—' %></td>
+    <td><%= b.phone || '—' %></td>
+    <td><%= b.serviceTitle || '—' %></td>
+    <td><%= b.date || '—' %></td>
+    <td><%= b.slot || '—' %></td>
+    <td><%= b.total != null ? '₹'+b.total : '—' %></td>
+    <td><form method="POST" action="/bookings/<%= b.id %>?_method=DELETE" onsubmit="return confirm('Delete booking?')"><button class="btn danger">Delete</button></form></td>
+  </tr>
+<% }) %>
+</tbody></table>
+<% } %>
+<%- include('partials/foot') %>
