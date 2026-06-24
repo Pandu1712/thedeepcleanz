@@ -2,7 +2,9 @@
 // Configure the base URL via VITE_ADMIN_API_URL (defaults to http://localhost:4000).
 export const ADMIN_API_URL =
   (import.meta.env.VITE_ADMIN_API_URL as string | undefined)?.replace(/\/$/, "") ||
-  "http://localhost:4000";
+  (typeof window !== "undefined" && !window.location.hostname.includes("localhost") && !window.location.hostname.includes("127.0.0.1")
+    ? window.location.origin
+    : "http://localhost:4000");
 
 export type AdminCategory = { id: string; title: string; tagline: string; emoji: string };
 export type AdminService = {
