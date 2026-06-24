@@ -326,15 +326,23 @@ app.delete('/api/services/:id', async (req, res) => {
   }
 });
 
+const urlHelper = require('url');
 // Load the TanStack Start server handler
 const frontendServerPath = path.join(__dirname, '../../frontend/dist/server/server.js');
 let startHandler;
-if (fs.existsSync(frontendServerPath)) {
-  try {
-    const handlerModule = require(frontendServerPath);
-    startHandler = handlerModule.default || handlerModule;
-  } catch (err) {
-    console.error('Failed to load TanStack Start server handler:', err);
+
+async function loadFrontendHandler() {
+  if (fs.existsSync(frontendServerPath)) {
+    try {
+      const fileUrl = urlHelper.pathToFileURL(frontendServerPath).href;
+      const handlerModule = await import(fileUrl);
+      startHandler = handlerModule.default || handlerModule;
+      console.log('Successfully loaded TanStack Start server handler.');
+    } catch (err) {
+      console.error('Failed to load TanStack Start server handler:', err);
+    }
+  } else {
+    console.warn('TanStack Start server entry not found at:', frontendServerPath);
   }
 }
 
@@ -398,7 +406,8 @@ app.all('*', async (req, res, next) => {
   }
 });
 
-db.initDb().then(() => {
+db.initDb().then(async () => {
+  await loadFrontendHandler();
   app.listen(PORT, () => {
     console.log(`\n  TheDeep CleanerZ Admin running → http://localhost:${PORT}\n  Login: ${process.env.ADMIN_USERNAME || 'admin'} / admin123 (default)\n`);
   });
