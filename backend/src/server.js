@@ -1,5 +1,6 @@
 require('dotenv').config();
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const session = require('express-session');
 const flash = require('connect-flash');
@@ -24,6 +25,7 @@ app.use((req, res, next) => {
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
 app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(__dirname, '../../frontend/dist/client')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride('_method'));
@@ -47,7 +49,7 @@ function requireAuth(req, res, next) {
 
 // ===== Auth =====
 app.get('/login', (req, res) => {
-  if (req.session.user) return res.redirect('/');
+  if (req.session.user) return res.redirect('/admin-dashboard');
   res.render('login');
 });
 app.post('/login', async (req, res) => {
@@ -60,12 +62,12 @@ app.post('/login', async (req, res) => {
   }
   req.session.user = { username };
   req.flash('success', 'Welcome back!');
-  res.redirect('/');
+  res.redirect('/admin-dashboard');
 });
 app.post('/logout', (req, res) => req.session.destroy(() => res.redirect('/login')));
 
 // ===== Dashboard =====
-app.get('/', requireAuth, async (req, res) => {
+app.get('/admin-dashboard', requireAuth, async (req, res) => {
   try {
     const categories = await db.getCategories();
     const services = await db.getServices();
@@ -321,6 +323,78 @@ app.delete('/api/services/:id', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Load the TanStack Start server handler
+const frontendServerPath = path.join(__dirname, '../../frontend/dist/server/server.js');
+let startHandler;
+if (fs.existsSync(frontendServerPath)) {
+  try {
+    const handlerModule = require(frontendServerPath);
+    startHandler = handlerModule.default || handlerModule;
+  } catch (err) {
+    console.error('Failed to load TanStack Start server handler:', err);
+  }
+}
+
+// Fallback all non-API, non-admin routes to TanStack Start SSR
+app.all('*', async (req, res, next) => {
+  if (
+    req.path.startsWith('/api') || 
+    req.path.startsWith('/login') || 
+    req.path.startsWith('/logout') || 
+    req.path.startsWith('/categories') || 
+    req.path.startsWith('/services') || 
+    req.path.startsWith('/bookings') || 
+    req.path.startsWith('/admin-dashboard')
+  ) {
+    return next();
+  }
+
+  if (!startHandler) {
+    return res.status(503).send('Frontend is building or not loaded yet. Please refresh in a moment.');
+  }
+
+  try {
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const url = `${protocol}://${host}${req.originalUrl}`;
+    
+    const headers = new Headers();
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (value) {
+        if (Array.isArray(value)) {
+          value.forEach(v => headers.append(key, v));
+        } else {
+          headers.set(key, value);
+        }
+      }
+    }
+
+    const requestOptions = {
+      method: req.method,
+      headers,
+    };
+
+    if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
+      requestOptions.body = typeof req.body === 'object' ? JSON.stringify(req.body) : req.body;
+    }
+
+    const webReq = new Request(url, requestOptions);
+    const webRes = await startHandler.fetch(webReq);
+
+    res.status(webRes.status);
+    
+    webRes.headers.forEach((value, key) => {
+      res.setHeader(key, value);
+    });
+
+    const bodyText = await webRes.text();
+    res.send(bodyText);
+  } catch (err) {
+    console.error('Error in TanStack Start SSR handler:', err);
+    res.status(500).send('SSR Render Error');
   }
 });
 
