@@ -9,7 +9,7 @@ import {
   Hotel, Refrigerator, Layers, BedDouble, Square, Droplets,
   Wind, Lock, Edit3, Save, Search, Heart, ArrowUp,
   MessageCircle, RefreshCw, LogOut, LayoutDashboard,
-  Check, ArrowLeft,
+  Check, ArrowLeft, Menu,
 } from "lucide-react";
 
 import {
@@ -37,77 +37,34 @@ const EMOJI_OPTIONS = ["🏠", "🛋️", "🏢", "🏨", "🧹", "✨", "🛁",
 function AdminDashboardRoute() {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
 
   // Check session storage on mount
   useEffect(() => {
     const authed = sessionStorage.getItem("admin_authenticated") === "true";
     if (authed) {
       setIsAuthenticated(true);
-    }
-  }, []);
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      sessionStorage.setItem("admin_authenticated", "true");
-      toast.success("Welcome back, Administrator!", { icon: "👑" });
-      setLoginError("");
     } else {
-      setLoginError("Invalid password. Please try again.");
+      // Redirect to the unified login page
+      navigate({ to: "/login" });
+      toast.error("Please login as an administrator first.", { icon: "🔒" });
     }
-  };
+  }, [navigate]);
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     sessionStorage.removeItem("admin_authenticated");
+    sessionStorage.removeItem("user_email");
+    sessionStorage.removeItem("user_authenticated");
     toast.success("Logged out successfully.");
+    navigate({ to: "/" });
   };
 
   if (!isAuthenticated) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4 font-sans">
-        <div className="relative w-full max-w-md overflow-hidden rounded-3xl bg-slate-800 p-8 shadow-2xl border border-slate-700 text-white animate-fade-up">
-          <div className="flex flex-col items-center text-center">
-            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 shadow-lg shadow-rose-500/30">
-              <Lock className="h-7 w-7 text-white" />
-            </div>
-            <h2 className="mt-5 font-display text-2xl font-bold tracking-tight">TheDeep CleanerZ</h2>
-            <p className="mt-1 text-sm text-slate-400">Security Portal · Premium Admin</p>
-          </div>
-
-          <form onSubmit={handleLogin} className="mt-8 space-y-5">
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3.5 text-sm text-white placeholder:text-slate-600 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-all"
-              />
-              {loginError && <p className="mt-2 text-xs text-rose-500">{loginError}</p>}
-            </div>
-
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 py-3.5 text-sm font-semibold text-white shadow-lg shadow-rose-500/20 hover:from-rose-600 hover:to-rose-700 active:scale-[0.98] transition-all"
-            >
-              Sign In to Console
-            </button>
-          </form>
-
-          <div className="mt-6 flex items-center justify-between text-xs text-slate-500">
-            <button
-              onClick={() => navigate({ to: "/" })}
-              className="flex items-center gap-1 hover:text-slate-300 transition-colors"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" /> Back to Website
-            </button>
-            <span>Password: <code className="font-mono font-bold text-slate-400">admin123</code></span>
-          </div>
+      <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4 font-sans text-white">
+        <div className="flex flex-col items-center text-center">
+          <span className="h-10 w-10 animate-spin rounded-full border-4 border-gold border-t-transparent mb-4" />
+          <p className="text-sm text-slate-400">Verifying administrator credentials...</p>
         </div>
       </div>
     );
@@ -124,6 +81,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [syncTime, setSyncTime] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Database states
   const [categories, setCategories] = useState<AdminCategory[]>([]);
@@ -350,10 +308,22 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   }, [bookings, searchQuery]);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans text-slate-800">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans text-slate-800 relative">
       
+      {/* Backdrop overlay for mobile sidebar */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* SIDEBAR - Styled like the reference photo (pink/rose brand sidebar) */}
-      <aside className="flex h-full w-64 flex-col bg-gradient-to-b from-[#d91b5c] to-[#b01047] text-white">
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-gradient-to-b from-[#d91b5c] to-[#b01047] text-white transition-transform duration-300 md:relative md:translate-x-0 ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
         
         {/* Brand Logo Header */}
         <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
@@ -384,7 +354,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
         <nav className="flex-1 space-y-1 px-3">
           
           <button
-            onClick={() => setActiveTab("dashboard")}
+            onClick={() => { setActiveTab("dashboard"); setIsSidebarOpen(false); }}
             className={`flex w-full items-center gap-3.5 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
               activeTab === "dashboard" ? "bg-white text-[#d91b5c] shadow-md" : "text-white/80 hover:bg-white/10 hover:text-white"
             }`}
@@ -394,7 +364,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           </button>
 
           <button
-            onClick={() => setActiveTab("categories")}
+            onClick={() => { setActiveTab("categories"); setIsSidebarOpen(false); }}
             className={`flex w-full items-center gap-3.5 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
               activeTab === "categories" ? "bg-white text-[#d91b5c] shadow-md" : "text-white/80 hover:bg-white/10 hover:text-white"
             }`}
@@ -404,7 +374,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           </button>
 
           <button
-            onClick={() => setActiveTab("services")}
+            onClick={() => { setActiveTab("services"); setIsSidebarOpen(false); }}
             className={`flex w-full items-center gap-3.5 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
               activeTab === "services" ? "bg-white text-[#d91b5c] shadow-md" : "text-white/80 hover:bg-white/10 hover:text-white"
             }`}
@@ -414,7 +384,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           </button>
 
           <button
-            onClick={() => setActiveTab("bookings")}
+            onClick={() => { setActiveTab("bookings"); setIsSidebarOpen(false); }}
             className={`flex w-full items-center gap-3.5 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
               activeTab === "bookings" ? "bg-white text-[#d91b5c] shadow-md" : "text-white/80 hover:bg-white/10 hover:text-white"
             }`}
@@ -436,7 +406,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           </div>
 
           <button
-            onClick={triggerAddCategory}
+            onClick={() => { triggerAddCategory(); setIsSidebarOpen(false); }}
             className="flex w-full items-center gap-3.5 rounded-xl px-4 py-2.5 text-xs font-semibold text-white/70 hover:bg-white/5 hover:text-white transition-all"
           >
             <Plus className="h-4 w-4" />
@@ -444,7 +414,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           </button>
 
           <button
-            onClick={triggerAddService}
+            onClick={() => { triggerAddService(); setIsSidebarOpen(false); }}
             className="flex w-full items-center gap-3.5 rounded-xl px-4 py-2.5 text-xs font-semibold text-white/70 hover:bg-white/5 hover:text-white transition-all"
           >
             <Plus className="h-4 w-4" />
@@ -452,7 +422,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           </button>
 
           <button
-            onClick={() => navigate({ to: "/" })}
+            onClick={() => { navigate({ to: "/" }); setIsSidebarOpen(false); }}
             className="flex w-full items-center gap-3.5 rounded-xl px-4 py-2.5 text-xs font-semibold text-white/70 hover:bg-white/5 hover:text-white transition-all"
           >
             <HomeIcon className="h-4 w-4" />
@@ -485,6 +455,13 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           
           {/* Active Tab Label */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 -ml-2 mr-2 rounded-lg text-slate-500 hover:bg-slate-100 md:hidden"
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
             <span className="text-sm font-semibold text-slate-400">Admin</span>
             <span className="text-sm font-semibold text-slate-300">/</span>
             <h1 className="text-sm font-bold text-slate-800 capitalize">{activeTab}</h1>

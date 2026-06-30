@@ -70,26 +70,149 @@ async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    // Seed default data if categories table is empty
+    // Seed default data if categories table is empty or has old demo seed records
     const cats = await query('SELECT COUNT(*) as count FROM categories');
-    if (cats[0].count === 0) {
+    const hasOldSeed = cats[0].count > 0 && (await query("SELECT id FROM categories WHERE id = 'cat-1'")).length > 0;
+    
+    if (cats[0].count === 0 || hasOldSeed) {
+      if (hasOldSeed) {
+        console.log('Old demo seed detected. Clearing tables for new unified database catalog...');
+        await query('SET FOREIGN_KEY_CHECKS = 0');
+        await query('TRUNCATE TABLE services');
+        await query('TRUNCATE TABLE categories');
+        await query('SET FOREIGN_KEY_CHECKS = 1');
+      }
       console.log('Seeding default database records into MySQL...');
       const defaultData = {
         categories: [
-          { id: "cat-1", title: "Deep House Cleaning", tagline: "Complete home sanitization and dust-mite treatment", emoji: "🏠" },
-          { id: "cat-2", title: "Kitchen Premium Degreasing", tagline: "Intense sanitization of chimneys, cabinets, and appliances", emoji: "🍳" },
-          { id: "cat-3", title: "Sofa & Upholstery Care", tagline: "Hot-water injection-extraction allergen removal", emoji: "🛋️" },
-          { id: "cat-4", title: "Office & Commercial", tagline: "Clinical sanitization layouts for premium work zones", emoji: "🏢" }
+          { id: "full-house", title: "Full House Deep Cleaning", tagline: "Top-to-bottom premium clean for the entire home", emoji: "🏠" },
+          { id: "customized", title: "Customized Cleaning Package", tagline: "Pick exactly what you need — room by room", emoji: "🛋️" },
+          { id: "commercial", title: "Commercial Post Interior Cleaning", tagline: "Office, hotel & post-construction expertise", emoji: "🏢" }
         ],
         services: [
-          { id: "svc-1", categoryId: "cat-1", title: "Home Deep Cleaning", price: 5999, description: "Hospital-grade deep cleaning of all rooms, bathrooms, balconies. Dusting, HEPA vacuuming, floor machine scrubbing, and sanitization of touchpoints.", includes: ["3 Cleaners", "Eco-friendly biological agents", "All rooms, kitchens & bathrooms included"] },
-          { id: "svc-2", categoryId: "cat-2", title: "Kitchen Sanitization", price: 2999, description: "Intense kitchen degreasing. Deep cleaning of chimney vents, cabinets (inside-out), countertops, wall tiles, sinks, and external appliances.", includes: ["2 Cleaners", "Advanced eco-degreasers", "Chimney baffle filter deep clean"] },
-          { id: "svc-3", categoryId: "cat-3", title: "Luxury Sofa Deep Clean", price: 1499, description: "Dry vacuuming followed by wet extraction shampooing. Removes allergens, stains, dust-mites, and odor from fabric or leather upholstery.", includes: ["1 Specialist", "Kärcher injection-extraction machine", "Fabric sanitization enzyme solution"] },
-          { id: "svc-4", categoryId: "cat-3", title: "Royal Carpet Steam Clean", price: 1999, description: "Steam cleaning and hot water extraction for premium carpets. Restores pile texture, removes deep-seated sand, grit, and dust mites.", includes: ["1 Specialist", "Steam injection", "Eco-friendly shampoo"] },
-          { id: "svc-5", categoryId: "cat-1", title: "Premium Bathroom Sanitization", price: 1299, description: "Acid-free scrub cleaning of wall tiles, floors, WC, shower area, mirrors. Full sanitization of fixtures and exhaust fans.", includes: ["1 Specialist", "Hospital-grade disinfectants", "Limescale removal"] }
+          {
+            id: "house",
+            categoryId: "full-house",
+            title: "Full House Cleaning",
+            price: 1999,
+            description: "Complete top-to-bottom deep clean for every room.",
+            includes: ["All rooms HEPA vacuuming", "Floor machine scrubbing", "Window glass polishing", "Kitchen sanitization", "Bathroom deep cleaning"]
+          },
+          {
+            id: "kitchen",
+            categoryId: "full-house",
+            title: "Kitchen Deep Cleaning",
+            price: 999,
+            description: "Intense kitchen degreasing and tile scrubbing.",
+            includes: ["Chimney baffle filters", "Cabinet cleaning inside-out", "Countertop degreasing", "Limescale & oil removal"]
+          },
+          {
+            id: "bath",
+            categoryId: "full-house",
+            title: "Bathroom Cleaning",
+            price: 599,
+            description: "Scrubbing and sanitization of tiles and fixtures.",
+            includes: ["Limescale removal", "WC & washbasin scrub", "Mirror polishing", "Floor deep scrub"]
+          },
+          {
+            id: "sofa",
+            categoryId: "customized",
+            title: "Sofa Cleaning",
+            price: 499,
+            description: "Vacuuming and injection-extraction stain removal.",
+            includes: ["Allergen extraction", "Stain spot removal", "Eco-shampoo scrub", "Fabric odor control"]
+          },
+          {
+            id: "furniture",
+            categoryId: "customized",
+            title: "Furniture Cleaning",
+            price: 699,
+            description: "Polishing and vacuuming of wood & fabric furniture.",
+            includes: ["Wood conditioning", "Fabric vacuuming", "Leather protection", "Glass desk clean"]
+          },
+          {
+            id: "interior",
+            categoryId: "full-house",
+            title: "Interior Cleaning",
+            price: 1499,
+            description: "Scrubbing wall tiles, fans, light fixtures.",
+            includes: ["Ceiling fan clean", "Cobweb removal", "Switchboard wipe", "Window frame dusting"]
+          },
+          {
+            id: "balcony",
+            categoryId: "customized",
+            title: "Balcony Cleaning",
+            price: 499,
+            description: "High-pressure wash & tile scrubbing.",
+            includes: ["Pressure wash floor", "Grill dusting & wipe", "Drain clearance", "Glass door cleaning"]
+          },
+          {
+            id: "office",
+            categoryId: "commercial",
+            title: "Office Cleaning",
+            price: 2499,
+            description: "Sanitization of workspaces, carpets & pantries.",
+            includes: ["Workstation sanitization", "Carpet HEPA vacuum", "Pantry deep clean", "Trash clearance"]
+          },
+          {
+            id: "hotel",
+            categoryId: "commercial",
+            title: "Hotel Cleaning",
+            price: 2999,
+            description: "Premium sanitization for rooms & lobbies.",
+            includes: ["Room sanitization", "Lobby marble polish", "Restroom deep scrub", "Upholstery care"]
+          },
+          {
+            id: "fridge",
+            categoryId: "customized",
+            title: "Refrigerator Cleaning",
+            price: 499,
+            description: "Stain and odor removal, tray sanitization.",
+            includes: ["Defrost & interior wipe", "Tray & rack scrub", "Gasket disinfection", "Deodorization"]
+          },
+          {
+            id: "carpet",
+            categoryId: "customized",
+            title: "Carpet Cleaning",
+            price: 599,
+            description: "Deep extraction shampooing of carpets.",
+            includes: ["Deep soil extraction", "Stain pre-treatment", "Shampoo wash", "Fiber restoration"]
+          },
+          {
+            id: "mattress",
+            categoryId: "customized",
+            title: "Mattress Cleaning",
+            price: 599,
+            description: "Allergen extraction & stain treatment.",
+            includes: ["Dust-mite removal", "UV sanitization", "Liquid spill treatment", "Odor neutralizer"]
+          },
+          {
+            id: "glass",
+            categoryId: "customized",
+            title: "Glass Cleaning",
+            price: 499,
+            description: "Window, facade and mirror polishing.",
+            includes: ["Squeegee streak-free", "Frame dust & wipe", "Tough stain scrape", "Sealant check"]
+          },
+          {
+            id: "floor",
+            categoryId: "full-house",
+            title: "Floor Scrubbing",
+            price: 799,
+            description: "Machine scrubbing and polishing of floors.",
+            includes: ["Single-disc scrubbing", "Grout cleaning", "Stone restoration", "Glossy finish polish"]
+          },
+          {
+            id: "tank",
+            categoryId: "full-house",
+            title: "Water Tank Cleaning",
+            price: 1499,
+            description: "Drainage, scrubbing and UV sterilization.",
+            includes: ["Sludge drainage", "Manual scrub walls", "High-pressure spray", "UV sanitization"]
+          }
         ]
       };
-
+ 
       for (const c of defaultData.categories) {
         await query('INSERT INTO categories (id, title, tagline, emoji) VALUES (?, ?, ?, ?)', [c.id, c.title, c.tagline, c.emoji]);
       }

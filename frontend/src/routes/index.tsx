@@ -42,7 +42,41 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type Service = {
+const SERVICE_ICONS: Record<string, any> = {
+  house: HomeIcon,
+  kitchen: ChefHat,
+  bath: Bath,
+  sofa: Sofa,
+  furniture: Armchair,
+  interior: Sparkles,
+  balcony: Building2,
+  office: Building2,
+  hotel: Hotel,
+  fridge: Refrigerator,
+  carpet: Layers,
+  mattress: BedDouble,
+  glass: Square,
+  floor: Droplets,
+  tank: Droplets,
+};
+
+function getServiceIcon(id: string) {
+  return SERVICE_ICONS[id] || Wrench;
+}
+
+function getInclusionIcon(name: string) {
+  const norm = name.toLowerCase();
+  if (norm.includes("vacuum") || norm.includes("dust") || norm.includes("exhaust") || norm.includes("fan")) return Wind;
+  if (norm.includes("scrub") || norm.includes("wash") || norm.includes("mop") || norm.includes("polish") || norm.includes("limescale") || norm.includes("water") || norm.includes("drain") || norm.includes("sediment")) return Droplets;
+  if (norm.includes("sanit") || norm.includes("disinfect") || norm.includes("protect") || norm.includes("shield")) return Shield;
+  if (norm.includes("eco") || norm.includes("biological")) return Leaf;
+  if (norm.includes("chimney") || norm.includes("stove") || norm.includes("cabinet") || norm.includes("fridge") || norm.includes("refrigerator") || norm.includes("tray") || norm.includes("rack")) return ChefHat;
+  if (norm.includes("clock") || norm.includes("hour") || norm.includes("day")) return Clock;
+  if (norm.includes("wood") || norm.includes("leather") || norm.includes("upholstery") || norm.includes("sofa") || norm.includes("furniture") || norm.includes("chair")) return Sofa;
+  return BadgeCheck;
+}
+
+type StaticService = {
   id: string;
   title: string;
   desc: string;
@@ -52,7 +86,7 @@ type Service = {
   sub: { name: string; icon: typeof HomeIcon }[];
 };
 
-const SERVICES: Service[] = [
+const SERVICES: StaticService[] = [
   { id: "house", title: "Full House Cleaning", desc: "Complete top-to-bottom deep clean for every room.", price: 1999, img: imgHouse, Icon: HomeIcon,
     sub: [
       { name: "Bedroom Cleaning", icon: BedDouble },
@@ -192,6 +226,7 @@ const SERVICES: Service[] = [
 
 type CatService = { id: string; title: string; desc: string; price: number; img: string; sub: string[] };
 type Category = { id: string; title: string; tagline: string; emoji: string; services: CatService[] };
+type Service = CatService;
 
 const toCatService = (id: string): CatService => {
   const s = SERVICES.find((x) => x.id === id)!;
@@ -261,6 +296,15 @@ function Index() {
   const [search, setSearch] = useState("");
   const [favs, setFavs] = useState<string[]>([]);
   const [showTop, setShowTop] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("user_email");
+    sessionStorage.removeItem("user_authenticated");
+    sessionStorage.removeItem("admin_authenticated");
+    setUserEmail(null);
+    toast.success("Logged out successfully", { icon: "👋" });
+  };
 
   useEffect(() => {
     try {
@@ -268,6 +312,8 @@ function Index() {
       if (raw) setCategories(JSON.parse(raw));
       const f = localStorage.getItem("thedeepcleanerz_favs_v1");
       if (f) setFavs(JSON.parse(f));
+      const email = sessionStorage.getItem("user_email");
+      if (email) setUserEmail(email);
     } catch { /* ignore */ }
   }, []);
   useEffect(() => {
@@ -277,6 +323,43 @@ function Index() {
     const onScroll = () => setShowTop(window.scrollY > 600);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const [activeHash, setActiveHash] = useState("#home");
+
+  useEffect(() => {
+    if (window.location.hash) {
+      setActiveHash(window.location.hash);
+    }
+
+    const sections = ["home", "categories", "reviews", "contact"];
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveHash(`#${entry.target.id}`);
+          }
+        });
+      },
+      { threshold: 0.35, rootMargin: "-80px 0px -40% 0px" }
+    );
+
+    sections.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    const handleHashChange = () => {
+      if (window.location.hash) {
+        setActiveHash(window.location.hash);
+      }
+    };
+    window.addEventListener("hashchange", handleHashChange);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("hashchange", handleHashChange);
+    };
   }, []);
 
   // Sync categories + services live from the admin API. Falls back silently to
@@ -327,15 +410,24 @@ function Index() {
   const cartCount = useMemo(() => cart.reduce((n, i) => n + i.qty, 0), [cart]);
   const cartTotal = useMemo(() => cart.reduce((n, i) => n + i.qty * i.price, 0), [cart]);
 
+  const allServices = useMemo(() => {
+    return categories.flatMap((c) =>
+      c.services.map((s) => ({
+        ...s,
+        Icon: getServiceIcon(s.id),
+      }))
+    );
+  }, [categories]);
+
   const filteredServices = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return SERVICES;
-    return SERVICES.filter((s) =>
+    if (!q) return allServices;
+    return allServices.filter((s) =>
       s.title.toLowerCase().includes(q) ||
       s.desc.toLowerCase().includes(q) ||
-      s.sub.some((x) => x.name.toLowerCase().includes(q))
+      s.sub.some((x) => x.toLowerCase().includes(q))
     );
-  }, [search]);
+  }, [allServices, search]);
 
   const addToCart = (s: Service) => {
     setCart((c) => {
@@ -394,12 +486,17 @@ function Index() {
           </a>
 
           <nav className="hidden items-center gap-8 lg:flex">
-            {navLinks.map((l) => (
-              <a key={l.href} href={l.href}
-                 className="relative text-sm font-medium text-cream/80 transition-colors hover:text-gold after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:w-0 after:bg-gold after:transition-all hover:after:w-full">
-                {l.label}
-              </a>
-            ))}
+            {navLinks.map((l) => {
+              const isActive = activeHash === l.href;
+              return (
+                <a key={l.href} href={l.href}
+                   className={`relative text-sm font-medium transition-colors ${
+                     isActive ? "text-gold after:w-full" : "text-cream/80 hover:text-gold after:w-0"
+                   } after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:bg-gold after:transition-all hover:after:w-full`}>
+                  {l.label}
+                </a>
+              );
+            })}
           </nav>
 
           <div className="flex items-center gap-2">
@@ -420,15 +517,22 @@ function Index() {
                 </span>
               )}
             </button>
-            <Link to="/admin" aria-label="Admin"
-              title="Admin"
-              className="hidden h-10 w-10 place-items-center rounded-full border border-gold/30 text-cream transition-colors hover:bg-gold hover:text-navy md:grid">
-              <Lock className="h-4 w-4" />
-            </Link>
-            <button onClick={() => setAuthOpen(true)}
-              className="hidden rounded-full gradient-gold px-5 py-2.5 text-sm font-semibold text-navy shadow-gold transition-transform hover:scale-105 md:inline-flex">
-              Register / Login
-            </button>
+            {userEmail ? (
+              <div className="hidden items-center gap-3.5 md:flex">
+                <span className="text-sm font-medium text-cream bg-gold/10 px-3 py-1.5 rounded-full border border-gold/20">
+                  Hi, {userEmail.split('@')[0]}
+                </span>
+                <button onClick={handleLogout}
+                  className="rounded-full bg-red-500/10 border border-red-500/30 px-4 py-2 text-xs font-semibold text-red-200 transition-colors hover:bg-red-500 hover:text-white cursor-pointer">
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <Link to="/login"
+                className="hidden rounded-full gradient-gold px-5 py-2.5 text-sm font-semibold text-navy shadow-gold transition-transform hover:scale-105 md:inline-flex">
+                Register / Login
+              </Link>
+            )}
             <button onClick={() => setNavOpen((v) => !v)} className="grid h-10 w-10 place-items-center rounded-full border border-gold/30 text-cream lg:hidden" aria-label="Menu">
               {navOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -437,13 +541,31 @@ function Index() {
         {navOpen && (
           <div className="border-t border-gold/20 px-5 pb-5 lg:hidden">
             <div className="flex flex-col gap-3 pt-4">
-              {navLinks.map((l) => (
-                <a key={l.href} href={l.href} onClick={() => setNavOpen(false)} className="text-cream/90 hover:text-gold">{l.label}</a>
-              ))}
-              <button onClick={() => { setAuthOpen(true); setNavOpen(false); }}
-                className="mt-2 rounded-full gradient-gold px-5 py-2.5 text-sm font-semibold text-navy">
-                Register / Login
-              </button>
+              {navLinks.map((l) => {
+                const isActive = activeHash === l.href;
+                return (
+                  <a key={l.href} href={l.href} onClick={() => setNavOpen(false)}
+                     className={`text-sm font-semibold transition-colors ${isActive ? "text-gold font-bold" : "text-cream/90 hover:text-gold"}`}>
+                    {l.label}
+                  </a>
+                );
+              })}
+              {userEmail ? (
+                <div className="flex flex-col gap-2 mt-2">
+                  <span className="text-center text-sm font-medium text-cream bg-gold/10 px-3 py-2 rounded-full border border-gold/20">
+                    Hi, {userEmail}
+                  </span>
+                  <button onClick={() => { handleLogout(); setNavOpen(false); }}
+                    className="w-full rounded-full bg-red-500/10 border border-red-500/30 py-2.5 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500 hover:text-white cursor-pointer">
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <Link to="/login" onClick={() => setNavOpen(false)}
+                  className="mt-2 rounded-full gradient-gold px-5 py-2.5 text-sm font-semibold text-navy text-center">
+                  Register / Login
+                </Link>
+              )}
             </div>
           </div>
         )}
@@ -458,7 +580,7 @@ function Index() {
         <div className="absolute -right-32 top-20 h-96 w-96 rounded-full bg-gold/20 blur-3xl" />
         <div className="absolute -left-32 bottom-0 h-96 w-96 rounded-full bg-gold/10 blur-3xl" />
 
-        <div className="relative mx-auto grid max-w-7xl gap-12 px-5 py-12 sm:py-20 lg:grid-cols-2 lg:px-8 lg:py-32">
+        <div className="relative mx-auto grid max-w-7xl gap-12 px-5 pt-6 pb-12 sm:pt-10 sm:pb-20 lg:grid-cols-2 lg:px-8 lg:pt-16 lg:pb-32">
           <div className="animate-fade-up">
             <span className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-white/5 px-4 py-1.5 text-xs uppercase tracking-[0.2em] text-gold">
               <Award className="h-3.5 w-3.5" /> India's Premium Cleaning Service
@@ -556,9 +678,9 @@ function Index() {
 
         {/* Services for selected category */}
         {activeCategory && (
-          <div id="cat-services" className="mt-14 grid gap-6 lg:grid-cols-[260px_1fr]">
+          <div id="cat-services" className="mt-14 grid gap-6 lg:grid-cols-[260px_1fr] min-w-0">
             {/* Sidebar */}
-            <aside className="h-fit rounded-3xl border border-border bg-card p-4 lg:sticky lg:top-24">
+            <aside className="h-fit rounded-3xl border border-border bg-card p-4 lg:sticky lg:top-24 min-w-0 overflow-hidden">
               <div className="px-2 pb-3 text-xs font-bold uppercase tracking-wider text-navy/70 hidden lg:block">Select a category</div>
               <ul className="flex gap-2 overflow-x-auto pb-2 scrollbar-none lg:flex-col lg:space-y-1.5 lg:pb-0">
                 {categories.map((c) => {
@@ -593,14 +715,14 @@ function Index() {
                   <article key={s.id} className="grid gap-5 rounded-2xl border border-border p-4 sm:grid-cols-[180px_1fr]">
                     <img src={s.img} alt={s.title} loading="lazy" className="h-44 w-full sm:h-full sm:max-h-44 rounded-xl object-cover" />
                     <div className="flex flex-col">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                         <div>
                           <h4 className="font-display text-lg font-bold text-navy">{s.title}</h4>
                           <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-gold">
                             <Star className="h-3.5 w-3.5 fill-current" /> 4.7 · Verified Pros
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-left sm:text-right">
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Starts At</div>
                           <div className="font-display text-xl font-bold text-navy">₹{s.price}</div>
                         </div>
@@ -908,8 +1030,6 @@ function Index() {
         </div>
       </footer>
 
-      {/* AUTH MODAL */}
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
       {/* SERVICE DETAILS MODAL */}
       <ServiceDetailModal service={detail} onClose={() => setDetail(null)} onAdd={(s) => { addToCart(s); setDetail(null); }} />
       {/* CART DRAWER */}
@@ -1055,6 +1175,7 @@ function AuthModal({ open, onClose }: { open: boolean; onClose: () => void }) {
 
 function ServiceDetailModal({ service, onClose, onAdd }: { service: Service | null; onClose: () => void; onAdd: (s: Service) => void }) {
   if (!service) return null;
+  const Icon = getServiceIcon(service.id);
   return (
     <ModalShell open onClose={onClose} maxW="max-w-3xl">
       <div className="overflow-hidden rounded-3xl">
@@ -1063,7 +1184,7 @@ function ServiceDetailModal({ service, onClose, onAdd }: { service: Service | nu
           <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/40 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-6 text-cream">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-gold px-3 py-1 text-xs font-bold text-navy">
-              <service.Icon className="h-3.5 w-3.5" /> Premium Service
+              <Icon className="h-3.5 w-3.5" /> Premium Service
             </div>
             <h3 className="mt-2 font-display text-3xl font-bold">{service.title}</h3>
             <p className="text-sm text-cream/80">{service.desc}</p>
@@ -1072,12 +1193,15 @@ function ServiceDetailModal({ service, onClose, onAdd }: { service: Service | nu
         <div className="p-7">
           <h4 className="font-display text-lg font-bold text-navy">What's included</h4>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {service.sub.map((sb) => (
-              <div key={sb.name} className="flex items-center gap-3 rounded-2xl border border-border bg-muted/50 p-3.5">
-                <div className="grid h-10 w-10 place-items-center rounded-xl gradient-gold text-navy"><sb.icon className="h-4.5 w-4.5" /></div>
-                <div className="text-sm font-semibold text-navy">{sb.name}</div>
-              </div>
-            ))}
+            {service.sub.map((sbName) => {
+              const SubIcon = getInclusionIcon(sbName);
+              return (
+                <div key={sbName} className="flex items-center gap-3 rounded-2xl border border-border bg-muted/50 p-3.5">
+                  <div className="grid h-10 w-10 place-items-center rounded-xl gradient-gold text-navy"><SubIcon className="h-4.5 w-4.5" /></div>
+                  <div className="text-sm font-semibold text-navy">{sbName}</div>
+                </div>
+              );
+            })}
           </div>
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-navy p-5 text-cream">
             <div>

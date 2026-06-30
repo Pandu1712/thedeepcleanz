@@ -47,24 +47,24 @@ function requireAuth(req, res, next) {
   return res.redirect('/login');
 }
 
-// ===== Auth =====
-app.get('/login', (req, res) => {
-  if (req.session.user) return res.redirect('/admin-dashboard');
-  res.render('login');
-});
-app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
-  const ok = username === (process.env.ADMIN_USERNAME || 'admin') &&
-    bcrypt.compareSync(password || '', process.env.ADMIN_PASSWORD_HASH || bcrypt.hashSync('admin123', 10));
-  if (!ok) {
-    req.flash('error', 'Invalid username or password.');
-    return res.redirect('/login');
-  }
-  req.session.user = { username };
-  req.flash('success', 'Welcome back!');
-  res.redirect('/admin-dashboard');
-});
-app.post('/logout', (req, res) => req.session.destroy(() => res.redirect('/login')));
+// Legacy EJS Auth routes commented out to allow TanStack Router frontend to handle /login
+// app.get('/login', (req, res) => {
+//   if (req.session.user) return res.redirect('/admin-dashboard');
+//   res.render('login');
+// });
+// app.post('/login', async (req, res) => {
+//   const { username, password } = req.body;
+//   const ok = username === (process.env.ADMIN_USERNAME || 'admin') &&
+//     bcrypt.compareSync(password || '', process.env.ADMIN_PASSWORD_HASH || bcrypt.hashSync('admin123', 10));
+//   if (!ok) {
+//     req.flash('error', 'Invalid username or password.');
+//     return res.redirect('/login');
+//   }
+//   req.session.user = { username };
+//   req.flash('success', 'Welcome back!');
+//   res.redirect('/admin-dashboard');
+// });
+// app.post('/logout', (req, res) => req.session.destroy(() => res.redirect('/login')));
 
 // ===== Dashboard =====
 app.get('/admin-dashboard', requireAuth, async (req, res) => {
@@ -350,7 +350,6 @@ async function loadFrontendHandler() {
 app.all('*', async (req, res, next) => {
   if (
     req.path.startsWith('/api') || 
-    req.path.startsWith('/login') || 
     req.path.startsWith('/logout') || 
     req.path.startsWith('/categories') || 
     req.path.startsWith('/services') || 
