@@ -33,6 +33,19 @@ export async function postAdminBooking(payload: unknown): Promise<{ ok: boolean;
   return (await res.json()) as { ok: boolean; booking?: unknown };
 }
 
+export async function createRazorpayOrder(amount: number): Promise<{ orderId: string; amount: number; keyId: string }> {
+  const res = await fetch(`${ADMIN_API_URL}/api/payment/order`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Payment order request failed: ${res.status}`);
+  }
+  return (await res.json()) as { orderId: string; amount: number; keyId: string };
+}
+
 export async function fetchBookings(): Promise<any[]> {
   const res = await fetch(`${ADMIN_API_URL}/api/bookings`);
   if (!res.ok) throw new Error(`Bookings request failed: ${res.status}`);

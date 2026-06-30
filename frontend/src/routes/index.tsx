@@ -28,7 +28,7 @@ import imgBalcony from "@/assets/service-balcony.jpg";
 import imgInterior from "@/assets/service-interior.jpg";
 import imgFurniture from "@/assets/service-furniture.jpg";
 import imgTank from "@/assets/service-tank.jpg";
-import { fetchAdminCatalog, postAdminBooking, type AdminCatalog } from "@/api/admin-api";
+import { fetchAdminCatalog, postAdminBooking, createRazorpayOrder, type AdminCatalog } from "@/api/admin-api";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -297,12 +297,15 @@ function Index() {
   const [favs, setFavs] = useState<string[]>([]);
   const [showTop, setShowTop] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<{ id: string; name: string; email: string; phone: string } | null>(null);
 
   const handleLogout = () => {
     sessionStorage.removeItem("user_email");
     sessionStorage.removeItem("user_authenticated");
     sessionStorage.removeItem("admin_authenticated");
+    sessionStorage.removeItem("user_profile");
     setUserEmail(null);
+    setUserProfile(null);
     toast.success("Logged out successfully", { icon: "👋" });
   };
 
@@ -314,6 +317,8 @@ function Index() {
       if (f) setFavs(JSON.parse(f));
       const email = sessionStorage.getItem("user_email");
       if (email) setUserEmail(email);
+      const prof = sessionStorage.getItem("user_profile");
+      if (prof) setUserProfile(JSON.parse(prof));
     } catch { /* ignore */ }
   }, []);
   useEffect(() => {
@@ -520,7 +525,7 @@ function Index() {
             {userEmail ? (
               <div className="hidden items-center gap-3.5 md:flex">
                 <span className="text-sm font-medium text-cream bg-gold/10 px-3 py-1.5 rounded-full border border-gold/20">
-                  Hi, {userEmail.split('@')[0]}
+                  Hi, {userProfile?.name || userEmail.split('@')[0]}
                 </span>
                 <button onClick={handleLogout}
                   className="rounded-full bg-red-500/10 border border-red-500/30 px-4 py-2 text-xs font-semibold text-red-200 transition-colors hover:bg-red-500 hover:text-white cursor-pointer">
@@ -553,7 +558,7 @@ function Index() {
               {userEmail ? (
                 <div className="flex flex-col gap-2 mt-2">
                   <span className="text-center text-sm font-medium text-cream bg-gold/10 px-3 py-2 rounded-full border border-gold/20">
-                    Hi, {userEmail}
+                    Hi, {userProfile?.name || userEmail.split('@')[0]}
                   </span>
                   <button onClick={() => { handleLogout(); setNavOpen(false); }}
                     className="w-full rounded-full bg-red-500/10 border border-red-500/30 py-2.5 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500 hover:text-white cursor-pointer">
@@ -580,7 +585,33 @@ function Index() {
         <div className="absolute -right-32 top-20 h-96 w-96 rounded-full bg-gold/20 blur-3xl" />
         <div className="absolute -left-32 bottom-0 h-96 w-96 rounded-full bg-gold/10 blur-3xl" />
 
-        <div className="relative mx-auto grid max-w-7xl gap-12 px-5 pt-6 pb-12 sm:pt-10 sm:pb-20 lg:grid-cols-2 lg:px-8 lg:pt-16 lg:pb-32">
+        {/* Floating Bubble/Sparkle Particles */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-10">
+          <div className="absolute bottom-0 left-[8%] h-3 w-3 rounded-full bg-white/20 blur-[1px] animate-bubble-1" style={{ animationDelay: "0s" }} />
+          <div className="absolute bottom-0 left-[25%] h-5 w-5 rounded-full bg-white/10 blur-[1px] animate-bubble-2" style={{ animationDelay: "2s" }} />
+          <div className="absolute bottom-0 left-[42%] h-4 w-4 rounded-full bg-white/15 blur-[1px] animate-bubble-3" style={{ animationDelay: "1s" }} />
+          <div className="absolute bottom-0 left-[60%] h-6 w-6 rounded-full bg-white/10 blur-[1px] animate-bubble-1" style={{ animationDelay: "4s" }} />
+          <div className="absolute bottom-0 left-[75%] h-3 w-3 rounded-full bg-white/25 blur-[1px] animate-bubble-2" style={{ animationDelay: "3s" }} />
+          <div className="absolute bottom-0 left-[90%] h-5 w-5 rounded-full bg-white/15 blur-[1px] animate-bubble-3" style={{ animationDelay: "5s" }} />
+        </div>
+
+        {/* Cleaning related premium floating icons */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-10">
+          <div className="absolute top-[18%] left-[5%] text-gold/20 animate-float-gentle">
+            <Sparkles className="h-12 w-12" />
+          </div>
+          <div className="absolute bottom-[25%] left-[45%] text-gold/15 animate-float-reverse">
+            <Droplets className="h-10 w-10" />
+          </div>
+          <div className="absolute top-[35%] right-[10%] text-gold/20 animate-float-gentle" style={{ animationDelay: "2s" }}>
+            <Wind className="h-14 w-14" />
+          </div>
+          <div className="absolute bottom-[15%] right-[45%] text-gold/10 animate-float-reverse" style={{ animationDelay: "1s" }}>
+            <Zap className="h-8 w-8" />
+          </div>
+        </div>
+
+        <div className="relative mx-auto grid max-w-7xl gap-12 px-5 pt-6 pb-8 sm:pt-10 sm:pb-12 lg:grid-cols-2 lg:px-8 lg:pt-16 lg:pb-16">
           <div className="animate-fade-up">
             <span className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-white/5 px-4 py-1.5 text-xs uppercase tracking-[0.2em] text-gold">
               <Award className="h-3.5 w-3.5" /> India's Premium Cleaning Service
@@ -620,21 +651,21 @@ function Index() {
               <img src={heroImg} alt="Luxury home deep cleaning" width={1920} height={1080} className="h-[560px] w-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-navy/60 via-transparent to-transparent" />
             </div>
-            <div className="absolute -left-8 top-10 glass rounded-2xl p-4 text-navy shadow-luxe animate-float">
+            <div className="absolute -left-8 top-10 bg-white/95 backdrop-blur-md border border-gold/45 rounded-3xl p-5 text-navy shadow-[0_20px_50px_-15px_rgba(203,177,123,0.3)] animate-float hover:scale-105 transition-transform duration-300">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl gradient-gold"><Star className="h-5 w-5 text-navy" /></div>
                 <div>
-                  <div className="text-xs text-navy/60">Average Rating</div>
-                  <div className="font-display text-xl font-bold">4.9 / 5.0</div>
+                  <div className="text-xs text-navy/60 font-semibold">Average Rating</div>
+                  <div className="font-display text-xl font-extrabold">4.9 / 5.0</div>
                 </div>
               </div>
             </div>
-            <div className="absolute -right-6 bottom-10 glass rounded-2xl p-4 text-navy shadow-luxe animate-float" style={{ animationDelay: "1.5s" }}>
+            <div className="absolute -right-6 bottom-10 bg-white/95 backdrop-blur-md border border-gold/45 rounded-3xl p-5 text-navy shadow-[0_20px_50px_-15px_rgba(203,177,123,0.3)] animate-float hover:scale-105 transition-transform duration-300" style={{ animationDelay: "1.5s" }}>
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl gradient-gold"><Users className="h-5 w-5 text-navy" /></div>
                 <div>
-                  <div className="text-xs text-navy/60">Happy Customers</div>
-                  <div className="font-display text-xl font-bold">10,000+</div>
+                  <div className="text-xs text-navy/60 font-semibold">Happy Customers</div>
+                  <div className="font-display text-xl font-extrabold">10,000+</div>
                 </div>
               </div>
             </div>
@@ -643,32 +674,36 @@ function Index() {
       </section>
 
       {/* CATEGORIES (admin-managed) */}
-      <section id="categories" className="relative mx-auto max-w-7xl px-5 py-12 md:py-20 lg:px-8">
+      <section id="categories" className="relative mx-auto max-w-7xl px-5 pt-8 pb-10 md:pt-10 md:pb-14 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <span className="inline-flex items-center gap-2 rounded-full bg-gold/15 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-navy">
             <CheckCircle2 className="h-3.5 w-3.5 text-gold" /> Your Space, Our Expertise
           </span>
           <h2 className="mt-4 font-display text-4xl font-bold text-navy md:text-5xl">Choose your category</h2>
-          <p className="mt-3 text-muted-foreground">Pick a category to see all services available under it.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Pick a category to see all services available under it.</p>
         </div>
 
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {categories.map((c) => {
             const active = c.id === selectedCat;
             return (
               <button key={c.id} onClick={() => { setSelectedCat(c.id); document.getElementById("cat-services")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
-                className={`group relative overflow-hidden rounded-3xl p-7 text-left transition-all hover-lift border-2 ${active ? "border-gold bg-gradient-to-br from-gold/15 to-cream shadow-luxe" : "border-transparent bg-card shadow-[0_8px_30px_-12px_rgb(15_23_42/0.15)]"}`}>
+                className={`group relative overflow-hidden rounded-3xl p-7 text-left transition-all hover-lift border-2 ${
+                  active 
+                    ? "border-gold bg-gradient-to-br from-gold/10 via-cream/10 to-cream/30 shadow-[0_12px_40px_-12px_rgba(203,177,123,0.35)]" 
+                    : "border-slate-100 hover:border-gold/30 bg-card shadow-[0_8px_30px_-12px_rgb(15_23_42/0.08)] hover:shadow-xl"
+                }`}>
                 <div className="flex items-start justify-between">
-                  <div className="grid h-20 w-20 place-items-center rounded-2xl bg-gold/15 text-5xl">
+                  <div className="grid h-16 w-16 place-items-center rounded-2xl bg-gold/10 text-4xl group-hover:scale-110 transition-transform duration-300">
                     <span aria-hidden>{c.emoji}</span>
                   </div>
                   <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${active ? "bg-navy text-gold" : "bg-muted text-navy"}`}>
                     {c.services.length} services
                   </span>
                 </div>
-                <h3 className="mt-5 font-display text-xl font-bold text-navy">{c.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{c.tagline}</p>
-                <div className={`mt-5 inline-flex items-center gap-1.5 text-sm font-semibold ${active ? "text-navy" : "text-gold"}`}>
+                <h3 className="mt-5 font-display text-xl font-bold text-navy group-hover:text-gold transition-colors">{c.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{c.tagline}</p>
+                <div className={`mt-5 inline-flex items-center gap-1.5 text-sm font-semibold ${active ? "text-navy" : "text-gold group-hover:translate-x-1 transition-transform"}`}>
                   {active ? "Showing below" : "View services"} <ArrowRight className="h-4 w-4" />
                 </div>
               </button>
@@ -678,7 +713,7 @@ function Index() {
 
         {/* Services for selected category */}
         {activeCategory && (
-          <div id="cat-services" className="mt-14 grid gap-6 lg:grid-cols-[260px_1fr] min-w-0">
+          <div id="cat-services" className="mt-8 grid gap-6 lg:grid-cols-[260px_1fr] min-w-0">
             {/* Sidebar */}
             <aside className="h-fit rounded-3xl border border-border bg-card p-4 lg:sticky lg:top-24 min-w-0 overflow-hidden">
               <div className="px-2 pb-3 text-xs font-bold uppercase tracking-wider text-navy/70 hidden lg:block">Select a category</div>
@@ -712,39 +747,45 @@ function Index() {
                   </div>
                 )}
                 {activeCategory.services.map((s) => (
-                  <article key={s.id} className="grid gap-5 rounded-2xl border border-border p-4 sm:grid-cols-[180px_1fr]">
-                    <img src={s.img} alt={s.title} loading="lazy" className="h-44 w-full sm:h-full sm:max-h-44 rounded-xl object-cover" />
-                    <div className="flex flex-col">
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                        <div>
-                          <h4 className="font-display text-lg font-bold text-navy">{s.title}</h4>
-                          <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-gold">
-                            <Star className="h-3.5 w-3.5 fill-current" /> 4.7 · Verified Pros
+                  <article key={s.id} className="group grid gap-5 rounded-2xl border border-slate-100 hover:border-gold/30 p-4 sm:grid-cols-[180px_1fr] transition-all duration-300 hover:shadow-[0_12px_30px_-15px_rgba(203,177,123,0.15)] bg-white">
+                    <div className="overflow-hidden rounded-xl h-44 w-full sm:h-full sm:max-h-44 bg-slate-50">
+                      <img src={s.img} alt={s.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    </div>
+                    <div className="flex flex-col justify-between">
+                      <div>
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                          <div>
+                            <h4 className="font-display text-lg font-bold text-navy group-hover:text-gold transition-colors">{s.title}</h4>
+                            <div className="mt-1.5 flex items-center gap-1">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-gold/10 px-2 py-0.5 text-3xs font-extrabold text-gold uppercase tracking-wider">
+                                <Star className="h-3 w-3 fill-current" /> 4.8 · Premium
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-left sm:text-right">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Starts At</div>
+                            <div className="font-display text-xl font-extrabold text-navy">₹{s.price}</div>
                           </div>
                         </div>
-                        <div className="text-left sm:text-right">
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Starts At</div>
-                          <div className="font-display text-xl font-bold text-navy">₹{s.price}</div>
-                        </div>
+                        <p className="mt-2.5 text-sm text-muted-foreground/90 leading-relaxed">{s.desc}</p>
+                        {s.sub.length > 0 && (
+                          <div className="mt-3">
+                            <div className="text-xs font-bold uppercase tracking-wider text-navy/70">Includes:</div>
+                            <ul className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+                              {s.sub.slice(0, 4).map((x) => (
+                                <li key={x} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-gold" /> {x}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
-                      <p className="mt-2 text-sm text-muted-foreground">{s.desc}</p>
-                      {s.sub.length > 0 && (
-                        <div className="mt-3">
-                          <div className="text-xs font-bold uppercase tracking-wider text-navy/80">Includes:</div>
-                          <ul className="mt-1.5 grid gap-1 sm:grid-cols-2">
-                            {s.sub.slice(0, 4).map((x) => (
-                              <li key={x} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                                <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-gold" /> {x}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <button onClick={() => addCatServiceToCart(s)} className="inline-flex items-center gap-1.5 rounded-full gradient-gold px-5 py-2 text-xs font-bold text-navy shadow-gold transition-transform hover:scale-105">
+                      <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t border-slate-50">
+                        <button onClick={() => addCatServiceToCart(s)} className="inline-flex items-center gap-1.5 rounded-full gradient-gold px-5 py-2.5 text-xs font-extrabold text-navy shadow-gold hover:scale-[1.03] transition-all">
                           <Plus className="h-3.5 w-3.5" /> Add to Cart
                         </button>
-                        <a href="#services" className="inline-flex items-center gap-1.5 rounded-full border border-navy/15 px-5 py-2 text-xs font-bold text-navy hover:bg-navy hover:text-cream">
+                        <a href="#services" className="inline-flex items-center gap-1.5 rounded-full border border-navy/10 hover:border-navy px-5 py-2.5 text-xs font-extrabold text-navy hover:bg-navy hover:text-cream transition-all">
                           View Details
                         </a>
                       </div>
@@ -758,11 +799,11 @@ function Index() {
       </section>
 
       {/* SERVICES */}
-      <section id="services" className="mx-auto max-w-7xl px-5 py-12 md:py-20 lg:py-24 lg:px-8">
+      <section id="services" className="mx-auto max-w-7xl px-5 py-10 md:py-14 lg:px-8">
         <SectionHeader eyebrow="Popular Services" title="Cleaning Tailored to Every Space" subtitle="Pick from our most-loved services — handled by trained, verified professionals." />
 
         {/* Search */}
-        <div className="mx-auto mt-10 flex max-w-xl items-center gap-2 rounded-full border-2 border-gold/30 bg-card px-4 py-2 shadow-luxe focus-within:border-gold">
+        <div className="mx-auto mt-6 flex max-w-xl items-center gap-2 rounded-full border-2 border-gold/30 bg-card px-4 py-2 shadow-luxe focus-within:border-gold">
           <Search className="h-4.5 w-4.5 text-navy/50" />
           <input
             value={search}
@@ -780,7 +821,7 @@ function Index() {
           Showing <span className="font-bold text-navy">{filteredServices.length}</span> of {SERVICES.length} services
         </div>
 
-        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredServices.map((s) => {
             const isFav = favs.includes(s.id);
             return (
@@ -824,10 +865,10 @@ function Index() {
       </section>
 
       {/* WHY CHOOSE US */}
-      <section id="about" className="bg-muted/40 py-12 md:py-20 lg:py-24">
+      <section id="about" className="bg-muted/40 py-10 md:py-14">
         <div className="mx-auto max-w-7xl px-5 lg:px-8">
           <SectionHeader eyebrow="Why Choose Us" title="Trusted by Thousands for a Reason" subtitle="Every booking is backed by training, technology and a satisfaction promise." />
-          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {[
               { i: Shield, t: "Verified Staff", d: "Background-checked, trained and uniformed professionals." },
               { i: Leaf, t: "Eco Friendly Products", d: "Plant-based, child-safe and pet-safe cleaning agents." },
@@ -849,9 +890,9 @@ function Index() {
       </section>
 
       {/* PROCESS */}
-      <section className="mx-auto max-w-7xl px-5 py-12 md:py-20 lg:py-24 lg:px-8">
+      <section className="mx-auto max-w-7xl px-5 py-10 md:py-14 lg:px-8">
         <SectionHeader eyebrow="How It Works" title="Four Simple Steps to a Spotless Space" />
-        <div className="relative mt-14 grid gap-6 md:grid-cols-4">
+        <div className="relative mt-8 grid gap-6 md:grid-cols-4">
           <div className="absolute left-0 right-0 top-8 hidden h-px bg-gradient-to-r from-transparent via-gold/50 to-transparent md:block" />
           {[
             { n: "01", t: "Select Service", d: "Browse and add to cart.", i: Sparkles },
@@ -872,10 +913,10 @@ function Index() {
       </section>
 
       {/* RECENT WORKS */}
-      <section className="bg-muted/40 py-12 md:py-20 lg:py-24">
+      <section className="bg-muted/40 py-10 md:py-14">
         <div className="mx-auto max-w-7xl px-5 lg:px-8">
           <SectionHeader eyebrow="Recent Services" title="Recently Completed Transformations" />
-          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
               { t: "Villa Deep Cleaning", l: "Bandra, Mumbai", img: imgHouse },
               { t: "Apartment Cleaning", l: "HSR Layout, Bengaluru", img: imgInterior },
@@ -899,7 +940,7 @@ function Index() {
       </section>
 
       {/* STATS */}
-      <section className="gradient-premium relative overflow-hidden py-12 md:py-16 lg:py-20 text-cream noise-overlay">
+      <section className="gradient-premium relative overflow-hidden py-10 md:py-12 text-cream noise-overlay">
         <div className="absolute -left-32 top-0 h-72 w-72 rounded-full bg-gold/15 blur-3xl" />
         <div className="absolute -right-32 bottom-0 h-72 w-72 rounded-full bg-gold/10 blur-3xl" />
         <div className="relative mx-auto grid max-w-7xl gap-8 px-5 sm:grid-cols-2 lg:grid-cols-4 lg:px-8">
@@ -920,9 +961,9 @@ function Index() {
       </section>
 
       {/* REVIEWS */}
-      <section id="reviews" className="mx-auto max-w-7xl px-5 py-12 md:py-20 lg:py-24 lg:px-8">
+      <section id="reviews" className="mx-auto max-w-7xl px-5 py-10 md:py-14 lg:px-8">
         <SectionHeader eyebrow="Customer Reviews" title="Loved by Homes & Businesses" />
-        <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {[
             { n: "Priya Sharma", c: "P", q: "The team cleaned my entire house perfectly. Highly recommended.", color: "from-rose-400 to-rose-600" },
             { n: "Ramesh Kumar", c: "R", q: "Kitchen and sofa cleaning service exceeded expectations.", color: "from-amber-400 to-amber-600" },
@@ -947,7 +988,7 @@ function Index() {
       </section>
 
       {/* CONTACT / CTA */}
-      <section id="contact" className="relative overflow-hidden gradient-navy py-12 md:py-20 lg:py-24 text-cream">
+      <section id="contact" className="relative overflow-hidden gradient-navy py-10 md:py-14 text-cream">
         <div className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-gold/15 blur-3xl" />
         <div className="mx-auto grid max-w-7xl gap-12 px-5 lg:grid-cols-2 lg:px-8">
           <div>
@@ -1300,19 +1341,50 @@ function CartDrawer({ open, onClose, cart, total, updateQty, removeItem, onCheck
 
 
 
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if ((window as any).Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 function BookingModal({ open, onClose, cart, total, onConfirm }: {
   open: boolean; onClose: () => void; cart: CartItem[]; total: number; onConfirm: () => void;
 }) {
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ name: "", phone: "", address: "", city: "Bengaluru", pincode: "", date: "", time: "10:00", notes: "", coupon: "" });
+  const [form, setForm] = useState({ name: "", phone: "", address: "", landmark: "", mapsLink: "", city: "Bengaluru", pincode: "", date: "", time: "10:00", notes: "", coupon: "" });
   const [discount, setDiscount] = useState(0);
   const [success, setSuccess] = useState(false);
+  const [payMethod, setPayMethod] = useState("cod");
+  const [isPaying, setIsPaying] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setStep(1); setSuccess(false); setDiscount(0);
+      setStep(1); setSuccess(false); setDiscount(0); setPayMethod("cod"); setIsPaying(false);
       const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-      setForm((f) => ({ ...f, date: tomorrow }));
+      let initName = "";
+      let initPhone = "";
+      try {
+        const prof = sessionStorage.getItem("user_profile");
+        if (prof) {
+          const u = JSON.parse(prof);
+          initName = u.name || "";
+          initPhone = u.phone || "";
+        }
+      } catch (e) {}
+      setForm((f) => ({ 
+        ...f, 
+        name: initName || f.name, 
+        phone: initPhone || f.phone, 
+        date: tomorrow 
+      }));
     }
   }, [open]);
 
@@ -1332,20 +1404,104 @@ function BookingModal({ open, onClose, cart, total, onConfirm }: {
   const slots = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00"];
   const canStep2 = form.name.trim() && form.phone.length >= 10 && form.address.trim() && form.pincode.length >= 4;
 
-  const handleConfirm = () => {
-    // Send the booking to the admin server so it appears in /bookings.
-    // We don't block the success UI on it — admin server may be offline in demo.
-    postAdminBooking({
-      customer: { name: form.name, phone: form.phone, address: form.address, city: form.city, pincode: form.pincode },
-      schedule: { date: form.date, time: form.time },
-      notes: form.notes,
-      coupon: form.coupon || null,
-      discount,
-      total: finalTotal,
-      items: cart.map((i) => ({ id: i.id, title: i.title, price: i.price, qty: i.qty })),
-    }).catch((err) => console.warn("Admin booking POST failed:", err));
-    setSuccess(true);
-    setTimeout(() => { onConfirm(); }, 1800);
+  const handleConfirm = async () => {
+    let userId: string | null = null;
+    try {
+      const prof = sessionStorage.getItem("user_profile");
+      if (prof) {
+        const u = JSON.parse(prof);
+        userId = u.id || null;
+      }
+    } catch (e) {}
+
+    if (payMethod === "razorpay") {
+      setIsPaying(true);
+      try {
+        const loaded = await loadRazorpayScript();
+        if (!loaded) {
+          toast.error("Failed to load payment gateway script. Please check your network.");
+          setIsPaying(false);
+          return;
+        }
+
+        const orderInfo = await createRazorpayOrder(finalTotal);
+        
+        const options = {
+          key: orderInfo.keyId,
+          amount: orderInfo.amount,
+          currency: "INR",
+          name: "TheDeep CleanerZ",
+          description: "Premium Cleaning Booking",
+          order_id: orderInfo.orderId,
+          handler: async function (response: any) {
+            try {
+              await postAdminBooking({
+                customer: { name: form.name, phone: form.phone, address: form.address, landmark: form.landmark, mapsLink: form.mapsLink, city: form.city, pincode: form.pincode },
+                schedule: { date: form.date, time: form.time },
+                notes: form.notes,
+                coupon: form.coupon || null,
+                discount,
+                total: finalTotal,
+                items: cart.map((i) => ({ id: i.id, title: i.title, price: i.price, qty: i.qty })),
+                paymentStatus: "Paid",
+                paymentId: response.razorpay_payment_id,
+                userId
+              });
+              setSuccess(true);
+              setTimeout(() => { onConfirm(); }, 1800);
+            } catch (err) {
+              console.error("Booking post-payment capture failed:", err);
+              toast.error("Payment succeeded, but could not save booking. Please contact support.");
+            } finally {
+              setIsPaying(false);
+            }
+          },
+          prefill: {
+            name: form.name,
+            contact: form.phone,
+          },
+          theme: {
+            color: "#cbb17b",
+          },
+          modal: {
+            ondismiss: function() {
+              setIsPaying(false);
+            }
+          }
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.open();
+      } catch (err: any) {
+        console.error("Payment execution error:", err);
+        toast.error(err.message || "Could not initialize checkout transaction.");
+        setIsPaying(false);
+      }
+    } else {
+      setIsPaying(true);
+      try {
+        await postAdminBooking({
+          customer: { name: form.name, phone: form.phone, address: form.address, landmark: form.landmark, mapsLink: form.mapsLink, city: form.city, pincode: form.pincode },
+          schedule: { date: form.date, time: form.time },
+          notes: form.notes,
+          coupon: form.coupon || null,
+          discount,
+          total: finalTotal,
+          items: cart.map((i) => ({ id: i.id, title: i.title, price: i.price, qty: i.qty })),
+          paymentStatus: "Pending (COD)",
+          paymentId: null,
+          userId
+        });
+        setSuccess(true);
+        setTimeout(() => { onConfirm(); }, 1800);
+      } catch (err) {
+        console.warn("Admin booking POST failed:", err);
+        setSuccess(true);
+        setTimeout(() => { onConfirm(); }, 1800);
+      } finally {
+        setIsPaying(false);
+      }
+    }
   };
 
   return (
@@ -1388,6 +1544,8 @@ function BookingModal({ open, onClose, cart, total, onConfirm }: {
               <div className="sm:col-span-2">
                 <Field label="Full Address" value={form.address} onChange={(v) => setForm({ ...form, address: v })} placeholder="Flat 302, Sunshine Apartments, Indiranagar" textarea />
               </div>
+              <Field label="Landmark / Nearby Place" value={form.landmark} onChange={(v) => setForm({ ...form, landmark: v })} placeholder="e.g. Opposite Metro Station" />
+              <Field label="Google Maps Location URL (Optional)" value={form.mapsLink} onChange={(v) => setForm({ ...form, mapsLink: v })} placeholder="e.g. https://maps.app.goo.gl/..." />
               <Field label="City" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
               <Field label="Pincode" value={form.pincode} onChange={(v) => setForm({ ...form, pincode: v.replace(/\D/g, "").slice(0, 6) })} placeholder="560038" />
               <div className="sm:col-span-2">
@@ -1429,9 +1587,26 @@ function BookingModal({ open, onClose, cart, total, onConfirm }: {
                 <div>
                   <div className="text-xs font-bold uppercase tracking-wider text-navy/70">Payment Method</div>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    {[{ k: "cod", t: "Cash on Service" }, { k: "upi", t: "UPI / Card (Demo)" }].map((p, i) => (
-                      <label key={p.k} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${i === 0 ? "border-gold bg-gold/10 text-navy" : "border-border text-navy/70"}`}>
-                        <input type="radio" name="pay" defaultChecked={i === 0} className="accent-[oklch(0.78_0.13_85)]" />
+                    {[
+                      { k: "cod", t: "Cash on Service" },
+                      { k: "razorpay", t: "UPI / Cards / Netbanking (Test Mode)" }
+                    ].map((p) => (
+                      <label 
+                        key={p.k} 
+                        onClick={() => setPayMethod(p.k)}
+                        className={`flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
+                          payMethod === p.k 
+                            ? "border-gold bg-gold/10 text-navy" 
+                            : "border-border text-navy/70 hover:border-gold/40"
+                        }`}
+                      >
+                        <input 
+                          type="radio" 
+                          name="pay" 
+                          checked={payMethod === p.k}
+                          onChange={() => setPayMethod(p.k)}
+                          className="accent-[oklch(0.78_0.13_85)]" 
+                        />
                         {p.t}
                       </label>
                     ))}
@@ -1462,7 +1637,7 @@ function BookingModal({ open, onClose, cart, total, onConfirm }: {
 
         {!success && (
           <div className="flex items-center justify-between border-t border-border bg-card p-5">
-            <button onClick={step === 1 ? onClose : () => setStep(1)} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-navy hover:bg-muted">
+            <button disabled={isPaying} onClick={step === 1 ? onClose : () => setStep(1)} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-navy hover:bg-muted disabled:opacity-50">
               {step === 1 ? "Cancel" : "← Back"}
             </button>
             {step === 1 ? (
@@ -1471,9 +1646,9 @@ function BookingModal({ open, onClose, cart, total, onConfirm }: {
                 Continue <ArrowRight className="h-4 w-4" />
               </button>
             ) : (
-              <button onClick={handleConfirm}
-                className="inline-flex items-center gap-2 rounded-full gradient-gold px-7 py-3 text-sm font-bold text-navy shadow-gold transition-transform hover:scale-105">
-                Confirm Booking · ₹{finalTotal} <CheckCircle2 className="h-4 w-4" />
+              <button disabled={isPaying} onClick={handleConfirm}
+                className="inline-flex items-center gap-2 rounded-full gradient-gold px-7 py-3 text-sm font-bold text-navy shadow-gold transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100">
+                {isPaying ? "Processing..." : `Confirm Booking · ₹${finalTotal}`} <CheckCircle2 className="h-4 w-4" />
               </button>
             )}
           </div>

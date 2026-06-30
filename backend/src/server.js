@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
@@ -211,12 +211,141 @@ app.get('/api/catalog', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+app.post('/api/payment/order', async (req, res) => {
+  try {
+    console.log('Order request body:', req.body, 'loaded KEY_ID:', process.env.RAZORPAY_KEY_ID, 'loaded SECRET:', process.env.RAZORPAY_KEY_SECRET ? 'Exists' : 'Missing');
+    const { amount } = req.body;
+    if (!amount || isNaN(amount)) {
+      return res.status(400).json({ error: 'Invalid or missing amount' });
+    }
+
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret) {
+      return res.status(500).json({ error: 'Razorpay keys not configured on server' });
+    }
+
+    // Create dynamic order with Razorpay REST API
+    const authString = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+    const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${authString}`
+      },
+      body: JSON.stringify({
+        amount: Math.round(Number(amount) * 100), // paise
+        currency: 'INR',
+        receipt: `rcpt_${nanoid(8)}`
+      })
+    });
+
+    if (!rzpRes.ok) {
+      const errorText = await rzpRes.text();
+      throw new Error(`Razorpay API responded with error: ${errorText}`);
+    }
+
+    const orderData = await rzpRes.json();
+    res.json({
+      orderId: orderData.id,
+      amount: orderData.amount,
+      keyId: keyId
+    });
+  } catch (err) {
+    console.error('Error generating Razorpay Order:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/bookings', async (req, res) => {
   try {
-    const booking = { id: nanoid(10), createdAt: new Date().toISOString(), ...req.body };
+    const { customer, schedule, notes, coupon, discount, total, items, paymentStatus, paymentId, userId } = req.body;
+    const booking = {
+      id: nanoid(10),
+      createdAt: new Date().toISOString(),
+      customer,
+      schedule,
+      notes,
+      coupon,
+      discount,
+      total,
+      items,
+      paymentStatus: paymentStatus || 'Pending',
+      paymentId: paymentId || null,
+      userId: userId || null
+    };
     await db.addBooking(booking);
     res.json({ ok: true, booking });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== User Authentication Endpoints =====
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { name, phone, email, password } = req.body;
+    if (!name || !phone || !email || !password) {
+      return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    const exEmail = await db.getUserByEmail(email);
+    if (exEmail) {
+      return res.status(400).json({ error: 'User with this email already registered.' });
+    }
+    const exPhone = await db.getUserByPhone(phone);
+    if (exPhone) {
+      return res.status(400).json({ error: 'User with this phone number already registered.' });
+    }
+
+    const salt = bcrypt.genSaltSync(10);
+    const hashedPassword = bcrypt.hashSync(password, salt);
+
+    const userId = 'usr_' + nanoid(10);
+    await db.createUser({ id: userId, name, phone, email, password: hashedPassword });
+
+    res.json({ ok: true, message: 'Registration successful! Please login.' });
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { emailOrPhone, password } = req.body;
+    if (!emailOrPhone || !password) {
+      return res.status(400).json({ error: 'Email/phone and password are required.' });
+    }
+
+    let user = null;
+    if (emailOrPhone.includes('@')) {
+      user = await db.getUserByEmail(emailOrPhone);
+    } else {
+      user = await db.getUserByPhone(emailOrPhone);
+    }
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid credentials.' });
+    }
+
+    const valid = bcrypt.compareSync(password, user.password);
+    if (!valid) {
+      return res.status(400).json({ error: 'Invalid credentials.' });
+    }
+
+    res.json({
+      ok: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone
+      }
+    });
+  } catch (err) {
+    console.error('Login error:', err);
     res.status(500).json({ error: err.message });
   }
 });

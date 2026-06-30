@@ -911,6 +911,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                       <th className="pb-3 pt-1">Address & City</th>
                       <th className="pb-3 pt-1">Time Slot</th>
                       <th className="pb-3 pt-1">Cart Items</th>
+                      <th className="pb-3 pt-1">Payment</th>
                       <th className="pb-3 pt-1 text-right">Invoice Total</th>
                       <th className="pb-3 pt-1 text-center">Actions</th>
                     </tr>
@@ -920,12 +921,40 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                       <tr key={b.id} className="hover:bg-slate-50/50">
                         <td className="py-4 font-mono text-xs font-bold text-slate-400">{b.id}</td>
                         <td className="py-4 font-bold text-slate-800">
-                          {b.customer?.name || "Guest Client"}
+                          <div className="flex flex-col gap-0.5">
+                            <span>{b.customer?.name || "Guest Client"}</span>
+                            {b.userId ? (
+                              <span className="inline-flex items-center self-start gap-1 rounded bg-[#cbb17b]/10 px-1 py-0.5 text-4xs font-bold text-[#cbb17b]">
+                                Registered User
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center self-start gap-1 rounded bg-slate-100 px-1 py-0.5 text-4xs font-bold text-slate-400">
+                                Guest Checkout
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-4 font-semibold">{b.customer?.phone ? `+91 ${b.customer.phone}` : "N/A"}</td>
-                        <td className="py-4 text-xs max-w-[200px] truncate" title={`${b.customer?.address || ''}, ${b.customer?.city || ''}`}>
-                          <div className="truncate font-semibold text-slate-700">{b.customer?.address || "No address"}</div>
-                          <div className="text-3xs font-bold text-slate-400 uppercase mt-0.5">{b.customer?.city || "Bengaluru"} - {b.customer?.pincode}</div>
+                        <td className="py-4 text-xs max-w-[240px]">
+                          <div className="font-semibold text-slate-700 truncate" title={b.customer?.address}>{b.customer?.address || "No address"}</div>
+                          {b.customer?.landmark && (
+                            <div className="text-3xs font-bold text-rose-600 mt-0.5 truncate" title={`Landmark: ${b.customer.landmark}`}>
+                              📍 Landmark: {b.customer.landmark}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-3xs font-bold text-slate-400 uppercase">{b.customer?.city || "Bengaluru"} - {b.customer?.pincode}</span>
+                            {b.customer?.mapsLink && (
+                              <a 
+                                href={b.customer.mapsLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-0.5 rounded bg-rose-50 hover:bg-rose-100 px-1 py-0.5 text-3xs font-bold text-rose-600 transition-colors"
+                              >
+                                GPS ↗
+                              </a>
+                            )}
+                          </div>
                         </td>
                         <td className="py-4 font-semibold text-xs text-slate-650">
                           <div>{b.schedule?.date || "TBD"}</div>
@@ -933,6 +962,28 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                         </td>
                         <td className="py-4 text-xs max-w-[150px] truncate">
                           {b.items?.map((item: any) => `${item.title} (x${item.qty})`).join(", ") || "No items"}
+                        </td>
+                        <td className="py-4 text-xs">
+                          {b.paymentStatus === "Paid" ? (
+                            <div className="space-y-0.5">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 animate-fade-in">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Paid
+                              </span>
+                              {b.paymentId && (
+                                <div className="font-mono text-4xs font-bold text-slate-400 truncate max-w-[100px]" title={b.paymentId}>
+                                  {b.paymentId}
+                                </div>
+                              )}
+                            </div>
+                          ) : b.paymentStatus?.toLowerCase().includes("cod") ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700">
+                              <span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> COD
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Pending
+                            </span>
+                          )}
                         </td>
                         <td className="py-4 text-right font-bold text-slate-900">₹{b.total}</td>
                         <td className="py-4 text-center">
@@ -948,7 +999,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                     ))}
                     {filteredBookings.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="py-12 text-center text-slate-400 text-xs italic">
+                        <td colSpan={9} className="py-12 text-center text-slate-400 text-xs italic">
                           {searchQuery ? "No bookings match your search query." : "No bookings registered in the system."}
                         </td>
                       </tr>

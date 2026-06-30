@@ -70,6 +70,38 @@ async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    // Create users table
+    await query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(255) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        phone VARCHAR(15) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        createdAt VARCHAR(255) NOT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    // Alter table bookings to add paymentStatus and paymentId if they don't exist
+    const columns = await query('SHOW COLUMNS FROM bookings');
+    const hasPaymentStatus = columns.some(c => c.Field === 'paymentStatus');
+    if (!hasPaymentStatus) {
+      await query(`
+        ALTER TABLE bookings 
+        ADD COLUMN paymentStatus VARCHAR(100) DEFAULT 'Pending',
+        ADD COLUMN paymentId VARCHAR(255) DEFAULT NULL
+      `);
+      console.log('Altered bookings table to add payment status columns.');
+    }
+    const hasUserId = columns.some(c => c.Field === 'userId');
+    if (!hasUserId) {
+      await query(`
+        ALTER TABLE bookings 
+        ADD COLUMN userId VARCHAR(255) DEFAULT NULL
+      `);
+      console.log('Altered bookings table to add userId column.');
+    }
+
     // Seed default data if categories table is empty or has old demo seed records
     const cats = await query('SELECT COUNT(*) as count FROM categories');
     const hasOldSeed = cats[0].count > 0 && (await query("SELECT id FROM categories WHERE id = 'cat-1'")).length > 0;
@@ -285,8 +317,8 @@ module.exports = {
       items: typeof r.items === 'string' ? JSON.parse(r.items) : (r.items || []),
     }));
   },
-  async addBooking({ id, createdAt, customer, schedule, notes, coupon, discount, total, items }) {
-    await query('INSERT INTO bookings (id, createdAt, customer, schedule, notes, coupon, discount, total, items) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+  async addBooking({ id, createdAt, customer, schedule, notes, coupon, discount, total, items, paymentStatus, paymentId, userId }) {
+    await query('INSERT INTO bookings (id, createdAt, customer, schedule, notes, coupon, discount, total, items, paymentStatus, paymentId, userId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
       id,
       createdAt,
       JSON.stringify(customer || {}),
@@ -295,12 +327,37 @@ module.exports = {
       coupon || null,
       Number(discount) || 0,
       Number(total) || 0,
-      JSON.stringify(items || [])
+      JSON.stringify(items || []),
+      paymentStatus || 'Pending',
+      paymentId || null,
+      userId || null
     ]);
-    return { id, createdAt, customer, schedule, notes, coupon, discount, total, items };
+    return { id, createdAt, customer, schedule, notes, coupon, discount, total, items, paymentStatus, paymentId, userId };
   },
   async deleteBooking(id) {
     await query('DELETE FROM bookings WHERE id = ?', [id]);
     return true;
+  },
+
+  // Users Authentication helper methods
+  async getUserByEmail(email) {
+    const rows = await query('SELECT * FROM users WHERE email = ?', [email]);
+    return rows[0] || null;
+  },
+  async getUserByPhone(phone) {
+    const rows = await query('SELECT * FROM users WHERE phone = ?', [phone]);
+    return rows[0] || null;
+  },
+  async createUser({ id, name, phone, email, password }) {
+    const createdAt = new Date().toISOString();
+    await query('INSERT INTO users (id, name, phone, email, password, createdAt) VALUES (?, ?, ?, ?, ?, ?)', [
+      id,
+      name,
+      phone,
+      email,
+      password,
+      createdAt
+    ]);
+    return { id, name, phone, email, password, createdAt };
   }
 };

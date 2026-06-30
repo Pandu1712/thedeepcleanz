@@ -235,3 +235,24 @@
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
   }
 }
+
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-14px) rotate(5deg); }
+}
+@keyframes float-reverse {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(14px) rotate(-5deg); }
+}
+@keyframes bubble-rise {
+  0% { transform: translateY(120px) scale(0.6); opacity: 0; }
+  20% { opacity: 0.6; }
+  90% { opacity: 0.2; }
+  100% { transform: translateY(-240px) scale(1.2); opacity: 0; }
+}
+
+@utility animate-float-gentle { animation: float-gentle 6s ease-in-out infinite; }
+@utility animate-float-reverse { animation: float-reverse 7s ease-in-out infinite; }
+@utility animate-bubble-1 { animation: bubble-rise 8s infinite linear; }
+@utility animate-bubble-2 { animation: bubble-rise 11s infinite linear; }
+@utility animate-bubble-3 { animation: bubble-rise 6s infinite linear; }
