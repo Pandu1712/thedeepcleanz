@@ -8,6 +8,21 @@ const methodOverride = require('method-override');
 const bcrypt = require('bcryptjs');
 const { nanoid } = require('nanoid');
 const db = require('./config/db');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Configure multer (memory storage, max size 5MB)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -66,6 +81,8 @@ function requireAuth(req, res, next) {
 // });
 // app.post('/logout', (req, res) => req.session.destroy(() => res.redirect('/login')));
 
+// Legacy EJS routes commented out to allow TanStack Start to route pages
+/*
 // ===== Dashboard =====
 app.get('/admin-dashboard', requireAuth, async (req, res) => {
   try {
@@ -101,6 +118,7 @@ app.post('/categories', requireAuth, async (req, res) => {
       title: req.body.title,
       tagline: req.body.tagline,
       emoji: req.body.emoji || '✨',
+      image: req.body.image || null,
     });
     req.flash('success', 'Category added.');
     res.redirect('/categories');
@@ -113,7 +131,8 @@ app.put('/categories/:id', requireAuth, async (req, res) => {
     await db.updateCategory(req.params.id, {
       title: req.body.title,
       tagline: req.body.tagline,
-      emoji: req.body.emoji
+      emoji: req.body.emoji,
+      image: req.body.image,
     });
     req.flash('success', 'Category updated.');
     res.redirect('/categories');
@@ -200,6 +219,7 @@ app.delete('/bookings/:id', requireAuth, async (req, res) => {
     res.status(500).send('Error: ' + err.message);
   }
 });
+*/
 
 // ===== Public JSON API (for the frontend to consume) =====
 app.get('/api/catalog', async (req, res) => {
@@ -350,11 +370,56 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Image Upload Endpoint (via Cloudinary)
+app.post('/api/upload', (req, res, next) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Image file is too heavy! Maximum size allowed is 5MB.' });
+      }
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded.' });
+    }
+
+    const uploadPromise = new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder: 'thedeepcleanerz' },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      uploadStream.end(req.file.buffer);
+    });
+
+    const result = await uploadPromise;
+    res.json({ ok: true, url: result.secure_url });
+  } catch (err) {
+    console.error('Cloudinary upload failed:', err);
+    res.status(500).json({ error: 'Image upload failed: ' + err.message });
+  }
+});
+
 // JSON API endpoints for full-page Admin Dashboard
 app.get('/api/bookings', async (req, res) => {
   try {
     const bookings = await db.getBookings();
     res.json(bookings || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/users', async (req, res) => {
+  try {
+    const users = await db.getUsers();
+    res.json(users || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -369,6 +434,71 @@ app.delete('/api/bookings/:id', async (req, res) => {
   }
 });
 
+// ===== Coupons Endpoints =====
+app.get('/api/coupons', async (req, res) => {
+  try {
+    const coupons = await db.getCoupons();
+    res.json(coupons || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/coupons', async (req, res) => {
+  try {
+    const { code, discount, minAmount, expiryDate, isActive } = req.body;
+    if (!code || !discount || !expiryDate) {
+      return res.status(400).json({ error: 'Code, discount, and expiry date are required.' });
+    }
+    const coupon = await db.addCoupon({ code, discount, minAmount, expiryDate, isActive });
+    res.json({ ok: true, coupon });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/coupons/:code', async (req, res) => {
+  try {
+    const { discount, minAmount, expiryDate, isActive } = req.body;
+    const coupon = await db.updateCoupon(req.params.code, { discount, minAmount, expiryDate, isActive });
+    res.json({ ok: true, coupon });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/coupons/:code', async (req, res) => {
+  try {
+    await db.deleteCoupon(req.params.code);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/coupons/validate', async (req, res) => {
+  try {
+    const { code, total } = req.body;
+    if (!code) {
+      return res.status(400).json({ error: 'Coupon code is required.' });
+    }
+    const result = await db.validateCoupon(code, Number(total) || 0);
+    res.json({ ok: true, coupon: result });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.put('/api/bookings/:id/payment', async (req, res) => {
+  try {
+    const { paymentStatus, paymentId } = req.body;
+    await db.updateBookingPayment(req.params.id, paymentStatus, paymentId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/categories', async (req, res) => {
   try {
     const newCat = {
@@ -376,6 +506,7 @@ app.post('/api/categories', async (req, res) => {
       title: req.body.title || 'New Category',
       tagline: req.body.tagline || '',
       emoji: req.body.emoji || '✨',
+      image: req.body.image || null,
     };
     await db.addCategory(newCat);
     res.json({ ok: true, category: newCat });
@@ -389,7 +520,8 @@ app.put('/api/categories/:id', async (req, res) => {
     const c = await db.updateCategory(req.params.id, {
       title: req.body.title,
       tagline: req.body.tagline,
-      emoji: req.body.emoji
+      emoji: req.body.emoji,
+      image: req.body.image
     });
     res.json({ ok: true, category: c });
   } catch (err) {
@@ -417,7 +549,11 @@ app.post('/api/services', async (req, res) => {
       title: req.body.title || 'New Service',
       price: Number(req.body.price) || 0,
       description: req.body.description || '',
-      includes
+      includes,
+      image: req.body.image || null,
+      plans: req.body.plans || [],
+      disclaimer: req.body.disclaimer || null,
+      requirements: req.body.requirements || null
     };
     await db.addService(newSvc);
     res.json({ ok: true, service: newSvc });
@@ -437,7 +573,11 @@ app.put('/api/services/:id', async (req, res) => {
       title: req.body.title,
       price: req.body.price !== undefined ? Number(req.body.price) || 0 : undefined,
       description: req.body.description,
-      includes
+      includes,
+      image: req.body.image,
+      plans: req.body.plans,
+      disclaimer: req.body.disclaimer,
+      requirements: req.body.requirements
     };
     const s = await db.updateService(req.params.id, patch);
     res.json({ ok: true, service: s });
@@ -450,6 +590,82 @@ app.delete('/api/services/:id', async (req, res) => {
   try {
     await db.deleteService(req.params.id);
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Customized Services API
+app.get('/api/customized-services', async (req, res) => {
+  try {
+    const list = await db.getCustomizedServices();
+    res.json(list || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/customized-services', async (req, res) => {
+  try {
+    const payload = {
+      id: req.body.id || `cust-${Date.now()}`,
+      title: req.body.title || '',
+      price: Number(req.body.price) || 0,
+      image: req.body.image || null,
+      plans: req.body.plans || []
+    };
+    const s = await db.addCustomizedService(payload);
+    res.json({ ok: true, service: s });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/customized-services/:id', async (req, res) => {
+  try {
+    const patch = {
+      title: req.body.title,
+      price: req.body.price !== undefined ? Number(req.body.price) || 0 : undefined,
+      image: req.body.image,
+      plans: req.body.plans
+    };
+    const s = await db.updateCustomizedService(req.params.id, patch);
+    res.json({ ok: true, service: s });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/customized-services/:id', async (req, res) => {
+  try {
+    await db.deleteCustomizedService(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reviews API
+app.get('/api/reviews/:serviceId', async (req, res) => {
+  try {
+    const reviews = await db.getReviews(req.params.serviceId);
+    res.json(reviews || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/reviews', async (req, res) => {
+  try {
+    const payload = {
+      id: `rev-${Date.now()}`,
+      serviceId: req.body.serviceId,
+      userName: req.body.userName || 'Anonymous',
+      rating: Number(req.body.rating) || 5,
+      comment: req.body.comment || ''
+    };
+    const r = await db.addReview(payload);
+    res.json({ ok: true, review: r });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -477,14 +693,7 @@ async function loadFrontendHandler() {
 
 // Fallback all non-API, non-admin routes to TanStack Start SSR
 app.all('*', async (req, res, next) => {
-  if (
-    req.path.startsWith('/api') || 
-    req.path.startsWith('/logout') || 
-    req.path.startsWith('/categories') || 
-    req.path.startsWith('/services') || 
-    req.path.startsWith('/bookings') || 
-    req.path.startsWith('/admin-dashboard')
-  ) {
+  if (req.path.startsWith('/api')) {
     return next();
   }
 

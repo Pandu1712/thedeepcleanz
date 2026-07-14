@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS `categories` (
   `id` VARCHAR(255) PRIMARY KEY,
   `title` VARCHAR(255) NOT NULL,
   `tagline` VARCHAR(255),
-  `emoji` VARCHAR(50)
+  `emoji` VARCHAR(50),
+  `image` VARCHAR(1000) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `services` (

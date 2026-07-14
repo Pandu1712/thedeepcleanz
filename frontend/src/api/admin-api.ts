@@ -6,7 +6,16 @@ export const ADMIN_API_URL =
     ? window.location.origin
     : "http://localhost:4000");
 
-export type AdminCategory = { id: string; title: string; tagline: string; emoji: string };
+export type AdminCategory = { id: string; title: string; tagline: string; emoji: string; image?: string };
+export type ServicePlan = {
+  name: string;
+  price: number;
+  duration: string;
+  description: string;
+  includes: string[];
+  excludes: string[];
+};
+
 export type AdminService = {
   id: string;
   categoryId: string;
@@ -14,6 +23,10 @@ export type AdminService = {
   price: number;
   description: string;
   includes: string[];
+  image?: string;
+  plans?: ServicePlan[];
+  disclaimer?: string;
+  requirements?: string;
 };
 export type AdminCatalog = { categories: AdminCategory[]; services: AdminService[] };
 
@@ -52,13 +65,29 @@ export async function fetchBookings(): Promise<any[]> {
   return (await res.json()) as any[];
 }
 
+export async function fetchUsers(): Promise<any[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/users`);
+  if (!res.ok) throw new Error(`Users request failed: ${res.status}`);
+  return (await res.json()) as any[];
+}
+
 export async function deleteBooking(id: string): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/bookings/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`Delete booking failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 
-export async function createCategory(cat: { title: string; tagline: string; emoji: string }): Promise<AdminCategory> {
+export async function updateBookingPayment(id: string, paymentStatus: string, paymentId: string | null): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/bookings/${id}/payment`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ paymentStatus, paymentId }),
+  });
+  if (!res.ok) throw new Error(`Update booking payment failed: ${res.status}`);
+  return (await res.json()).ok as boolean;
+}
+
+export async function createCategory(cat: { title: string; tagline: string; emoji: string; image?: string }): Promise<AdminCategory> {
   const res = await fetch(`${ADMIN_API_URL}/api/categories`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -108,4 +137,128 @@ export async function deleteService(id: string): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/services/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`Delete service failed: ${res.status}`);
   return (await res.json()).ok as boolean;
+}
+
+export type ServiceReview = {
+  id: string;
+  serviceId: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+};
+
+export async function fetchReviews(serviceId: string): Promise<ServiceReview[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/reviews/${serviceId}`);
+  if (!res.ok) throw new Error(`Reviews request failed: ${res.status}`);
+  return (await res.json()) as ServiceReview[];
+}
+
+export async function postReview(payload: { serviceId: string; userName: string; rating: number; comment: string }): Promise<{ ok: boolean; review: ServiceReview }> {
+  const res = await fetch(`${ADMIN_API_URL}/api/reviews`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`Submit review failed: ${res.status}`);
+  return (await res.json()) as { ok: boolean; review: ServiceReview };
+}
+
+export type AdminCustomizedService = {
+  id: string;
+  title: string;
+  price: number;
+  image?: string;
+  plans?: ServicePlan[];
+};
+
+export async function fetchCustomizedServices(signal?: AbortSignal): Promise<AdminCustomizedService[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/customized-services`, { signal });
+  if (!res.ok) throw new Error(`Customized services request failed: ${res.status}`);
+  return (await res.json()) as AdminCustomizedService[];
+}
+
+export async function createCustomizedService(svc: Omit<AdminCustomizedService, "id"> & { id?: string }): Promise<AdminCustomizedService> {
+  const res = await fetch(`${ADMIN_API_URL}/api/customized-services`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(svc),
+  });
+  if (!res.ok) throw new Error(`Create customized service failed: ${res.status}`);
+  return (await res.json()).service as AdminCustomizedService;
+}
+
+export async function updateCustomizedService(id: string, patch: Partial<AdminCustomizedService>): Promise<AdminCustomizedService> {
+  const res = await fetch(`${ADMIN_API_URL}/api/customized-services/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(`Update customized service failed: ${res.status}`);
+  return (await res.json()).service as AdminCustomizedService;
+}
+
+export async function deleteCustomizedService(id: string): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/customized-services/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`Delete customized service failed: ${res.status}`);
+  return (await res.json()).ok as boolean;
+}
+
+export type AdminCoupon = {
+  code: string;
+  discount: number;
+  minAmount: number;
+  expiryDate: string;
+  isActive: number;
+};
+
+export async function fetchCoupons(): Promise<AdminCoupon[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/coupons`);
+  if (!res.ok) throw new Error(`Coupons request failed: ${res.status}`);
+  return (await res.json()) as AdminCoupon[];
+}
+
+export async function createCoupon(coupon: Omit<AdminCoupon, "code"> & { code: string }): Promise<AdminCoupon> {
+  const res = await fetch(`${ADMIN_API_URL}/api/coupons`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(coupon),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Create coupon failed: ${res.status}`);
+  }
+  return (await res.json()).coupon as AdminCoupon;
+}
+
+export async function updateCoupon(code: string, patch: Partial<AdminCoupon>): Promise<AdminCoupon> {
+  const res = await fetch(`${ADMIN_API_URL}/api/coupons/${code}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Update coupon failed: ${res.status}`);
+  }
+  return (await res.json()).coupon as AdminCoupon;
+}
+
+export async function deleteCoupon(code: string): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/coupons/${code}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`Delete coupon failed: ${res.status}`);
+  return (await res.json()).ok as boolean;
+}
+
+export async function validateCoupon(code: string, total: number): Promise<{ code: string; discount: number }> {
+  const res = await fetch(`${ADMIN_API_URL}/api/coupons/validate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, total }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || "Invalid coupon or order amount is too low.");
+  }
+  return (await res.json()).coupon as { code: string; discount: number };
 }

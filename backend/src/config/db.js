@@ -22,15 +22,35 @@ async function initDb() {
   try {
     console.log('Verifying MySQL Database connection...');
     
-    // Create database if not exists
-    const tempConn = await mysql.createConnection({
-      host: process.env.DB_HOST || '127.0.0.1',
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-      port: Number(process.env.DB_PORT) || 3306,
-    });
-    await tempConn.query(`CREATE DATABASE IF NOT EXISTS \`${process.env.DB_NAME || 'thedeepcleanerz'}\``);
-    await tempConn.end();
+    let tempConn;
+    try {
+      // First attempt: Connect directly to the database (good for Hostinger where DB already exists)
+      tempConn = await mysql.createConnection({
+        host: process.env.DB_HOST || '127.0.0.1',
+        user: process.env.DB_USER || 'root',
+        password: process.env.DB_PASSWORD || '',
+        database: process.env.DB_NAME || 'thedeepcleanerz',
+        port: Number(process.env.DB_PORT) || 3306,
+      });
+      console.log('Connected to MySQL database directly.');
+    } catch (dbErr) {
+      // Second attempt: If connection failed because database doesn't exist, connect without database name and create it
+      if (dbErr.code === 'ER_BAD_DB_ERROR') {
+        console.log('Database does not exist. Attempting to create database...');
+        tempConn = await mysql.createConnection({
+          host: process.env.DB_HOST || '127.0.0.1',
+          user: process.env.DB_USER || 'root',
+          password: process.env.DB_PASSWORD || '',
+          port: Number(process.env.DB_PORT) || 3306,
+        });
+        await tempConn.query(`CREATE DATABASE IF NOT EXISTS \`${process.env.DB_NAME || 'thedeepcleanerz'}\``);
+      } else {
+        throw dbErr;
+      }
+    }
+    if (tempConn) {
+      await tempConn.end();
+    }
 
     // Create categories table
     await query(`
@@ -38,7 +58,8 @@ async function initDb() {
         id VARCHAR(255) PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         tagline VARCHAR(255),
-        emoji VARCHAR(50)
+        emoji VARCHAR(50),
+        image VARCHAR(1000) DEFAULT NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
@@ -51,9 +72,44 @@ async function initDb() {
         price INT NOT NULL DEFAULT 0,
         description TEXT,
         includes JSON,
+        image VARCHAR(1000) DEFAULT NULL,
+        plans JSON DEFAULT NULL,
+        disclaimer TEXT DEFAULT NULL,
+        requirements TEXT DEFAULT NULL,
         FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+
+    // Create reviews table
+    await query(`
+      CREATE TABLE IF NOT EXISTS reviews (
+        id VARCHAR(255) PRIMARY KEY,
+        serviceId VARCHAR(255) NOT NULL,
+        userName VARCHAR(255) NOT NULL,
+        rating INT NOT NULL,
+        comment TEXT,
+        createdAt VARCHAR(255) NOT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    // Drop foreign key constraint on reviews table if it exists (so we can review customized/mini services)
+    try {
+      const constraints = await query(`
+        SELECT CONSTRAINT_NAME 
+        FROM information_schema.KEY_COLUMN_USAGE 
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'reviews' 
+          AND COLUMN_NAME = 'serviceId' 
+          AND REFERENCED_TABLE_NAME = 'services'
+      `);
+      if (constraints && constraints.length > 0) {
+        const constraintName = constraints[0].CONSTRAINT_NAME;
+        await query(`ALTER TABLE reviews DROP FOREIGN KEY ${constraintName}`);
+        console.log(`Successfully dropped foreign key constraint '${constraintName}' from reviews table.`);
+      }
+    } catch (e) {
+      console.warn("Could not drop foreign key constraint from reviews:", e.message);
+    }
 
     // Create bookings table
     await query(`
@@ -82,6 +138,40 @@ async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    // Create customized_services table
+    await query(`
+      CREATE TABLE IF NOT EXISTS customized_services (
+        id VARCHAR(255) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        price INT NOT NULL DEFAULT 0,
+        image VARCHAR(1000) DEFAULT NULL,
+        plans JSON DEFAULT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    // Create coupons table
+    await query(`
+      CREATE TABLE IF NOT EXISTS coupons (
+        code VARCHAR(100) PRIMARY KEY,
+        discount INT NOT NULL,
+        minAmount INT NOT NULL DEFAULT 0,
+        expiryDate VARCHAR(100) NOT NULL,
+        isActive TINYINT(1) NOT NULL DEFAULT 1
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    // Insert default coupons if table is empty
+    try {
+      const existingCoupons = await query('SELECT COUNT(*) as count FROM coupons');
+      if (existingCoupons && existingCoupons[0] && existingCoupons[0].count === 0) {
+        await query("INSERT INTO coupons (code, discount, minAmount, expiryDate, isActive) VALUES ('WELCOME500', 500, 1500, '2030-12-31', 1)");
+        await query("INSERT INTO coupons (code, discount, minAmount, expiryDate, isActive) VALUES ('FESTIVE250', 250, 1000, '2030-12-31', 1)");
+        console.log('Inserted default coupons.');
+      }
+    } catch (e) {
+      console.warn("Could not insert default coupons:", e.message);
+    }
+
     // Alter table bookings to add paymentStatus and paymentId if they don't exist
     const columns = await query('SHOW COLUMNS FROM bookings');
     const hasPaymentStatus = columns.some(c => c.Field === 'paymentStatus');
@@ -102,6 +192,40 @@ async function initDb() {
       console.log('Altered bookings table to add userId column.');
     }
 
+    // Alter table categories to add image if it doesn't exist
+    const catColumns = await query('SHOW COLUMNS FROM categories');
+    const hasImage = catColumns.some(c => c.Field === 'image');
+    if (!hasImage) {
+      await query(`
+        ALTER TABLE categories 
+        ADD COLUMN image VARCHAR(1000) DEFAULT NULL
+      `);
+      console.log('Altered categories table to add image column.');
+    }
+
+    // Alter table services to add columns if they don't exist
+    const svcColumns = await query('SHOW COLUMNS FROM services');
+    const hasSvcImage = svcColumns.some(c => c.Field === 'image');
+    if (!hasSvcImage) {
+      await query('ALTER TABLE services ADD COLUMN image VARCHAR(1000) DEFAULT NULL');
+      console.log('Altered services table to add image column.');
+    }
+    const hasSvcPlans = svcColumns.some(c => c.Field === 'plans');
+    if (!hasSvcPlans) {
+      await query('ALTER TABLE services ADD COLUMN plans JSON DEFAULT NULL');
+      console.log('Altered services table to add plans column.');
+    }
+    const hasSvcDisclaimer = svcColumns.some(c => c.Field === 'disclaimer');
+    if (!hasSvcDisclaimer) {
+      await query('ALTER TABLE services ADD COLUMN disclaimer TEXT DEFAULT NULL');
+      console.log('Altered services table to add disclaimer column.');
+    }
+    const hasSvcReqs = svcColumns.some(c => c.Field === 'requirements');
+    if (!hasSvcReqs) {
+      await query('ALTER TABLE services ADD COLUMN requirements TEXT DEFAULT NULL');
+      console.log('Altered services table to add requirements column.');
+    }
+
     // Seed default data if categories table is empty or has old demo seed records
     const cats = await query('SELECT COUNT(*) as count FROM categories');
     const hasOldSeed = cats[0].count > 0 && (await query("SELECT id FROM categories WHERE id = 'cat-1'")).length > 0;
@@ -117,9 +241,9 @@ async function initDb() {
       console.log('Seeding default database records into MySQL...');
       const defaultData = {
         categories: [
-          { id: "full-house", title: "Full House Deep Cleaning", tagline: "Top-to-bottom premium clean for the entire home", emoji: "🏠" },
-          { id: "customized", title: "Customized Cleaning Package", tagline: "Pick exactly what you need — room by room", emoji: "🛋️" },
-          { id: "commercial", title: "Commercial Post Interior Cleaning", tagline: "Office, hotel & post-construction expertise", emoji: "🏢" }
+          { id: "full-house", title: "Full House Deep Cleaning", tagline: "Top-to-bottom premium clean for the entire home", emoji: "🏠", image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80" },
+          { id: "customized", title: "Customized Cleaning Package", tagline: "Pick exactly what you need — room by room", emoji: "🛋️", image: "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=800&q=80" },
+          { id: "commercial", title: "Commercial Post Interior Cleaning", tagline: "Office, hotel & post-construction expertise", emoji: "🏢", image: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80" }
         ],
         services: [
           {
@@ -128,7 +252,35 @@ async function initDb() {
             title: "Full House Cleaning",
             price: 1999,
             description: "Complete top-to-bottom deep clean for every room.",
-            includes: ["All rooms HEPA vacuuming", "Floor machine scrubbing", "Window glass polishing", "Kitchen sanitization", "Bathroom deep cleaning"]
+            includes: ["All rooms HEPA vacuuming", "Floor machine scrubbing", "Window glass polishing", "Kitchen sanitization", "Bathroom deep cleaning"],
+            image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80",
+            disclaimer: "Please ensure all valuables are removed or securely stored before our professionals arrive.",
+            plans: [
+              {
+                name: "Express",
+                price: 1999,
+                duration: "3-4 hours",
+                description: "Surface dusting, dry vacuuming, and basic mopping.",
+                includes: ["Dusting surface details", "Floor wet wiping", "Trash disposal"],
+                excludes: ["Deep kitchen scrubbing", "Wall washings"]
+              },
+              {
+                name: "Elite",
+                price: 2999,
+                duration: "5-6 hours",
+                description: "Full deep clean including kitchen and bathroom machine scrubbing.",
+                includes: ["Bathroom deep scrub", "Kitchen sanitization", "Floor machine scrub", "HEPA vacuuming"],
+                excludes: ["Heavy stain restoration"]
+              },
+              {
+                name: "Exclusive",
+                price: 4499,
+                duration: "6-7 hours",
+                description: "Advanced sterilization, window polishing, and complete steam care.",
+                includes: ["Bathroom sanitization", "Kitchen degreasing", "Floor steam scrub", "Window glass polishing", "Switchboard cleaning"],
+                excludes: ["Heavy lifting or movement of materials"]
+              }
+            ]
           },
           {
             id: "kitchen",
@@ -136,7 +288,27 @@ async function initDb() {
             title: "Kitchen Deep Cleaning",
             price: 999,
             description: "Intense kitchen degreasing and tile scrubbing.",
-            includes: ["Chimney baffle filters", "Cabinet cleaning inside-out", "Countertop degreasing", "Limescale & oil removal"]
+            includes: ["Chimney baffle filters", "Cabinet cleaning inside-out", "Countertop degreasing", "Limescale & oil removal"],
+            image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80",
+            disclaimer: "Admins advise kitchen utensils be placed in closed cabinets before service.",
+            plans: [
+              {
+                name: "Express",
+                price: 999,
+                duration: "2 hours",
+                description: "Quick wipe down, cabinet outer wiping and counter cleaning.",
+                includes: ["Countertop wipe", "Outer cabinet wipe", "Sink polish"],
+                excludes: ["Chimney filter scrubbing"]
+              },
+              {
+                name: "Elite",
+                price: 1599,
+                duration: "3 hours",
+                description: "Complete kitchen degreasing, chimney filter scrubbing, and tile steam wipe.",
+                includes: ["Countertop degreasing", "Chimney baffle scrub", "Wall tiles scrub", "Cabinet inside-out clean"],
+                excludes: ["Exhaust fan repair"]
+              }
+            ]
           },
           {
             id: "bath",
@@ -144,7 +316,27 @@ async function initDb() {
             title: "Bathroom Cleaning",
             price: 599,
             description: "Scrubbing and sanitization of tiles and fixtures.",
-            includes: ["Limescale removal", "WC & washbasin scrub", "Mirror polishing", "Floor deep scrub"]
+            includes: ["Limescale removal", "WC & washbasin scrub", "Mirror polishing", "Floor deep scrub"],
+            image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80",
+            disclaimer: "Admins advise clear floor path in washrooms.",
+            plans: [
+              {
+                name: "Express",
+                price: 599,
+                duration: "1.5 hours",
+                description: "Basic sanitization of sink and toilet bowl.",
+                includes: ["Sink wash", "WC sanitization", "Mirror wipe"],
+                excludes: ["Wall tile descaling"]
+              },
+              {
+                name: "Elite",
+                price: 999,
+                duration: "2.5 hours",
+                description: "Complete descaling and floor scrubbing of bathroom.",
+                includes: ["WC descaling", "Limescale removal from fixtures", "Floor deep scrub", "Wall tiles scrub"],
+                excludes: ["Exhaust fan repair"]
+              }
+            ]
           },
           {
             id: "sofa",
@@ -152,7 +344,27 @@ async function initDb() {
             title: "Sofa Cleaning",
             price: 499,
             description: "Vacuuming and injection-extraction stain removal.",
-            includes: ["Allergen extraction", "Stain spot removal", "Eco-shampoo scrub", "Fabric odor control"]
+            includes: ["Allergen extraction", "Stain spot removal", "Eco-shampoo scrub", "Fabric odor control"],
+            image: "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&w=800&q=80",
+            disclaimer: "Drying takes 3-4 hours post extraction.",
+            plans: [
+              {
+                name: "Express",
+                price: 499,
+                duration: "1 hour",
+                description: "Dry vacuuming and fabric sanitization.",
+                includes: ["Fabric dry vacuum", "Odor removal spray"],
+                excludes: ["Wet extraction cleaning"]
+              },
+              {
+                name: "Elite",
+                price: 899,
+                duration: "2 hours",
+                description: "Wet injection-extraction shampoo scrub for stain removal.",
+                includes: ["Eco-shampoo scrubbing", "Wet spot extraction", "Dry vacuuming"],
+                excludes: ["Leather polishing"]
+              }
+            ]
           },
           {
             id: "furniture",
@@ -246,14 +458,193 @@ async function initDb() {
       };
  
       for (const c of defaultData.categories) {
-        await query('INSERT INTO categories (id, title, tagline, emoji) VALUES (?, ?, ?, ?)', [c.id, c.title, c.tagline, c.emoji]);
+        await query('INSERT INTO categories (id, title, tagline, emoji, image) VALUES (?, ?, ?, ?, ?)', [c.id, c.title, c.tagline, c.emoji, c.image]);
       }
       for (const s of defaultData.services) {
-        await query('INSERT INTO services (id, categoryId, title, price, description, includes) VALUES (?, ?, ?, ?, ?, ?)', [s.id, s.categoryId, s.title, s.price, s.description, JSON.stringify(s.includes)]);
+        const incString = JSON.stringify(s.includes || []);
+        const plansString = JSON.stringify(s.plans || []);
+        await query('INSERT INTO services (id, categoryId, title, price, description, includes, image, plans, disclaimer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+          s.id, s.categoryId, s.title, s.price, s.description, incString, s.image || null, plansString, s.disclaimer || null
+        ]);
       }
-      console.log('Seeding completed successfully!');
+      console.log('Seeding services completed successfully!');
     } else {
       console.log('MySQL Database verified. Categories and tables exist.');
+      // Migrate existing services if they have empty plans, disclaimer or cover images
+      const defaultServicesPlans = [
+        {
+          id: "house",
+          disclaimer: "Please ensure all valuables are removed or securely stored before our professionals arrive.",
+          image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80",
+          requirements: "Customers are requested to provide a bucket with water, a power point connection, and a ladder or stool for smooth height reach cleaning.",
+          plans: [
+            { name: "Single Living Room Express", price: 699, duration: "1 hour", description: "Refresh your Living Room with our professional basic cleaning service, including window cleaning, wall & ceiling dusting.", includes: ["Dry dusting of TV unit and exterior cleaning of furniture surfaces only", "Manual floor scrubbing & mopping"], excludes: ["Cleaning of kitchen & bathroom windows is not included", "Exterior glass beyond safe reach (upper floors without balcony) is not included"] },
+            { name: "Single Living Room Elite", price: 1099, duration: "2 hours", description: "Refresh your Living Room with our professional advanced cleaning service, including window cleaning, wall & ceiling sanitization.", includes: ["Dry dusting of TV unit and exterior cleaning of furniture surfaces only", "Manual floor scrubbing & mopping"], excludes: ["Cleaning of kitchen & bathroom windows is not included", "Exterior glass beyond safe reach (upper floors without balcony) is not included"] }
+          ]
+        },
+        {
+          id: "kitchen",
+          disclaimer: "Admins advise kitchen utensils be placed in closed cabinets before service.",
+          image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80",
+          requirements: "Customer is requested to keep kitchen counters empty before service visits.",
+          plans: [
+            { name: "Express", price: 999, duration: "2 hours", description: "Quick wipe down, cabinet outer wiping and counter cleaning.", includes: ["Countertop wipe", "Outer cabinet wipe", "Sink polish"], excludes: ["Chimney filter scrubbing"] },
+            { name: "Elite", price: 1599, duration: "3 hours", description: "Complete kitchen degreasing, chimney filter scrubbing, and tile steam wipe.", includes: ["Countertop degreasing", "Chimney baffle scrub", "Wall tiles scrub", "Cabinet inside-out clean"], excludes: ["Exhaust fan repair"] }
+          ]
+        },
+        {
+          id: "bath",
+          disclaimer: "Admins advise clear floor path in washrooms.",
+          image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80",
+          requirements: "Provision of running hot water is highly appreciated.",
+          plans: [
+            { name: "Express", price: 599, duration: "1.5 hours", description: "Basic sanitization of sink and toilet bowl.", includes: ["Sink wash", "WC sanitization", "Mirror wipe"], excludes: ["Wall tile descaling"] },
+            { name: "Elite", price: 999, duration: "2.5 hours", description: "Complete descaling and floor scrubbing of bathroom.", includes: ["WC descaling", "Limescale removal from fixtures", "Floor deep scrub", "Wall tiles scrub"], excludes: ["Exhaust fan repair"] }
+          ]
+        },
+        {
+          id: "sofa",
+          disclaimer: "Drying takes 3-4 hours post extraction.",
+          image: "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&w=800&q=80",
+          requirements: "Customers are requested to keep fans running post upholstery wash to aid drying.",
+          plans: [
+            { name: "Express", price: 499, duration: "1 hour", description: "Dry vacuuming and fabric sanitization.", includes: ["Fabric dry vacuum", "Odor removal spray"], excludes: ["Wet extraction cleaning"] },
+            { name: "Elite", price: 899, duration: "2 hours", description: "Wet injection-extraction shampoo scrub for stain removal.", includes: ["Eco-shampoo scrubbing", "Wet spot extraction", "Dry vacuuming"], excludes: ["Leather polishing"] }
+          ]
+        }
+      ];
+
+      for (const s of defaultServicesPlans) {
+        try {
+          const rows = await query('SELECT plans, disclaimer, image, requirements FROM services WHERE id = ?', [s.id]);
+          if (rows.length > 0) {
+            const row = rows[0];
+            const hasNoPlans = !row.plans || row.plans === 'null' || row.plans === '[]';
+            const hasNoDisclaimer = !row.disclaimer;
+            const hasNoImage = !row.image;
+            const hasNoReqs = !row.requirements;
+            if (hasNoPlans || hasNoDisclaimer || hasNoImage || hasNoReqs) {
+              const plansString = JSON.stringify(s.plans || []);
+              await query('UPDATE services SET plans = ?, disclaimer = ?, image = ?, requirements = ? WHERE id = ?', [
+                plansString, s.disclaimer || null, s.image || null, s.requirements || null, s.id
+              ]);
+              console.log(`Updated plans & meta for existing service: ${s.id}`);
+            }
+          }
+        } catch (e) {
+          console.warn(`Failed to update seed service ${s.id}:`, e.message);
+        }
+      }
+      // Seed customized services if table is empty
+      const custCount = await query('SELECT COUNT(*) as count FROM customized_services');
+      if (custCount[0].count === 0) {
+        console.log('Seeding default customized services...');
+        const defaultCustomized = [
+          {
+            id: "mini-services",
+            title: "Mini Services",
+            price: 59,
+            image: "https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&w=800&q=80",
+            plans: [
+              { name: "Express", price: 59, duration: "1 hour", description: "Basic AC filter cleaning & dusting.", includes: ["Filter washing", "Dry dusting of unit"], excludes: ["Coil deep chemical washing"] },
+              { name: "Elite", price: 149, duration: "2 hours", description: "Premium AC deep chemical cleaning.", includes: ["Chemical coil scrub", "Drain pipe flush", "Condenser cleaning"], excludes: ["Gas refilling"] }
+            ]
+          },
+          {
+            id: "bedroom-cleaning",
+            title: "Bedroom Deep Cleaning (Only For Flats)",
+            price: 649,
+            image: "https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=800&q=80",
+            plans: [
+              { name: "Express", price: 649, duration: "1.5 hours", description: "Vacuuming and basic dusting.", includes: ["Dry vacuuming of mattress & floor", "Dusting surfaces"], excludes: ["Wet extraction cleaning"] },
+              { name: "Elite", price: 999, duration: "2.5 hours", description: "Deep sanitization and wardrobe clean.", includes: ["HEPA vacuuming", "Wardrobe cleaning inside-out", "Window glass polish"], excludes: ["Heavy carpet extraction"] }
+            ]
+          },
+          {
+            id: "terrace-cleaning",
+            title: "Terrace Cleaning Service",
+            price: 1999,
+            image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&q=80",
+            plans: [
+              { name: "Express", price: 1999, duration: "2 hours", description: "High pressure floor wash.", includes: ["Pressure wash floor tiles", "Grill dusting"], excludes: ["Stain removal scrub"] },
+              { name: "Elite", price: 2999, duration: "3.5 hours", description: "Complete floor scrub, acid wash, wall scrub.", includes: ["Single-disc scrub floor", "Wall tile wash", "Grill rust protection spray"], excludes: ["Waterproofing treatment"] }
+            ]
+          },
+          {
+            id: "mattress-shampooing",
+            title: "Mattress Shampooing Service",
+            price: 349,
+            image: "https://images.unsplash.com/photo-1631679706909-1844bbd07221?auto=format&fit=crop&w=800&q=80",
+            plans: [
+              { name: "Express", price: 349, duration: "1 hour", description: "Dry vacuuming and UV sanitization.", includes: ["Dry vacuum extraction", "UV disinfection scan"], excludes: ["Wet shampoo extraction"] },
+              { name: "Elite", price: 599, duration: "2.5 hours", description: "Deep wet extraction & steam sanitization.", includes: ["Eco shampoo scrubbing", "Injection-extraction wet extraction", "Steam sanitization"], excludes: ["Heavy stain dye removal"] }
+            ]
+          }
+        ];
+        for (const c of defaultCustomized) {
+          await query('INSERT INTO customized_services (id, title, price, image, plans) VALUES (?, ?, ?, ?, ?)', [
+            c.id, c.title, c.price, c.image, JSON.stringify(c.plans)
+          ]);
+        }
+        console.log('Seeded customized services successfully.');
+      }
+    }
+
+    // Seed reviews for all default services if they have 0 reviews
+    const servicesForReviews = [
+      "house", "kitchen", "bath", "sofa", "furniture", "interior", "balcony", "office", "hotel", "fridge", "carpet", "mattress", "glass", "floor", "tank"
+    ];
+    
+    const seedReviewsMap = {
+      house: [
+        { userName: "Sundar Bhobar", rating: 5, comment: "Excellent work, very thorough!" },
+        { userName: "Geetanjali Vikas Jagtap", rating: 5, comment: "Nice work, clean and tidy." },
+        { userName: "Rahul Pawar", rating: 4, comment: "Good service and polite staff." }
+      ],
+      kitchen: [
+        { userName: "Amit Sharma", rating: 5, comment: "All oil stains and chimney grease removed successfully. Highly recommended!" },
+        { userName: "Priya Patel", rating: 5, comment: "Amazing kitchen degreasing work." }
+      ],
+      bath: [
+        { userName: "Rohan Deshmukh", rating: 5, comment: "Descaling is done perfectly, taps are shining now." },
+        { userName: "Sneha Patil", rating: 4, comment: "Very good cleaning and sanitization." }
+      ],
+      balcony: [
+        { userName: "Nikhil Joshi", rating: 5, comment: "High pressure floor wash made the balcony look brand new!" },
+        { userName: "Anjali Gupta", rating: 5, comment: "Excellent job cleaning the balcony tiles and glass doors." }
+      ],
+      sofa: [
+        { userName: "Vikram Singh", rating: 5, comment: "Removed all tough stains from my fabric sofa. Great extraction equipment." }
+      ],
+      fridge: [
+        { userName: "Meera Nair", rating: 5, comment: "Disinfected inside trays and removed bad odor. Excellent fridge clean." }
+      ],
+      carpet: [
+        { userName: "Rajesh Kumar", rating: 5, comment: "Carpet shampooing restored the fabric brightness. Good scent." }
+      ],
+      mattress: [
+        { userName: "Karan Johar", rating: 4, comment: "Good UV sanitization and allergen dust extraction." }
+      ],
+      glass: [
+        { userName: "Deepa Mehta", rating: 5, comment: "Spotless glass windows. Squeegee finish is absolutely streak-free." }
+      ]
+    };
+
+    for (const serviceId of servicesForReviews) {
+      const check = await query('SELECT COUNT(*) as count FROM reviews WHERE serviceId = ?', [serviceId]);
+      if (check[0].count === 0) {
+        const seeds = seedReviewsMap[serviceId] || [
+          { userName: "Happy Customer", rating: 5, comment: "Great service and professional cleaning team." },
+          { userName: "Anonymous", rating: 5, comment: "Very satisfied with the quality of clean." }
+        ];
+        for (let i = 0; i < seeds.length; i++) {
+          const seed = seeds[i];
+          await query('INSERT INTO reviews (id, serviceId, userName, rating, comment, createdAt) VALUES (?, ?, ?, ?, ?, ?)', [
+            `seed-rev-${serviceId}-${i}`, serviceId, seed.userName, seed.rating, seed.comment, new Date(Date.now() - (i + 1) * 24 * 3600 * 1000).toISOString()
+          ]);
+        }
+        console.log(`Seeded default reviews for service: ${serviceId}`);
+      }
     }
   } catch (err) {
     console.error('MySQL database initialization failed:', err.message);
@@ -271,13 +662,13 @@ module.exports = {
   async getCategories() {
     return await query('SELECT * FROM categories');
   },
-  async addCategory({ id, title, tagline, emoji }) {
-    await query('INSERT INTO categories (id, title, tagline, emoji) VALUES (?, ?, ?, ?)', [id, title, tagline, emoji]);
-    return { id, title, tagline, emoji };
+  async addCategory({ id, title, tagline, emoji, image }) {
+    await query('INSERT INTO categories (id, title, tagline, emoji, image) VALUES (?, ?, ?, ?, ?)', [id, title, tagline, emoji, image || null]);
+    return { id, title, tagline, emoji, image };
   },
-  async updateCategory(id, { title, tagline, emoji }) {
-    await query('UPDATE categories SET title = ?, tagline = ?, emoji = ? WHERE id = ?', [title, tagline, emoji, id]);
-    return { id, title, tagline, emoji };
+  async updateCategory(id, { title, tagline, emoji, image }) {
+    await query('UPDATE categories SET title = ?, tagline = ?, emoji = ?, image = ? WHERE id = ?', [title, tagline, emoji, image, id]);
+    return { id, title, tagline, emoji, image };
   },
   async deleteCategory(id) {
     await query('DELETE FROM categories WHERE id = ?', [id]);
@@ -289,22 +680,41 @@ module.exports = {
     const rows = await query('SELECT * FROM services');
     return rows.map(r => ({
       ...r,
-      includes: typeof r.includes === 'string' ? JSON.parse(r.includes) : (r.includes || [])
+      includes: typeof r.includes === 'string' ? JSON.parse(r.includes) : (r.includes || []),
+      plans: typeof r.plans === 'string' ? JSON.parse(r.plans) : (r.plans || [])
     }));
   },
-  async addService({ id, categoryId, title, price, description, includes }) {
+  async addService({ id, categoryId, title, price, description, includes, image, plans, disclaimer, requirements }) {
     const incString = JSON.stringify(includes || []);
-    await query('INSERT INTO services (id, categoryId, title, price, description, includes) VALUES (?, ?, ?, ?, ?, ?)', [id, categoryId, title, price, description, incString]);
-    return { id, categoryId, title, price, description, includes };
+    const plansString = JSON.stringify(plans || []);
+    await query('INSERT INTO services (id, categoryId, title, price, description, includes, image, plans, disclaimer, requirements) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+      id, categoryId, title, price, description, incString, image || null, plansString, disclaimer || null, requirements || null
+    ]);
+    return { id, categoryId, title, price, description, includes, image, plans, disclaimer, requirements };
   },
-  async updateService(id, { categoryId, title, price, description, includes }) {
+  async updateService(id, { categoryId, title, price, description, includes, image, plans, disclaimer, requirements }) {
     const incString = JSON.stringify(includes || []);
-    await query('UPDATE services SET categoryId = ?, title = ?, price = ?, description = ?, includes = ? WHERE id = ?', [categoryId, title, price, description, incString, id]);
-    return { id, categoryId, title, price, description, includes };
+    const plansString = JSON.stringify(plans || []);
+    await query('UPDATE services SET categoryId = ?, title = ?, price = ?, description = ?, includes = ?, image = ?, plans = ?, disclaimer = ?, requirements = ? WHERE id = ?', [
+      categoryId, title, price, description, incString, image || null, plansString, disclaimer || null, requirements || null, id
+    ]);
+    return { id, categoryId, title, price, description, includes, image, plans, disclaimer, requirements };
   },
   async deleteService(id) {
     await query('DELETE FROM services WHERE id = ?', [id]);
     return true;
+  },
+
+  // Reviews
+  async getReviews(serviceId) {
+    return await query('SELECT * FROM reviews WHERE serviceId = ? ORDER BY createdAt DESC', [serviceId]);
+  },
+  async addReview({ id, serviceId, userName, rating, comment }) {
+    const createdAt = new Date().toISOString();
+    await query('INSERT INTO reviews (id, serviceId, userName, rating, comment, createdAt) VALUES (?, ?, ?, ?, ?, ?)', [
+      id, serviceId, userName, Number(rating) || 5, comment || '', createdAt
+    ]);
+    return { id, serviceId, userName, rating, comment, createdAt };
   },
 
   // Bookings
@@ -338,6 +748,10 @@ module.exports = {
     await query('DELETE FROM bookings WHERE id = ?', [id]);
     return true;
   },
+  async updateBookingPayment(id, paymentStatus, paymentId) {
+    await query('UPDATE bookings SET paymentStatus = ?, paymentId = ? WHERE id = ?', [paymentStatus, paymentId, id]);
+    return true;
+  },
 
   // Users Authentication helper methods
   async getUserByEmail(email) {
@@ -348,6 +762,33 @@ module.exports = {
     const rows = await query('SELECT * FROM users WHERE phone = ?', [phone]);
     return rows[0] || null;
   },
+  // Customized Services
+  async getCustomizedServices() {
+    const rows = await query('SELECT * FROM customized_services');
+    return rows.map(r => ({
+      ...r,
+      plans: typeof r.plans === 'string' ? JSON.parse(r.plans) : (r.plans || [])
+    }));
+  },
+  async addCustomizedService({ id, title, price, image, plans }) {
+    const plansString = JSON.stringify(plans || []);
+    await query('INSERT INTO customized_services (id, title, price, image, plans) VALUES (?, ?, ?, ?, ?)', [
+      id, title, price, image || null, plansString
+    ]);
+    return { id, title, price, image, plans };
+  },
+  async updateCustomizedService(id, { title, price, image, plans }) {
+    const plansString = JSON.stringify(plans || []);
+    await query('UPDATE customized_services SET title = ?, price = ?, image = ?, plans = ? WHERE id = ?', [
+      title, price, image || null, plansString, id
+    ]);
+    return { id, title, price, image, plans };
+  },
+  async deleteCustomizedService(id) {
+    await query('DELETE FROM customized_services WHERE id = ?', [id]);
+    return true;
+  },
+
   async createUser({ id, name, phone, email, password }) {
     const createdAt = new Date().toISOString();
     await query('INSERT INTO users (id, name, phone, email, password, createdAt) VALUES (?, ?, ?, ?, ?, ?)', [
@@ -359,5 +800,47 @@ module.exports = {
       createdAt
     ]);
     return { id, name, phone, email, password, createdAt };
+  },
+
+  async getUsers() {
+    const users = await query('SELECT id, name, email, phone, createdAt FROM users ORDER BY createdAt DESC');
+    return users;
+  },
+  async getCoupons() {
+    return await query('SELECT * FROM coupons ORDER BY code ASC');
+  },
+  async addCoupon({ code, discount, minAmount, expiryDate, isActive }) {
+    await query('INSERT INTO coupons (code, discount, minAmount, expiryDate, isActive) VALUES (?, ?, ?, ?, ?)', [
+      code.toUpperCase().trim(), Number(discount), Number(minAmount), expiryDate, isActive ? 1 : 0
+    ]);
+    return { code: code.toUpperCase().trim(), discount, minAmount, expiryDate, isActive };
+  },
+  async updateCoupon(code, { discount, minAmount, expiryDate, isActive }) {
+    await query('UPDATE coupons SET discount = ?, minAmount = ?, expiryDate = ?, isActive = ? WHERE code = ?', [
+      Number(discount), Number(minAmount), expiryDate, isActive ? 1 : 0, code
+    ]);
+    return { code, discount, minAmount, expiryDate, isActive };
+  },
+  async deleteCoupon(code) {
+    await query('DELETE FROM coupons WHERE code = ?', [code]);
+    return true;
+  },
+  async validateCoupon(code, total) {
+    const coupons = await query('SELECT * FROM coupons WHERE code = ?', [code.toUpperCase().trim()]);
+    if (!coupons || coupons.length === 0) {
+      throw new Error("Coupon code is invalid.");
+    }
+    const c = coupons[0];
+    if (!c.isActive) {
+      throw new Error("Coupon code is not active.");
+    }
+    const today = new Date().toISOString().split('T')[0];
+    if (c.expiryDate < today) {
+      throw new Error("Coupon has expired.");
+    }
+    if (total < c.minAmount) {
+      throw new Error(`Minimum order amount of ₹${c.minAmount} is required to apply this coupon.`);
+    }
+    return { code: c.code, discount: c.discount };
   }
 };
