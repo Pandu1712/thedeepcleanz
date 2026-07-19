@@ -2,11 +2,19 @@
 // Configure the base URL via VITE_ADMIN_API_URL (defaults to http://localhost:4000).
 export const ADMIN_API_URL =
   (import.meta.env.VITE_ADMIN_API_URL as string | undefined)?.replace(/\/$/, "") ||
-  (typeof window !== "undefined" && !window.location.hostname.includes("localhost") && !window.location.hostname.includes("127.0.0.1")
+  (typeof window !== "undefined" &&
+  !window.location.hostname.includes("localhost") &&
+  !window.location.hostname.includes("127.0.0.1")
     ? window.location.origin
     : "http://localhost:4000");
 
-export type AdminCategory = { id: string; title: string; tagline: string; emoji: string; image?: string };
+export type AdminCategory = {
+  id: string;
+  title: string;
+  tagline: string;
+  emoji: string;
+  image?: string;
+};
 export type ServicePlan = {
   name: string;
   price: number;
@@ -36,7 +44,9 @@ export async function fetchAdminCatalog(signal?: AbortSignal): Promise<AdminCata
   return (await res.json()) as AdminCatalog;
 }
 
-export async function postAdminBooking(payload: unknown): Promise<{ ok: boolean; booking?: unknown }> {
+export async function postAdminBooking(
+  payload: unknown,
+): Promise<{ ok: boolean; booking?: unknown }> {
   const res = await fetch(`${ADMIN_API_URL}/api/bookings`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -46,7 +56,9 @@ export async function postAdminBooking(payload: unknown): Promise<{ ok: boolean;
   return (await res.json()) as { ok: boolean; booking?: unknown };
 }
 
-export async function createRazorpayOrder(amount: number): Promise<{ orderId: string; amount: number; keyId: string }> {
+export async function createRazorpayOrder(
+  amount: number,
+): Promise<{ orderId: string; amount: number; keyId: string }> {
   const res = await fetch(`${ADMIN_API_URL}/api/payment/order`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -65,6 +77,12 @@ export async function fetchBookings(): Promise<any[]> {
   return (await res.json()) as any[];
 }
 
+export async function fetchAllReviews(signal?: AbortSignal): Promise<any[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/reviews`, { signal });
+  if (!res.ok) throw new Error(`Reviews request failed: ${res.status}`);
+  return (await res.json()) as any[];
+}
+
 export async function fetchUsers(): Promise<any[]> {
   const res = await fetch(`${ADMIN_API_URL}/api/users`);
   if (!res.ok) throw new Error(`Users request failed: ${res.status}`);
@@ -77,7 +95,11 @@ export async function deleteBooking(id: string): Promise<boolean> {
   return (await res.json()).ok as boolean;
 }
 
-export async function updateBookingPayment(id: string, paymentStatus: string, paymentId: string | null): Promise<boolean> {
+export async function updateBookingPayment(
+  id: string,
+  paymentStatus: string,
+  paymentId: string | null,
+): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/bookings/${id}/payment`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -87,7 +109,12 @@ export async function updateBookingPayment(id: string, paymentStatus: string, pa
   return (await res.json()).ok as boolean;
 }
 
-export async function createCategory(cat: { title: string; tagline: string; emoji: string; image?: string }): Promise<AdminCategory> {
+export async function createCategory(cat: {
+  title: string;
+  tagline: string;
+  emoji: string;
+  image?: string;
+}): Promise<AdminCategory> {
   const res = await fetch(`${ADMIN_API_URL}/api/categories`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -97,7 +124,10 @@ export async function createCategory(cat: { title: string; tagline: string; emoj
   return (await res.json()).category as AdminCategory;
 }
 
-export async function updateCategory(id: string, patch: Partial<AdminCategory>): Promise<AdminCategory> {
+export async function updateCategory(
+  id: string,
+  patch: Partial<AdminCategory>,
+): Promise<AdminCategory> {
   const res = await fetch(`${ADMIN_API_URL}/api/categories/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -113,7 +143,9 @@ export async function deleteCategory(id: string): Promise<boolean> {
   return (await res.json()).ok as boolean;
 }
 
-export async function createService(svc: Omit<AdminService, "id"> & { id?: string }): Promise<AdminService> {
+export async function createService(
+  svc: Omit<AdminService, "id"> & { id?: string },
+): Promise<AdminService> {
   const res = await fetch(`${ADMIN_API_URL}/api/services`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -123,7 +155,10 @@ export async function createService(svc: Omit<AdminService, "id"> & { id?: strin
   return (await res.json()).service as AdminService;
 }
 
-export async function updateService(id: string, patch: Partial<AdminService>): Promise<AdminService> {
+export async function updateService(
+  id: string,
+  patch: Partial<AdminService>,
+): Promise<AdminService> {
   const res = await fetch(`${ADMIN_API_URL}/api/services/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -154,7 +189,12 @@ export async function fetchReviews(serviceId: string): Promise<ServiceReview[]> 
   return (await res.json()) as ServiceReview[];
 }
 
-export async function postReview(payload: { serviceId: string; userName: string; rating: number; comment: string }): Promise<{ ok: boolean; review: ServiceReview }> {
+export async function postReview(payload: {
+  serviceId: string;
+  userName: string;
+  rating: number;
+  comment: string;
+}): Promise<{ ok: boolean; review: ServiceReview }> {
   const res = await fetch(`${ADMIN_API_URL}/api/reviews`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -172,13 +212,17 @@ export type AdminCustomizedService = {
   plans?: ServicePlan[];
 };
 
-export async function fetchCustomizedServices(signal?: AbortSignal): Promise<AdminCustomizedService[]> {
+export async function fetchCustomizedServices(
+  signal?: AbortSignal,
+): Promise<AdminCustomizedService[]> {
   const res = await fetch(`${ADMIN_API_URL}/api/customized-services`, { signal });
   if (!res.ok) throw new Error(`Customized services request failed: ${res.status}`);
   return (await res.json()) as AdminCustomizedService[];
 }
 
-export async function createCustomizedService(svc: Omit<AdminCustomizedService, "id"> & { id?: string }): Promise<AdminCustomizedService> {
+export async function createCustomizedService(
+  svc: Omit<AdminCustomizedService, "id"> & { id?: string },
+): Promise<AdminCustomizedService> {
   const res = await fetch(`${ADMIN_API_URL}/api/customized-services`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -188,7 +232,10 @@ export async function createCustomizedService(svc: Omit<AdminCustomizedService, 
   return (await res.json()).service as AdminCustomizedService;
 }
 
-export async function updateCustomizedService(id: string, patch: Partial<AdminCustomizedService>): Promise<AdminCustomizedService> {
+export async function updateCustomizedService(
+  id: string,
+  patch: Partial<AdminCustomizedService>,
+): Promise<AdminCustomizedService> {
   const res = await fetch(`${ADMIN_API_URL}/api/customized-services/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -218,7 +265,9 @@ export async function fetchCoupons(): Promise<AdminCoupon[]> {
   return (await res.json()) as AdminCoupon[];
 }
 
-export async function createCoupon(coupon: Omit<AdminCoupon, "code"> & { code: string }): Promise<AdminCoupon> {
+export async function createCoupon(
+  coupon: Omit<AdminCoupon, "code"> & { code: string },
+): Promise<AdminCoupon> {
   const res = await fetch(`${ADMIN_API_URL}/api/coupons`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -231,7 +280,10 @@ export async function createCoupon(coupon: Omit<AdminCoupon, "code"> & { code: s
   return (await res.json()).coupon as AdminCoupon;
 }
 
-export async function updateCoupon(code: string, patch: Partial<AdminCoupon>): Promise<AdminCoupon> {
+export async function updateCoupon(
+  code: string,
+  patch: Partial<AdminCoupon>,
+): Promise<AdminCoupon> {
   const res = await fetch(`${ADMIN_API_URL}/api/coupons/${code}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -250,7 +302,10 @@ export async function deleteCoupon(code: string): Promise<boolean> {
   return (await res.json()).ok as boolean;
 }
 
-export async function validateCoupon(code: string, total: number): Promise<{ code: string; discount: number }> {
+export async function validateCoupon(
+  code: string,
+  total: number,
+): Promise<{ code: string; discount: number }> {
   const res = await fetch(`${ADMIN_API_URL}/api/coupons/validate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -261,4 +316,167 @@ export async function validateCoupon(code: string, total: number): Promise<{ cod
     throw new Error(errData.error || "Invalid coupon or order amount is too low.");
   }
   return (await res.json()).coupon as { code: string; discount: number };
+}
+
+export type AdminTechnician = {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  specialty?: string;
+  status?: string;
+  password?: string;
+  createdAt?: string;
+};
+
+export async function fetchTechnicians(): Promise<AdminTechnician[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/technicians`);
+  if (!res.ok) throw new Error(`Technicians request failed: ${res.status}`);
+  return (await res.json()) as AdminTechnician[];
+}
+
+export async function fetchTechnicianBookings(id: string): Promise<any[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/technicians/${id}/bookings`);
+  if (!res.ok) throw new Error(`Technician bookings request failed: ${res.status}`);
+  return (await res.json()) as any[];
+}
+
+export async function createTechnician(
+  tech: Omit<AdminTechnician, "id"> & { id?: string },
+): Promise<AdminTechnician> {
+  const res = await fetch(`${ADMIN_API_URL}/api/technicians`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(tech),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Create technician failed: ${res.status}`);
+  }
+  return (await res.json()).technician as AdminTechnician;
+}
+
+export async function updateTechnician(
+  id: string,
+  patch: Partial<AdminTechnician>,
+): Promise<AdminTechnician> {
+  const res = await fetch(`${ADMIN_API_URL}/api/technicians/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Update technician failed: ${res.status}`);
+  }
+  return (await res.json()).technician as AdminTechnician;
+}
+
+export async function deleteTechnician(id: string): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/technicians/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`Delete technician failed: ${res.status}`);
+  return (await res.json()).ok as boolean;
+}
+
+export async function updateBookingTechnician(
+  id: string,
+  technicianId: string | null,
+): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/bookings/${id}/technician`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ technicianId }),
+  });
+  if (!res.ok) throw new Error(`Update booking technician failed: ${res.status}`);
+  return (await res.json()).ok as boolean;
+}
+
+export async function updateBookingJobStatus(
+  id: string,
+  jobStatus: string,
+  statusNote?: string | null,
+): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/bookings/${id}/job-status`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jobStatus, statusNote }),
+  });
+  if (!res.ok) throw new Error(`Update booking job status failed: ${res.status}`);
+  return (await res.json()).ok as boolean;
+}
+
+export async function rescheduleBooking(
+  id: string,
+  date: string,
+  time: string,
+  rescheduledBy?: string,
+): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/bookings/${id}/reschedule`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ date, time, rescheduledBy }),
+  });
+  if (!res.ok) throw new Error(`Reschedule request failed: ${res.status}`);
+  return (await res.json()).ok as boolean;
+}
+
+export async function fetchRescheduleLogs(): Promise<any[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/bookings/reschedule-logs`);
+  if (!res.ok) throw new Error(`Fetch reschedule logs failed: ${res.status}`);
+  return await res.json();
+}
+
+export async function fetchAdmins(): Promise<any[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/auth/admins`);
+  if (!res.ok) throw new Error(`Fetch admins failed: ${res.status}`);
+  return await res.json();
+}
+
+export async function sendAdminSettingsOtp(email: string): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-settings/otp/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Send OTP failed: ${res.status}`);
+  }
+  return true;
+}
+
+export async function registerAdmin(payload: any): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-settings/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Register admin failed: ${res.status}`);
+  }
+  return true;
+}
+
+export async function updateAdminDetails(currentEmail: string, payload: any): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-settings/update`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currentEmail, ...payload }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Update admin failed: ${res.status}`);
+  }
+  return true;
+}
+
+export async function deleteAdmin(email: string): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-settings/delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error(`Delete admin failed: ${res.status}`);
+  return (await res.json()).ok as boolean;
 }

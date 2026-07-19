@@ -1,17 +1,37 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
 import {
-  Sparkles, ShoppingCart, Phone, MapPin, Menu, X, Heart, Star,
-  Check, Plus, Gift, Facebook, Instagram, Twitter, Youtube, Send,
-  ArrowRight, Shield, Clock, Award, CheckCircle2, ChevronRight
+  Sparkles,
+  ShoppingCart,
+  Phone,
+  MapPin,
+  Menu,
+  X,
+  Heart,
+  Star,
+  Check,
+  Plus,
+  Gift,
+  Facebook,
+  Instagram,
+  Twitter,
+  Youtube,
+  Send,
+  ArrowRight,
+  Shield,
+  Clock,
+  Award,
+  CheckCircle2,
+  ChevronRight,
+  Mail,
 } from "lucide-react";
 import { toast } from "sonner";
-import { fetchCustomizedServices, fetchAdminCatalog, type AdminCustomizedService } from "@/api/admin-api";
 import {
-  CartItem,
-  CartDrawer,
-  BookingModal
-} from "./index";
+  fetchCustomizedServices,
+  fetchAdminCatalog,
+  type AdminCustomizedService,
+} from "@/api/admin-api";
+import { CartItem, CartDrawer, BookingModal } from "./index";
 
 type CustomizedSearch = {
   service?: string;
@@ -44,7 +64,7 @@ function CustomizedComponent() {
   // Load customized services and user data
   useEffect(() => {
     const ctrl = new AbortController();
-    
+
     // Read local cart
     try {
       const c = localStorage.getItem("thedeepcleanerz_cart_v1");
@@ -69,7 +89,7 @@ function CustomizedComponent() {
 
     Promise.all([
       fetchCustomizedServices(ctrl.signal),
-      fetchAdminCatalog(ctrl.signal).catch(() => ({ categories: [] }))
+      fetchAdminCatalog(ctrl.signal).catch(() => ({ categories: [] })),
     ])
       .then(([customized, catalog]) => {
         setServices(customized || []);
@@ -92,9 +112,10 @@ function CustomizedComponent() {
   useEffect(() => {
     if (searchParams.service && services.length > 0) {
       const match = services.find(
-        (s) => s.id === searchParams.service || 
-               searchParams.service.startsWith(s.id + "-") || 
-               s.title?.toLowerCase() === searchParams.service?.toLowerCase()
+        (s) =>
+          s.id === searchParams.service ||
+          searchParams.service.startsWith(s.id + "-") ||
+          s.title?.toLowerCase() === searchParams.service?.toLowerCase(),
       );
       if (match) {
         setSelectedService(match);
@@ -128,29 +149,69 @@ function CustomizedComponent() {
   };
 
   const updateQty = (id: string, d: number) =>
-    setCart((c) => c.flatMap((i) => (i.id === id ? (i.qty + d <= 0 ? [] : [{ ...i, qty: i.qty + d }]) : [i])));
+    setCart((c) =>
+      c.flatMap((i) => (i.id === id ? (i.qty + d <= 0 ? [] : [{ ...i, qty: i.qty + d }]) : [i])),
+    );
   const removeItem = (id: string) => setCart((c) => c.filter((i) => i.id !== id));
-  const addRawItemToCart = (item: { id: string; title: string; price: number; img: string }) => {
+  const addRawItemToCart = (item: {
+    id: string;
+    title: string;
+    price: number;
+    img: string;
+    paymentType?: "full" | "deposit_25";
+  }) => {
     setCart((c) => {
       const ex = c.find((i) => i.id === item.id);
       if (ex) return c.map((i) => (i.id === item.id ? { ...i, qty: i.qty + 1 } : i));
-      return [...c, { id: item.id, title: item.title, price: item.price, img: item.img, qty: 1 }];
+      return [
+        ...c,
+        {
+          id: item.id,
+          title: item.title,
+          price: item.price,
+          img: item.img,
+          qty: 1,
+          paymentType: item.paymentType || "full",
+        },
+      ];
     });
     toast.success(`${item.title} added to cart`, { icon: "🛒" });
   };
-  const checkout = () => { setCartOpen(false); setBookingOpen(true); };
-  const completeBooking = () => { setCart([]); setBookingOpen(false); toast.success("Booking confirmed! Our team will call you shortly.", { icon: "✨", duration: 5000 }); };
-
+  const checkout = () => {
+    setCartOpen(false);
+    setBookingOpen(true);
+  };
+  const completeBooking = () => {
+    setCart([]);
+    setBookingOpen(false);
+    toast.success("Booking confirmed! Our team will call you shortly.", {
+      icon: "✨",
+      duration: 5000,
+    });
+  };
 
   const handleAddPlanToCart = (s: AdminCustomizedService, plan: any) => {
     setCart((c) => {
       const cartItemId = `${s.id}-${plan.name.replace(/\s+/g, "-").toLowerCase()}`;
       const cartItemTitle = `${s.title} (${plan.name})`;
       const cartItemPrice = plan.price;
-      const cartItemImg = s.image || "https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&w=800&q=80";
+      const cartItemImg =
+        s.image ||
+        "https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&w=800&q=80";
+      const cartItemPaymentType = s.paymentType || "full";
       const ex = c.find((i) => i.id === cartItemId);
       if (ex) return c.map((i) => (i.id === cartItemId ? { ...i, qty: i.qty + 1 } : i));
-      return [...c, { id: cartItemId, title: cartItemTitle, price: cartItemPrice, img: cartItemImg, qty: 1 }];
+      return [
+        ...c,
+        {
+          id: cartItemId,
+          title: cartItemTitle,
+          price: cartItemPrice,
+          img: cartItemImg,
+          qty: 1,
+          paymentType: cartItemPaymentType,
+        },
+      ];
     });
     toast.success(`${s.title} (${plan.name}) added to cart`, { icon: "🛒" });
   };
@@ -158,7 +219,9 @@ function CustomizedComponent() {
   const toggleFav = (id: string) => {
     setFavs((prev) => {
       const updated = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      try { localStorage.setItem("thedeepcleanerz_favs_v1", JSON.stringify(updated)); } catch {}
+      try {
+        localStorage.setItem("thedeepcleanerz_favs_v1", JSON.stringify(updated));
+      } catch {}
       return updated;
     });
   };
@@ -175,19 +238,35 @@ function CustomizedComponent() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
       {/* ANNOUNCEMENT BAR */}
-      <div className="gradient-premium text-cream noise-overlay overflow-hidden">
-        <div className="mx-auto flex max-w-7xl items-center gap-6 px-5 py-2 text-xs lg:px-8">
-          <div className="flex flex-1 items-center gap-2 truncate">
-            <Gift className="h-3.5 w-3.5 text-gold animate-float" />
-            <span className="truncate">
-              <span className="text-shimmer font-bold">Limited offer:</span>{" "}
-              <span className="text-cream/85">Flat 20% OFF on your first booking — use code </span>
-              <span className="font-mono font-bold text-gold">CLEAN20</span>
+      <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 text-[11px] lg:px-8">
+          <div className="flex flex-1 items-center gap-3 truncate">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#cb9f5a] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#cb9f5a]"></span>
+            </span>
+            <span className="truncate text-[#faf8f5]/90 font-medium tracking-wide">
+              <span className="font-semibold text-[#cb9f5a] uppercase text-[9px] tracking-wider bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 px-2 py-0.5 rounded-full mr-2">
+                PROMO
+              </span>
+              Exclusive Privilege: Enjoy <span className="font-bold text-white">Flat 20% OFF</span>{" "}
+              on your first booking — apply code{" "}
+              <span className="inline-flex items-center gap-1 font-mono font-extrabold text-[#cb9f5a] bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full hover:bg-white/10 transition-colors">
+                CLEAN20
+              </span>
             </span>
           </div>
-          <div className="hidden items-center gap-4 md:flex">
-            <span className="inline-flex items-center gap-1.5 text-cream/85"><Phone className="h-3 w-3 text-gold" /> +91 98765 43210</span>
-            <span className="inline-flex items-center gap-1.5 text-cream/85"><MapPin className="h-3 w-3 text-gold" /> 25+ cities across India</span>
+          <div className="hidden items-center gap-5 md:flex font-semibold tracking-wide text-[#faf8f5]/85">
+            <a
+              href="tel:+919876543210"
+              className="inline-flex items-center gap-1.5 hover:text-[#cb9f5a] transition-colors duration-250"
+            >
+              <Phone className="h-3.5 w-3.5 text-[#cb9f5a]" /> +91 98765 43210
+            </a>
+            <span className="h-3 w-px bg-white/15" />
+            <span className="inline-flex items-center gap-1.5 text-cream/75">
+              <MapPin className="h-3.5 w-3.5 text-[#cb9f5a]" /> 25+ Premium Cities
+            </span>
           </div>
         </div>
       </div>
@@ -207,17 +286,26 @@ function CustomizedComponent() {
 
           <nav className="hidden items-center gap-8 lg:flex">
             {navLinks.map((l) => {
-              const isCurrentRoute = typeof window !== 'undefined' && window.location.pathname === l.href;
+              const isCurrentRoute =
+                typeof window !== "undefined" && window.location.pathname === l.href;
               return l.href.startsWith("/#") ? (
-                <a key={l.label} href={l.href}
-                   className="relative text-sm font-medium transition-colors text-cream/80 hover:text-gold after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:bg-gold after:transition-all hover:after:w-full after:w-0">
+                <a
+                  key={l.label}
+                  href={l.href}
+                  className="relative text-sm font-medium transition-colors text-cream/80 hover:text-gold after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:bg-gold after:transition-all hover:after:w-full after:w-0"
+                >
                   {l.label}
                 </a>
               ) : (
-                <Link key={l.label} to={l.href}
-                   className={`relative text-sm font-medium transition-colors ${
-                     isCurrentRoute ? "text-gold after:w-full" : "text-cream/80 hover:text-gold after:w-0"
-                   } after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:bg-gold after:transition-all hover:after:w-full`}>
+                <Link
+                  key={l.label}
+                  to={l.href}
+                  className={`relative text-sm font-medium transition-colors ${
+                    isCurrentRoute
+                      ? "text-gold after:w-full"
+                      : "text-cream/80 hover:text-gold after:w-0"
+                  } after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:bg-gold after:transition-all hover:after:w-full`}
+                >
                   {l.label}
                 </Link>
               );
@@ -225,7 +313,10 @@ function CustomizedComponent() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Link to="/" className="relative hidden h-10 w-10 place-items-center rounded-full border border-gold/30 text-cream transition-colors hover:bg-gold hover:text-navy md:grid">
+            <Link
+              to="/"
+              className="relative hidden h-10 w-10 place-items-center rounded-full border border-gold/30 text-cream transition-colors hover:bg-gold hover:text-navy md:grid"
+            >
               <Heart className={`h-4.5 w-4.5 ${favs.length ? "fill-gold text-gold" : ""}`} />
               {favs.length > 0 && (
                 <span className="absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full bg-gold px-1 text-[10px] font-bold text-navy">
@@ -233,8 +324,11 @@ function CustomizedComponent() {
                 </span>
               )}
             </Link>
-            <button onClick={() => setCartOpen(true)} aria-label="Open cart"
-              className="relative grid h-10 w-10 place-items-center rounded-full border border-gold/30 text-cream transition-colors hover:bg-gold hover:text-navy">
+            <button
+              onClick={() => setCartOpen(true)}
+              aria-label="Open cart"
+              className="relative grid h-10 w-10 place-items-center rounded-full border border-gold/30 text-cream transition-colors hover:bg-gold hover:text-navy"
+            >
               <ShoppingCart className="h-4.5 w-4.5" />
               {cartCount > 0 && (
                 <span className="absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full bg-gold px-1 text-[10px] font-bold text-navy pulse-gold">
@@ -244,25 +338,34 @@ function CustomizedComponent() {
             </button>
             {userEmail ? (
               <div className="hidden items-center gap-3.5 md:flex">
-                <button onClick={() => navigate({ to: "/my-bookings" })}
-                  className="rounded-full border border-gold/30 hover:border-gold bg-gold/5 hover:bg-gold/10 px-4 py-2 text-xs font-bold text-gold transition-all hover:scale-[1.02] active:scale-95 cursor-pointer font-sans">
+                <button
+                  onClick={() => navigate({ to: "/my-bookings" })}
+                  className="rounded-full border border-gold/30 hover:border-gold bg-gold/5 hover:bg-gold/10 px-4 py-2 text-xs font-bold text-gold transition-all hover:scale-[1.02] active:scale-95 cursor-pointer font-sans"
+                >
                   My Bookings
                 </button>
                 <span className="text-sm font-medium text-cream bg-gold/10 px-3 py-1.5 rounded-full border border-gold/20">
-                  Hi, {userProfile?.name || userEmail.split('@')[0]}
+                  Hi, {userProfile?.name || userEmail.split("@")[0]}
                 </span>
-                <button onClick={handleLogout}
-                  className="rounded-full bg-red-500/10 border border-red-500/35 px-4 py-2 text-xs font-semibold text-red-200 transition-colors hover:bg-red-500 hover:text-white cursor-pointer">
+                <button
+                  onClick={handleLogout}
+                  className="rounded-full bg-red-500/10 border border-red-500/35 px-4 py-2 text-xs font-semibold text-red-200 transition-colors hover:bg-red-500 hover:text-white cursor-pointer"
+                >
                   Logout
                 </button>
               </div>
             ) : (
-              <Link to="/login"
-                className="hidden rounded-full gradient-gold px-5 py-2.5 text-sm font-semibold text-navy shadow-gold transition-transform hover:scale-105 md:inline-flex">
+              <Link
+                to="/login"
+                className="hidden rounded-full gradient-gold px-5 py-2.5 text-sm font-semibold text-navy shadow-gold transition-transform hover:scale-105 md:inline-flex"
+              >
                 Register / Login
               </Link>
             )}
-            <button onClick={() => setNavOpen((v) => !v)} className="grid h-10 w-10 place-items-center rounded-full border border-gold/30 text-cream lg:hidden">
+            <button
+              onClick={() => setNavOpen((v) => !v)}
+              className="grid h-10 w-10 place-items-center rounded-full border border-gold/30 text-cream lg:hidden"
+            >
               {navOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
           </div>
@@ -271,36 +374,57 @@ function CustomizedComponent() {
         {navOpen && (
           <div className="border-t border-gold/20 px-5 pb-5 lg:hidden">
             <div className="flex flex-col gap-3 pt-4">
-              {navLinks.map((l) => (
+              {navLinks.map((l) =>
                 l.href.startsWith("/#") ? (
-                  <a key={l.label} href={l.href} onClick={() => setNavOpen(false)}
-                     className="text-sm font-semibold transition-colors text-cream/90 hover:text-gold">
+                  <a
+                    key={l.label}
+                    href={l.href}
+                    onClick={() => setNavOpen(false)}
+                    className="text-sm font-semibold transition-colors text-cream/90 hover:text-gold"
+                  >
                     {l.label}
                   </a>
                 ) : (
-                  <Link key={l.label} to={l.href} onClick={() => setNavOpen(false)}
-                     className="text-sm font-semibold transition-colors text-gold">
+                  <Link
+                    key={l.label}
+                    to={l.href}
+                    onClick={() => setNavOpen(false)}
+                    className="text-sm font-semibold transition-colors text-gold"
+                  >
                     {l.label}
                   </Link>
-                )
-              ))}
+                ),
+              )}
               {userEmail ? (
                 <div className="flex flex-col gap-2 mt-2">
-                  <button onClick={() => { navigate({ to: "/my-bookings" }); setNavOpen(false); }}
-                    className="w-full text-center rounded-full border border-gold/30 bg-gold/5 py-2.5 text-sm font-bold text-gold transition-colors hover:bg-gold/10 cursor-pointer font-sans">
+                  <button
+                    onClick={() => {
+                      navigate({ to: "/my-bookings" });
+                      setNavOpen(false);
+                    }}
+                    className="w-full text-center rounded-full border border-gold/30 bg-gold/5 py-2.5 text-sm font-bold text-gold transition-colors hover:bg-gold/10 cursor-pointer font-sans"
+                  >
                     My Bookings
                   </button>
                   <span className="text-center text-sm font-medium text-cream bg-gold/10 px-3 py-2 rounded-full border border-gold/20">
-                    Hi, {userProfile?.name || userEmail.split('@')[0]}
+                    Hi, {userProfile?.name || userEmail.split("@")[0]}
                   </span>
-                  <button onClick={() => { handleLogout(); setNavOpen(false); }}
-                    className="w-full rounded-full bg-red-500/10 border border-red-500/30 py-2.5 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500 hover:text-white cursor-pointer">
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setNavOpen(false);
+                    }}
+                    className="w-full rounded-full bg-red-500/10 border border-red-500/30 py-2.5 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500 hover:text-white cursor-pointer"
+                  >
                     Logout
                   </button>
                 </div>
               ) : (
-                <Link to="/login" onClick={() => setNavOpen(false)}
-                  className="mt-2 rounded-full gradient-gold px-5 py-2.5 text-sm font-semibold text-navy text-center">
+                <Link
+                  to="/login"
+                  onClick={() => setNavOpen(false)}
+                  className="mt-2 rounded-full gradient-gold px-5 py-2.5 text-sm font-semibold text-navy text-center"
+                >
                   Register / Login
                 </Link>
               )}
@@ -317,10 +441,14 @@ function CustomizedComponent() {
             Pick Only What You Need
           </span>
           <h1 className="mt-5 font-display text-3xl font-extrabold tracking-tight sm:text-5xl">
-            Customize <span className="bg-gradient-to-r from-gold to-yellow-300 bg-clip-text text-transparent">Your Clean</span>
+            Customize{" "}
+            <span className="bg-gradient-to-r from-gold to-yellow-300 bg-clip-text text-transparent">
+              Your Clean
+            </span>
           </h1>
           <p className="mt-4 text-sm sm:text-base text-slate-350 leading-relaxed max-w-2xl mx-auto">
-            Design your ideal service by selecting specific mini services or focused clean packages. No generic forced categories, complete control over your home care.
+            Design your ideal service by selecting specific mini services or focused clean packages.
+            No generic forced categories, complete control over your home care.
           </p>
         </div>
       </section>
@@ -330,7 +458,9 @@ function CustomizedComponent() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-gold border-t-transparent mb-4" />
-            <p className="text-sm text-slate-500 font-medium">Fetching customized clean packages...</p>
+            <p className="text-sm text-slate-500 font-medium">
+              Fetching customized clean packages...
+            </p>
           </div>
         ) : (
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -343,11 +473,14 @@ function CustomizedComponent() {
                   {/* Aspect Ratio 4:3 Image */}
                   <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
                     <img
-                      src={s.image || "https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&w=800&q=80"}
+                      src={
+                        s.image ||
+                        "https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&w=800&q=80"
+                      }
                       alt={s.title}
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    
+
                     {/* Floating Rating Badge on Top Right */}
                     <div className="absolute top-4 right-4 flex items-center gap-1 rounded-full bg-slate-950/80 backdrop-blur-sm px-3 py-1 text-2xs font-extrabold text-gold">
                       <Star className="h-3.5 w-3.5 fill-gold stroke-none" />
@@ -356,10 +489,15 @@ function CustomizedComponent() {
 
                     {/* Floating Fav Button */}
                     <button
-                      onClick={(e) => { e.stopPropagation(); toggleFav(s.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFav(s.id);
+                      }}
                       className="absolute top-4 left-4 grid h-8 w-8 place-items-center rounded-full bg-white/95 text-slate-600 shadow-md hover:text-red-500 transition-colors"
                     >
-                      <Heart className={`h-4.5 w-4.5 ${favs.includes(s.id) ? "fill-red-500 text-red-500" : ""}`} />
+                      <Heart
+                        className={`h-4.5 w-4.5 ${favs.includes(s.id) ? "fill-red-500 text-red-500" : ""}`}
+                      />
                     </button>
                   </div>
 
@@ -369,7 +507,9 @@ function CustomizedComponent() {
                       {s.title}
                     </h3>
                     <div className="mt-3.5 flex items-baseline gap-1.5">
-                      <span className="text-2xs font-bold uppercase tracking-wider text-slate-400">Starts At</span>
+                      <span className="text-2xs font-bold uppercase tracking-wider text-slate-400">
+                        Starts At
+                      </span>
                       <span className="text-xl font-black text-slate-900">₹{s.price}</span>
                     </div>
                   </div>
@@ -391,62 +531,182 @@ function CustomizedComponent() {
       </main>
 
       {/* FOOTER */}
-      <footer className="bg-slate-950 text-cream py-16 border-t border-white/10 noise-overlay">
-        <div className="mx-auto max-w-7xl px-5 lg:px-8">
-          <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-4">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2.5">
-                <div className="grid h-9 w-9 place-items-center rounded-lg gradient-gold">
-                  <Sparkles className="h-4.5 w-4.5 text-navy" />
-                </div>
-                <span className="font-display text-base font-bold text-cream">TheDeep CleanerZ</span>
-              </div>
-              <p className="text-xs text-cream/70 leading-relaxed">
-                Premium deep cleaning solutions for homes, kitchens, washrooms, furniture and commercial spaces.
-              </p>
+      <footer className="bg-[#001712] text-cream/80 relative overflow-hidden border-t border-[#cb9f5a]/20">
+        {/* Subtle background glow */}
+        <div className="absolute top-0 left-1/4 -translate-y-1/2 w-[500px] h-[250px] bg-[#cb9f5a]/5 blur-[120px] rounded-full pointer-events-none" />
+
+        <div className="mx-auto max-w-7xl px-5 pt-16 pb-12 lg:px-8 relative z-10">
+          <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-4 pb-12 border-b border-[#cb9f5a]/10">
+            {/* Column 1: Brand Info */}
+            <div className="space-y-6">
               <div className="flex items-center gap-3">
-                <a href="#" className="h-8 w-8 rounded-full bg-white/5 border border-white/10 grid place-items-center text-cream/70 hover:bg-gold hover:text-navy transition-colors"><Facebook className="h-3.5 w-3.5" /></a>
-                <a href="#" className="h-8 w-8 rounded-full bg-white/5 border border-white/10 grid place-items-center text-cream/70 hover:bg-gold hover:text-navy transition-colors"><Instagram className="h-3.5 w-3.5" /></a>
-                <a href="#" className="h-8 w-8 rounded-full bg-white/5 border border-white/10 grid place-items-center text-cream/70 hover:bg-gold hover:text-navy transition-colors"><Twitter className="h-3.5 w-3.5" /></a>
-                <a href="#" className="h-8 w-8 rounded-full bg-white/5 border border-white/10 grid place-items-center text-cream/70 hover:bg-gold hover:text-navy transition-colors"><Youtube className="h-3.5 w-3.5" /></a>
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#cb9f5a] to-[#a37937] p-[1px] shadow-lg shadow-[#cb9f5a]/10">
+                  <div className="h-full w-full rounded-[15px] bg-[#001712] flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-[#cb9f5a]" />
+                  </div>
+                </div>
+                <div>
+                  <div className="font-display text-xl font-bold tracking-tight text-white">
+                    TheDeep CleanerZ
+                  </div>
+                  <div className="text-[10px] uppercase tracking-[0.25em] text-[#cb9f5a] font-extrabold mt-0.5">
+                    Luxury Care
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-cream/60 font-medium">
+                Redefining cleanliness with bespoke, hotel-grade service for premium homes &
+                estates. Our attention to detail is your ultimate peace of mind.
+              </p>
+              <div className="flex gap-2.5">
+                {[
+                  { Icon: Facebook, label: "Facebook" },
+                  { Icon: Instagram, label: "Instagram" },
+                  { Icon: Twitter, label: "Twitter" },
+                  { Icon: Youtube, label: "Youtube" },
+                ].map((s, idx) => (
+                  <a
+                    key={idx}
+                    href="#"
+                    aria-label={s.label}
+                    className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 border border-white/10 transition-all duration-300 text-cream/70 hover:bg-[#cb9f5a] hover:text-[#001712] hover:border-[#cb9f5a] hover:-translate-y-1 hover:shadow-md hover:shadow-[#cb9f5a]/10"
+                  >
+                    <s.Icon className="h-4 w-4" />
+                  </a>
+                ))}
               </div>
             </div>
 
+            {/* Column 2: Quick Links */}
             <div>
-              <h4 className="font-display text-sm font-bold text-gold">Top Services</h4>
-              <ul className="mt-4 space-y-2 text-xs text-cream/85">
-                <li><Link to="/" className="hover:text-gold">Full House Deep Clean</Link></li>
-                <li><Link to="/" className="hover:text-gold">Kitchen Degreasing</Link></li>
-                <li><Link to="/" className="hover:text-gold">Bathroom Sanitisation</Link></li>
-                <li><Link to="/" className="hover:text-gold">Sofa & Carpet Wash</Link></li>
+              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[#cb9f5a] border-b border-[#cb9f5a]/20 pb-3">
+                Quick Navigation
+              </h4>
+              <ul className="mt-5 space-y-3 text-xs font-semibold">
+                {navLinks.map((l) => (
+                  <li key={l.href}>
+                    <a
+                      href={l.href}
+                      className="group flex items-center gap-1 text-cream/75 hover:text-[#cb9f5a] transition-all duration-200"
+                    >
+                      <span className="h-1 w-1 rounded-full bg-[#cb9f5a]/50 scale-0 group-hover:scale-100 transition-transform duration-200 mr-1" />
+                      <span className="group-hover:translate-x-1.5 transition-transform duration-250">
+                        {l.label}
+                      </span>
+                    </a>
+                  </li>
+                ))}
               </ul>
             </div>
 
+            {/* Column 3: Top Services */}
             <div>
-              <h4 className="font-display text-sm font-bold text-gold">Our Company</h4>
-              <ul className="mt-4 space-y-2 text-xs text-cream/85">
-                <li><a href="/#about" className="hover:text-gold">About Us</a></li>
-                <li><a href="/#reviews" className="hover:text-gold">Customer Reviews</a></li>
-                <li><a href="/#contact" className="hover:text-gold">Contact Support</a></li>
-                <li><Link to="/login" className="hover:text-gold">Secure Admin Portal</Link></li>
+              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[#cb9f5a] border-b border-[#cb9f5a]/20 pb-3">
+                Our Core Services
+              </h4>
+              <ul className="mt-5 space-y-3 text-xs font-semibold">
+                {[
+                  { id: "house", title: "Full House Deep Clean" },
+                  { id: "kitchen", title: "Kitchen Degreasing" },
+                  { id: "bathroom", title: "Bathroom Sanitisation" },
+                  { id: "sofa", title: "Sofa & Carpet Wash" },
+                  { id: "office", title: "Office Deep Cleaning" },
+                  { id: "balcony", title: "Balcony Restoration" },
+                ].map((s) => (
+                  <li key={s.id}>
+                    <a
+                      href={
+                        s.id === "office" || s.id === "balcony"
+                          ? "/services"
+                          : `/?category=${s.id === "sofa" ? "sofa-carpet" : s.id}`
+                      }
+                      className="group flex items-center gap-1 text-cream/75 hover:text-[#cb9f5a] transition-all duration-200"
+                    >
+                      <span className="h-1 w-1 rounded-full bg-[#cb9f5a]/50 scale-0 group-hover:scale-100 transition-transform duration-200 mr-1" />
+                      <span className="group-hover:translate-x-1.5 transition-transform duration-250">
+                        {s.title}
+                      </span>
+                    </a>
+                  </li>
+                ))}
               </ul>
             </div>
 
-            <div className="space-y-4">
-              <h4 className="font-display text-sm font-bold text-gold">Newsletter</h4>
-              <p className="text-xs text-cream/70">Subscribe to get seasonal discount vouchers.</p>
-              <div className="flex rounded-xl overflow-hidden border border-white/10 bg-white/5">
-                <input type="email" placeholder="Your email..." className="w-full bg-transparent px-3 py-2 text-xs text-white outline-none placeholder:text-cream/40" />
-                <button className="gradient-gold px-4 text-navy"><Send className="h-3.5 w-3.5" /></button>
+            {/* Column 4: Contact & Support */}
+            <div className="space-y-5">
+              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[#cb9f5a] border-b border-[#cb9f5a]/20 pb-3">
+                Reservations
+              </h4>
+
+              <div className="space-y-4 font-sans">
+                <div className="flex items-center gap-3 group">
+                  <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#cb9f5a] group-hover:bg-[#cb9f5a]/10 group-hover:border-[#cb9f5a]/30 transition-all">
+                    <Phone className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-cream/40 uppercase tracking-wider font-extrabold">
+                      Hotline Support
+                    </div>
+                    <a
+                      href="tel:+919876543210"
+                      className="text-xs font-bold text-white hover:text-[#cb9f5a] transition-colors"
+                    >
+                      +91 98765 43210
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 group">
+                  <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#cb9f5a] group-hover:bg-[#cb9f5a]/10 group-hover:border-[#cb9f5a]/30 transition-all">
+                    <Mail className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-cream/40 uppercase tracking-wider font-extrabold">
+                      Email Concierge
+                    </div>
+                    <a
+                      href="mailto:hello@thedeepcleanerz.com"
+                      className="text-xs font-bold text-white hover:text-[#cb9f5a] transition-colors"
+                    >
+                      hello@thedeepcleanerz.com
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 group">
+                  <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#cb9f5a] group-hover:bg-[#cb9f5a]/10 group-hover:border-[#cb9f5a]/30 transition-all">
+                    <MapPin className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-cream/40 uppercase tracking-wider font-extrabold">
+                      Service Areas
+                    </div>
+                    <span className="text-xs font-bold text-white">25+ Luxury Hubs in India</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-4 text-xs text-cream/60">
-            <p>© {new Date().getFullYear()} TheDeep CleanerZ. All rights reserved.</p>
-            <div className="flex gap-6">
-              <a href="#" className="hover:text-gold">Privacy Policy</a>
-              <a href="#" className="hover:text-gold">Terms of Service</a>
+
+          {/* Bottom Copyright & Legal Links */}
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] text-cream/40 font-semibold tracking-wide">
+            <div>
+              &copy; {new Date().getFullYear()} TheDeep CleanerZ. All rights reserved. Crafted for
+              pristine luxury living.
+            </div>
+            <div className="flex items-center gap-6">
+              <a href="#" className="hover:text-[#cb9f5a] transition-colors">
+                Privacy Policy
+              </a>
+              <a href="#" className="hover:text-[#cb9f5a] transition-colors">
+                Terms of Service
+              </a>
+              <Link
+                to="/login"
+                className="text-[#cb9f5a]/70 hover:text-[#cb9f5a] hover:underline flex items-center gap-1 font-bold"
+              >
+                🛡️ Admin Area
+              </Link>
             </div>
           </div>
         </div>
@@ -464,7 +724,9 @@ function CustomizedComponent() {
             </button>
 
             <div className="mb-6 pr-8">
-              <span className="text-2xs font-extrabold uppercase tracking-widest text-[#d91b5c]">Choose Service Level</span>
+              <span className="text-2xs font-extrabold uppercase tracking-widest text-[#d91b5c]">
+                Choose Service Level
+              </span>
               <h2 className="mt-1.5 font-display text-2xl font-bold text-slate-900 md:text-3xl">
                 {selectedService.title} Plans
               </h2>
@@ -472,7 +734,9 @@ function CustomizedComponent() {
 
             <div className="grid gap-6 md:grid-cols-2">
               {(selectedService.plans || []).map((plan: any) => {
-                const isElite = plan.name?.toLowerCase().includes("elite") || plan.name?.toLowerCase().includes("premium");
+                const isElite =
+                  plan.name?.toLowerCase().includes("elite") ||
+                  plan.name?.toLowerCase().includes("premium");
                 return (
                   <div
                     key={plan.name}
@@ -483,7 +747,9 @@ function CustomizedComponent() {
                     }`}
                   >
                     <div>
-                      <h3 className="font-display text-lg font-bold text-slate-900">{plan.name} Plan</h3>
+                      <h3 className="font-display text-lg font-bold text-slate-900">
+                        {plan.name} Plan
+                      </h3>
                       <div className="mt-4 flex items-baseline gap-1.5">
                         <span className="text-2xl font-black text-slate-900">₹{plan.price}</span>
                       </div>
