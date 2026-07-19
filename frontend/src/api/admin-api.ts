@@ -24,6 +24,11 @@ export type ServicePlan = {
   excludes: string[];
 };
 
+export type PrecautionItem = {
+  title: string;
+  description: string;
+};
+
 export type AdminService = {
   id: string;
   categoryId: string;
@@ -35,6 +40,7 @@ export type AdminService = {
   plans?: ServicePlan[];
   disclaimer?: string;
   requirements?: string;
+  precautions?: PrecautionItem[];
 };
 export type AdminCatalog = { categories: AdminCategory[]; services: AdminService[] };
 

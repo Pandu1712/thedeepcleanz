@@ -97,6 +97,17 @@ async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    // Check if precautions column exists in services, if not, add it
+    try {
+      const cols = await query("SHOW COLUMNS FROM services LIKE 'precautions'");
+      if (!cols || cols.length === 0) {
+        await query("ALTER TABLE services ADD COLUMN precautions JSON DEFAULT NULL");
+        console.log("Added column 'precautions' to services table.");
+      }
+    } catch (e) {
+      console.warn("Could not add precautions column:", e.message);
+    }
+
     // Drop foreign key constraint on reviews table if it exists (so we can review customized/mini services)
     try {
       const constraints = await query(`
@@ -806,6 +817,13 @@ async function initDb() {
       }
       console.log("Seeding services completed successfully!");
     } else {
+      // Clean up any extra categories and associated services from DB so only the 3 main categories exist
+      try {
+        await query("DELETE FROM services WHERE categoryId NOT IN ('full-house', 'customized', 'commercial')");
+        await query("DELETE FROM categories WHERE id NOT IN ('full-house', 'customized', 'commercial')");
+      } catch (err) {
+        console.warn("Category cleanup note:", err.message);
+      }
       console.log("MySQL Database verified. Categories and tables exist.");
       // Migrate existing services if they have empty plans, disclaimer or cover images
       const defaultServicesPlans = [
@@ -1361,6 +1379,10 @@ module.exports = {
           ? JSON.parse(r.includes)
           : r.includes || [],
       plans: typeof r.plans === "string" ? JSON.parse(r.plans) : r.plans || [],
+      precautions:
+        typeof r.precautions === "string"
+          ? JSON.parse(r.precautions)
+          : r.precautions || [],
     }));
   },
   async addService({
@@ -1375,11 +1397,13 @@ module.exports = {
     disclaimer,
     requirements,
     paymentType,
+    precautions,
   }) {
     const incString = JSON.stringify(includes || []);
     const plansString = JSON.stringify(plans || []);
+    const precautionsString = JSON.stringify(precautions || []);
     await query(
-      "INSERT INTO services (id, categoryId, title, price, description, includes, image, plans, disclaimer, requirements, payment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO services (id, categoryId, title, price, description, includes, image, plans, disclaimer, requirements, payment_type, precautions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         id,
         categoryId,
@@ -1392,6 +1416,7 @@ module.exports = {
         disclaimer || null,
         requirements || null,
         paymentType || "full",
+        precautionsString,
       ],
     );
     return {
@@ -1406,6 +1431,7 @@ module.exports = {
       disclaimer,
       requirements,
       paymentType: paymentType || "full",
+      precautions,
     };
   },
   async updateService(
@@ -1421,12 +1447,14 @@ module.exports = {
       disclaimer,
       requirements,
       paymentType,
+      precautions,
     },
   ) {
     const incString = JSON.stringify(includes || []);
     const plansString = JSON.stringify(plans || []);
+    const precautionsString = JSON.stringify(precautions || []);
     await query(
-      "UPDATE services SET categoryId = ?, title = ?, price = ?, description = ?, includes = ?, image = ?, plans = ?, disclaimer = ?, requirements = ?, payment_type = ? WHERE id = ?",
+      "UPDATE services SET categoryId = ?, title = ?, price = ?, description = ?, includes = ?, image = ?, plans = ?, disclaimer = ?, requirements = ?, payment_type = ?, precautions = ? WHERE id = ?",
       [
         categoryId,
         title,
@@ -1438,6 +1466,7 @@ module.exports = {
         disclaimer || null,
         requirements || null,
         paymentType || "full",
+        precautionsString,
         id,
       ],
     );
@@ -1453,6 +1482,7 @@ module.exports = {
       disclaimer,
       requirements,
       paymentType: paymentType || "full",
+      precautions,
     };
   },
   async deleteService(id) {

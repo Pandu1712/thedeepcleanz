@@ -140,7 +140,7 @@ const SERVICE_ICONS: Record<string, any> = {
   tank: Droplets,
 };
 
-function getServiceIcon(id: string) {
+export function getServiceIcon(id: string) {
   return SERVICE_ICONS[id] || Wrench;
 }
 
@@ -478,6 +478,11 @@ export const SERVICES: StaticService[] = [
   },
 ];
 
+export type PrecautionItem = {
+  title: string;
+  description: string;
+};
+
 export type CatService = {
   id: string;
   title: string;
@@ -490,6 +495,7 @@ export type CatService = {
   disclaimer?: string;
   requirements?: string;
   paymentType?: "full" | "deposit_25";
+  precautions?: PrecautionItem[];
 };
 export type Category = {
   id: string;
@@ -1322,6 +1328,7 @@ export function mergeAdminCatalog(catalog: AdminCatalog): Category[] {
           plans: s.plans || [],
           disclaimer: s.disclaimer,
           requirements: s.requirements,
+          precautions: s.precautions,
         };
       });
 
@@ -2020,14 +2027,13 @@ function Index() {
   const navLinks = [
     { href: "#home", label: "Home" },
     { href: "/services", label: "Services", isRoute: true },
-    { href: "/customized", label: "Customized Clean", isRoute: true },
     { href: "#about", label: "About Us" },
     { href: "#reviews", label: "Reviews" },
     { href: "#contact", label: "Contact" },
   ];
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] text-[#002a22]">
+    <div className="min-h-screen bg-[#faf8f5] text-[#002a22] overflow-x-hidden">
       {/* ANNOUNCEMENT BAR */}
       <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 text-[11px] lg:px-8">
@@ -2062,32 +2068,31 @@ function Index() {
         </div>
       </div>
 
-      {/* HEADER */}
-      <header className="sticky top-0 z-40 bg-[#faf8f5]/95 backdrop-blur-md border-b border-[#f1ede6] text-[#002a22]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-2.5 lg:px-8">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <a href="#home" className="flex items-center gap-2.5 sm:gap-3">
-              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-[#002a22] flex items-center justify-center border border-[#cb9f5a]/20 shadow-md flex-shrink-0">
-                <Star className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-[#cb9f5a] fill-[#cb9f5a]" />
+      {/* HEADER - ULTRA-PREMIUM GLASS DESIGN */}
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-[#cb9f5a]/20 text-[#002a22] shadow-[0_4px_25px_-5px_rgba(0,42,34,0.06)]">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3 lg:px-8">
+          <div className="flex items-center gap-4 sm:gap-6">
+            <a href="#home" className="flex items-center gap-3 group">
+              <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-2xl bg-gradient-to-br from-[#002a22] to-[#001c17] flex items-center justify-center border border-[#cb9f5a]/40 shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Star className="h-5 w-5 text-[#cb9f5a] fill-[#cb9f5a]" />
               </div>
-              <div className="leading-none">
-                <div className="font-display text-sm sm:text-base md:text-lg font-bold tracking-tight text-[#002a22]">
+              <div className="leading-tight flex-shrink-0">
+                <div className="font-display text-[13px] xs:text-base sm:text-lg md:text-xl font-black tracking-tight text-[#002a22] whitespace-nowrap">
                   TheDeep CleanerZ
                 </div>
-                <div className="text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.22em] text-[#cb9f5a] mt-0.5">
-                  Services
+                <div className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.25em] text-[#cb9f5a] mt-0.5 whitespace-nowrap">
+                  PREMIUM SERVICES
                 </div>
               </div>
             </a>
-
             {/* Location Display Capsule */}
             <div
               onClick={() => setLocationModalOpen(true)}
-              className="flex items-center gap-1.5 border border-[#cb9f5a]/15 bg-[#cb9f5a]/5 hover:bg-[#cb9f5a]/10 px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-semibold text-[#002a22] transition-all cursor-pointer shadow-3xs hover:border-[#cb9f5a]/45"
+              className="hidden md:flex items-center gap-2 border border-[#cb9f5a]/30 bg-[#faf8f5] p-2 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold text-[#002a22] transition-all cursor-pointer shadow-3xs hover:border-[#cb9f5a]/60 shrink-0"
             >
-              <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#cb9f5a]" />
+              <MapPin className="h-3.5 w-3.5 text-[#cb9f5a] shrink-0" />
               <span
-                className="truncate max-w-[90px] sm:max-w-[150px] md:max-w-[180px]"
+                className="hidden sm:inline truncate max-w-[100px] sm:max-w-[160px] md:max-w-[200px]"
                 title={userLocation}
               >
                 {userLocation}
@@ -2095,7 +2100,7 @@ function Index() {
             </div>
           </div>
 
-          <nav className="hidden items-center gap-4 xl:gap-5.5 xl:flex">
+          <nav className="hidden items-center gap-6 xl:gap-8 xl:flex">
             {navLinks.map((l) => {
               const isActive =
                 activeHash === l.href || (l.label === "Services" && activeHash === "#categories");
@@ -2103,36 +2108,36 @@ function Index() {
                 <Link
                   key={l.href}
                   to={l.href}
-                  className={`relative py-1 text-sm font-semibold transition-colors ${
+                  className={`relative py-1 text-xs font-extrabold uppercase tracking-wider transition-colors ${
                     isActive ? "text-[#cb9f5a]" : "text-[#002a22]/80 hover:text-[#cb9f5a]"
                   }`}
                 >
                   {l.label}
                   {isActive && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#cb9f5a] rounded-full" />
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#cb9f5a] rounded-full shadow-sm" />
                   )}
                 </Link>
               ) : (
                 <a
                   key={l.href}
                   href={l.href}
-                  className={`relative py-1 text-sm font-semibold transition-colors ${
+                  className={`relative py-1 text-xs font-extrabold uppercase tracking-wider transition-colors ${
                     isActive ? "text-[#cb9f5a]" : "text-[#002a22]/80 hover:text-[#cb9f5a]"
                   }`}
                 >
                   {l.label}
                   {isActive && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#cb9f5a] rounded-full" />
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#cb9f5a] rounded-full shadow-sm" />
                   )}
                 </a>
               );
             })}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <a
               href="#services"
-              className="relative hidden h-10 w-10 place-items-center rounded-full border border-[#002a22]/15 text-[#002a22] transition-colors hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5 md:grid"
+              className="relative hidden h-10 w-10 place-items-center rounded-full border border-[#002a22]/15 text-[#002a22] transition-colors hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/10 md:grid"
               aria-label="Wishlist"
             >
               <Heart
@@ -2147,7 +2152,7 @@ function Index() {
             <button
               onClick={() => setCartOpen(true)}
               aria-label="Open cart"
-              className="relative grid h-10 w-10 place-items-center rounded-full border border-[#002a22]/15 text-[#002a22] transition-colors hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5"
+              className="relative grid h-10 w-10 place-items-center rounded-full border border-[#002a22]/15 text-[#002a22] transition-colors hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/10"
             >
               <ShoppingCart className="h-4.5 w-4.5" />
               {cartCount > 0 && (
@@ -2161,7 +2166,7 @@ function Index() {
                 <div className="relative">
                   <button
                     onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                    className="flex items-center gap-2 rounded-full bg-slate-50 border border-slate-200/80 pl-2 pr-3.5 py-1.5 text-xs font-bold text-[#002a22] transition-all hover:bg-slate-100 hover:border-[#cb9f5a]/45 shadow-sm cursor-pointer select-none active:scale-[0.98] font-sans"
+                    className="flex items-center gap-2 rounded-full bg-[#faf8f5] border border-[#cb9f5a]/30 pl-2.5 pr-4 py-1.5 text-xs font-bold text-[#002a22] transition-all hover:bg-white hover:border-[#cb9f5a] shadow-sm cursor-pointer select-none active:scale-[0.98] font-sans"
                   >
                     <div className="h-6 w-6 rounded-full bg-[#cb9f5a] text-white flex items-center justify-center font-black text-[10px] uppercase shadow-sm">
                       {userProfile?.name
@@ -2259,7 +2264,7 @@ function Index() {
               <div className="hidden items-center gap-3.5 md:flex">
                 <Link
                   to="/login"
-                  className="rounded-full bg-[#002a22] hover:bg-[#0a3d33] px-6 py-2.5 text-sm font-semibold text-white transition-all hover:scale-105 inline-flex shadow-md hover:shadow-lg"
+                  className="rounded-full bg-gradient-to-r from-[#cb9f5a] via-[#e5be7a] to-[#cb9f5a] px-6 py-2.5 text-xs font-black uppercase tracking-wider text-[#002a22] transition-all hover:scale-105 inline-flex shadow-[0_4px_15px_rgba(203,159,90,0.4)]"
                 >
                   Register / Login
                 </Link>
@@ -2276,7 +2281,24 @@ function Index() {
         </div>
         {navOpen && (
           <div className="border-t border-[#f1ede6] bg-[#faf8f5] px-5 pb-5 xl:hidden">
-            <div className="flex flex-col gap-3 pt-4">
+            {/* Mobile Location Capsule */}
+            <div className="flex items-center justify-between border border-[#cb9f5a]/30 bg-white p-3 rounded-2xl text-xs font-bold text-[#002a22] shadow-3xs mt-4 mb-2">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-[#cb9f5a]" />
+                <span className="max-w-[150px] truncate">{userLocation || "Visakhapatnam, AP"}</span>
+              </div>
+              <button
+                onClick={() => {
+                  setNavOpen(false);
+                  setLocationModalOpen(true);
+                }}
+                className="hover:text-[#cb9f5a] transition-colors underline cursor-pointer text-xs text-[#cb9f5a] font-bold"
+              >
+                Change
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3 pt-2">
               {navLinks.map((l) => {
                 const isActive =
                   activeHash === l.href || (l.label === "Services" && activeHash === "#categories");
@@ -2349,152 +2371,191 @@ function Index() {
         )}
       </header>
 
-      {/* HERO */}
+      {/* HERO SECTION - LUXURY DARK EMERALD & GOLD THEME */}
       <section
         id="home"
-        className="relative overflow-hidden bg-[#faf8f5] text-[#002a22] py-2 sm:py-3 md:py-4 border-b border-[#f1ede6]"
+        className="relative overflow-hidden bg-gradient-to-b from-[#00231c] via-[#002a22] to-[#001e19] text-white py-10 sm:py-14 md:py-16 border-b border-[#cb9f5a]/20"
       >
-        {/* Soft background glow circles */}
-        <div className="absolute -right-32 top-10 h-64 w-64 rounded-full bg-[#cb9f5a]/5 blur-3xl pointer-events-none" />
-        <div className="absolute -left-32 bottom-0 h-64 w-64 rounded-full bg-[#cb9f5a]/5 blur-3xl pointer-events-none" />
+        {/* Ambient background radial glow effects */}
+        <div className="absolute top-1/4 -left-32 h-96 w-96 rounded-full bg-[#cb9f5a]/15 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-10 -right-32 h-96 w-96 rounded-full bg-[#004d3d]/30 blur-[130px] pointer-events-none" />
+        <div className="absolute top-10 right-1/4 h-64 w-64 rounded-full bg-[#cb9f5a]/10 blur-[100px] pointer-events-none" />
 
-        <div className="relative mx-auto max-w-7xl px-5 lg:px-8">
-          <div className="grid gap-8 lg:grid-cols-12 items-center">
+        {/* Decorative Grid Mesh */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
+
+        <div className="relative mx-auto max-w-7xl px-5 lg:px-8 z-10">
+          <div className="grid gap-10 lg:grid-cols-12 items-center">
             {/* Left Column: Text & CTAs */}
             <div className="lg:col-span-6 flex flex-col items-start text-left">
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#cb9f5a]/35 px-3 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#cb9f5a] font-sans bg-transparent animate-fade-in-left"
+              {/* Premium Pill Badge */}
+              <div
+                className="inline-flex items-center gap-2 rounded-full border border-[#cb9f5a]/40 bg-[#cb9f5a]/10 px-4 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#cb9f5a] backdrop-blur-md shadow-sm animate-fade-in-left"
                 style={{ animationDelay: "100ms" }}
               >
-                <Leaf className="h-3 w-3 text-[#cb9f5a]" /> INDIA'S PREMIUM CLEANING SERVICE
-              </span>
+                <Sparkles className="h-3.5 w-3.5 text-[#cb9f5a] animate-pulse" />
+                <span>INDIA'S #1 RATED LUXURY CLEANING SERVICE</span>
+              </div>
+
+              {/* Main Headline */}
               <h1
-                className="mt-2 font-display text-2xl sm:text-3xl md:text-[40px] lg:text-[44px] font-normal leading-[1.05] tracking-tight text-[#002a22] animate-fade-in-left"
-                style={{ animationDelay: "250ms" }}
+                className="mt-4 font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.08] tracking-tight text-white animate-fade-in-left"
+                style={{ animationDelay: "200ms" }}
               >
                 Spotless Spaces,
                 <br />
-                <span className="italic font-serif text-[#cb9f5a] font-medium">Happier</span>{" "}
-                Places.
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#e5be7a] via-[#cb9f5a] to-[#f5d089] font-serif italic font-normal">
+                  Happier Places.
+                </span>
               </h1>
+
+              {/* Subtitle */}
               <p
-                className="mt-2 max-w-xl text-[11px] sm:text-xs text-[#4a5f5b] leading-relaxed animate-fade-in-left"
-                style={{ animationDelay: "400ms" }}
+                className="mt-3 max-w-xl text-xs sm:text-sm text-[#c1d3ce] font-medium leading-relaxed animate-fade-in-left"
+                style={{ animationDelay: "300ms" }}
               >
-                Professional deep cleaning for homes & businesses with trusted experts and
-                eco-friendly products.
+                Hospital-grade deep cleaning, hot-water extraction, and eco-friendly sanitization engineered by background-verified specialists for premium homes & corporate spaces.
               </p>
 
-              {/* Floating Inline Features */}
+              {/* Trust Feature Badges */}
               <div
-                className="mt-3.5 flex flex-wrap gap-3 sm:gap-4 items-center animate-fade-in-left"
-                style={{ animationDelay: "500ms" }}
+                className="mt-6 grid grid-cols-3 gap-3 w-full max-w-lg animate-fade-in-left"
+                style={{ animationDelay: "400ms" }}
               >
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-[#002a22] flex items-center justify-center text-white flex-shrink-0 shadow-sm border border-[#002a22]/10">
-                    <Shield className="h-3.5 w-3.5 text-white" />
+                <div className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-2.5 shadow-sm transition-transform hover:scale-[1.02]">
+                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#cb9f5a]/20 text-[#cb9f5a] font-bold text-sm shrink-0 border border-[#cb9f5a]/30">
+                    <Shield className="h-4 w-4" />
                   </div>
                   <div className="leading-tight text-left">
-                    <div className="text-[10px] font-extrabold text-[#002a22]">Verified</div>
-                    <div className="text-[9px] text-gray-500 font-semibold">Professionals</div>
+                    <div className="text-[11px] font-bold text-white">Verified</div>
+                    <div className="text-[9px] text-[#cb9f5a] font-semibold">Professionals</div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-[#cb9f5a] flex items-center justify-center text-white flex-shrink-0 shadow-sm border border-[#cb9f5a]/10">
-                    <Leaf className="h-3.5 w-3.5 text-white" />
+                <div className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-2.5 shadow-sm transition-transform hover:scale-[1.02]">
+                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500/20 text-emerald-400 font-bold text-sm shrink-0 border border-emerald-500/30">
+                    <Leaf className="h-4 w-4" />
                   </div>
                   <div className="leading-tight text-left">
-                    <div className="text-[10px] font-extrabold text-[#cb9f5a]">Eco-Friendly</div>
-                    <div className="text-[9px] text-gray-500 font-semibold">Products</div>
+                    <div className="text-[11px] font-bold text-white">100% Eco</div>
+                    <div className="text-[9px] text-emerald-400 font-semibold">Biological</div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-[#002a22] flex items-center justify-center text-white flex-shrink-0 shadow-sm border border-[#002a22]/10">
-                    <Clock className="h-3.5 w-3.5 text-white" />
+                <div className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-2.5 shadow-sm transition-transform hover:scale-[1.02]">
+                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#cb9f5a]/20 text-[#cb9f5a] font-bold text-sm shrink-0 border border-[#cb9f5a]/30">
+                    <Clock className="h-4 w-4" />
                   </div>
                   <div className="leading-tight text-left">
-                    <div className="text-[10px] font-extrabold text-[#002a22]">On-Time</div>
-                    <div className="text-[9px] text-gray-500 font-semibold">Service</div>
+                    <div className="text-[11px] font-bold text-white">On-Time</div>
+                    <div className="text-[9px] text-[#cb9f5a] font-semibold">Guaranteed</div>
                   </div>
                 </div>
               </div>
 
-              {/* CTAs */}
+              {/* Action Buttons & Promo */}
               <div
-                className="mt-4 flex flex-wrap gap-2.5 items-center animate-fade-in-left"
-                style={{ animationDelay: "600ms" }}
+                className="mt-6 flex flex-wrap gap-3.5 items-center w-full animate-fade-in-left"
+                style={{ animationDelay: "500ms" }}
               >
                 <a
                   href="#categories"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[#002a22] hover:bg-[#0a3d33] px-5 py-2 text-xs font-bold text-white shadow-md transition-transform hover:scale-105 active:scale-95"
+                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#cb9f5a] via-[#e5be7a] to-[#cb9f5a] px-7 py-3.5 text-xs font-black uppercase tracking-wider text-[#002a22] shadow-[0_10px_30px_-5px_rgba(203,159,90,0.5)] transition-all hover:scale-105 active:scale-95 hover:shadow-[0_15px_40px_-5px_rgba(203,159,90,0.7)] cursor-pointer"
                 >
-                  Book Your Service <ArrowRight className="h-3.5 w-3.5" />
+                  <span>Book Your Service</span>
+                  <ArrowRight className="h-4 w-4 text-[#002a22]" />
                 </a>
                 <a
                   href="#categories"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white hover:bg-gray-50 px-5 py-2 text-xs font-bold text-[#002a22] shadow-sm transition-all hover:scale-105 active:scale-95"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/5 hover:bg-white/15 px-6 py-3.5 text-xs font-bold text-white backdrop-blur-md shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
                 >
-                  Explore Services <ArrowRight className="h-3.5 w-3.5" />
+                  <span>Explore Packages</span>
+                  <ArrowRight className="h-4 w-4 text-[#cb9f5a]" />
                 </a>
+              </div>
+
+              {/* Live Rating & Stats Footprint */}
+              <div
+                className="mt-6 pt-5 border-t border-white/10 flex items-center gap-6 text-xs text-[#c1d3ce] font-semibold animate-fade-in-left"
+                style={{ animationDelay: "600ms" }}
+              >
+                <div className="flex items-center gap-1.5">
+                  <div className="flex text-[#cb9f5a]">
+                    {"★".repeat(5)}
+                  </div>
+                  <span className="font-bold text-white">4.9/5.0</span>
+                  <span className="text-[10px] text-[#c1d3ce]/70">(2,800+ Reviews)</span>
+                </div>
+                <div className="h-3 w-px bg-white/20" />
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-white">Guntur & 25+</span>
+                  <span className="text-[10px] text-[#c1d3ce]/70">AP Cities</span>
+                </div>
               </div>
             </div>
 
-            {/* Right Column: Hero Image & Overlays */}
-            <div className="lg:col-span-6 relative w-full lg:h-[340px] flex items-center justify-center">
-              {/* Main image with clean rounded corners */}
-              <div className="relative w-full h-[220px] sm:h-[280px] lg:h-[300px] rounded-[24px] overflow-hidden shadow-2xl border border-[#f1ede6]">
+            {/* Right Column: High-End Hero Showcase Card */}
+            <div className="lg:col-span-6 relative w-full flex items-center justify-center">
+              {/* Main Image Container */}
+              <div className="relative w-full h-[320px] sm:h-[380px] lg:h-[420px] rounded-[32px] overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] border border-[#cb9f5a]/35 group">
                 <img
                   src={heroImg}
                   alt="Luxury home deep cleaning team working"
-                  className="h-full w-full object-cover object-center animate-fade-in"
+                  className="h-full w-full object-cover object-center transition-transform duration-1000 group-hover:scale-105"
                 />
 
-                {/* Bottom subtle shade */}
-                <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/20 to-transparent" />
-              </div>
+                {/* Subtle vignette gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#002a22]/80 via-transparent to-black/30" />
 
-              {/* Rating Card Overlay (Top Left) */}
-              <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-md border border-[#f1ede6] rounded-xl py-1.5 px-3 text-[#002a22] shadow-md flex flex-col items-start gap-0.5 z-10 transition-transform duration-300 hover:scale-105">
-                <div className="flex items-center gap-1 font-display text-xs font-extrabold text-[#002a22]">
-                  <Star className="h-3 w-3 fill-[#cb9f5a] text-[#cb9f5a]" />
-                  <span>4.9/5.0</span>
-                </div>
-                <div className="text-[7px] text-gray-500 font-bold uppercase tracking-wider">
-                  Average Rating
-                </div>
-              </div>
-
-              {/* Trusted Customers Overlay (Bottom Right) */}
-              <div className="absolute bottom-4 right-4 bg-[#002a22]/90 backdrop-blur-md border border-white/10 rounded-xl p-2.5 text-white shadow-lg flex items-center gap-2.5 z-10 max-w-xs transition-transform duration-300 hover:scale-105">
-                <div className="h-6.5 w-6.5 rounded-full bg-white/10 flex items-center justify-center text-[#cb9f5a] flex-shrink-0">
-                  <Shield className="h-3.5 w-3.5 text-[#cb9f5a] fill-[#cb9f5a]" />
-                </div>
-                <div className="leading-tight text-left">
-                  <div className="text-[9px] font-extrabold text-white">Trusted by 10,000+</div>
-                  <div className="text-[8px] text-[#faf8f5]/70 font-semibold">Happy Customers</div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="flex -space-x-1.5">
-                    <img
-                      className="inline-block h-5 w-5 rounded-full border border-white object-cover"
-                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=32&q=80"
-                      alt="Customer 1"
-                    />
-                    <img
-                      className="inline-block h-5 w-5 rounded-full border border-white object-cover"
-                      src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=32&q=80"
-                      alt="Customer 2"
-                    />
-                    <img
-                      className="inline-block h-5 w-5 rounded-full border border-white object-cover"
-                      src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=32&q=80"
-                      alt="Customer 3"
-                    />
+                {/* Floating Glass Pill - Top Left */}
+                <div className="absolute top-4 left-4 bg-[#002a22]/85 backdrop-blur-md border border-[#cb9f5a]/30 rounded-2xl py-2 px-3.5 text-white shadow-xl flex items-center gap-2 z-10 transition-transform duration-300 hover:scale-105">
+                  <div className="grid h-7 w-7 place-items-center rounded-xl bg-[#cb9f5a] text-[#002a22] font-black text-xs shadow-sm">
+                    ★
                   </div>
-                  <div className="h-5 w-5 rounded-full bg-[#cb9f5a] flex items-center justify-center text-[8px] font-extrabold text-white border border-white flex-shrink-0 shadow-sm">
-                    10k+
+                  <div className="leading-tight text-left">
+                    <div className="text-xs font-bold text-white">4.9 / 5.0 Rating</div>
+                    <div className="text-[9px] text-[#cb9f5a] font-semibold">2,800+ Verified Reviews</div>
+                  </div>
+                </div>
+
+                {/* Floating Glass Pill - Top Right */}
+                <div className="absolute top-4 right-4 bg-[#002a22]/85 backdrop-blur-md border border-white/20 rounded-2xl py-2 px-3.5 text-white shadow-xl flex items-center gap-2 z-10 transition-transform duration-300 hover:scale-105">
+                  <div className="grid h-7 w-7 place-items-center rounded-xl bg-emerald-500 text-white font-black text-xs shadow-sm">
+                    ✓
+                  </div>
+                  <div className="leading-tight text-left">
+                    <div className="text-xs font-bold text-white">100% Satisfaction</div>
+                    <div className="text-[9px] text-emerald-400 font-semibold">Money-Back Guarantee</div>
+                  </div>
+                </div>
+
+                {/* Floating Customer Proof Banner - Bottom Overlay */}
+                <div className="absolute bottom-5 left-5 right-5 bg-[#002a22]/90 backdrop-blur-md border border-[#cb9f5a]/30 rounded-2xl p-3.5 text-white shadow-2xl flex items-center justify-between z-10 transition-transform duration-300 hover:scale-[1.02]">
+                  <div className="flex items-center gap-3">
+                    <div className="flex -space-x-2">
+                      <img
+                        className="inline-block h-8 w-8 rounded-full border-2 border-[#cb9f5a] object-cover shadow-sm"
+                        src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&q=80"
+                        alt="Customer 1"
+                      />
+                      <img
+                        className="inline-block h-8 w-8 rounded-full border-2 border-[#cb9f5a] object-cover shadow-sm"
+                        src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=64&q=80"
+                        alt="Customer 2"
+                      />
+                      <img
+                        className="inline-block h-8 w-8 rounded-full border-2 border-[#cb9f5a] object-cover shadow-sm"
+                        src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&q=80"
+                        alt="Customer 3"
+                      />
+                    </div>
+                    <div className="leading-tight text-left">
+                      <div className="text-xs font-extrabold text-white">Trusted by 10,000+ Homes</div>
+                      <div className="text-[10px] text-[#cb9f5a] font-semibold">In Guntur & Andhra Pradesh</div>
+                    </div>
+                  </div>
+                  <div className="hidden sm:flex items-center gap-1 bg-[#cb9f5a]/20 border border-[#cb9f5a]/40 rounded-xl px-3 py-1.5 text-2xs font-extrabold text-[#cb9f5a]">
+                    <span>🎁 Code: CLEAN20</span>
                   </div>
                 </div>
               </div>
@@ -2520,127 +2581,123 @@ function Index() {
           </p>
         </div>
 
-        <div className="relative group/categories mt-4">
-          {/* Left Arrow Button */}
-          <button
-            onClick={() => scrollCategories("left")}
-            className="absolute left-2 md:-left-5 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition-all duration-300 hover:bg-emerald-700 hover:scale-105 active:scale-95 cursor-pointer opacity-85 hover:opacity-100 focus:outline-none"
-            aria-label="Previous Categories"
-          >
-            <ChevronLeft className="h-5 w-5 md:h-6 md:w-6" />
-          </button>
-
-          <div
-            ref={categoryScrollRef}
-            className="flex gap-5 overflow-x-auto pb-6 scrollbar-none snap-x snap-mandatory px-4 -mx-4 md:px-0 md:mx-0"
-          >
+        <div className="mt-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 justify-center items-stretch">
             {categories.map((c) => {
               const active = c.id === selectedCat;
               const CategoryIcon = getCategoryIcon(c.title);
               return (
                 <button
                   key={c.id}
+                  type="button"
                   onClick={() => {
                     setSelectedCat(c.id);
                     document
                       .getElementById("cat-services")
                       ?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
-                  className={`group relative overflow-visible rounded-[24px] text-left transition-all duration-300 border bg-white flex flex-col p-4 flex-shrink-0 w-[240px] sm:w-[260px] snap-start hover:shadow-xl hover:-translate-y-1 ${
+                  className={`group relative overflow-hidden rounded-[28px] text-left transition-all duration-500 border flex flex-col p-5 cursor-pointer hover:-translate-y-2.5 ${
                     active
-                      ? "border-[#cb9f5a] shadow-[0_12px_40px_-12px_rgba(203,177,123,0.25)]"
-                      : "border-[#f1ede6] shadow-[0_8px_30px_-12px_rgba(0,42,34,0.06)]"
+                      ? "border-[#cb9f5a] bg-gradient-to-b from-white via-slate-50 to-[#cb9f5a]/10 shadow-[0_20px_50px_-12px_rgba(203,159,90,0.35)] ring-2 ring-[#cb9f5a]/40"
+                      : "border-[#cb9f5a]/20 bg-white shadow-[0_10px_35px_-10px_rgba(0,42,34,0.08)] hover:border-[#cb9f5a]/80 hover:shadow-[0_22px_55px_-12px_rgba(0,42,34,0.15)]"
                   }`}
                 >
                   {/* Category Main Image */}
-                  <div className="relative w-full h-36 overflow-hidden rounded-[20px] bg-slate-100 flex-shrink-0">
+                  <div className="relative w-full h-44 overflow-hidden rounded-[22px] bg-slate-100 flex-shrink-0">
                     {c.image ? (
                       <img
                         src={c.image}
                         alt={c.title}
                         loading="lazy"
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                       />
                     ) : (
-                      <div className="h-full w-full bg-gradient-to-br from-slate-150 to-slate-200 flex items-center justify-center">
-                        <Sparkles className="h-8 w-8 text-slate-350" />
+                      <div className="h-full w-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                        <Sparkles className="h-10 w-10 text-[#cb9f5a]" />
                       </div>
                     )}
 
-                    {/* Services count badge absolutely positioned on the top-left */}
-                    <span className="absolute top-3.5 left-3.5 rounded-full bg-[#002a22] text-[#faf8f5] px-3.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.1em] shadow-sm">
+                    {/* Gradient Overlay on Image */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
+
+                    {/* Services Count Badge */}
+                    <span className="absolute top-3.5 left-3.5 rounded-full bg-[#002a22]/90 backdrop-blur-md border border-white/20 text-[#cb9f5a] px-3.5 py-1 text-[10px] font-extrabold uppercase tracking-widest shadow-md">
                       {c.services.length} SERVICES
                     </span>
+
+                    {/* Active Ribbon Badge */}
+                    {active && (
+                      <span className="absolute top-3.5 right-3.5 rounded-full bg-[#cb9f5a] text-[#002a22] px-3 py-1 text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Selected
+                      </span>
+                    )}
                   </div>
 
-                  {/* Floating Icon badge overlapping bottom-left of the image */}
-                  <div className="absolute top-[160px] left-8 -translate-y-1/2 grid h-11 w-11 place-items-center rounded-full bg-white text-[#002a22] shadow-md border border-[#f1ede6] group-hover:scale-110 transition-transform duration-300 z-10">
-                    <CategoryIcon className="h-5 w-5 text-[#002a22]" />
+                  {/* Floating Icon badge */}
+                  <div className="absolute top-[182px] left-9 -translate-y-1/2 grid h-12 w-12 place-items-center rounded-2xl bg-white text-[#002a22] shadow-lg border border-[#cb9f5a]/30 group-hover:scale-110 group-hover:bg-[#002a22] group-hover:text-[#cb9f5a] transition-all duration-300 z-10">
+                    <CategoryIcon className="h-6 w-6" />
                   </div>
 
                   {/* Content Details */}
-                  <div className="mt-6 px-1 flex-1 flex flex-col justify-between">
+                  <div className="mt-7 px-2 flex-1 flex flex-col justify-between">
                     <div>
-                      <h3 className="font-display text-base font-bold text-[#002a22] group-hover:text-[#cb9f5a] transition-colors leading-snug">
+                      <h3 className="font-display text-lg font-bold text-[#002a22] group-hover:text-[#cb9f5a] transition-colors leading-snug">
                         {c.title}
                       </h3>
-                      <p className="mt-1 text-xs text-[#4a5f5b] line-clamp-2 leading-relaxed">
+                      <p className="mt-1.5 text-xs text-[#4a5f5b] leading-relaxed">
                         {c.tagline}
                       </p>
                     </div>
 
-                    <div className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-[#cb9f5a] transition-transform group-hover:translate-x-1">
-                      View services <ArrowRight className="h-3.5 w-3.5" />
+                    <div className="mt-5 pt-3 border-t border-[#cb9f5a]/15 flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#cb9f5a] transition-transform group-hover:translate-x-1">
+                        View services <ArrowRight className="h-4 w-4" />
+                      </span>
+                      <span className="text-[10px] font-bold text-[#002a22]/40 group-hover:text-[#002a22]/80 transition-colors uppercase tracking-wider">
+                        Explore →
+                      </span>
                     </div>
                   </div>
                 </button>
               );
             })}
           </div>
-
-          {/* Right Arrow Button */}
-          <button
-            onClick={() => scrollCategories("right")}
-            className="absolute right-2 md:-right-5 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition-all duration-300 hover:bg-emerald-700 hover:scale-105 active:scale-95 cursor-pointer opacity-85 hover:opacity-100 focus:outline-none"
-            aria-label="Next Categories"
-          >
-            <ChevronRight className="h-5 w-5 md:h-6 md:w-6" />
-          </button>
         </div>
 
         {/* Services for selected category */}
         {activeCategory && (
-          <div id="cat-services" className="mt-5 grid gap-4 lg:grid-cols-[240px_1fr] min-w-0">
-            {/* Sidebar */}
-            <aside className="h-fit rounded-2xl border border-[#cb9f5a]/20 bg-card p-4 lg:sticky lg:top-24 min-w-0 overflow-hidden bg-white">
-              <div className="px-1 pb-2 text-[10px] font-extrabold uppercase tracking-wider text-[#002a22]/70 hidden lg:block">
-                Select a category
+          <div id="cat-services" className="mt-8 grid gap-6 lg:grid-cols-[280px_1fr] min-w-0">
+            {/* Ultra-Premium Glass Sidebar */}
+            <aside className="h-fit rounded-3xl border border-[#cb9f5a]/30 bg-gradient-to-b from-white via-[#faf8f5] to-[#f4efe4] p-5 shadow-[0_10px_35px_-10px_rgba(0,42,34,0.08)] lg:sticky lg:top-24 min-w-0 overflow-hidden font-sans">
+              <div className="px-2 pb-3 text-[10px] font-black uppercase tracking-[0.2em] text-[#cb9f5a] hidden lg:flex items-center gap-1.5 border-b border-[#cb9f5a]/20 mb-3">
+                <Sparkles className="h-3.5 w-3.5 text-[#cb9f5a]" />
+                Select Category
               </div>
-              <ul className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-none lg:flex-col lg:space-y-1.5 lg:pb-0">
+              <ul className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-none lg:flex-col lg:space-y-2 lg:pb-0">
                 {categories.map((c) => {
                   const active = c.id === selectedCat;
                   return (
                     <li key={c.id} className="flex-shrink-0">
                       <button
                         onClick={() => setSelectedCat(c.id)}
-                        className={`flex w-full items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left text-xs font-bold transition-all ${
+                        className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-xs font-bold transition-all duration-200 cursor-pointer ${
                           active
-                            ? "border-emerald-600 bg-emerald-50/15 text-emerald-800"
-                            : "border-slate-200 hover:bg-slate-50 text-slate-650 bg-white"
+                            ? "border-[#cb9f5a] bg-gradient-to-r from-[#002a22] to-[#00382d] text-white shadow-md shadow-[#002a22]/20 scale-[1.02]"
+                            : "border-[#cb9f5a]/20 bg-white/80 hover:bg-[#cb9f5a]/10 hover:border-[#cb9f5a]/50 text-[#002a22]"
                         }`}
                       >
-                        <span
-                          className={`grid h-4 w-4 place-items-center rounded border transition-colors ${
+                        <div
+                          className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-black transition-all ${
                             active
-                              ? "border-emerald-600 bg-emerald-600 text-white"
-                              : "border-slate-350 bg-white"
+                              ? "bg-[#cb9f5a] text-[#002a22] shadow-sm"
+                              : "bg-[#faf8f5] text-slate-400 border border-[#cb9f5a]/20"
                           }`}
                         >
-                          {active && (
-                            <span className="text-[9px] leading-none font-black text-white">✓</span>
-                          )}
+                          {active ? "✓" : "✦"}
+                        </div>
+                        <span className="flex-1 truncate font-display tracking-tight text-xs font-black">
+                          {c.title}
                         </span>
-                        <span className="flex-1 truncate">{c.title}</span>
                       </button>
                     </li>
                   );
@@ -2648,67 +2705,86 @@ function Index() {
               </ul>
             </aside>
 
-            {/* Service list */}
-            <div className="rounded-2xl bg-white border border-[#cb9f5a]/10 p-5 shadow-sm">
-              <h3 className="font-display text-lg font-bold text-navy">{activeCategory.title}</h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">{activeCategory.tagline}</p>
+            {/* Ultra-Premium Service List */}
+            <div className="rounded-3xl bg-white border border-[#cb9f5a]/25 p-6 sm:p-8 shadow-[0_15px_40px_-15px_rgba(0,42,34,0.08)]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#cb9f5a]/15 pb-4 mb-6">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#cb9f5a] mb-1">
+                    <Star className="h-3 w-3 fill-[#cb9f5a]" />
+                    Verified Packages
+                  </div>
+                  <h3 className="font-display text-2xl sm:text-3xl font-black text-[#002a22] tracking-tight">
+                    {activeCategory.title}
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500 font-medium">
+                    {activeCategory.tagline}
+                  </p>
+                </div>
+                <div className="text-xs font-extrabold text-[#002a22] bg-[#faf8f5] border border-[#cb9f5a]/30 px-3.5 py-1.5 rounded-full w-fit">
+                  {activeCategory.services.length} Premium Options
+                </div>
+              </div>
 
-              <div className="mt-4 space-y-3.5">
+              <div className="space-y-4 pb-24 md:pb-6">
                 {activeCategory.services.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
-                    No services yet. Admin can add services from the admin panel.
+                  <div className="rounded-2xl border border-dashed border-[#cb9f5a]/30 p-12 text-center text-slate-400 font-medium text-xs">
+                    No services configured yet for this category.
                   </div>
                 )}
                 {activeCategory.services.map((s) => {
-                  const rating = s.id === "house" ? "5.0" : "5.0";
-                  return (
-                    <article
+                  const rating = "5.0";
+                  const ServiceIcon = getServiceIcon(s.id);
+                  return (                    <article
                       key={s.id}
                       onClick={() => setDetail(s)}
-                      className="group grid gap-4 rounded-xl border border-slate-100 hover:border-gold/25 p-3.5 sm:grid-cols-[160px_1fr] transition-all duration-300 hover:shadow-md bg-white cursor-pointer"
+                      className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 xs:p-5 bg-white border border-slate-100 rounded-2xl hover:border-[#cb9f5a]/60 hover:shadow-[0_8px_25px_-8px_rgba(0,42,34,0.08)] transition-all duration-300 cursor-pointer relative"
                     >
-                      <div className="overflow-hidden rounded-lg h-28 w-full sm:h-full sm:max-h-28 bg-slate-50">
-                        <img
-                          src={s.img}
-                          alt={s.title}
-                          loading="lazy"
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-103"
-                        />
-                      </div>
-                      <div className="flex flex-col justify-between min-w-0">
-                        <div>
-                          <h4 className="font-display text-sm font-bold text-navy group-hover:text-gold transition-colors flex flex-wrap items-baseline gap-1">
-                            <span className="truncate">{s.title}</span>
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
-                              Starts At
-                            </span>
-                            <span className="font-extrabold text-navy text-xs">
-                              ₹{getServicePrice(s.price)}
-                            </span>
-                          </h4>
-                          <div className="mt-0.5 flex items-center gap-0.5 text-amber-500 text-[10px] font-extrabold">
-                            <span>⭐</span> {rating}
+                      <div className="flex items-center gap-3.5 xs:gap-4 min-w-0">
+                        <div className="h-11 w-11 xs:h-12 xs:w-12 rounded-full bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 flex items-center justify-center text-[#cb9f5a] shrink-0 group-hover:scale-105 transition-transform duration-300">
+                          <ServiceIcon className="h-4.5 w-4.5 xs:h-5 xs:w-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-display text-sm font-bold text-[#002a22] group-hover:text-[#cb9f5a] transition-colors leading-tight">
+                              {s.title}
+                            </h4>
+                            <div className="flex items-center gap-0.5 text-2xs text-amber-500 font-bold bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10">
+                              ★ {rating}
+                            </div>
                           </div>
-                          <p className="mt-1 text-[11px] text-slate-500 leading-relaxed line-clamp-2">
+                          <p className="mt-1.5 text-xs text-slate-500 font-normal leading-relaxed line-clamp-1">
                             {s.desc}
                           </p>
                         </div>
-                        <div className="mt-3 flex gap-2.5 pt-1.5 border-t border-slate-50">
+                      </div>
+
+                      <div className="flex items-center justify-between sm:justify-end gap-5 shrink-0 border-t border-slate-50 sm:border-t-0 pt-3 sm:pt-0 w-full sm:w-auto">
+                        <div className="flex flex-col text-left sm:text-right shrink-0 min-w-[70px]">
+                          <span className="whitespace-nowrap text-[9px] uppercase tracking-wider text-slate-400 font-extrabold">
+                            Starts at
+                          </span>
+                          <span className="whitespace-nowrap font-display text-sm font-black text-[#002a22]">
+                            ₹{getServicePrice(s.price)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               setDetail(s);
                             }}
-                            className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-slate-205 hover:bg-slate-50 py-1.5 text-[10px] font-bold text-slate-700 transition-all bg-white cursor-pointer"
+                            className="px-3.5 py-1.5 sm:px-4 sm:py-2 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5 text-xs font-bold rounded-xl text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer"
                           >
                             View details
                           </button>
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              addCatServiceToCart(s);
+                              addToCart(s);
                             }}
-                            className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 py-1.5 text-[10px] font-bold text-white transition-all shadow-sm cursor-pointer"
+                            className="px-4 py-1.5 sm:px-5 sm:py-2 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-xs font-bold uppercase transition-all shadow-md cursor-pointer"
                           >
                             Add
                           </button>
@@ -2791,7 +2867,13 @@ function Index() {
       {/* ORDER-WISE CATEGORIES SERVICES CAROUSELS */}
       <div className="bg-slate-50/50 py-6 space-y-12">
         {categories.map((cat) => (
-          <CategoryCarousel key={cat.id} category={cat} onSelectService={setDetail} />
+          <CategoryCarousel
+            key={cat.id}
+            category={cat}
+            onSelectService={setDetail}
+            onAddToCart={addToCart}
+            getServicePrice={getServicePrice}
+          />
         ))}
       </div>
 
@@ -3803,7 +3885,6 @@ function SectionHeader({
       <span className="text-[10px] uppercase tracking-[0.2em] text-[#cb9f5a] font-extrabold">
         {eyebrow}
       </span>
-      <h2 className="mt-1 font-display text-2xl font-bold text-navy md:text-3xl">{title}</h2>
       {subtitle && (
         <p className="mt-1 text-xs text-muted-foreground max-w-lg mx-auto leading-relaxed">
           {subtitle}
@@ -3817,7 +3898,7 @@ function ModalShell({
   open,
   onClose,
   children,
-  maxW = "max-w-md",
+  maxW = "max-w-lg",
 }: {
   open: boolean;
   onClose: () => void;
@@ -3827,19 +3908,19 @@ function ModalShell({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-navy/70 backdrop-blur-sm p-4 animate-fade-up"
+      className="fixed inset-0 z-50 grid place-items-center bg-[#001712]/75 backdrop-blur-md p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className={`relative w-full ${maxW} rounded-3xl bg-card shadow-luxe`}
+        className={`relative w-full ${maxW} rounded-3xl bg-white border border-[#cb9f5a]/30 shadow-[0_25px_70px_-15px_rgba(0,42,34,0.35)] overflow-hidden`}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-muted text-navy transition-colors hover:bg-navy hover:text-cream"
+          className="absolute right-4 top-4 z-50 grid h-10 w-10 place-items-center rounded-full bg-[#002a22]/85 text-[#cb9f5a] border border-[#cb9f5a]/40 backdrop-blur-md transition-all hover:bg-[#cb9f5a] hover:text-[#002a22] hover:scale-110 shadow-xl cursor-pointer"
         >
-          <X className="h-4 w-4" />
+          <X className="h-4.5 w-4.5" />
         </button>
         {children}
       </div>
@@ -3938,57 +4019,27 @@ export function ServiceDetailModal({
   onAddPlan: (s: Service, plan: ServicePlan) => void;
   getServicePrice: (basePrice: number) => number;
 }) {
-  const [expandedPlanIdx, setExpandedPlanIdx] = useState<number | null>(null);
-
-  // See more / See less toggle states per plan index
-  const [expandedPlanDescIdxs, setExpandedPlanDescIdxs] = useState<number[]>([]);
-  const [expandedPlanIncIdxs, setExpandedPlanIncIdxs] = useState<number[]>([]);
-  const [expandedPlanExcIdxs, setExpandedPlanExcIdxs] = useState<number[]>([]);
-  const [isReqExpanded, setIsReqExpanded] = useState(false);
-
-  const toggleDescExpanded = (idx: number) => {
-    setExpandedPlanDescIdxs((prev) =>
-      prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx],
-    );
-  };
-  const toggleIncExpanded = (idx: number) => {
-    setExpandedPlanIncIdxs((prev) =>
-      prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx],
-    );
-  };
-  const toggleExcExpanded = (idx: number) => {
-    setExpandedPlanExcIdxs((prev) =>
-      prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx],
-    );
-  };
-
-  // Reviews state variables
+  const navigate = useNavigate();
   const [reviews, setReviews] = useState<ServiceReview[]>([]);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [newReviewName, setNewReviewName] = useState("");
   const [newReviewRating, setNewReviewRating] = useState(5);
   const [newReviewComment, setNewReviewComment] = useState("");
 
+  const userEmail = typeof window !== "undefined" ? sessionStorage.getItem("user_email") : null;
+  const isAdmin =
+    typeof window !== "undefined"
+      ? sessionStorage.getItem("admin_authenticated") === "true"
+      : false;
+  const isLoggedIn = Boolean(userEmail || isAdmin);
+
   useEffect(() => {
     if (!service) return;
-    fetchReviews(service.id)
-      .then(setReviews)
-      .catch((err) => console.error("Failed to load reviews:", err));
-
-    // Prefill reviewer name if logged in
-    try {
-      const prof = sessionStorage.getItem("user_profile");
-      if (prof) {
-        const u = JSON.parse(prof);
-        if (u && u.name) {
-          setNewReviewName(u.name);
-        }
-      }
-    } catch (e) {}
+    onClose();
+    navigate({ to: "/service-detail", search: { id: service.id } });
   }, [service]);
 
   if (!service) return null;
-  const Icon = getServiceIcon(service.id);
 
   const plans =
     service.plans && service.plans.length > 0
@@ -3998,17 +4049,49 @@ export function ServiceDetailModal({
             name: service.title,
             price: service.price,
             duration: "3 hours",
-            description: service.desc,
-            includes: service.sub,
-            excludes: [],
+            description: service.desc || "",
+            includes: service.sub || [],
+            excludes: [
+              "Wall painting or structural masonry repair",
+              "Exterior window cleaning without balcony access",
+              "Permanent old acid burn stain removal on stone",
+            ],
           },
         ];
+
+  const primaryPlan = plans[0];
+
+  // Inclusions aggregation
+  const allInclusions =
+    plans.flatMap((p) => (Array.isArray(p.includes) ? p.includes : [])).length > 0
+      ? Array.from(new Set(plans.flatMap((p) => (Array.isArray(p.includes) ? p.includes : []))))
+      : service.sub && service.sub.length > 0
+        ? service.sub
+        : [
+            "Deep scrubbing & degreasing of surface areas",
+            "Sanitization & disinfection of all fixtures",
+            "Machine vacuuming & dust extraction",
+            "Post-cleaning quality inspection",
+          ];
+
+  // Exclusions aggregation
+  const defaultExclusions = [
+    "Wall painting, cement scraping or masonry work",
+    "High-rise exterior glass cleaning without balcony access",
+    "Permanent chemical burn or old acid damage stains",
+    "Moving heavy furniture weighing over 40kg without assistance",
+  ];
+
+  const allExclusions =
+    plans.flatMap((p) => (Array.isArray(p.excludes) ? p.excludes : [])).length > 0
+      ? Array.from(new Set(plans.flatMap((p) => (Array.isArray(p.excludes) ? p.excludes : []))))
+      : defaultExclusions;
 
   const reviewCount = reviews.length;
   const avgRating =
     reviewCount > 0
       ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviewCount).toFixed(1)
-      : "4.8";
+      : "4.9";
 
   const starsBreakdown = [5, 4, 3, 2, 1].map((star) => {
     const count = reviews.filter((r) => r.rating === star).length;
@@ -4018,6 +4101,12 @@ export function ServiceDetailModal({
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isLoggedIn) {
+      toast.error("Please login to submit a review");
+      onClose();
+      navigate({ to: "/login" });
+      return;
+    }
     if (!newReviewName.trim()) {
       toast.error("Please enter your name");
       return;
@@ -4045,283 +4134,356 @@ export function ServiceDetailModal({
   };
 
   return (
-    <ModalShell open onClose={onClose} maxW="max-w-3xl">
-      <div className="overflow-hidden rounded-3xl max-h-[85vh] overflow-y-auto scrollbar-none font-sans bg-[#faf8f5]">
-        <div className="relative aspect-[16/7] overflow-hidden">
-          <img src={service.img} alt={service.title} className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#002a22] via-[#002a22]/50 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-6 text-cream">
-            <div className="inline-flex items-center gap-1.5 rounded-full gradient-gold px-3.5 py-1 text-2xs font-extrabold text-navy shadow-gold">
-              <Icon className="h-3.5 w-3.5" /> PREMIUM LUXURY SERVICE
+    <ModalShell open onClose={onClose} maxW="max-w-5xl">
+      <div className="overflow-hidden rounded-3xl max-h-[88vh] overflow-y-auto scrollbar-none font-sans bg-[#f8f6f0] p-4 sm:p-6 space-y-6">
+        {/* SECTION 1: HERO TOP BLOCK (Matching Image 2 style) */}
+        <div className="bg-white rounded-3xl border border-[#cb9f5a]/25 p-6 sm:p-8 shadow-[0_10px_30px_-10px_rgba(0,42,34,0.08)] grid gap-8 md:grid-cols-[1fr_360px] items-center">
+          {/* Left Column: Details & CTA */}
+          <div className="space-y-4">
+            <h2 className="font-display text-2xl sm:text-4xl font-black text-[#002a22] tracking-tight">
+              {service.title}
+            </h2>
+
+            {/* Quick Feature Badges */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 px-3 py-1 rounded-full text-xs font-black text-[#002a22]">
+                ⏱️ {primaryPlan?.duration || "2-3 Hours"}
+              </span>
+              <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-black text-emerald-800">
+                🛡️ Hygienic & Safe
+              </span>
+              <span className="inline-flex items-center gap-1.5 bg-sky-50 border border-sky-200 px-3 py-1 rounded-full text-xs font-black text-sky-800">
+                ✨ Verified Experts
+              </span>
             </div>
-            <h3 className="mt-2.5 font-display text-3xl font-bold text-white">{service.title}</h3>
-            <p className="text-xs font-semibold text-cream/80 mt-1">{service.desc}</p>
+
+            <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
+              {service.desc ||
+                "Professional deep cleaning engineered for luxury homes and commercial spaces using hospital-grade sanitizers."}
+            </p>
+
+            {/* Price Tag */}
+            <div className="pt-2 flex items-baseline gap-3">
+              <span className="text-3xl sm:text-4xl font-black text-[#002a22] font-display">
+                ₹{getServicePrice(primaryPlan?.price || service.price || 0)}
+              </span>
+              <span className="text-xs font-extrabold uppercase text-[#cb9f5a] tracking-wider">
+                (Inclusive of all taxes & equipment)
+              </span>
+            </div>
+
+            {/* Add to Cart Button */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => onAddPlan(service, primaryPlan)}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#002a22] via-[#00382d] to-[#002a22] hover:from-[#cb9f5a] hover:via-[#e5be7a] hover:to-[#cb9f5a] text-white hover:text-[#002a22] px-8 py-3.5 text-sm font-black uppercase tracking-wider shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer"
+              >
+                <ShoppingCart className="h-4 w-4" /> Add to Cart
+              </button>
+            </div>
+
+            {/* Trust Badges */}
+            <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center gap-4 text-[11px] font-bold text-slate-600">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> 100% Satisfaction
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Free Rescheduling
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Background Verified Pros
+              </span>
+            </div>
+          </div>
+
+          {/* Right Column: Hero Image Frame */}
+          <div className="relative overflow-hidden rounded-3xl aspect-[4/3] w-full bg-slate-100 border border-[#cb9f5a]/30 shadow-md">
+            <img src={service.img} alt={service.title} className="h-full w-full object-cover" />
+            <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-md border border-[#cb9f5a]/40 px-3 py-1 rounded-full text-xs font-black text-[#002a22] flex items-center gap-1 shadow-md">
+              <Star className="h-3.5 w-3.5 text-[#cb9f5a] fill-[#cb9f5a]" /> {avgRating} Rating
+            </div>
           </div>
         </div>
 
-        <div className="p-7 space-y-6">
-          <div>
-            <h4 className="font-display text-base font-extrabold uppercase tracking-wider text-[#002a22] mb-4">
-              Choose Package Plan
-            </h4>
-            <div className="space-y-4">
-              {plans.map((p, idx) => {
-                const isExpanded = expandedPlanIdx === idx;
+        {/* SECTION 2: IMPORTANT NOTES (Matching Image 2 style) */}
+        <div className="bg-white rounded-3xl border border-[#cb9f5a]/25 p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="h-7 w-7 rounded-full bg-[#cb9f5a]/15 text-[#002a22] flex items-center justify-center font-black text-xs">
+              🔔
+            </div>
+            <h3 className="font-display text-base font-black text-[#002a22]">
+              Important Pre-Service Notes
+            </h3>
+          </div>
+          <ul className="grid gap-2.5 text-xs text-slate-600 font-semibold sm:grid-cols-2">
+            <li className="flex items-start gap-2.5 bg-[#faf8f5] p-3 rounded-xl border border-slate-100">
+              <span className="text-[#cb9f5a] font-bold shrink-0">1.</span>
+              <span>
+                Please ensure continuous water supply & functioning 16A power sockets for scrubber
+                machines.
+              </span>
+            </li>
+            <li className="flex items-start gap-2.5 bg-[#faf8f5] p-3 rounded-xl border border-slate-100">
+              <span className="text-[#cb9f5a] font-bold shrink-0">2.</span>
+              <span>Keep valuable items & fragile decor secured before specialists arrive.</span>
+            </li>
+            <li className="flex items-start gap-2.5 bg-[#faf8f5] p-3 rounded-xl border border-slate-100">
+              <span className="text-[#cb9f5a] font-bold shrink-0">3.</span>
+              <span>
+                Heavy furniture over 40kg will be cleaned underneath without moving if unassisted.
+              </span>
+            </li>
+            <li className="flex items-start gap-2.5 bg-[#faf8f5] p-3 rounded-xl border border-slate-100">
+              <span className="text-[#cb9f5a] font-bold shrink-0">4.</span>
+              <span>Quality check inspection will be conducted before team departure.</span>
+            </li>
+          </ul>
+        </div>
 
-                // Description expansion check
-                const isDescExpanded = expandedPlanDescIdxs.includes(idx);
-                const descToShow = isDescExpanded
-                  ? p.description
-                  : `${p.description.slice(0, 100)}${p.description.length > 100 ? "..." : ""}`;
+        {/* SECTION 3: INCLUSIONS & EXCLUSIONS GRID (Matching Image 2 style) */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Left Card: Includes */}
+          <div className="bg-white rounded-3xl border border-emerald-200 p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-emerald-100">
+              <div className="h-7 w-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-xs">
+                ⭐
+              </div>
+              <h3 className="font-display text-base font-black text-[#002a22]">
+                Package Inclusions
+              </h3>
+            </div>
+            <ul className="space-y-2.5 text-xs text-slate-700 font-semibold">
+              {allInclusions.map((item, idx) => (
+                <li
+                  key={idx}
+                  className="flex items-start gap-2.5 bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100"
+                >
+                  <span className="h-5 w-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">
+                    ✓
+                  </span>
+                  <span className="leading-relaxed">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-                // Inclusions expansion check
-                const isIncExpanded = expandedPlanIncIdxs.includes(idx);
-                const incsToShow = isIncExpanded ? p.includes : p.includes.slice(0, 2);
+          {/* Right Card: Exclusions */}
+          <div className="bg-white rounded-3xl border border-rose-200 p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-rose-100">
+              <div className="h-7 w-7 rounded-full bg-rose-100 text-rose-800 flex items-center justify-center font-black text-xs">
+                ❌
+              </div>
+              <h3 className="font-display text-base font-black text-[#002a22]">
+                Package Exclusions
+              </h3>
+            </div>
+            <ul className="space-y-2.5 text-xs text-slate-700 font-semibold">
+              {allExclusions.map((item, idx) => (
+                <li
+                  key={idx}
+                  className="flex items-start gap-2.5 bg-rose-50/50 p-2.5 rounded-xl border border-rose-100"
+                >
+                  <span className="h-5 w-5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">
+                    ✕
+                  </span>
+                  <span className="leading-relaxed">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
 
-                // Exclusions expansion check
-                const isExcExpanded = expandedPlanExcIdxs.includes(idx);
-                const excsToShow = isExcExpanded ? p.excludes : p.excludes.slice(0, 2);
-                return (
-                  <div
-                    key={idx}
-                    className="rounded-2xl border border-[#cb9f5a]/25 bg-white p-5 transition-all space-y-4 shadow-sm hover:shadow-md"
-                  >
-                    <div className="flex items-start justify-between gap-3 pb-3 border-b border-[#cb9f5a]/10">
-                      <div>
-                        <h4 className="font-display text-base font-bold text-[#002a22]">
-                          {p.name}
-                        </h4>
-                        <div className="mt-1 flex flex-wrap items-center gap-2.5 text-[10px] font-bold uppercase tracking-wider">
-                          <span className="inline-flex items-center gap-1 text-[#cb9f5a]">
-                            ⭐ {service.id === "house" ? (idx === 0 ? "5" : "0") : "5"} STARS
-                          </span>
-                          <span className="text-slate-300">|</span>
-                          <span className="inline-flex items-center gap-1 text-slate-500">
-                            🕒 {p.duration}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-display text-lg font-extrabold text-[#cb9f5a]">
-                          ₹{getServicePrice(p.price)}
-                        </div>
-                        <div className="mt-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onAddPlan(service, p);
-                            }}
-                            className="gradient-gold text-navy px-4 py-1.5 rounded-xl text-2xs font-extrabold shadow-gold active:scale-95 transition-all cursor-pointer"
-                          >
-                            Add to Cart
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="text-xs space-y-3.5 text-slate-650 font-semibold">
-                      <div>
-                        <p className="leading-relaxed text-slate-650 inline">{descToShow}</p>
-                        {p.description.length > 100 && (
-                          <button
-                            type="button"
-                            onClick={() => toggleDescExpanded(idx)}
-                            className="text-[#cb9f5a] hover:text-[#cb9f5a]/80 font-bold ml-1.5 inline-block text-[10px] hover:underline cursor-pointer"
-                          >
-                            {isDescExpanded ? "See less" : "See more"}
-                          </button>
-                        )}
-                      </div>
-
-                      {p.includes && p.includes.length > 0 && (
-                        <div>
-                          <div className="font-bold text-emerald-700 text-[10px] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                            <span className="grid h-4.5 w-4.5 place-items-center rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/25">
-                              <Check className="h-2.5 w-2.5" />
-                            </span>
-                            Inclusions:
-                          </div>
-                          <ul className="grid gap-1 pl-6 list-disc text-2xs text-slate-550 font-bold">
-                            {incsToShow.map((x, i) => (
-                              <li key={i} className="leading-relaxed">
-                                {x}
-                              </li>
-                            ))}
-                          </ul>
-                          {p.includes.length > 2 && (
-                            <button
-                              type="button"
-                              onClick={() => toggleIncExpanded(idx)}
-                              className="text-[#cb9f5a] hover:text-[#cb9f5a]/80 font-bold text-[10px] mt-1 pl-6 block hover:underline cursor-pointer"
-                            >
-                              {isIncExpanded ? "See less" : "See more"}
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {p.excludes && p.excludes.length > 0 && (
-                        <div>
-                          <div className="font-bold text-rose-700 text-[10px] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                            <span className="grid h-4.5 w-4.5 place-items-center rounded-full bg-rose-500/10 text-rose-700 border border-rose-500/25 font-bold text-[10px]">
-                              -
-                            </span>
-                            Exclusions:
-                          </div>
-                          <ul className="grid gap-1 pl-6 list-disc text-2xs text-slate-550 font-bold">
-                            {excsToShow.map((x, i) => (
-                              <li key={i} className="leading-relaxed">
-                                {x}
-                              </li>
-                            ))}
-                          </ul>
-                          {p.excludes.length > 2 && (
-                            <button
-                              type="button"
-                              onClick={() => toggleExcExpanded(idx)}
-                              className="text-[#cb9f5a] hover:text-[#cb9f5a]/80 font-bold text-[10px] mt-1 pl-6 block hover:underline cursor-pointer"
-                            >
-                              {isExcExpanded ? "See less" : "See more"}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+        {/* SECTION 4: WHAT WE BRING vs WHAT WE NEED (Matching Image 2 style) */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="bg-white rounded-3xl border border-[#cb9f5a]/25 p-6 shadow-sm flex items-start gap-4">
+            <div className="h-12 w-12 rounded-2xl bg-[#002a22] text-[#cb9f5a] flex items-center justify-center text-xl shrink-0">
+              🧰
+            </div>
+            <div>
+              <h4 className="font-display text-sm font-black text-[#002a22]">What We Bring</h4>
+              <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
+                Hospital-grade disinfectants, single-use microfiber cloths, heavy-duty floor
+                scrubbing machines, wet/dry vacuums & eco-friendly chemicals.
+              </p>
             </div>
           </div>
 
-          {service.disclaimer && (
-            <div className="text-xs text-slate-550 space-y-1 font-semibold">
-              <span className="font-bold text-[#002a22] block text-xs uppercase tracking-wider">
-                Disclaimer:
-              </span>
-              <p className="leading-relaxed">{service.disclaimer}</p>
+          <div className="bg-white rounded-3xl border border-[#cb9f5a]/25 p-6 shadow-sm flex items-start gap-4">
+            <div className="h-12 w-12 rounded-2xl bg-[#cb9f5a]/15 text-[#002a22] flex items-center justify-center text-xl shrink-0">
+              🔌
             </div>
-          )}
-
-          {service.requirements && (
-            <div className="text-xs text-slate-550 space-y-1 pt-3.5 border-t border-[#cb9f5a]/10 font-semibold">
-              <span className="font-bold text-[#002a22] block text-xs uppercase tracking-wider">
-                What We Will Need From You:
-              </span>
-              <div>
-                <p className="leading-relaxed inline">
-                  {isReqExpanded
-                    ? service.requirements
-                    : `${service.requirements.slice(0, 120)}${service.requirements.length > 120 ? "..." : ""}`}
-                </p>
-                {service.requirements.length > 120 && (
-                  <button
-                    type="button"
-                    onClick={() => setIsReqExpanded(!isReqExpanded)}
-                    className="text-[#cb9f5a] hover:text-[#cb9f5a]/80 font-bold ml-1.5 inline-block text-[10px] hover:underline cursor-pointer"
-                  >
-                    {isReqExpanded ? "See less" : "See more"}
-                  </button>
-                )}
-              </div>
+            <div>
+              <h4 className="font-display text-sm font-black text-[#002a22]">What We Need</h4>
+              <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
+                Continuous water connection & a 16A electrical socket for operating machine
+                equipment during service hours.
+              </p>
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* Reviews Section */}
-          <div className="border-t border-[#cb9f5a]/10 pt-5">
-            <h4 className="font-display text-base font-extrabold uppercase tracking-wider text-[#002a22] mb-4">
-              Customer reviews
-            </h4>
-
-            <div className="grid gap-6 sm:grid-cols-[180px_1fr]">
-              {/* Rating summary */}
-              <div className="rounded-2xl bg-[#cb9f5a]/5 border border-[#cb9f5a]/15 p-4 text-center flex flex-col justify-center items-center">
-                <div className="font-display text-4xl font-extrabold text-[#cb9f5a]">
-                  {avgRating}
-                </div>
-                <div className="flex justify-center gap-0.5 text-[#cb9f5a] mt-1.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-4 w-4 ${i < Math.round(Number(avgRating)) ? "fill-current" : ""}`}
-                    />
-                  ))}
-                </div>
-                <div className="text-[9px] font-bold text-slate-400 mt-2 uppercase tracking-wider">
-                  {reviewCount} reviews
-                </div>
-              </div>
-
-              {/* Histogram breakdown */}
-              <div className="space-y-1.5 flex flex-col justify-center">
-                {starsBreakdown.map((row) => (
-                  <div
-                    key={row.star}
-                    className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wide"
-                  >
-                    <span className="w-3 text-right">{row.star}</span>
-                    <Star className="h-3 w-3 text-[#cb9f5a] fill-current" />
-                    <div className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
-                      <div
-                        className="h-full bg-emerald-500 rounded-full"
-                        style={{ width: `${row.percentage}%` }}
-                      />
-                    </div>
-                    <span className="w-8 text-right text-slate-400">{row.percentage}%</span>
-                  </div>
-                ))}
-              </div>
+        {/* SECTION 5: PACKAGE OPTIONS (If multiple plans exist like Express / Elite) */}
+        {plans.length > 1 && (
+          <div className="bg-white rounded-3xl border border-[#cb9f5a]/25 p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+              <Sparkles className="h-4 w-4 text-[#cb9f5a]" />
+              <h3 className="font-display text-base font-black text-[#002a22]">
+                Select Package Variant
+              </h3>
             </div>
 
-            {/* Review list */}
-            <div className="mt-5 space-y-3.5 max-h-[30vh] overflow-y-auto pr-1">
-              {reviews.map((r) => (
+            <div className="grid gap-4 md:grid-cols-2">
+              {plans.map((p, idx) => (
                 <div
-                  key={r.id}
-                  className="rounded-2xl border border-[#cb9f5a]/10 p-4 bg-white hover:shadow-sm transition-all"
+                  key={idx}
+                  className="rounded-2xl border border-slate-200 hover:border-[#cb9f5a] p-5 transition-all bg-[#faf8f5] flex flex-col justify-between"
                 >
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="grid h-8 w-8 place-items-center rounded-full bg-[#cb9f5a]/10 font-bold text-xs text-[#cb9f5a] border border-[#cb9f5a]/20">
-                        {r.userName.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="font-bold text-[#002a22] text-xs">{r.userName}</div>
-                        <div className="text-[9px] text-slate-400 font-semibold">
-                          {new Date(r.createdAt).toLocaleDateString(undefined, {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </div>
-                      </div>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-display text-base font-black text-[#002a22]">
+                        {p.name}
+                      </h4>
+                      <span className="text-xs font-black text-[#002a22] bg-white border border-[#cb9f5a]/30 px-3 py-1 rounded-full">
+                        ₹{getServicePrice(p.price)}
+                      </span>
                     </div>
-                    <div className="flex gap-0.5 text-[#cb9f5a]">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} className={`h-3 w-3 ${i < r.rating ? "fill-current" : ""}`} />
-                      ))}
-                    </div>
+                    <p className="text-xs text-slate-500 mt-2 font-medium leading-relaxed">
+                      {p.description || service.desc}
+                    </p>
                   </div>
-                  <p className="mt-2 text-xs text-slate-600 leading-relaxed font-semibold italic">
-                    "{r.comment}"
-                  </p>
+                  <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-500">
+                      ⏱️ {p.duration || "2 Hours"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onAddPlan(service, p)}
+                      className="bg-[#002a22] hover:bg-[#cb9f5a] hover:text-[#002a22] text-white px-4 py-2 rounded-xl text-xs font-extrabold uppercase transition-colors cursor-pointer"
+                    >
+                      Select Plan
+                    </button>
+                  </div>
                 </div>
               ))}
-              {reviews.length === 0 && (
-                <div className="text-center text-xs text-slate-400 py-6 italic bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                  No reviews yet. Be the first to leave a review!
-                </div>
-              )}
+            </div>
+          </div>
+        )}
+
+        {/* SECTION 6: BRAND ASSURANCE BADGES */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Verified Specialists", icon: "🛡️" },
+            { label: "4.9/5 Rating", icon: "⭐" },
+            { label: "10,000+ Cleaned", icon: "🏆" },
+            { label: "100% Satisfaction", icon: "✨" },
+          ].map((b, i) => (
+            <div
+              key={i}
+              className="bg-white border border-[#cb9f5a]/20 rounded-2xl p-3 text-center shadow-3xs"
+            >
+              <div className="text-lg">{b.icon}</div>
+              <div className="text-[11px] font-black text-[#002a22] mt-1">{b.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* SECTION 7: CUSTOMER REVIEWS */}
+        <div className="bg-white rounded-3xl border border-[#cb9f5a]/25 p-6 shadow-sm space-y-6">
+          <h4 className="font-display text-base font-black uppercase tracking-wider text-[#002a22]">
+            Verified Customer Reviews
+          </h4>
+
+          <div className="grid gap-6 sm:grid-cols-[180px_1fr]">
+            <div className="rounded-2xl bg-[#cb9f5a]/10 border border-[#cb9f5a]/20 p-5 text-center flex flex-col justify-center items-center">
+              <div className="font-display text-4xl font-black text-[#cb9f5a]">{avgRating}</div>
+              <div className="flex justify-center gap-0.5 text-[#cb9f5a] mt-1.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star
+                    key={i}
+                    className={`h-4 w-4 ${i < Math.round(Number(avgRating)) ? "fill-current" : ""}`}
+                  />
+                ))}
+              </div>
+              <div className="text-[10px] font-black text-slate-500 mt-2 uppercase tracking-wider">
+                {reviewCount} Verified Ratings
+              </div>
             </div>
 
-            {/* Write review form */}
+            <div className="space-y-2 flex flex-col justify-center">
+              {starsBreakdown.map((row) => (
+                <div
+                  key={row.star}
+                  className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase"
+                >
+                  <span className="w-3 text-right">{row.star}</span>
+                  <Star className="h-3 w-3 text-[#cb9f5a] fill-current" />
+                  <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-600 rounded-full"
+                      style={{ width: `${row.percentage}%` }}
+                    />
+                  </div>
+                  <span className="w-8 text-right text-slate-400">{row.percentage}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3 max-h-[30vh] overflow-y-auto pr-1">
+            {reviews.map((r) => (
+              <div key={r.id} className="rounded-2xl border border-slate-100 p-4 bg-[#faf8f5]">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-full bg-[#002a22] text-[#cb9f5a] flex items-center justify-center font-bold text-xs">
+                      {r.userName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-black text-[#002a22] text-xs">{r.userName}</div>
+                      <div className="text-[9px] text-slate-400 font-semibold">
+                        {new Date(r.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-0.5 text-[#cb9f5a]">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} className={`h-3 w-3 ${i < r.rating ? "fill-current" : ""}`} />
+                    ))}
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-slate-600 font-semibold italic">"{r.comment}"</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Write review form / Login Gate */}
+          {!isLoggedIn ? (
+            <div className="rounded-2xl bg-gradient-to-r from-[#002a22] to-[#00382d] p-6 text-center text-white border border-[#cb9f5a]/40 shadow-md">
+              <h5 className="font-display text-base font-black text-white">
+                Want to leave a review?
+              </h5>
+              <p className="text-xs text-cream/80 mt-1 max-w-md mx-auto font-medium">
+                Please log in to your account to share your experience with our luxury cleaning
+                services.
+              </p>
+              <div className="mt-4">
+                <Link
+                  to="/login"
+                  onClick={onClose}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#cb9f5a] via-[#e5be7a] to-[#cb9f5a] px-6 py-2.5 text-xs font-black uppercase tracking-wider text-[#002a22] shadow-md hover:scale-105 transition-all"
+                >
+                  🔐 Login / Register to Review
+                </Link>
+              </div>
+            </div>
+          ) : (
             <form
               onSubmit={handleSubmitReview}
-              className="mt-6 bg-[#cb9f5a]/5 border border-[#cb9f5a]/15 rounded-2xl p-4 space-y-3 font-sans"
+              className="bg-[#faf8f5] border border-[#cb9f5a]/20 rounded-2xl p-4 space-y-3"
             >
-              <div className="text-[10px] font-extrabold uppercase text-[#002a22] tracking-wider">
+              <div className="text-xs font-black uppercase text-[#002a22] tracking-wider">
                 Write a Review
               </div>
-
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
@@ -4331,7 +4493,7 @@ export function ServiceDetailModal({
                     value={newReviewName}
                     onChange={(e) => setNewReviewName(e.target.value)}
                     placeholder="Name"
-                    className="w-full rounded-xl border border-[#cb9f5a]/20 bg-white px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-semibold"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-semibold"
                   />
                 </div>
                 <div>
@@ -4347,14 +4509,13 @@ export function ServiceDetailModal({
                         className="transition-transform active:scale-125 cursor-pointer"
                       >
                         <Star
-                          className={`h-5 w-5 ${star <= newReviewRating ? "text-[#cb9f5a] fill-current" : "text-slate-350"}`}
+                          className={`h-5 w-5 ${star <= newReviewRating ? "text-[#cb9f5a] fill-current" : "text-slate-300"}`}
                         />
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
-
               <div>
                 <label className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
                   Review Feedback
@@ -4364,19 +4525,18 @@ export function ServiceDetailModal({
                   onChange={(e) => setNewReviewComment(e.target.value)}
                   rows={2}
                   placeholder="Share your experience cleaning with us..."
-                  className="w-full rounded-xl border border-[#cb9f5a]/20 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-semibold resize-none"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-semibold resize-none"
                 />
               </div>
-
               <button
                 type="submit"
                 disabled={isSubmittingReview}
-                className="w-full rounded-xl gradient-gold text-navy font-bold text-xs py-2.5 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 shadow-gold cursor-pointer"
+                className="w-full rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] hover:text-[#002a22] text-white font-black text-xs uppercase tracking-wider py-2.5 transition-all shadow-md cursor-pointer"
               >
                 {isSubmittingReview ? "Submitting Review..." : "Submit My Review"}
               </button>
             </form>
-          </div>
+          )}
         </div>
       </div>
     </ModalShell>
@@ -4732,7 +4892,7 @@ export function BookingModal({
     address: "",
     landmark: "",
     mapsLink: "",
-    city: "Bengaluru",
+    city: "Guntur",
     pincode: "",
     date: "",
     time: "10:00",
@@ -4804,6 +4964,24 @@ export function BookingModal({
         mapsLink: savedLat && savedLng ? `https://www.google.com/maps?q=${savedLat},${savedLng}` : f.mapsLink,
       }));
 
+      // Reverse geocode saved GPS coordinates if available to auto-fill pincode & city
+      if (savedLat && savedLng) {
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${savedLat}&lon=${savedLng}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.address) {
+              const pc = data.address.postcode ? data.address.postcode.replace(/\D/g, "").slice(0, 6) : "";
+              const ct = data.address.city || data.address.town || data.address.county || data.address.state_district || "Guntur";
+              setForm((f) => ({
+                ...f,
+                ...(pc ? { pincode: pc } : {}),
+                city: ct || f.city,
+              }));
+            }
+          })
+          .catch(() => {});
+      }
+
       // Fetch active coupons
       fetchCoupons()
         .then(setAvailableCoupons)
@@ -4845,21 +5023,74 @@ export function BookingModal({
       return;
     }
     setIsLocating(true);
+    const toastId = toast.loading("Detecting exact GPS location & auto-filling pincode...", { icon: "📍" });
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
         const coordsStr = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
         const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
-        setForm((f) => ({ ...f, gpsCoords: coordsStr, mapsLink: mapsUrl }));
-        toast.success("GPS Coordinates detected successfully!", { icon: "📍" });
+
+        let detectedPincode = "";
+        let detectedCity = "Guntur";
+        let detectedLandmark = "";
+
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const addr = data.address || {};
+            if (addr.postcode) {
+              detectedPincode = addr.postcode.replace(/\D/g, "").slice(0, 6);
+            }
+            if (addr.city || addr.town || addr.county || addr.state_district) {
+              detectedCity = addr.city || addr.town || addr.county || addr.state_district;
+            }
+            const area =
+              addr.suburb ||
+              addr.neighbourhood ||
+              addr.residential ||
+              addr.road ||
+              addr.village ||
+              "";
+            if (area) {
+              detectedLandmark = `${area}, ${detectedCity}`;
+            } else if (data.display_name) {
+              detectedLandmark = data.display_name.split(",").slice(0, 2).join(",");
+            }
+          }
+        } catch {
+          /* ignore reverse geocoding errors */
+        }
+
+        setForm((f) => ({
+          ...f,
+          gpsCoords: coordsStr,
+          mapsLink: mapsUrl,
+          ...(detectedPincode ? { pincode: detectedPincode } : {}),
+          city: detectedCity || f.city,
+          ...(detectedLandmark && !f.landmark ? { landmark: detectedLandmark } : {}),
+        }));
+
+        if (detectedPincode) {
+          toast.success(`GPS Location & Pincode (${detectedPincode}) auto-detected!`, {
+            id: toastId,
+            icon: "📍",
+          });
+        } else {
+          toast.success("GPS Coordinates detected successfully!", { id: toastId, icon: "📍" });
+        }
         setIsLocating(false);
       },
       (error) => {
         console.warn("Geolocation error:", error);
-        toast.error("Could not retrieve GPS coordinates. Please enter location manually.");
+        toast.error("Could not retrieve GPS coordinates. Please enter location manually.", {
+          id: toastId,
+        });
         setIsLocating(false);
       },
-      { enableHighAccuracy: true, timeout: 8000 },
+      { enableHighAccuracy: true, timeout: 10000 },
     );
   };
 
@@ -4967,7 +5198,22 @@ export function BookingModal({
     }
   };
 
-  const finalTotal = Math.max(0, total - discount);
+  const userWalletBalance = (() => {
+    try {
+      const prof = sessionStorage.getItem("user_profile");
+      if (prof) {
+        const u = JSON.parse(prof);
+        return u.walletBalance || 0;
+      }
+    } catch (e) {}
+    return 0;
+  })();
+
+  const totalAfterDiscount = Math.max(0, total - discount);
+  const appliedWalletCredit = useWalletCredit
+    ? Math.min(userWalletBalance, totalAfterDiscount)
+    : 0;
+  const finalTotal = Math.max(0, totalAfterDiscount - appliedWalletCredit);
   const slots = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00"];
   const canStep2 =
     form.name.trim() && form.phone.length >= 10 && form.address.trim() && form.pincode.length >= 4;
@@ -5460,7 +5706,7 @@ export function BookingModal({
                 label="Pincode"
                 value={form.pincode}
                 onChange={(v) => setForm({ ...form, pincode: v.replace(/\D/g, "").slice(0, 6) })}
-                placeholder="560038"
+                placeholder="522002"
               />
 
               {/* Technician location detector */}
@@ -5880,9 +6126,16 @@ function Field({
 interface CategoryCarouselProps {
   category: Category;
   onSelectService: (s: Service) => void;
+  onAddToCart: (s: Service) => void;
+  getServicePrice: (basePrice: number) => number;
 }
 
-function CategoryCarousel({ category, onSelectService }: CategoryCarouselProps) {
+function CategoryCarousel({
+  category,
+  onSelectService,
+  onAddToCart,
+  getServicePrice,
+}: CategoryCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: "left" | "right") => {
@@ -5901,12 +6154,13 @@ function CategoryCarousel({ category, onSelectService }: CategoryCarouselProps) 
   if (!category.services || category.services.length === 0) return null;
 
   return (
-    <div className="relative mx-auto max-w-7xl px-5 py-2 lg:px-8">
+    <div className="relative mx-auto max-w-7xl px-5 py-4 lg:px-8">
       {/* Category Header */}
-      <div className="text-center mb-3">
-        <h2 className="font-display text-lg md:text-xl font-bold text-navy tracking-tight">
+      <div className="text-center mb-6">
+        <h2 className="font-display text-lg md:text-xl font-black tracking-wider uppercase text-[#002a22]">
           {category.title}
         </h2>
+        <div className="h-0.5 w-16 bg-[#cb9f5a]/40 mx-auto mt-1.5 rounded-full" />
       </div>
 
       {/* Carousel Wrapper */}
@@ -5914,7 +6168,7 @@ function CategoryCarousel({ category, onSelectService }: CategoryCarouselProps) 
         {/* Left Arrow Button */}
         <button
           onClick={() => scroll("left")}
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-700 text-white transition-all hover:scale-105 opacity-0 group-hover/carousel:opacity-100 cursor-pointer shadow-md focus:outline-none"
+          className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] transition-all hover:scale-105 opacity-0 group-hover/carousel:opacity-100 cursor-pointer shadow-md border border-[#cb9f5a]/30 focus:outline-none"
           aria-label="Scroll left"
         >
           <ChevronLeft className="h-5 w-5" />
@@ -5923,7 +6177,7 @@ function CategoryCarousel({ category, onSelectService }: CategoryCarouselProps) 
         {/* Right Arrow Button */}
         <button
           onClick={() => scroll("right")}
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 hover:bg-emerald-700 text-white transition-all hover:scale-105 opacity-0 group-hover/carousel:opacity-100 cursor-pointer shadow-md focus:outline-none"
+          className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] transition-all hover:scale-105 opacity-0 group-hover/carousel:opacity-100 cursor-pointer shadow-md border border-[#cb9f5a]/30 focus:outline-none"
           aria-label="Scroll right"
         >
           <ChevronRight className="h-5 w-5" />
@@ -5932,37 +6186,85 @@ function CategoryCarousel({ category, onSelectService }: CategoryCarouselProps) 
         {/* Horizontal scroll container */}
         <div
           ref={scrollRef}
-          className="flex gap-4 overflow-x-auto pb-3 scrollbar-none scroll-smooth snap-x snap-mandatory px-4 -mx-4 md:px-0 md:mx-0"
+          className="flex gap-5 overflow-x-auto pb-5 scrollbar-none scroll-smooth snap-x snap-mandatory px-4 -mx-4 md:px-0 md:mx-0"
         >
           {category.services.map((s) => {
             const rating = getServiceRating(s.id);
+            const numStars = Math.round(parseFloat(rating));
             return (
               <div
                 key={s.id}
                 onClick={() => onSelectService(s)}
-                className="relative min-w-[260px] sm:min-w-[320px] md:min-w-[360px] aspect-[16/10] rounded-2xl overflow-hidden shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 snap-start select-none bg-slate-900 group/card border border-[#cb9f5a]/10"
+                className="relative min-w-[260px] sm:min-w-[280px] md:min-w-[300px] flex flex-col rounded-3xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 snap-start select-none bg-white border border-[#cb9f5a]/15 group/card cursor-pointer"
               >
-                {/* Background Image */}
-                <img
-                  src={s.image || s.img}
-                  alt={s.title}
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-103"
-                />
-
-                {/* Dark overlay for text readability */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
-
-                {/* Top Right Rating Badge */}
-                <div className="absolute top-3.5 right-3.5 inline-flex items-center gap-1 rounded-full bg-[#001712]/80 backdrop-blur-md px-2.5 py-0.5 text-[9px] font-extrabold text-[#cb9f5a] border border-[#cb9f5a]/20">
-                  <Star className="h-2.5 w-2.5 fill-[#cb9f5a] text-[#cb9f5a]" />
-                  <span>{rating} Stars</span>
+                {/* Top Half: Image */}
+                <div className="relative h-44 w-full overflow-hidden bg-slate-100 shrink-0">
+                  <img
+                    src={s.image || s.img}
+                    alt={s.title}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-105"
+                  />
+                  {/* Rating Badge Overlay */}
+                  <div className="absolute top-3 left-3 bg-[#002a22]/90 backdrop-blur-md border border-[#cb9f5a]/40 px-2.5 py-1 rounded-full text-[10px] font-black text-[#cb9f5a] flex items-center gap-1 shadow-sm">
+                    <Star className="h-3 w-3 fill-[#cb9f5a] text-[#cb9f5a]" />
+                    <span>{rating}</span>
+                  </div>
                 </div>
 
-                {/* Bottom Overlay Title */}
-                <div className="absolute bottom-4 left-4 right-4">
-                  <h3 className="font-display text-xs md:text-sm font-bold text-white leading-tight">
-                    {s.title}
-                  </h3>
+                {/* Bottom Half: Card Details */}
+                <div className="flex-1 p-5 flex flex-col justify-between font-sans bg-white">
+                  <div>
+                    <h3 className="font-display text-sm font-bold text-[#002a22] group-hover/card:text-[#cb9f5a] transition-colors leading-tight">
+                      {s.title}
+                    </h3>
+                    <p className="mt-1.5 text-[11px] text-slate-500 line-clamp-2 leading-relaxed font-medium">
+                      {s.desc}
+                    </p>
+                    
+                    {/* Stars visual display */}
+                    <div className="flex items-center gap-0.5 mt-2.5 text-amber-500">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`h-3 w-3 ${i < numStars ? "fill-amber-500" : "text-slate-200"}`}
+                        />
+                      ))}
+                      <span className="text-[10px] text-slate-400 font-bold ml-1">({rating})</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold">
+                        Starts at
+                      </span>
+                      <span className="font-display text-sm font-black text-[#002a22]">
+                        ₹{getServicePrice(s.price)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectService(s);
+                        }}
+                        className="px-3.5 py-1.5 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5 text-[10px] font-bold rounded-xl text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer"
+                      >
+                        View details
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddToCart(s);
+                        }}
+                        className="px-4 py-1.5 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-[10px] font-bold uppercase transition-all shadow-md cursor-pointer"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             );

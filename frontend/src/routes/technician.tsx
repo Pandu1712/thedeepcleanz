@@ -24,6 +24,7 @@ import {
   updateBookingJobStatus,
   rescheduleBooking,
   type AdminTechnician,
+  ADMIN_API_URL,
 } from "@/api/admin-api";
 
 export const Route = createFileRoute("/technician")({

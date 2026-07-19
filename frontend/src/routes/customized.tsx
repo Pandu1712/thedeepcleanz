@@ -198,7 +198,7 @@ function CustomizedComponent() {
       const cartItemImg =
         s.image ||
         "https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&w=800&q=80";
-      const cartItemPaymentType = s.paymentType || "full";
+      const cartItemPaymentType = (s as any).paymentType || "full";
       const ex = c.find((i) => i.id === cartItemId);
       if (ex) return c.map((i) => (i.id === cartItemId ? { ...i, qty: i.qty + 1 } : i));
       return [

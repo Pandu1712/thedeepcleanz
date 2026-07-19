@@ -267,6 +267,10 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [svcRequirements, setSvcRequirements] = useState("");
   const [svcPlans, setSvcPlans] = useState<any[]>([]);
   const [svcPaymentType, setSvcPaymentType] = useState<"full" | "deposit_25">("full");
+  const [svcPrecautions, setSvcPrecautions] = useState<any[]>([]);
+  const [newPrecautionTitle, setNewPrecautionTitle] = useState("");
+  const [newPrecautionDesc, setNewPrecautionDesc] = useState("");
+  const [editingPrecautionIdx, setEditingPrecautionIdx] = useState<number | null>(null);
 
   // Service Plan Sub-form states
   const [newPlanName, setNewPlanName] = useState("");
@@ -672,6 +676,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     setSvcRequirements(s.requirements || "");
     setSvcPlans(s.plans || []);
     setSvcPaymentType(s.paymentType || "full");
+    setSvcPrecautions(s.precautions || []);
     setSvcImageInputMode("url");
   };
 
@@ -906,11 +911,12 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       price: svcPrice,
       description: svcDesc,
       includes: svcIncList,
-      image: svcImage || null,
+      image: svcImage || undefined,
       plans: svcPlans,
-      disclaimer: svcDisclaimer || null,
-      requirements: svcRequirements || null,
+      disclaimer: svcDisclaimer || undefined,
+      requirements: svcRequirements || undefined,
       paymentType: svcPaymentType,
+      precautions: svcPrecautions,
     };
 
     try {
@@ -949,6 +955,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
         setSvcRequirements("");
         setSvcPlans([]);
         setSvcPaymentType("full");
+        setSvcPrecautions([]);
       }
       toast.success("Service deleted");
       refreshData();
@@ -971,6 +978,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     setSvcRequirements("");
     setSvcPlans([]);
     setSvcPaymentType("full");
+    setSvcPrecautions([]);
     setSvcImageInputMode("url");
     setActiveTab("services");
   };
@@ -2128,6 +2136,130 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                         className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-rose-500 focus:bg-white transition-all"
                         placeholder="e.g. Customers are requested to provide a bucket with water, a power point connection..."
                       />
+                    </div>
+
+                    {/* AFTER CLEANING PRECAUTIONS (Q&A LIST) */}
+                    <div className="border-t border-slate-100 pt-4 space-y-3">
+                      <h4 className="text-sm font-bold text-slate-800">
+                        After Cleaning Precautions (Question & Answer) ({svcPrecautions.length})
+                      </h4>
+
+                      {svcPrecautions.length > 0 && (
+                        <div className="space-y-2">
+                          {svcPrecautions.map((p, idx) => {
+                            const isEditingThis = editingPrecautionIdx === idx;
+                            return (
+                              <div
+                                key={idx}
+                                className="flex items-start justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700"
+                              >
+                                <div className="space-y-1">
+                                  <span className="font-extrabold text-[#002a22]">Q: {p.title || p.q}</span>
+                                  <p className="text-[11px] text-slate-500 font-medium">A: {p.description || p.a}</p>
+                                </div>
+                                <div className="flex gap-2 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingPrecautionIdx(idx);
+                                      setNewPrecautionTitle(p.title || p.q || "");
+                                      setNewPrecautionDesc(p.description || p.a || "");
+                                    }}
+                                    className="text-blue-500 hover:text-blue-700 font-black cursor-pointer bg-transparent border-0"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSvcPrecautions((prev) => prev.filter((_, i) => i !== idx));
+                                      if (editingPrecautionIdx === idx) {
+                                        setEditingPrecautionIdx(null);
+                                        setNewPrecautionTitle("");
+                                        setNewPrecautionDesc("");
+                                      }
+                                    }}
+                                    className="text-red-500 hover:text-red-700 font-black cursor-pointer bg-transparent border-0"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Add/Edit precaution item block */}
+                      <div className="bg-slate-50/50 p-4 border border-dashed border-slate-300 rounded-2xl space-y-3">
+                        <span className="text-2xs font-extrabold uppercase text-[#cb9f5a] tracking-wider block">
+                          {editingPrecautionIdx !== null ? "Edit Precaution Q&A" : "Add Precaution Q&A"}
+                        </span>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <input
+                              type="text"
+                              value={newPrecautionTitle}
+                              onChange={(e) => setNewPrecautionTitle(e.target.value)}
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-rose-500"
+                              placeholder="Question/Title (e.g. Drying Time)"
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="text"
+                              value={newPrecautionDesc}
+                              onChange={(e) => setNewPrecautionDesc(e.target.value)}
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-rose-500"
+                              placeholder="Answer/Description (e.g. Air dry for 45-60 min)"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!newPrecautionTitle.trim()) {
+                                toast.error("Please enter a question/title");
+                                return;
+                              }
+                              if (!newPrecautionDesc.trim()) {
+                                toast.error("Please enter an answer/description");
+                                return;
+                              }
+                              const item = { title: newPrecautionTitle.trim(), description: newPrecautionDesc.trim() };
+                              if (editingPrecautionIdx !== null) {
+                                setSvcPrecautions((prev) =>
+                                  prev.map((x, i) => (i === editingPrecautionIdx ? item : x))
+                                );
+                                setEditingPrecautionIdx(null);
+                                toast.success("Precaution updated inside form draft");
+                              } else {
+                                setSvcPrecautions((prev) => [...prev, item]);
+                                toast.success("Precaution added to form draft");
+                              }
+                              setNewPrecautionTitle("");
+                              setNewPrecautionDesc("");
+                            }}
+                            className="px-4 py-2 bg-[#002a22] text-white hover:bg-[#cb9f5a] hover:text-[#002a22] text-xs font-black rounded-lg cursor-pointer transition-colors"
+                          >
+                            {editingPrecautionIdx !== null ? "Save Item" : "Add Item"}
+                          </button>
+                          {editingPrecautionIdx !== null && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingPrecautionIdx(null);
+                                setNewPrecautionTitle("");
+                                setNewPrecautionDesc("");
+                              }}
+                              className="px-4 py-2 border border-slate-200 text-slate-500 hover:bg-slate-100 text-xs font-bold rounded-lg cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Service Plan list & sub-form */}

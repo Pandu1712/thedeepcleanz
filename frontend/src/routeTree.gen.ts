@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TechnicianRouteImport } from './routes/technician'
 import { Route as ServicesRouteImport } from './routes/services'
+import { Route as ServiceDetailRouteImport } from './routes/service-detail'
 import { Route as MyBookingsRouteImport } from './routes/my-bookings'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as CustomizedRouteImport } from './routes/customized'
@@ -25,6 +26,11 @@ const TechnicianRoute = TechnicianRouteImport.update({
 const ServicesRoute = ServicesRouteImport.update({
   id: '/services',
   path: '/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServiceDetailRoute = ServiceDetailRouteImport.update({
+  id: '/service-detail',
+  path: '/service-detail',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MyBookingsRoute = MyBookingsRouteImport.update({
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/customized': typeof CustomizedRoute
   '/login': typeof LoginRoute
   '/my-bookings': typeof MyBookingsRoute
+  '/service-detail': typeof ServiceDetailRoute
   '/services': typeof ServicesRoute
   '/technician': typeof TechnicianRoute
 }
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/customized': typeof CustomizedRoute
   '/login': typeof LoginRoute
   '/my-bookings': typeof MyBookingsRoute
+  '/service-detail': typeof ServiceDetailRoute
   '/services': typeof ServicesRoute
   '/technician': typeof TechnicianRoute
 }
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/customized': typeof CustomizedRoute
   '/login': typeof LoginRoute
   '/my-bookings': typeof MyBookingsRoute
+  '/service-detail': typeof ServiceDetailRoute
   '/services': typeof ServicesRoute
   '/technician': typeof TechnicianRoute
 }
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/customized'
     | '/login'
     | '/my-bookings'
+    | '/service-detail'
     | '/services'
     | '/technician'
   fileRoutesByTo: FileRoutesByTo
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/customized'
     | '/login'
     | '/my-bookings'
+    | '/service-detail'
     | '/services'
     | '/technician'
   id:
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/customized'
     | '/login'
     | '/my-bookings'
+    | '/service-detail'
     | '/services'
     | '/technician'
   fileRoutesById: FileRoutesById
@@ -117,6 +129,7 @@ export interface RootRouteChildren {
   CustomizedRoute: typeof CustomizedRoute
   LoginRoute: typeof LoginRoute
   MyBookingsRoute: typeof MyBookingsRoute
+  ServiceDetailRoute: typeof ServiceDetailRoute
   ServicesRoute: typeof ServicesRoute
   TechnicianRoute: typeof TechnicianRoute
 }
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/services'
       fullPath: '/services'
       preLoaderRoute: typeof ServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/service-detail': {
+      id: '/service-detail'
+      path: '/service-detail'
+      fullPath: '/service-detail'
+      preLoaderRoute: typeof ServiceDetailRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/my-bookings': {
@@ -181,6 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   CustomizedRoute: CustomizedRoute,
   LoginRoute: LoginRoute,
   MyBookingsRoute: MyBookingsRoute,
+  ServiceDetailRoute: ServiceDetailRoute,
   ServicesRoute: ServicesRoute,
   TechnicianRoute: TechnicianRoute,
 }

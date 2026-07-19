@@ -1186,6 +1186,7 @@ app.post("/api/services", async (req, res) => {
       disclaimer: req.body.disclaimer || null,
       requirements: req.body.requirements || null,
       paymentType: req.body.paymentType || "full",
+      precautions: req.body.precautions || [],
     };
     await db.addService(newSvc);
     res.json({ ok: true, service: newSvc });
@@ -1217,6 +1218,7 @@ app.put("/api/services/:id", async (req, res) => {
       disclaimer: req.body.disclaimer,
       requirements: req.body.requirements,
       paymentType: req.body.paymentType,
+      precautions: req.body.precautions,
     };
     const s = await db.updateService(req.params.id, patch);
     res.json({ ok: true, service: s });
