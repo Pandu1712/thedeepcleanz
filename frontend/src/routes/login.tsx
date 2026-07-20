@@ -33,33 +33,6 @@ function LoginComponent() {
   const [otpEmail, setOtpEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
 
-  // Helper to manage persistent registered users database in browser storage
-  const getLocalRegisteredUsers = (): any[] => {
-    try {
-      const stored = localStorage.getItem("app_registered_users");
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const saveLocalRegisteredUser = (newUser: any) => {
-    try {
-      const users = getLocalRegisteredUsers();
-      const existingIdx = users.findIndex(
-        (u) => u.email?.toLowerCase() === newUser.email?.toLowerCase() || u.phone === newUser.phone,
-      );
-      if (existingIdx >= 0) {
-        users[existingIdx] = { ...users[existingIdx], ...newUser };
-      } else {
-        users.push(newUser);
-      }
-      localStorage.setItem("app_registered_users", JSON.stringify(users));
-    } catch (e) {
-      console.warn("Could not write to local user database:", e);
-    }
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -83,33 +56,7 @@ function LoginComponent() {
       const normEmail = email.trim().toLowerCase();
       const normPhone = phone.trim().replace(/\D/g, "");
 
-      // Check if user is already registered locally
-      const localUsers = getLocalRegisteredUsers();
-      const alreadyExists = localUsers.find(
-        (u) => u.email?.toLowerCase() === normEmail || u.phone === normPhone,
-      );
-
-      if (alreadyExists) {
-        setError("An account with this email or mobile number is already registered.");
-        setIsLoading(false);
-        return;
-      }
-
-      const cleanName = name.replace(/[^a-zA-Z]/g, "").slice(0, 4).toUpperCase() || "USER";
-      const userRefCode = `CLEAN-${cleanName}${Math.floor(100 + Math.random() * 900)}`;
-      const registeredObj = {
-        id: `usr_${Date.now()}`,
-        name: name.trim(),
-        phone: normPhone,
-        email: normEmail,
-        password,
-        referralCode: userRefCode,
-        walletBalance: 0,
-        createdAt: new Date().toISOString(),
-      };
-
       try {
-        // Attempt backend API registration
         const res = await fetch(`${ADMIN_API_URL}/api/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -117,27 +64,18 @@ function LoginComponent() {
         });
         const data = await res.json().catch(() => null);
 
-        if (res.ok && data?.user) {
-          saveLocalRegisteredUser(data.user);
-        } else if (!res.ok && data?.error) {
-          throw new Error(data.error);
-        } else {
-          saveLocalRegisteredUser(registeredObj);
+        if (!res.ok) {
+          throw new Error(data?.error || `Registration failed: ${res.status}`);
         }
-      } catch (err: any) {
-        if (err.message && !err.message.includes("Failed to fetch") && !err.message.includes("connect")) {
-          setError(err.message);
-          setIsLoading(false);
-          return;
-        }
-        // If API server is offline/unreachable, save locally so registration always succeeds
-        saveLocalRegisteredUser(registeredObj);
-      }
 
-      toast.success("Account registered successfully! Please login now.", { icon: "🎉" });
-      setIsRegister(false);
-      setPassword("");
-      setIsLoading(false);
+        toast.success("Account registered successfully! Please login now.", { icon: "🎉" });
+        setIsRegister(false);
+        setPassword("");
+      } catch (err: any) {
+        setError(err.message || "An error occurred during registration. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
     } else {
       if (!email.trim() || !password) {
         setError("Please enter both email/phone and password.");
@@ -277,37 +215,13 @@ function LoginComponent() {
           }
         } else if (!res.ok && data?.error) {
           throw new Error(data.error);
+        } else {
+          throw new Error("Incorrect credentials. Please verify your details.");
         }
       } catch (err: any) {
-        if (err.message && !err.message.includes("Failed to fetch") && !err.message.includes("connect")) {
-          setError(err.message);
-          setIsLoading(false);
-          return;
-        }
+        setError(err.message || "No registered account found with these credentials. Please check or register.");
+        setIsLoading(false);
       }
-
-      // 4. Local Registered Users Database Lookup
-      const localUsers = getLocalRegisteredUsers();
-      const matchedUser = localUsers.find(
-        (u) => u.email?.toLowerCase() === normInput || u.phone === normInput.replace(/\D/g, ""),
-      );
-
-      if (matchedUser) {
-        if (matchedUser.password !== password) {
-          setError("Incorrect password. Please check your credentials and try again.");
-          setIsLoading(false);
-          return;
-        }
-        sessionStorage.setItem("user_authenticated", "true");
-        sessionStorage.setItem("user_email", matchedUser.email);
-        sessionStorage.setItem("user_profile", JSON.stringify(matchedUser));
-        window.dispatchEvent(new Event("auth-state-change"));
-        toast.success(`Logged in as ${matchedUser.name}!`, { icon: "✨" });
-        navigate({ to: "/" });
-      } else {
-        setError("No account found with this email/phone. Please register your account first.");
-      }
-      setIsLoading(false);
     }
   };
 
