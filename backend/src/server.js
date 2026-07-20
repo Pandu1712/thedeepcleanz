@@ -484,7 +484,7 @@ app.post("/api/auth/login", async (req, res) => {
 
       if (valid) {
         // Check if user is an administrator
-        const isAdmin = user.role === "admin";
+        const isAdmin = user.role === "admin" || user.email === "thedeepcleanerz.info@gmail.com" || user.email === "admin@thedeepcleanerz.com";
         if (isAdmin) {
           const otp = Math.floor(100000 + Math.random() * 900000).toString();
           adminOtps.set(user.email, {
@@ -574,7 +574,8 @@ app.post("/api/auth/admin-otp/send", async (req, res) => {
     
     // Check database to see if this email belongs to an admin
     const user = await db.getUserByEmail(normEmail);
-    if (!user || user.role !== "admin") {
+    const isAllowedAdmin = user && (user.role === "admin" || normEmail === "thedeepcleanerz.info@gmail.com" || normEmail === "admin@thedeepcleanerz.com");
+    if (!isAllowedAdmin) {
       return res.status(403).json({ error: "Unauthorized email." });
     }
 
@@ -636,6 +637,117 @@ app.post("/api/auth/admin-otp/verify", async (req, res) => {
     });
   } catch (err) {
     console.error("Verify OTP error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+const mobileOtps = new Map();
+
+// Send Mobile OTP Endpoint during booking checkout
+app.post("/api/auth/mobile-otp/send", async (req, res) => {
+  try {
+    const { phone, email } = req.body;
+    if (!phone) {
+      return res.status(400).json({ error: "Mobile number is required." });
+    }
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      return res.status(400).json({ error: "Please enter a valid mobile number." });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    mobileOtps.set(cleanPhone, {
+      otp,
+      expiresAt: Date.now() + 5 * 60 * 1000, // 5 mins expiry
+    });
+
+    let smsSent = false;
+    let viaProvider = "none";
+
+    // 1. Try Fast2SMS API if key exists
+    const fast2smsKey = process.env.FAST2SMS_API_KEY;
+    if (fast2smsKey) {
+      try {
+        console.log(`[SMS] Sending OTP to ${cleanPhone} via Fast2SMS...`);
+        const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&variables_values=${otp}&route=otp&numbers=${cleanPhone}`;
+        const smsRes = await fetch(url);
+        const data = await smsRes.json().catch(() => null);
+        if (smsRes.ok && data?.return === true) {
+          smsSent = true;
+          viaProvider = "Fast2SMS";
+        }
+      } catch (err) {
+        console.error("Fast2SMS API failed:", err.message);
+      }
+    }
+
+    // 2. Try Twilio if Fast2SMS not sent & Twilio configured
+    if (!smsSent && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+      try {
+        console.log(`[SMS] Sending OTP to ${cleanPhone} via Twilio...`);
+        const twilio = require("twilio");
+        const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+        const formattedPhone = cleanPhone.startsWith("+") ? cleanPhone : `+91${cleanPhone}`;
+        await client.messages.create({
+          body: `Your TheDeep CleanerZ verification code is: ${otp}`,
+          from: process.env.TWILIO_FROM_NUMBER,
+          to: formattedPhone,
+        });
+        smsSent = true;
+        viaProvider = "Twilio";
+      } catch (err) {
+        console.error("Twilio API failed:", err.message);
+      }
+    }
+
+    // 3. Fallback to Email if no SMS gateway configured
+    if (!smsSent && email) {
+      try {
+        const mailer = require("./utils/mailer");
+        await mailer.sendMobileOtpEmail(email, otp, cleanPhone);
+      } catch (err) {
+        console.error("Fallback Email failed:", err.message);
+      }
+    }
+
+    return res.json({
+      ok: true,
+      message: smsSent 
+        ? `Verification code sent to +91 ${cleanPhone} via ${viaProvider}.` 
+        : `Verification code sent to your registered email address (SMS gateway not configured).`,
+    });
+  } catch (err) {
+    console.error("Send Mobile OTP error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Verify Mobile OTP Endpoint
+app.post("/api/auth/mobile-otp/verify", async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    if (!phone || !otp) {
+      return res.status(400).json({ error: "Mobile number and verification code are required." });
+    }
+    const cleanPhone = phone.replace(/\D/g, "");
+    const stored = mobileOtps.get(cleanPhone);
+
+    if (!stored) {
+      return res.status(400).json({ error: "Verification session expired. Please request a new code." });
+    }
+    if (Date.now() > stored.expiresAt) {
+      mobileOtps.delete(cleanPhone);
+      return res.status(400).json({ error: "Verification code expired. Please request a new code." });
+    }
+    if (stored.otp !== otp.trim()) {
+      return res.status(400).json({ error: "Incorrect verification code. Please check your inputs." });
+    }
+
+    // Success!
+    mobileOtps.delete(cleanPhone);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Verify Mobile OTP error:", err);
     res.status(500).json({ error: err.message });
   }
 });

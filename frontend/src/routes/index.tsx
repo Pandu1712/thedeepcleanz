@@ -4527,6 +4527,66 @@ export function BookingModal({
   const [showOtpVerification, setShowOtpVerification] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
+  const [mobileOtpLoading, setMobileOtpLoading] = useState(false);
+  const [verifyLoading, setVerifyLoading] = useState(false);
+
+  const handleSendMobileOtp = async () => {
+    if (!form.phone) {
+      toast.error("Mobile number is required");
+      return;
+    }
+    
+    setMobileOtpLoading(true);
+    const activeEmail = sessionStorage.getItem("user_email") || "";
+    
+    try {
+      const res = await fetch(`${ADMIN_API_URL}/api/auth/mobile-otp/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: form.phone, email: activeEmail }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok) {
+        toast.success(data?.message || "OTP code sent successfully!", { icon: "📨" });
+        setShowOtpVerification(true);
+      } else {
+        throw new Error(data?.error || "Failed to dispatch OTP");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Network error. Please try again.");
+    } finally {
+      setMobileOtpLoading(false);
+    }
+  };
+
+  const handleVerifyMobileOtp = async () => {
+    if (!otpInput || otpInput.length < 6) {
+      toast.error("Please enter the 6-digit OTP code");
+      return;
+    }
+
+    setVerifyLoading(true);
+    try {
+      const res = await fetch(`${ADMIN_API_URL}/api/auth/mobile-otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: form.phone, otp: otpInput }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) {
+        setOtpVerified(true);
+        setShowOtpVerification(false);
+        setStep(2);
+        toast.success("Mobile number verified successfully!", { icon: "✅" });
+      } else {
+        throw new Error(data?.error || "Invalid verification code. Please check your inputs.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to verify OTP.");
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -5371,40 +5431,37 @@ export function BookingModal({
                   placeholder="••••••"
                   className="w-full max-w-[200px] text-center rounded-xl border-2 border-[#cb9f5a]/30 bg-white px-4 py-3.5 text-lg font-mono font-bold tracking-[0.5em] text-[#002a22] outline-none focus:border-[#cb9f5a] placeholder:text-slate-300 shadow-sm"
                 />
-                <div className="mt-3.5">
-                  <div className="text-[10px] text-slate-450 font-bold bg-[#cb9f5a]/10 inline-block px-3 py-1 rounded-full text-[#cb9f5a] border border-[#cb9f5a]/20">
-                    💡 Dummy OTP: <span className="font-mono font-extrabold">123456</span>
-                  </div>
-                </div>
               </div>
-
+ 
               <div className="mt-8 flex flex-col gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (otpInput === "123456") {
-                      setOtpVerified(true);
+                  disabled={verifyLoading}
+                  onClick={handleVerifyMobileOtp}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl gradient-gold py-3.5 text-xs font-bold text-navy shadow-gold hover:scale-[1.01] transition-all cursor-pointer font-sans disabled:opacity-50"
+                >
+                  {verifyLoading ? "Verifying..." : "Verify & Continue"}
+                </button>
+                <div className="flex justify-between items-center mt-2 px-1">
+                  <button
+                    type="button"
+                    onClick={handleSendMobileOtp}
+                    disabled={mobileOtpLoading}
+                    className="text-2xs font-extrabold text-[#cb9f5a] hover:text-[#cb9f5a]/80 transition-colors cursor-pointer disabled:opacity-50 border-0 bg-transparent"
+                  >
+                    {mobileOtpLoading ? "Resending..." : "🔁 Resend OTP Code"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
                       setShowOtpVerification(false);
-                      setStep(2);
-                      toast.success("Mobile number verified successfully!", { icon: "✅" });
-                    } else {
-                      toast.error("Invalid verification code. Please enter 123456.", { icon: "❌" });
-                    }
-                  }}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl gradient-gold py-3.5 text-xs font-bold text-navy shadow-gold hover:scale-[1.01] transition-all cursor-pointer font-sans"
-                >
-                  Verify & Continue
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowOtpVerification(false);
-                    setOtpInput("");
-                  }}
-                  className="w-full py-2.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors font-sans cursor-pointer"
-                >
-                  Change Mobile Number / Back
-                </button>
+                      setOtpInput("");
+                    }}
+                    className="text-2xs font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer border-0 bg-transparent"
+                  >
+                    Change Number / Back
+                  </button>
+                </div>
               </div>
             </div>
           ) : step === 1 ? (
@@ -5838,14 +5895,14 @@ export function BookingModal({
             
             {step === 1 ? (
               <button
-                disabled={!canStep2}
+                disabled={!canStep2 || mobileOtpLoading}
                 onClick={() => {
                   const email = sessionStorage.getItem("user_email");
                   if (email) {
                     if (otpVerified) {
                       setStep(2);
                     } else {
-                      setShowOtpVerification(true);
+                      handleSendMobileOtp();
                     }
                   } else {
                     setShowAuthGate(true);
@@ -5853,7 +5910,7 @@ export function BookingModal({
                 }}
                 className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#cb9f5a] via-[#e5be7a] to-[#cb9f5a] px-8 py-3 text-xs font-black uppercase tracking-wider text-[#002a22] shadow-[0_4px_15px_rgba(203,159,90,0.35)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 font-sans cursor-pointer"
               >
-                Continue <ArrowRight className="h-4 w-4" />
+                {mobileOtpLoading ? "Sending OTP..." : "Continue"} <ArrowRight className="h-4 w-4" />
               </button>
             ) : (
               <button

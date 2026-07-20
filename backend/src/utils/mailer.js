@@ -421,7 +421,78 @@ async function sendAdminOtpEmail(email, otp) {
   console.log(`[Mailer] OTP verification email sent successfully to admin: ${email}`);
 }
 
+/**
+ * Sends a 6-digit verification code (OTP) for mobile confirmation during checkout.
+ * @param {string} email The customer email address.
+ * @param {string} otp The 6-digit OTP code.
+ * @param {string} phone The customer mobile number.
+ */
+async function sendMobileOtpEmail(email, otp, phone) {
+  const otpHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Mobile Verification Code - TheDeep CleanerZ</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #001713; color: #fdfcf7; -webkit-font-smoothing: antialiased;">
+      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #001713; padding: 40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="500" border="0" cellspacing="0" cellpadding="0" style="background-color: #00221c; border: 1px solid #cb9f5a30; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+              
+              <!-- Header -->
+              <tr>
+                <td style="background-color: #002a22; padding: 30px; text-align: center; border-bottom: 1px solid #cb9f5a20;">
+                  <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #fdfcf7; letter-spacing: 1px;">TheDeep CleanerZ</h1>
+                  <span style="display: block; font-size: 9px; font-weight: bold; text-transform: uppercase; color: #cb9f5a; letter-spacing: 3px; margin-top: 6px;">Mobile Verification</span>
+                </td>
+              </tr>
+              
+              <!-- Body Content -->
+              <tr>
+                <td style="padding: 40px 30px; text-align: center;">
+                  <h2 style="margin-top: 0; font-size: 18px; color: #cb9f5a; font-weight: 700;">Verify Your Mobile Number</h2>
+                  <p style="font-size: 13px; line-height: 1.6; color: #fdfcf7cd; margin-bottom: 30px;">
+                    Please enter the following 6-digit one-time password (OTP) code in your browser booking window to verify the mobile number: <strong>+91 ${phone}</strong>.
+                  </p>
+                  
+                  <!-- OTP Code Display Card -->
+                  <div style="display: inline-block; background-color: #001712; border: 1px solid #cb9f5a30; border-radius: 16px; padding: 18px 40px; margin-bottom: 30px;">
+                    <span style="font-size: 32px; font-weight: 850; letter-spacing: 6px; color: #cb9f5a; font-family: monospace;">${otp}</span>
+                  </div>
+                  
+                  <p style="font-size: 11px; color: #fdfcf760; margin: 0;">
+                    If you did not request this booking verification, please ignore this email.
+                  </p>
+                </td>
+              </tr>
+              
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: #001712; padding: 25px; text-align: center; border-top: 1px solid #cb9f5a15; font-size: 10px; color: #fdfcf760;">
+                  <p style="margin: 0; font-weight: bold; text-transform: uppercase; color: #cb9f5a;">&copy; TheDeep CleanerZ. All rights reserved.</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  await transporter.sendMail({
+    from: `"TheDeep CleanerZ Security" <${transporter.options.auth.user}>`,
+    to: email,
+    subject: `Mobile Verification Code: ${otp}`,
+    html: otpHtml,
+  });
+  console.log(`[Mailer] Mobile OTP verification email sent successfully to: ${email}`);
+}
+
 module.exports = {
   sendBookingEmails,
   sendAdminOtpEmail,
+  sendMobileOtpEmail,
 };
