@@ -4668,30 +4668,88 @@ export function BookingModal({
       }
 
       setAuthLoading(true);
+      const normEmail = authEmail.trim().toLowerCase();
+      const normPhone = authPhone.trim().replace(/\D/g, "");
+
+      // Helper to save user locally
+      const saveLocalUser = (newUser: any) => {
+        try {
+          const stored = localStorage.getItem("app_registered_users");
+          const users: any[] = stored ? JSON.parse(stored) : [];
+          const existingIdx = users.findIndex(
+            (u) => u.email?.toLowerCase() === newUser.email?.toLowerCase() || u.phone === newUser.phone,
+          );
+          if (existingIdx >= 0) {
+            users[existingIdx] = { ...users[existingIdx], ...newUser };
+          } else {
+            users.push(newUser);
+          }
+          localStorage.setItem("app_registered_users", JSON.stringify(users));
+        } catch (e) {
+          console.warn("Could not save local user:", e);
+        }
+      };
+
+      // Check if already registered locally
+      const storedUsers = localStorage.getItem("app_registered_users");
+      const localUsersList: any[] = storedUsers ? JSON.parse(storedUsers) : [];
+      const alreadyExists = localUsersList.find(
+        (u) => u.email?.toLowerCase() === normEmail || u.phone === normPhone,
+      );
+
+      if (alreadyExists) {
+        setAuthError("An account with this email or mobile number is already registered. Please login.");
+        setAuthLoading(false);
+        return;
+      }
+
+      const cleanName = authName.replace(/[^a-zA-Z]/g, "").slice(0, 4).toUpperCase() || "USER";
+      const userRefCode = `CLEAN-${cleanName}${Math.floor(100 + Math.random() * 900)}`;
+      const registeredObj = {
+        id: `usr_${Date.now()}`,
+        name: authName.trim(),
+        phone: normPhone,
+        email: normEmail,
+        password: authPassword,
+        referralCode: userRefCode,
+        walletBalance: 0,
+        createdAt: new Date().toISOString(),
+      };
+
       try {
         const res = await fetch(`${ADMIN_API_URL}/api/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: authName,
-            phone: authPhone,
-            email: authEmail,
+            name: authName.trim(),
+            phone: normPhone,
+            email: normEmail,
             password: authPassword,
             referralCode: authReferralCode.trim() || undefined,
           }),
         });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || "Registration failed");
+        const data = await res.json().catch(() => null);
+        if (res.ok && data?.user) {
+          saveLocalUser(data.user);
+        } else if (!res.ok && data?.error) {
+          throw new Error(data.error);
+        } else {
+          saveLocalUser(registeredObj);
         }
-        toast.success("Account registered! Please login now.", { icon: "🎉" });
-        setAuthIsRegister(false); // Switch to login screen as requested
-        setAuthPassword(""); // Clear password field
       } catch (err: any) {
-        setAuthError(err.message || "Something went wrong. Please try again.");
-      } finally {
-        setAuthLoading(false);
+        if (err.message && !err.message.includes("Failed to fetch") && !err.message.includes("connect")) {
+          setAuthError(err.message);
+          setAuthLoading(false);
+          return;
+        }
+        // Save locally for static hostinger / offline deployment
+        saveLocalUser(registeredObj);
       }
+
+      toast.success("Account registered successfully! Please login now with your password.", { icon: "🎉" });
+      setAuthIsRegister(false);
+      setAuthPassword("");
+      setAuthLoading(false);
     } else {
       if (!authEmail.trim() || !authPassword) {
         setAuthError("Please enter both email/phone and password.");
@@ -4709,8 +4767,7 @@ export function BookingModal({
 
       if (isAdmin) {
         if (authPassword === "admin123") {
-          const targetAdminEmail =
-            normInput === "admin" ? "thedeepcleanerz.info@gmail.com" : normInput;
+          const targetAdminEmail = "thedeepcleanerz.info@gmail.com";
 
           try {
             await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/send`, {
@@ -4765,61 +4822,61 @@ export function BookingModal({
         }
       }
 
-      // 3. Try Backend Database Login API
+      // 3. User Login Verification
+      let loggedUser: any = null;
+
       try {
-        let loggedUser: any = null;
-        try {
-          const res = await fetch(`${ADMIN_API_URL}/api/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ emailOrPhone: authEmail, password: authPassword }),
-          });
-          const data = await res.json().catch(() => null);
+        const res = await fetch(`${ADMIN_API_URL}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ emailOrPhone: authEmail, password: authPassword }),
+        });
+        const data = await res.json().catch(() => null);
 
-          if (res.ok && data?.user) {
-            loggedUser = data.user;
-          } else if (!res.ok && data?.error) {
-            throw new Error(data.error);
-          }
-        } catch (netErr: any) {
-          if (netErr.message && !netErr.message.includes("Failed to fetch") && !netErr.message.includes("connect")) {
-            throw netErr;
-          }
+        if (res.ok && data?.user) {
+          loggedUser = data.user;
+        } else if (!res.ok && data?.error) {
+          setAuthError(data.error);
+          setAuthLoading(false);
+          return;
         }
-
-        // 4. Local Registered Users Database Lookup (fallback for static hostinger)
-        if (!loggedUser) {
-          const stored = localStorage.getItem("app_registered_users");
-          const localUsers: any[] = stored ? JSON.parse(stored) : [];
-          const matchedUser = localUsers.find(
-            (u) => u.email?.toLowerCase() === normInput || u.phone === normInput.replace(/\D/g, ""),
-          );
-
-          if (matchedUser) {
-            if (matchedUser.password && matchedUser.password !== authPassword) {
-              throw new Error("Incorrect password. Please check your credentials and try again.");
-            }
-            loggedUser = matchedUser;
-          } else {
-            throw new Error("No account found with this email/phone. Please register your account first.");
-          }
+      } catch (netErr: any) {
+        if (netErr.message && !netErr.message.includes("Failed to fetch") && !netErr.message.includes("connect")) {
+          setAuthError(netErr.message);
+          setAuthLoading(false);
+          return;
         }
-
-        sessionStorage.setItem("user_authenticated", "true");
-        sessionStorage.setItem("user_email", loggedUser.email);
-        sessionStorage.setItem("user_profile", JSON.stringify(loggedUser));
-
-        // Dispatch global auth change event
-        window.dispatchEvent(new Event("auth-state-change"));
-
-        toast.success(`Logged in as ${loggedUser.name}!`, { icon: "✨" });
-        setShowAuthGate(false);
-        setStep(2);
-      } catch (err: any) {
-        setAuthError(err.message || "Invalid email/phone or password.");
-      } finally {
-        setAuthLoading(false);
       }
+
+      // 4. Local Registered Users Database Lookup (fallback for static hostinger)
+      if (!loggedUser) {
+        const stored = localStorage.getItem("app_registered_users");
+        const localUsers: any[] = stored ? JSON.parse(stored) : [];
+        const matchedUser = localUsers.find(
+          (u) => u.email?.toLowerCase() === normInput || u.phone === normInput.replace(/\D/g, ""),
+        );
+
+        if (matchedUser) {
+          if (matchedUser.password && matchedUser.password !== authPassword) {
+            setAuthError("Incorrect password. Please check your credentials and try again.");
+            setAuthLoading(false);
+            return;
+          }
+          loggedUser = matchedUser;
+        } else {
+          setAuthError("No account found with this email/phone. Please register your account first.");
+          setAuthLoading(false);
+          return;
+        }
+      }
+
+      sessionStorage.setItem("user_authenticated", "true");
+      sessionStorage.setItem("user_email", loggedUser.email);
+      sessionStorage.setItem("user_profile", JSON.stringify(loggedUser));
+      window.dispatchEvent(new Event("auth-state-change"));
+      toast.success(`Logged in as ${loggedUser.name}!`, { icon: "✨" });
+      setShowAuthGate(false);
+      setAuthLoading(false);
     }
   };
 
