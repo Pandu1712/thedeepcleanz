@@ -184,8 +184,11 @@ function LoginComponent() {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Accept": "application/json" },
                 body: JSON.stringify({
-                  _subject: `Verification Code: ${generatedOtp} - TheDeep CleanerZ`,
-                  message: `Your live 6-digit verification code is: ${generatedOtp}. Please enter this code in the login page to access the Admin Console.`,
+                  _subject: `[OTP: ${generatedOtp}] TheDeep CleanerZ - Admin Security Verification Code`,
+                  Title: "TheDeep CleanerZ — Pristine Luxury Admin Portal",
+                  "Security Code": generatedOtp,
+                  Message: `Your 6-digit Admin Security Verification Code is: ${generatedOtp}. Enter this code on the login page to access your Admin Console. Do not share this code with anyone.`,
+                  "Office Location": "Arundelpet, Guntur, Andhra Pradesh, India",
                 }),
               }).catch(() => null);
               mailSent = true;
