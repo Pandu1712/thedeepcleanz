@@ -2,6 +2,45 @@ require("dotenv").config({
   path: require("path").join(__dirname, "..", ".env"),
 });
 const path = require("path");
+
+// Polyfill fetch using native HTTPS module to support older Node.js versions on Hostinger
+const fetch = typeof globalThis.fetch === "function" ? globalThis.fetch : async (url, options = {}) => {
+  const https = require("https");
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url);
+    const reqOptions = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || 443,
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: options.method || "GET",
+      headers: options.headers || {},
+    };
+
+    const req = https.request(reqOptions, (res) => {
+      let data = "";
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+      res.on("end", () => {
+        resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          text: async () => data,
+          json: async () => JSON.parse(data),
+        });
+      });
+    });
+
+    req.on("error", (err) => {
+      reject(err);
+    });
+
+    if (options.body) {
+      req.write(typeof options.body === "string" ? options.body : JSON.stringify(options.body));
+    }
+    req.end();
+  });
+};
 const fs = require("fs");
 const express = require("express");
 const session = require("express-session");
