@@ -464,111 +464,99 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     const normEmail = emailOrPhone.trim().toLowerCase();
-    const isAdminEmail =
-      normEmail === "admin@thedeepcleanerz.com" ||
-      normEmail === "admin" ||
-      normEmail === "thedeepcleanerz.info@gmail.com";
-
-    if (isAdminEmail) {
-      // Verify admin password
-      let adminUser = await db.getUserByEmail("thedeepcleanerz.info@gmail.com");
-      let valid = false;
-      if (adminUser) {
-        valid = bcrypt.compareSync(password, adminUser.password);
-      }
-      // Fallback for admin123
-      if (!valid && password === "admin123") {
-        valid = true;
-      }
-
-      if (valid) {
-        const targetEmail =
-          normEmail === "admin" ? "thedeepcleanerz.info@gmail.com" : normEmail;
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        adminOtps.set(targetEmail, {
-          otp,
-          expiresAt: Date.now() + 5 * 60 * 1000, // 5 mins
-        });
-
-        try {
-          const mailer = require("./utils/mailer");
-          await mailer.sendAdminOtpEmail(targetEmail, otp);
-        } catch (mailErr) {
-          console.error("Failed to send admin OTP email:", mailErr);
-        }
-
-        return res.json({
-          ok: true,
-          requiresOtp: true,
-          email: targetEmail,
-        });
-      } else {
-        return res.status(400).json({ error: "Invalid credentials." });
-      }
-    }
-
+    
+    // Fetch the user from the database
     let user = null;
-    let role = "user";
-    if (emailOrPhone.includes("@")) {
+    if (normEmail === "admin") {
+      user = await db.getUserByEmail("thedeepcleanerz.info@gmail.com");
+    } else if (emailOrPhone.includes("@")) {
       user = await db.getUserByEmail(emailOrPhone);
     } else {
       user = await db.getUserByPhone(emailOrPhone);
     }
 
-    if (!user) {
-      // Fallback check in technicians table
-      let technician = null;
-      if (emailOrPhone.includes("@")) {
-        technician = await db.getTechnicianByEmail(emailOrPhone);
-      } else {
-        technician = await db.getTechnicianByPhone(emailOrPhone);
+    if (user) {
+      // Verify password
+      let valid = bcrypt.compareSync(password, user.password);
+      if (!valid && user.email === "thedeepcleanerz.info@gmail.com" && password === "admin123") {
+        valid = true;
       }
 
-      if (technician && technician.password) {
-        const valid = bcrypt.compareSync(password, technician.password);
-        if (valid) {
+      if (valid) {
+        // Check if user is an administrator
+        const isAdmin = user.role === "admin";
+        if (isAdmin) {
+          const otp = Math.floor(100000 + Math.random() * 900000).toString();
+          adminOtps.set(user.email, {
+            otp,
+            expiresAt: Date.now() + 5 * 60 * 1000, // 5 mins expiry
+          });
+
+          try {
+            const mailer = require("./utils/mailer");
+            await mailer.sendAdminOtpEmail(user.email, otp);
+          } catch (mailErr) {
+            console.error("Failed to send admin OTP email:", mailErr);
+          }
+
           return res.json({
             ok: true,
-            role: "technician",
-            user: {
-              id: technician.id,
-              name: technician.name,
-              email: technician.email,
-              phone: technician.phone,
-              specialty: technician.specialty,
-              status: technician.status,
-            },
+            requiresOtp: true,
+            email: user.email,
+            role: "admin",
           });
         }
+
+        // Regular user login success
+        let userRefCode = user.referral_code;
+        if (!userRefCode) {
+          const cleanName = user.name.replace(/[^a-zA-Z]/g, "").slice(0, 4).toUpperCase() || "USER";
+          userRefCode = `CLEAN-${cleanName}${Math.floor(100 + Math.random() * 900)}`;
+          await db.query("UPDATE users SET referral_code = ? WHERE id = ?", [userRefCode, user.id]);
+        }
+
+        return res.json({
+          ok: true,
+          role: "user",
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            referralCode: userRefCode,
+            walletBalance: user.wallet_balance || 0,
+          },
+        });
       }
-      return res.status(400).json({ error: "Invalid credentials." });
     }
 
-    const valid = bcrypt.compareSync(password, user.password);
-    if (!valid) {
-      return res.status(400).json({ error: "Invalid credentials." });
+    // Technician/Staff login fallback
+    let technician = null;
+    if (emailOrPhone.includes("@")) {
+      technician = await db.getTechnicianByEmail(emailOrPhone);
+    } else {
+      technician = await db.getTechnicianByPhone(emailOrPhone);
     }
 
-    // Ensure user has a referral code if missing
-    let userRefCode = user.referral_code;
-    if (!userRefCode) {
-      const cleanName = user.name.replace(/[^a-zA-Z]/g, "").slice(0, 4).toUpperCase() || "USER";
-      userRefCode = `CLEAN-${cleanName}${Math.floor(100 + Math.random() * 900)}`;
-      await db.query("UPDATE users SET referral_code = ? WHERE id = ?", [userRefCode, user.id]);
+    if (technician && technician.password) {
+      const valid = bcrypt.compareSync(password, technician.password);
+      if (valid) {
+        return res.json({
+          ok: true,
+          role: "technician",
+          user: {
+            id: technician.id,
+            name: technician.name,
+            email: technician.email,
+            phone: technician.phone,
+            specialty: technician.specialty,
+            status: technician.status,
+          },
+        });
+      }
     }
 
-    res.json({
-      ok: true,
-      role: "user",
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        referralCode: userRefCode,
-        walletBalance: user.wallet_balance || 0,
-      },
-    });
+    return res.status(400).json({ error: "Invalid credentials." });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: err.message });
@@ -583,10 +571,10 @@ app.post("/api/auth/admin-otp/send", async (req, res) => {
       return res.status(400).json({ error: "Email is required." });
     }
     const normEmail = email.trim().toLowerCase();
-    if (
-      normEmail !== "thedeepcleanerz.info@gmail.com" &&
-      normEmail !== "admin@thedeepcleanerz.com"
-    ) {
+    
+    // Check database to see if this email belongs to an admin
+    const user = await db.getUserByEmail(normEmail);
+    if (!user || user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized email." });
     }
 

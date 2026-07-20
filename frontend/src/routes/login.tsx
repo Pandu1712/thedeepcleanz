@@ -85,69 +85,6 @@ function LoginComponent() {
       setIsLoading(true);
       const normInput = email.trim().toLowerCase();
 
-      // 1. Admin Login Verification (Strict Live Email OTP Dispatch)
-      const isAdmin =
-        normInput === "admin@thedeepcleanerz.com" ||
-        normInput === "thedeepcleanerz.info@gmail.com" ||
-        normInput === "admin";
-
-      if (isAdmin) {
-        if (password === "admin123") {
-          const targetAdminEmail = "thedeepcleanerz.info@gmail.com";
-          const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-          sessionStorage.setItem("active_admin_session_otp", generatedOtp);
-
-          let mailSent = false;
-
-          // 1. Try Backend Node Mailer first
-          try {
-            const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/send`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email: targetAdminEmail }),
-            });
-            const data = await res.json().catch(() => null);
-
-            if (res.ok && data?.ok) {
-              mailSent = true;
-            }
-          } catch (e: any) {
-            console.warn("Backend mailer endpoint unreachable, triggering web mailer gateway");
-          }
-
-          // 2. If Backend Mailer is unreachable (Static Hostinger), dispatch via Web Mailer API
-          if (!mailSent) {
-            try {
-              fetch(`https://formsubmit.co/ajax/${targetAdminEmail}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Accept": "application/json" },
-                body: JSON.stringify({
-                  _subject: `[OTP: ${generatedOtp}] TheDeep CleanerZ - Admin Security Verification Code`,
-                  Title: "TheDeep CleanerZ — Pristine Luxury Admin Portal",
-                  "Security Code": generatedOtp,
-                  Message: `Your 6-digit Admin Security Verification Code is: ${generatedOtp}. Enter this code on the login page to access your Admin Console. Do not share this code with anyone.`,
-                  "Office Location": "Arundelpet, Guntur, Andhra Pradesh, India",
-                }),
-              }).catch(() => null);
-              mailSent = true;
-            } catch (err) {
-              console.warn("Web mailer dispatch attempted");
-            }
-          }
-
-          setRequiresOtp(true);
-          setOtpEmail(targetAdminEmail);
-          toast.success(`Live 6-digit verification code sent to ${targetAdminEmail}! Please check your email inbox.`, { icon: "📨" });
-
-          setIsLoading(false);
-          return;
-        } else {
-          setError("Incorrect password. Please check your admin password and try again.");
-          setIsLoading(false);
-          return;
-        }
-      }
-
       // 2. Staff / Technician Login Verification
       const isTech =
         normInput === "technician@thedeepcleanerz.com" ||
@@ -265,11 +202,14 @@ function LoginComponent() {
         sessionStorage.setItem("admin_authenticated", "true");
         sessionStorage.setItem("user_authenticated", "true");
         sessionStorage.setItem("user_email", otpEmail);
+        sessionStorage.setItem("user_role", "admin");
+        
+        const profileName = otpEmail.includes("sairamadoddi") ? "Sairam Adoddi" : "Administrator";
         sessionStorage.setItem(
           "user_profile",
           JSON.stringify({
             id: "admin-1",
-            name: "Administrator",
+            name: profileName,
             email: otpEmail,
             role: "admin",
           }),
