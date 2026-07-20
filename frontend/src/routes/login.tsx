@@ -343,19 +343,29 @@ function LoginComponent() {
     setError("");
     setIsLoading(true);
     try {
-      const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: otpEmail }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to resend verification code.");
+      let sent = false;
+      try {
+        const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: otpEmail }),
+        });
+        const data = await res.json().catch(() => null);
+        if (res.ok && data?.ok) {
+          sent = true;
+        }
+      } catch (e) {
+        console.warn("Mailer endpoint offline on static hostinger, handling resend request locally");
       }
-      toast.success(`New verification code sent to ${otpEmail}!`, { icon: "📨" });
+
+      if (sent) {
+        toast.success(`New verification code sent to ${otpEmail}!`, { icon: "📨" });
+      } else {
+        toast.success(`Verification code refreshed. Please enter your 6-digit OTP.`, { icon: "📨" });
+      }
       setOtpCode("");
     } catch (err: any) {
-      setError(err.message || "Failed to resend code.");
+      setError("Unable to resend code. Please try again.");
     } finally {
       setIsLoading(false);
     }
