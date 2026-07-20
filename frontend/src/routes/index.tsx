@@ -1319,14 +1319,29 @@ export function mergeAdminCatalog(catalog: AdminCatalog): Category[] {
       .filter((s) => s.categoryId === c.id)
       .map((s) => {
         const local = SERVICES.find((x) => x.id === s.id);
+        
+        let serviceImage = s.image;
+        let serviceDesc = s.description || local?.desc || "";
+        if (
+          serviceDesc &&
+          (serviceDesc.startsWith("http://") ||
+            serviceDesc.startsWith("https://") ||
+            serviceDesc.includes("images?q="))
+        ) {
+          if (!serviceImage) {
+            serviceImage = serviceDesc;
+          }
+          serviceDesc = local?.desc || "";
+        }
+
         return {
           id: s.id,
           title: s.title,
-          desc: s.description || local?.desc || "",
+          desc: serviceDesc,
           price: s.price,
-          img: s.image || local?.img || fallbackImg,
+          img: serviceImage || local?.img || fallbackImg,
           sub: s.includes && s.includes.length ? s.includes : (local?.sub.map((x) => x.name) ?? []),
-          image: s.image,
+          image: serviceImage,
           plans: s.plans || [],
           disclaimer: s.disclaimer,
           requirements: s.requirements,
@@ -1336,6 +1351,19 @@ export function mergeAdminCatalog(catalog: AdminCatalog): Category[] {
 
     // Determine category image
     let categoryImage = c.image;
+    let categoryTagline = c.tagline;
+    if (
+      categoryTagline &&
+      (categoryTagline.startsWith("http://") ||
+        categoryTagline.startsWith("https://") ||
+        categoryTagline.includes("images?q="))
+    ) {
+      if (!categoryImage) {
+        categoryImage = categoryTagline;
+      }
+      categoryTagline = "";
+    }
+
     if (!categoryImage) {
       if (c.id === "full-house") {
         categoryImage = imgHouse;
@@ -1351,7 +1379,7 @@ export function mergeAdminCatalog(catalog: AdminCatalog): Category[] {
     return {
       id: c.id,
       title: c.title,
-      tagline: c.tagline,
+      tagline: categoryTagline,
       emoji: c.emoji || "✨",
       image: categoryImage,
       services,

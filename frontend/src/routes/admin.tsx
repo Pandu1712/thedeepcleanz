@@ -660,9 +660,24 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const selectCategory = (c: AdminCategory) => {
     setActiveCategoryId(c.id);
     setCatTitle(c.title);
-    setCatTagline(c.tagline);
+    
+    let taglineVal = c.tagline || "";
+    let imageVal = c.image || "";
+    if (
+      taglineVal &&
+      (taglineVal.startsWith("http://") ||
+        taglineVal.startsWith("https://") ||
+        taglineVal.includes("images?q="))
+    ) {
+      if (!imageVal) {
+        imageVal = taglineVal;
+      }
+      taglineVal = "";
+    }
+
+    setCatTagline(taglineVal);
     setCatEmoji(c.emoji || "✨");
-    setCatImage(c.image || "");
+    setCatImage(imageVal);
     setImageInputMode("url");
   };
 
@@ -671,10 +686,25 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     setSvcCatId(s.categoryId);
     setSvcTitle(s.title);
     setSvcPrice(s.price);
-    setSvcDesc(s.description || "");
+    
+    let descVal = s.description || "";
+    let imageVal = s.image || "";
+    if (
+      descVal &&
+      (descVal.startsWith("http://") ||
+        descVal.startsWith("https://") ||
+        descVal.includes("images?q="))
+    ) {
+      if (!imageVal) {
+        imageVal = descVal;
+      }
+      descVal = "";
+    }
+
+    setSvcDesc(descVal);
     setSvcIncludes("");
     setSvcIncList(s.includes || []);
-    setSvcImage(s.image || "");
+    setSvcImage(imageVal);
     setSvcDisclaimer(s.disclaimer || "");
     setSvcRequirements(s.requirements || "");
     setSvcPlans(s.plans || []);
