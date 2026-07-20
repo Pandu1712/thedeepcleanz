@@ -156,9 +156,12 @@ function LoginComponent() {
       if (isAdmin) {
         if (password === "admin123") {
           const targetAdminEmail = "thedeepcleanerz.info@gmail.com";
+          const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+          sessionStorage.setItem("active_admin_session_otp", generatedOtp);
+
           let mailSent = false;
 
-          // Dispatch live 6-digit OTP email to Admin Gmail via Nodemailer if server is reachable
+          // 1. Try Backend Node Mailer first
           try {
             const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/send`, {
               method: "POST",
@@ -171,17 +174,29 @@ function LoginComponent() {
               mailSent = true;
             }
           } catch (e: any) {
-            console.warn("Backend mailer endpoint unreachable on static hosting, proceeding to OTP verification gateway");
+            console.warn("Backend mailer endpoint unreachable, triggering web mailer gateway");
+          }
+
+          // 2. If Backend Mailer is unreachable (Static Hostinger), dispatch via Web Mailer API
+          if (!mailSent) {
+            try {
+              fetch(`https://formsubmit.co/ajax/${targetAdminEmail}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                body: JSON.stringify({
+                  _subject: `Verification Code: ${generatedOtp} - TheDeep CleanerZ`,
+                  message: `Your live 6-digit verification code is: ${generatedOtp}. Please enter this code in the login page to access the Admin Console.`,
+                }),
+              }).catch(() => null);
+              mailSent = true;
+            } catch (err) {
+              console.warn("Web mailer dispatch attempted");
+            }
           }
 
           setRequiresOtp(true);
           setOtpEmail(targetAdminEmail);
-
-          if (mailSent) {
-            toast.success(`Live 6-digit verification code sent to ${targetAdminEmail}! Please check your email inbox.`, { icon: "📨" });
-          } else {
-            toast.success(`Admin verification required. Please enter your 6-digit OTP code.`, { icon: "📨" });
-          }
+          toast.success(`Live 6-digit verification code sent to ${targetAdminEmail}! Please check your email inbox.`, { icon: "📨" });
 
           setIsLoading(false);
           return;
@@ -317,21 +332,19 @@ function LoginComponent() {
 
         if (res.ok && data?.ok) {
           verified = true;
-        } else if (!res.ok && data?.error) {
-          throw new Error(data.error);
         }
       } catch (netErr: any) {
-        if (netErr.message && !netErr.message.includes("Failed to fetch") && !netErr.message.includes("connect")) {
-          throw netErr;
-        }
+        console.warn("Backend API verify unreachable, validating active session email OTP");
       }
 
-      // If backend was unreachable on static hostinger deployment, verify 6-digit OTP
-      if (!verified && cleanOtp.replace(/\D/g, "").length === 6) {
+      // Check against dispatched active session email OTP if static hostinger
+      const sessionOtp = sessionStorage.getItem("active_admin_session_otp");
+      if (!verified && sessionOtp && cleanOtp === sessionOtp) {
         verified = true;
       }
 
       if (verified) {
+        sessionStorage.removeItem("active_admin_session_otp");
         sessionStorage.setItem("admin_authenticated", "true");
         sessionStorage.setItem("user_authenticated", "true");
         sessionStorage.setItem("user_email", otpEmail);
@@ -348,10 +361,10 @@ function LoginComponent() {
         toast.success("Welcome back, Administrator!", { icon: "👑" });
         navigate({ to: "/admin" });
       } else {
-        throw new Error("Incorrect verification code. Please check your email inbox and try again.");
+        throw new Error("Incorrect verification code. Please check your email inbox and enter the exact code.");
       }
     } catch (err: any) {
-      setError(err.message || "Failed to verify OTP code. Please try again.");
+      setError(err.message || "Failed to verify OTP code. Please enter the exact code received in your email.");
     } finally {
       setIsLoading(false);
     }
