@@ -155,10 +155,9 @@ function LoginComponent() {
 
       if (isAdmin) {
         if (password === "admin123") {
-          const targetAdminEmail =
-            normInput === "admin" ? "thedeepcleanerz.info@gmail.com" : normInput;
+          const targetAdminEmail = "thedeepcleanerz.info@gmail.com";
 
-          // Send Live OTP to Admin Email
+          // Send Live OTP to Admin Email via Backend Mailer
           try {
             const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/send`, {
               method: "POST",
@@ -166,22 +165,30 @@ function LoginComponent() {
               body: JSON.stringify({ email: targetAdminEmail }),
             });
             const data = await res.json().catch(() => null);
-            if (!res.ok) {
+
+            if (res.ok && data?.ok) {
+              setRequiresOtp(true);
+              setOtpEmail(targetAdminEmail);
+              toast.success(`Live verification code sent to ${targetAdminEmail}!`, { icon: "📨" });
+              setIsLoading(false);
+              return;
+            } else {
               throw new Error(data?.error || "Failed to send verification code to email.");
             }
           } catch (e: any) {
-            if (e.message && !e.message.includes("Failed to fetch")) {
-              setError(e.message);
-              setIsLoading(false);
-              return;
-            }
-          }
+            const isConnErr =
+              e.message?.includes("Failed to fetch") ||
+              e.message?.includes("connect") ||
+              e.message?.includes("NetworkError");
 
-          setRequiresOtp(true);
-          setOtpEmail(targetAdminEmail);
-          toast.success(`Verification code sent to ${targetAdminEmail}!`, { icon: "📨" });
-          setIsLoading(false);
-          return;
+            setError(
+              isConnErr
+                ? "Cannot send OTP email: Backend server is offline or unreachable. Please ensure the Express backend server (node server.js) is running."
+                : e.message || "Failed to send verification email.",
+            );
+            setIsLoading(false);
+            return;
+          }
         } else {
           setError("Incorrect password. Please check your admin password and try again.");
           setIsLoading(false);
