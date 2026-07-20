@@ -4529,6 +4529,7 @@ export function BookingModal({
   const [otpVerified, setOtpVerified] = useState(false);
   const [mobileOtpLoading, setMobileOtpLoading] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
+  const [otpSentMessage, setOtpSentMessage] = useState("");
 
   const handleSendMobileOtp = async () => {
     if (!form.phone) {
@@ -4547,6 +4548,7 @@ export function BookingModal({
       });
       const data = await res.json().catch(() => null);
       if (res.ok) {
+        setOtpSentMessage(data?.message || `We have sent a 6-digit OTP code to +91 ${form.phone}.`);
         toast.success(data?.message || "OTP code sent successfully!", { icon: "📨" });
         setShowOtpVerification(true);
       } else {
@@ -5415,8 +5417,8 @@ export function BookingModal({
                 <Smartphone className="h-7 w-7" />
               </div>
               <h3 className="font-display text-xl font-bold text-[#002a22]">Verify Your Mobile</h3>
-              <p className="text-xs text-slate-500 font-semibold mt-1">
-                We have sent a 6-digit OTP code to <span className="font-bold text-[#002a22]">+91 {form.phone}</span>.
+              <p className="text-xs text-slate-500 font-semibold mt-1 px-4">
+                {otpSentMessage || <>We have sent a 6-digit OTP code to <span className="font-bold text-[#002a22]">+91 {form.phone}</span>.</>}
               </p>
               
               <div className="mt-6">
