@@ -267,7 +267,7 @@ function LoginComponent() {
 
       if (matchedUser) {
         if (matchedUser.password && matchedUser.password !== password) {
-          setError("Incorrect password. Please try again.");
+          setError("Incorrect password. Please check your credentials and try again.");
           setIsLoading(false);
           return;
         }
@@ -278,27 +278,7 @@ function LoginComponent() {
         toast.success(`Logged in as ${matchedUser.name}!`, { icon: "✨" });
         navigate({ to: "/" });
       } else {
-        if (password.length >= 4) {
-          const rawName = normInput.split("@")[0].replace(/[^a-zA-Z0-9]/g, " ");
-          const formattedName = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : "Valued Client";
-          const newUserObj = {
-            id: `usr_${Date.now()}`,
-            name: formattedName,
-            email: normInput.includes("@") ? normInput : `${normInput}@client.com`,
-            phone: normInput.replace(/\D/g, "") || "9876543210",
-            referralCode: `CLEAN-${formattedName.slice(0, 4).toUpperCase()}100`,
-            walletBalance: 0,
-          };
-          saveLocalRegisteredUser(newUserObj);
-          sessionStorage.setItem("user_authenticated", "true");
-          sessionStorage.setItem("user_email", newUserObj.email);
-          sessionStorage.setItem("user_profile", JSON.stringify(newUserObj));
-          window.dispatchEvent(new Event("auth-state-change"));
-          toast.success(`Welcome ${formattedName}! Logged in successfully.`, { icon: "✨" });
-          navigate({ to: "/" });
-        } else {
-          setError("Invalid email/phone or password. Please try again.");
-        }
+        setError("No account found with this email/phone. Please register your account first.");
       }
       setIsLoading(false);
     }
