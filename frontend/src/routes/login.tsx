@@ -125,14 +125,14 @@ function LoginComponent() {
 
         const data = await res.json().catch(() => null);
 
-        if (res.ok && data?.user) {
+        if (res.ok && data) {
           if (data.requiresOtp || data.role === "admin") {
             setRequiresOtp(true);
-            setOtpEmail(data.email || data.user.email);
+            setOtpEmail(data.email || (data.user && data.user.email));
             toast.success("Verification code sent to admin email!", { icon: "📨" });
             setIsLoading(false);
             return;
-          } else if (data.role === "technician") {
+          } else if (data.role === "technician" && data.user) {
             sessionStorage.setItem("technician_authenticated", "true");
             sessionStorage.setItem("technician_profile", JSON.stringify(data.user));
             window.dispatchEvent(new Event("auth-state-change"));
@@ -140,7 +140,7 @@ function LoginComponent() {
             navigate({ to: "/technician" });
             setIsLoading(false);
             return;
-          } else {
+          } else if (data.user) {
             sessionStorage.setItem("user_authenticated", "true");
             sessionStorage.setItem("user_email", data.user.email);
             sessionStorage.setItem("user_profile", JSON.stringify(data.user));
