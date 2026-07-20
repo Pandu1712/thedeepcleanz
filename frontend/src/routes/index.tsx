@@ -97,6 +97,7 @@ import {
   type ServiceReview,
   type AdminCustomizedService,
 } from "@/api/admin-api";
+import Header from "@/components/Header";
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -2035,358 +2036,32 @@ function Index() {
 
   return (
     <div className="min-h-screen bg-[#faf8f5] text-[#002a22] overflow-x-hidden pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px]">
-      {/* FIXED TOPBAR */}
-      <div className="fixed top-0 left-0 right-0 z-45">
-        {/* ANNOUNCEMENT BAR */}
-        <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 text-[11px] lg:px-8">
-          <div className="flex flex-1 items-center gap-3 truncate">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#cb9f5a] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#cb9f5a]"></span>
-            </span>
-            <span className="truncate text-[#faf8f5]/90 font-medium tracking-wide">
-              <span className="font-semibold text-[#cb9f5a] uppercase text-[9px] tracking-wider bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 px-2 py-0.5 rounded-full mr-2">
-                PROMO
-              </span>
-              Exclusive Privilege: Enjoy <span className="font-bold text-white">Flat 20% OFF</span>{" "}
-              on your first booking — apply code{" "}
-              <span className="inline-flex items-center gap-1 font-mono font-extrabold text-[#cb9f5a] bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full hover:bg-white/10 transition-colors">
-                CLEAN20
-              </span>
-            </span>
-          </div>
-          <div className="hidden items-center gap-5 md:flex font-semibold tracking-wide text-[#faf8f5]/85">
-            <a
-              href="tel:+919876543210"
-              className="inline-flex items-center gap-1.5 hover:text-[#cb9f5a] transition-colors duration-250"
-            >
-              <Phone className="h-3.5 w-3.5 text-[#cb9f5a]" /> +91 98765 43210
-            </a>
-            <span className="h-3 w-px bg-white/15" />
-            <span className="inline-flex items-center gap-1.5 text-cream/75">
-              <MapPin className="h-3.5 w-3.5 text-[#cb9f5a]" /> 25+ Premium Cities
-            </span>
-          </div>
-        </div>
-      </div>
+      
+      <Header
+        cartCount={cartCount}
+        favsCount={favs.length}
+        userLocation={userLocation}
+        onOpenCart={() => setCartOpen(true)}
+        onOpenLocation={() => setLocationModalOpen(true)}
+        onOpenReferral={() => setReferralModalOpen(true)}
+        activeHash={activeHash}
+        isSubPage={false}
+      />
 
-      {/* HEADER - ULTRA-PREMIUM GLASS DESIGN */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-[#cb9f5a]/20 text-[#002a22] shadow-[0_4px_25px_-5px_rgba(0,42,34,0.06)]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3 lg:px-8">
-          <div className="flex items-center gap-4 sm:gap-6">
-            <a href="#home" className="flex items-center gap-3 group">
-              <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-2xl bg-gradient-to-br from-[#002a22] to-[#001c17] flex items-center justify-center border border-[#cb9f5a]/40 shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Star className="h-5 w-5 text-[#cb9f5a] fill-[#cb9f5a]" />
-              </div>
-              <div className="leading-tight flex-shrink-0">
-                <div className="font-display text-[13px] xs:text-base sm:text-lg md:text-xl font-black tracking-tight text-[#002a22] whitespace-nowrap">
-                  TheDeep CleanerZ
-                </div>
-                <div className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.25em] text-[#cb9f5a] mt-0.5 whitespace-nowrap">
-                  PREMIUM SERVICES
-                </div>
-              </div>
-            </a>
-            {/* Location Display Capsule */}
-            <div
-              onClick={() => setLocationModalOpen(true)}
-              className="hidden md:flex items-center gap-2 border border-[#cb9f5a]/30 bg-[#faf8f5] p-2 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold text-[#002a22] transition-all cursor-pointer shadow-3xs hover:border-[#cb9f5a]/60 shrink-0"
-            >
-              <MapPin className="h-3.5 w-3.5 text-[#cb9f5a] shrink-0" />
-              <span
-                className="hidden sm:inline truncate max-w-[100px] sm:max-w-[160px] md:max-w-[200px]"
-                title={userLocation}
-              >
-                {userLocation}
-              </span>
-            </div>
-          </div>
 
-          <nav className="hidden items-center gap-6 xl:gap-8 xl:flex">
-            {navLinks.map((l) => {
-              const isActive =
-                activeHash === l.href || (l.label === "Services" && activeHash === "#categories");
-              return l.isRoute ? (
-                <Link
-                  key={l.href}
-                  to={l.href}
-                  className={`relative py-1 text-xs font-extrabold uppercase tracking-wider transition-colors ${
-                    isActive ? "text-[#cb9f5a]" : "text-[#002a22]/80 hover:text-[#cb9f5a]"
-                  }`}
-                >
-                  {l.label}
-                  {isActive && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#cb9f5a] rounded-full shadow-sm" />
-                  )}
-                </Link>
-              ) : (
-                <a
-                  key={l.href}
-                  href={l.href}
-                  className={`relative py-1 text-xs font-extrabold uppercase tracking-wider transition-colors ${
-                    isActive ? "text-[#cb9f5a]" : "text-[#002a22]/80 hover:text-[#cb9f5a]"
-                  }`}
-                >
-                  {l.label}
-                  {isActive && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#cb9f5a] rounded-full shadow-sm" />
-                  )}
-                </a>
-              );
-            })}
-          </nav>
-
-          <div className="flex items-center gap-2.5">
-            <a
-              href="#services"
-              className="relative hidden h-10 w-10 place-items-center rounded-full border border-[#002a22]/15 text-[#002a22] transition-colors hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/10 md:grid"
-              aria-label="Wishlist"
-            >
-              <Heart
-                className={`h-4.5 w-4.5 ${favs.length ? "fill-[#cb9f5a] text-[#cb9f5a]" : ""}`}
-              />
-              {favs.length > 0 && (
-                <span className="absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#cb9f5a] px-1 text-[10px] font-bold text-white shadow">
-                  {favs.length}
-                </span>
-              )}
-            </a>
-            <button
-              onClick={() => setCartOpen(true)}
-              aria-label="Open cart"
-              className="relative grid h-10 w-10 place-items-center rounded-full border border-[#002a22]/15 text-[#002a22] transition-colors hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/10"
-            >
-              <ShoppingCart className="h-4.5 w-4.5" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#cb9f5a] px-1 text-[10px] font-bold text-white shadow">
-                  {cartCount}
-                </span>
-              )}
-            </button>
-            {userEmail || isAdmin ? (
-              <div className="hidden items-center gap-3.5 md:flex relative">
-                <div className="relative">
-                  <button
-                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                    className="flex items-center gap-2 rounded-full bg-[#faf8f5] border border-[#cb9f5a]/30 pl-2.5 pr-4 py-1.5 text-xs font-bold text-[#002a22] transition-all hover:bg-white hover:border-[#cb9f5a] shadow-sm cursor-pointer select-none active:scale-[0.98] font-sans"
-                  >
-                    <div className="h-6 w-6 rounded-full bg-[#cb9f5a] text-white flex items-center justify-center font-black text-[10px] uppercase shadow-sm">
-                      {userProfile?.name
-                        ? userProfile.name.substring(0, 2)
-                        : userEmail
-                          ? userEmail.substring(0, 2)
-                          : "AD"}
-                    </div>
-                    <span className="max-w-[90px] truncate">
-                      Hi,{" "}
-                      {userProfile?.name?.split(" ")[0] ||
-                        (userEmail ? userEmail.split("@")[0] : "Admin")}
-                    </span>
-                    <ChevronDown
-                      className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${profileMenuOpen ? "rotate-180" : ""}`}
-                    />
-                  </button>
-
-                  {profileMenuOpen && (
-                    <>
-                      {/* Dropdown Click Outside Overlay */}
-                      <div
-                        className="fixed inset-0 z-30"
-                        onClick={() => setProfileMenuOpen(false)}
-                      />
-
-                      <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-white border border-slate-200 shadow-xl py-2 z-40 animate-in fade-in slide-in-from-top-2 duration-150 font-sans text-slate-700">
-                        <div className="px-4 py-2 border-b border-slate-100 text-left">
-                          <div className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold">
-                            Logged In As
-                          </div>
-                          <div
-                            className="text-xs font-bold text-slate-800 truncate"
-                            title={userEmail || "System Admin"}
-                          >
-                            {userEmail || "System Admin"}
-                          </div>
-                        </div>
-
-                        {isAdmin && (
-                          <button
-                            onClick={() => {
-                              setProfileMenuOpen(false);
-                              navigate({ to: "/admin" });
-                            }}
-                            className="w-full text-left px-4 py-2.5 text-xs font-extrabold text-rose-600 hover:bg-rose-50/50 flex items-center gap-2 cursor-pointer transition-colors border-0 bg-transparent"
-                          >
-                            👑 Admin Dashboard
-                          </button>
-                        )}
-
-                        {userEmail && (
-                          <>
-                            <button
-                              onClick={() => {
-                                setProfileMenuOpen(false);
-                                navigate({ to: "/my-bookings" });
-                              }}
-                              className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer transition-colors border-0 bg-transparent"
-                            >
-                              🗓️ My Bookings
-                            </button>
-                            <button
-                              onClick={() => {
-                                setProfileMenuOpen(false);
-                                setReferralModalOpen(true);
-                              }}
-                              className="w-full text-left px-4 py-2.5 text-xs font-extrabold text-[#002a22] hover:bg-[#cb9f5a]/10 flex items-center justify-between cursor-pointer transition-colors border-0 bg-transparent"
-                            >
-                              <span className="flex items-center gap-2">🎁 Refer & Earn</span>
-                              <span className="text-[10px] font-black text-[#cb9f5a] bg-[#cb9f5a]/10 px-2 py-0.5 rounded-full border border-[#cb9f5a]/30">
-                                ₹{userProfile?.walletBalance || 0}
-                              </span>
-                            </button>
-                          </>
-                        )}
-
-                        <div className="border-t border-slate-100 my-1" />
-
-                        <button
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            handleLogout();
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer transition-colors border-0 bg-transparent"
-                        >
-                          🚪 Logout Account
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="hidden items-center gap-3.5 md:flex">
-                <Link
-                  to="/login"
-                  className="rounded-full bg-gradient-to-r from-[#cb9f5a] via-[#e5be7a] to-[#cb9f5a] px-6 py-2.5 text-xs font-black uppercase tracking-wider text-[#002a22] transition-all hover:scale-105 inline-flex shadow-[0_4px_15px_rgba(203,159,90,0.4)]"
-                >
-                  Register / Login
-                </Link>
-              </div>
-            )}
-            <button
-              onClick={() => setNavOpen((v) => !v)}
-              className="grid h-10 w-10 place-items-center rounded-full border border-[#002a22]/15 text-[#002a22] xl:hidden"
-              aria-label="Menu"
-            >
-              {navOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
-        </div>
-        {navOpen && (
-          <div className="border-t border-[#f1ede6] bg-[#faf8f5] px-5 pb-5 xl:hidden">
-            {/* Mobile Location Capsule */}
-            <div className="flex items-center justify-between border border-[#cb9f5a]/30 bg-white p-3 rounded-2xl text-xs font-bold text-[#002a22] shadow-3xs mt-4 mb-2">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-[#cb9f5a]" />
-                <span className="max-w-[150px] truncate">{userLocation || "Visakhapatnam, AP"}</span>
-              </div>
-              <button
-                onClick={() => {
-                  setNavOpen(false);
-                  setLocationModalOpen(true);
-                }}
-                className="hover:text-[#cb9f5a] transition-colors underline cursor-pointer text-xs text-[#cb9f5a] font-bold"
-              >
-                Change
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-3 pt-2">
-              {navLinks.map((l) => {
-                const isActive =
-                  activeHash === l.href || (l.label === "Services" && activeHash === "#categories");
-                return l.isRoute ? (
-                  <Link
-                    key={l.href}
-                    to={l.href}
-                    onClick={() => setNavOpen(false)}
-                    className={`text-sm font-semibold transition-colors ${isActive ? "text-[#cb9f5a] font-bold" : "text-[#002a22]/90 hover:text-[#cb9f5a]"}`}
-                  >
-                    {l.label}
-                  </Link>
-                ) : (
-                  <a
-                    key={l.href}
-                    href={l.href}
-                    onClick={() => setNavOpen(false)}
-                    className={`text-sm font-semibold transition-colors ${isActive ? "text-[#cb9f5a] font-bold" : "text-[#002a22]/90 hover:text-[#cb9f5a]"}`}
-                  >
-                    {l.label}
-                  </a>
-                );
-              })}
-              {isAdmin && (
-                <button
-                  onClick={() => {
-                    navigate({ to: "/admin" });
-                    setNavOpen(false);
-                  }}
-                  className="w-full text-center rounded-full border border-rose-500/40 bg-rose-500/10 py-2.5 text-sm font-bold text-rose-600 transition-colors hover:bg-rose-500/20 cursor-pointer font-sans flex items-center justify-center gap-1"
-                >
-                  👑 Admin Panel
-                </button>
-              )}
-              {userEmail ? (
-                <div className="flex flex-col gap-2 mt-2">
-                  <button
-                    onClick={() => {
-                      navigate({ to: "/my-bookings" });
-                      setNavOpen(false);
-                    }}
-                    className="w-full text-center rounded-full border border-[#cb9f5a]/30 bg-gold/5 py-2.5 text-sm font-bold text-[#cb9f5a] transition-colors hover:bg-[#cb9f5a]/10 cursor-pointer font-sans"
-                  >
-                    My Bookings
-                  </button>
-                  <span className="text-center text-sm font-semibold text-[#002a22] bg-[#cb9f5a]/10 px-3 py-2 rounded-full border border-[#cb9f5a]/20">
-                    Hi, {userProfile?.name || userEmail.split("@")[0]}
-                  </span>
-                  <button
-                    onClick={() => {
-                      handleLogout();
-                      setNavOpen(false);
-                    }}
-                    className="w-full rounded-full bg-red-500/10 border border-red-500/30 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-500 hover:text-white cursor-pointer"
-                  >
-                    Logout
-                  </button>
-                </div>
-              ) : (
-                <Link
-                  to="/login"
-                  onClick={() => setNavOpen(false)}
-                  className="mt-2 rounded-full bg-[#002a22] text-white px-5 py-2.5 text-sm font-semibold text-center block"
-                >
-                  Register / Login
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
-      </header>
-      </div>
-
-      {/* HERO SECTION - LUXURY DARK EMERALD & GOLD THEME */}
+      
+      {/* HERO SECTION - LIGHT CHAMPAGNE & GOLD LUXURY THEME */}
       <section
         id="home"
-        className="relative overflow-hidden bg-gradient-to-b from-[#00231c] via-[#002a22] to-[#001e19] text-white py-10 sm:py-14 md:py-16 border-b border-[#cb9f5a]/20"
+        className="relative overflow-hidden bg-gradient-to-b from-[#FAF8F5] via-[#F4EDE0] to-[#EBE2CF] text-[#002a22] py-10 sm:py-14 md:py-16 border-b border-[#cb9f5a]/30"
       >
         {/* Ambient background radial glow effects */}
         <div className="absolute top-1/4 -left-32 h-96 w-96 rounded-full bg-[#cb9f5a]/15 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-10 -right-32 h-96 w-96 rounded-full bg-[#004d3d]/30 blur-[130px] pointer-events-none" />
+        <div className="absolute bottom-10 -right-32 h-96 w-96 rounded-full bg-[#cb9f5a]/10 blur-[130px] pointer-events-none" />
         <div className="absolute top-10 right-1/4 h-64 w-64 rounded-full bg-[#cb9f5a]/10 blur-[100px] pointer-events-none" />
 
         {/* Decorative Grid Mesh */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#cb9f5a0d_1px,transparent_1px),linear-gradient(to_bottom,#cb9f5a0d_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
 
         <div className="relative mx-auto max-w-7xl px-5 lg:px-8 z-10">
           <div className="grid gap-10 lg:grid-cols-12 items-center">
@@ -2403,7 +2078,7 @@ function Index() {
 
               {/* Main Headline */}
               <h1
-                className="mt-4 font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.08] tracking-tight text-white animate-fade-in-left"
+                className="mt-4 font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.08] tracking-tight text-[#002a22] animate-fade-in-left"
                 style={{ animationDelay: "200ms" }}
               >
                 Spotless Spaces,
@@ -2415,7 +2090,7 @@ function Index() {
 
               {/* Subtitle */}
               <p
-                className="mt-3 max-w-xl text-xs sm:text-sm text-[#c1d3ce] font-medium leading-relaxed animate-fade-in-left"
+                className="mt-3 max-w-xl text-xs sm:text-sm text-[#3a4d49] font-medium leading-relaxed animate-fade-in-left"
                 style={{ animationDelay: "300ms" }}
               >
                 Hospital-grade deep cleaning, hot-water extraction, and eco-friendly sanitization engineered by background-verified specialists for premium homes & corporate spaces.
@@ -2426,32 +2101,32 @@ function Index() {
                 className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-lg animate-fade-in-left"
                 style={{ animationDelay: "400ms" }}
               >
-                <div className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-2.5 shadow-sm transition-transform hover:scale-[1.02]">
-                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#cb9f5a]/20 text-[#cb9f5a] font-bold text-sm shrink-0 border border-[#cb9f5a]/30">
+                <div className="flex items-center gap-2.5 rounded-2xl border border-[#cb9f5a]/30 bg-white/60 backdrop-blur-md p-2.5 shadow-sm transition-transform hover:scale-[1.02]">
+                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#cb9f5a]/10 text-[#cb9f5a] font-bold text-sm shrink-0 border border-[#cb9f5a]/30">
                     <Shield className="h-4 w-4" />
                   </div>
                   <div className="leading-tight text-left">
-                    <div className="text-[11px] font-bold text-white">Verified</div>
+                    <div className="text-[11px] font-bold text-[#002a22]">Verified</div>
                     <div className="text-[9px] text-[#cb9f5a] font-semibold">Professionals</div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-2.5 shadow-sm transition-transform hover:scale-[1.02]">
-                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500/20 text-emerald-400 font-bold text-sm shrink-0 border border-emerald-500/30">
+                <div className="flex items-center gap-2.5 rounded-2xl border border-[#cb9f5a]/30 bg-white/60 backdrop-blur-md p-2.5 shadow-sm transition-transform hover:scale-[1.02]">
+                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 font-bold text-sm shrink-0 border border-emerald-500/20">
                     <Leaf className="h-4 w-4" />
                   </div>
                   <div className="leading-tight text-left">
-                    <div className="text-[11px] font-bold text-white">100% Eco</div>
-                    <div className="text-[9px] text-emerald-400 font-semibold">Biological</div>
+                    <div className="text-[11px] font-bold text-[#002a22]">100% Eco</div>
+                    <div className="text-[9px] text-emerald-600 font-semibold">Biological</div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-2.5 shadow-sm transition-transform hover:scale-[1.02]">
-                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#cb9f5a]/20 text-[#cb9f5a] font-bold text-sm shrink-0 border border-[#cb9f5a]/30">
+                <div className="flex items-center gap-2.5 rounded-2xl border border-[#cb9f5a]/30 bg-white/60 backdrop-blur-md p-2.5 shadow-sm transition-transform hover:scale-[1.02]">
+                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#cb9f5a]/10 text-[#cb9f5a] font-bold text-sm shrink-0 border border-[#cb9f5a]/30">
                     <Clock className="h-4 w-4" />
                   </div>
                   <div className="leading-tight text-left">
-                    <div className="text-[11px] font-bold text-white">On-Time</div>
+                    <div className="text-[11px] font-bold text-[#002a22]">On-Time</div>
                     <div className="text-[9px] text-[#cb9f5a] font-semibold">Guaranteed</div>
                   </div>
                 </div>
@@ -2471,7 +2146,7 @@ function Index() {
                 </a>
                 <a
                   href="#categories"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/5 hover:bg-white/15 px-6 py-3.5 text-xs font-bold text-white backdrop-blur-md shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                  className="inline-flex items-center gap-2 rounded-full border border-[#cb9f5a]/30 bg-white/80 hover:bg-[#002a22]/5 px-6 py-3.5 text-xs font-bold text-[#002a22] shadow-3xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
                 >
                   <span>Explore Packages</span>
                   <ArrowRight className="h-4 w-4 text-[#cb9f5a]" />
@@ -2480,20 +2155,20 @@ function Index() {
 
               {/* Live Rating & Stats Footprint */}
               <div
-                className="mt-6 pt-5 border-t border-white/10 flex items-center gap-6 text-xs text-[#c1d3ce] font-semibold animate-fade-in-left"
+                className="mt-6 pt-5 border-t border-[#cb9f5a]/25 flex items-center gap-6 text-xs text-[#3a4d49] font-semibold animate-fade-in-left"
                 style={{ animationDelay: "600ms" }}
               >
                 <div className="flex items-center gap-1.5">
                   <div className="flex text-[#cb9f5a]">
                     {"★".repeat(5)}
                   </div>
-                  <span className="font-bold text-white">4.9/5.0</span>
-                  <span className="text-[10px] text-[#c1d3ce]/70">(2,800+ Reviews)</span>
+                  <span className="font-bold text-[#002a22]">4.9/5.0</span>
+                  <span className="text-[10px] text-slate-500">(2,800+ Reviews)</span>
                 </div>
-                <div className="h-3 w-px bg-white/20" />
+                <div className="h-3 w-px bg-[#cb9f5a]/30" />
                 <div className="flex items-center gap-1">
-                  <span className="font-bold text-white">Guntur & 25+</span>
-                  <span className="text-[10px] text-[#c1d3ce]/70">AP Cities</span>
+                  <span className="font-bold text-[#002a22]">Guntur & 25+</span>
+                  <span className="text-[10px] text-slate-500">AP Cities</span>
                 </div>
               </div>
             </div>
@@ -2501,7 +2176,7 @@ function Index() {
             {/* Right Column: High-End Hero Showcase Card */}
             <div className="lg:col-span-6 relative w-full flex items-center justify-center">
               {/* Main Image Container */}
-              <div className="relative w-full h-[320px] sm:h-[380px] lg:h-[420px] rounded-[32px] overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] border border-[#cb9f5a]/35 group">
+              <div className="relative w-full h-[320px] sm:h-[380px] lg:h-[420px] rounded-none overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] border border-[#cb9f5a]/35 group">
                 <img
                   src={heroImg}
                   alt="Luxury home deep cleaning team working"
@@ -2512,8 +2187,8 @@ function Index() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#002a22]/80 via-transparent to-black/30" />
 
                 {/* Floating Glass Pill - Top Left */}
-                <div className="absolute top-4 left-4 bg-[#002a22]/85 backdrop-blur-md border border-[#cb9f5a]/30 rounded-2xl py-2 px-3.5 text-white shadow-xl flex items-center gap-2 z-10 transition-transform duration-300 hover:scale-105">
-                  <div className="grid h-7 w-7 place-items-center rounded-xl bg-[#cb9f5a] text-[#002a22] font-black text-xs shadow-sm">
+                <div className="absolute top-4 left-4 bg-[#002a22]/85 backdrop-blur-md border border-[#cb9f5a]/30 rounded-none py-2 px-3.5 text-white shadow-xl flex items-center gap-2 z-10 transition-transform duration-300 hover:scale-105">
+                  <div className="grid h-7 w-7 place-items-center rounded-xl bg-[#cb9f5a] text-[#002a22] font-black text-xs shadow-sm rounded-none">
                     ★
                   </div>
                   <div className="leading-tight text-left">
@@ -2523,8 +2198,8 @@ function Index() {
                 </div>
 
                 {/* Floating Glass Pill - Top Right */}
-                <div className="absolute top-4 right-4 bg-[#002a22]/85 backdrop-blur-md border border-white/20 rounded-2xl py-2 px-3.5 text-white shadow-xl flex items-center gap-2 z-10 transition-transform duration-300 hover:scale-105">
-                  <div className="grid h-7 w-7 place-items-center rounded-xl bg-emerald-500 text-white font-black text-xs shadow-sm">
+                <div className="absolute top-4 right-4 bg-[#002a22]/85 backdrop-blur-md border border-white/20 rounded-none py-2 px-3.5 text-white shadow-xl flex items-center gap-2 z-10 transition-transform duration-300 hover:scale-105">
+                  <div className="grid h-7 w-7 place-items-center rounded-none bg-emerald-500 text-white font-black text-xs shadow-sm">
                     ✓
                   </div>
                   <div className="leading-tight text-left">
@@ -2534,7 +2209,7 @@ function Index() {
                 </div>
 
                 {/* Floating Customer Proof Banner - Bottom Overlay */}
-                <div className="absolute bottom-5 left-5 right-5 bg-[#002a22]/90 backdrop-blur-md border border-[#cb9f5a]/30 rounded-2xl p-3.5 text-white shadow-2xl flex items-center justify-between z-10 transition-transform duration-300 hover:scale-[1.02]">
+                <div className="absolute bottom-5 left-5 right-5 bg-[#002a22]/90 backdrop-blur-md border border-[#cb9f5a]/30 rounded-none p-3.5 text-white shadow-2xl flex items-center justify-between z-10 transition-transform duration-300 hover:scale-[1.02]">
                   <div className="flex items-center gap-3">
                     <div className="flex -space-x-2">
                       <img
@@ -2573,14 +2248,14 @@ function Index() {
         id="categories"
         className="relative mx-auto max-w-7xl px-5 pt-2 pb-6 md:pb-8 lg:px-8"
       >
-        <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-gold/15 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.2em] text-navy">
-            <CheckCircle2 className="h-2.5 w-2.5 text-gold" /> Your Space, Our Expertise
+        <div className="w-full text-left font-sans">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-[#cb9f5a] font-black block mb-1">
+            Your Space, Our Expertise
           </span>
-          <h2 className="mt-1.5 font-display text-2xl font-bold text-navy md:text-3xl">
+          <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-black leading-tight tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#002a22] via-[#00382d] to-[#cb9f5a] w-fit">
             Choose your category
           </h2>
-          <p className="mt-0.5 text-2xs text-muted-foreground">
+          <p className="mt-2.5 text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed font-medium">
             Pick a category to see all services available under it.
           </p>
         </div>
@@ -2600,14 +2275,14 @@ function Index() {
                       .getElementById("cat-services")
                       ?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
-                  className={`group relative overflow-hidden rounded-[28px] text-left transition-all duration-500 border flex flex-col p-5 cursor-pointer hover:-translate-y-2.5 ${
+                  className={`group relative overflow-hidden rounded-none text-left transition-all duration-500 border flex flex-col p-5 cursor-pointer hover:-translate-y-2.5 ${
                     active
                       ? "border-[#cb9f5a] bg-gradient-to-b from-white via-slate-50 to-[#cb9f5a]/10 shadow-[0_20px_50px_-12px_rgba(203,159,90,0.35)] ring-2 ring-[#cb9f5a]/40"
                       : "border-[#cb9f5a]/20 bg-white shadow-[0_10px_35px_-10px_rgba(0,42,34,0.08)] hover:border-[#cb9f5a]/80 hover:shadow-[0_22px_55px_-12px_rgba(0,42,34,0.15)]"
                   }`}
                 >
                   {/* Category Main Image */}
-                  <div className="relative w-full h-44 overflow-hidden rounded-[22px] bg-slate-100 flex-shrink-0">
+                  <div className="relative w-full h-44 overflow-hidden rounded-none bg-slate-100 flex-shrink-0">
                     {c.image ? (
                       <img
                         src={c.image}
@@ -2638,7 +2313,7 @@ function Index() {
                   </div>
 
                   {/* Floating Icon badge */}
-                  <div className="absolute top-[182px] left-9 -translate-y-1/2 grid h-12 w-12 place-items-center rounded-2xl bg-white text-[#002a22] shadow-lg border border-[#cb9f5a]/30 group-hover:scale-110 group-hover:bg-[#002a22] group-hover:text-[#cb9f5a] transition-all duration-300 z-10">
+                  <div className="absolute top-[182px] left-9 -translate-y-1/2 grid h-12 w-12 place-items-center rounded-none bg-white text-[#002a22] shadow-lg border border-[#cb9f5a]/30 group-hover:scale-110 group-hover:bg-[#002a22] group-hover:text-[#cb9f5a] transition-all duration-300 z-10">
                     <CategoryIcon className="h-6 w-6" />
                   </div>
 
@@ -2668,139 +2343,7 @@ function Index() {
           </div>
         </div>
 
-        {/* Services for selected category */}
-        {activeCategory && (
-          <div id="cat-services" className="mt-8 grid gap-6 lg:grid-cols-[280px_1fr] min-w-0">
-            {/* Ultra-Premium Glass Sidebar */}
-            <aside className="h-fit rounded-3xl border border-[#cb9f5a]/30 bg-gradient-to-b from-white via-[#faf8f5] to-[#f4efe4] p-5 shadow-[0_10px_35px_-10px_rgba(0,42,34,0.08)] lg:sticky lg:top-24 min-w-0 overflow-hidden font-sans">
-              <div className="px-2 pb-3 text-[10px] font-black uppercase tracking-[0.2em] text-[#cb9f5a] hidden lg:flex items-center gap-1.5 border-b border-[#cb9f5a]/20 mb-3">
-                <Sparkles className="h-3.5 w-3.5 text-[#cb9f5a]" />
-                Select Category
-              </div>
-              <ul className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-none lg:flex-col lg:space-y-2 lg:pb-0">
-                {categories.map((c) => {
-                  const active = c.id === selectedCat;
-                  return (
-                    <li key={c.id} className="flex-shrink-0">
-                      <button
-                        onClick={() => setSelectedCat(c.id)}
-                        className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-xs font-bold transition-all duration-200 cursor-pointer ${
-                          active
-                            ? "border-[#cb9f5a] bg-gradient-to-r from-[#002a22] to-[#00382d] text-white shadow-md shadow-[#002a22]/20 scale-[1.02]"
-                            : "border-[#cb9f5a]/20 bg-white/80 hover:bg-[#cb9f5a]/10 hover:border-[#cb9f5a]/50 text-[#002a22]"
-                        }`}
-                      >
-                        <div
-                          className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-black transition-all ${
-                            active
-                              ? "bg-[#cb9f5a] text-[#002a22] shadow-sm"
-                              : "bg-[#faf8f5] text-slate-400 border border-[#cb9f5a]/20"
-                          }`}
-                        >
-                          {active ? "✓" : "✦"}
-                        </div>
-                        <span className="flex-1 truncate font-display tracking-tight text-xs font-black">
-                          {c.title}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </aside>
-
-            {/* Ultra-Premium Service List */}
-            <div className="rounded-3xl bg-white border border-[#cb9f5a]/25 p-4 sm:p-8 shadow-[0_15px_40px_-15px_rgba(0,42,34,0.08)]">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#cb9f5a]/15 pb-4 mb-6">
-                <div>
-                  <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#cb9f5a] mb-1">
-                    <Star className="h-3 w-3 fill-[#cb9f5a]" />
-                    Verified Packages
-                  </div>
-                  <h3 className="font-display text-2xl sm:text-3xl font-black text-[#002a22] tracking-tight">
-                    {activeCategory.title}
-                  </h3>
-                  <p className="mt-1 text-xs text-slate-500 font-medium">
-                    {activeCategory.tagline}
-                  </p>
-                </div>
-                <div className="text-xs font-extrabold text-[#002a22] bg-[#faf8f5] border border-[#cb9f5a]/30 px-3.5 py-1.5 rounded-full w-fit">
-                  {activeCategory.services.length} Premium Options
-                </div>
-              </div>
-
-              <div className="space-y-4 pb-24 md:pb-6">
-                {activeCategory.services.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-[#cb9f5a]/30 p-12 text-center text-slate-400 font-medium text-xs">
-                    No services configured yet for this category.
-                  </div>
-                )}
-                {activeCategory.services.map((s) => {
-                  const rating = "5.0";
-                  const ServiceIcon = getServiceIcon(s.id);
-                  return (                    <article
-                      key={s.id}
-                      onClick={() => setDetail(s)}
-                      className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:border-[#cb9f5a]/60 hover:shadow-[0_8px_25px_-8px_rgba(0,42,34,0.08)] transition-all duration-300 cursor-pointer relative"
-                    >
-                      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-                        <div className="h-11 w-11 xs:h-12 xs:w-12 rounded-full bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 flex items-center justify-center text-[#cb9f5a] shrink-0 group-hover:scale-105 transition-transform duration-300">
-                          <ServiceIcon className="h-4.5 w-4.5 xs:h-5 xs:w-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-display text-sm font-bold text-[#002a22] group-hover:text-[#cb9f5a] transition-colors leading-tight">
-                              {s.title}
-                            </h4>
-                            <div className="flex items-center gap-0.5 text-2xs text-amber-500 font-bold bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10">
-                              ★ {rating}
-                            </div>
-                          </div>
-                          <p className="mt-1.5 text-xs text-slate-500 font-normal leading-relaxed line-clamp-1">
-                            {s.desc}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-5 shrink-0 border-t border-slate-50 sm:border-t-0 pt-3 sm:pt-0 w-full sm:w-auto">
-                        <div className="flex flex-col text-left sm:text-right shrink-0 min-w-[70px]">
-                          <span className="whitespace-nowrap text-[9px] uppercase tracking-wider text-slate-400 font-extrabold">
-                            Starts at
-                          </span>
-                          <span className="whitespace-nowrap font-display text-sm font-black text-[#002a22]">
-                            ₹{getServicePrice(s.price)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDetail(s);
-                            }}
-                            className="px-2.5 py-1.5 sm:px-4 sm:py-2 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5 text-[11px] sm:text-xs font-bold rounded-xl text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer"
-                          >
-                            View details
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              addToCart(s);
-                            }}
-                            className="px-3 py-1.5 sm:px-5 sm:py-2 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-[11px] sm:text-xs font-bold uppercase transition-all shadow-md cursor-pointer"
-                          >
-                            Add
-                          </button>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
+        
       </section>
 
       {/* SERVICES - Commented out to keep homepage simple. Can be restored when requested.
@@ -2988,9 +2531,9 @@ function Index() {
           ].map((s) => (
             <div
               key={s.n}
-              className="relative rounded-2xl bg-white border border-[#cb9f5a]/10 p-5 text-center transition-all hover:border-[#cb9f5a]/30 shadow-sm"
+              className="relative rounded-none bg-white border border-[#cb9f5a]/10 p-5 text-center transition-all hover:border-[#cb9f5a]/30 shadow-sm"
             >
-              <div className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#002a22] to-[#001712] text-[#cb9f5a] shadow-md relative z-10">
+              <div className="mx-auto grid h-10 w-10 place-items-center rounded-none bg-gradient-to-br from-[#002a22] to-[#001712] text-[#cb9f5a] shadow-md relative z-10">
                 <s.i className="h-5 w-5" />
               </div>
               <div className="mt-2.5 font-display text-2xl font-black text-[#cb9f5a]/20">{s.n}</div>
@@ -3016,7 +2559,7 @@ function Index() {
             ].map((w) => (
               <article
                 key={w.t}
-                className="group relative overflow-hidden rounded-2xl shadow-sm aspect-[4/3] w-full cursor-pointer border border-[#cb9f5a]/10"
+                className="group relative overflow-hidden rounded-none shadow-sm aspect-[4/3] w-full cursor-pointer border border-[#cb9f5a]/10"
               >
                 <img
                   src={w.img}
@@ -3094,7 +2637,7 @@ function Index() {
           {sortedReviews.slice(0, showAllReviews ? undefined : 4).map((r, index) => (
             <div
               key={`${r.n}-${index}`}
-              className="hover-lift rounded-2xl bg-white p-5 border border-[#cb9f5a]/10 flex flex-col justify-between shadow-sm"
+              className="hover-lift rounded-none bg-white p-5 border border-[#cb9f5a]/10 flex flex-col justify-between shadow-sm"
             >
               <div>
                 <div className="flex gap-0.5 text-[#cb9f5a]">
@@ -3885,12 +3428,15 @@ function SectionHeader({
   subtitle?: string;
 }) {
   return (
-    <div className="mx-auto max-w-2xl text-center">
-      <span className="text-[10px] uppercase tracking-[0.2em] text-[#cb9f5a] font-extrabold">
+    <div className="w-full text-left font-sans mb-8">
+      <span className="text-[10px] uppercase tracking-[0.2em] text-[#cb9f5a] font-black block mb-1">
         {eyebrow}
       </span>
+      <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-black leading-tight tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#002a22] via-[#00382d] to-[#cb9f5a] w-fit">
+        {title}
+      </h2>
       {subtitle && (
-        <p className="mt-1 text-xs text-muted-foreground max-w-lg mx-auto leading-relaxed">
+        <p className="mt-2.5 text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed font-medium">
           {subtitle}
         </p>
       )}
@@ -6302,7 +5848,7 @@ function CategoryCarousel({
               <div
                 key={s.id}
                 onClick={() => onSelectService(s)}
-                className="relative min-w-[260px] sm:min-w-[280px] md:min-w-[300px] flex flex-col rounded-3xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 snap-start select-none bg-white border border-[#cb9f5a]/15 group/card cursor-pointer"
+                className="relative min-w-[260px] sm:min-w-[280px] md:min-w-[300px] flex flex-col rounded-none overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 snap-start select-none bg-white border border-[#cb9f5a]/15 group/card cursor-pointer"
               >
                 {/* Top Half: Image */}
                 <div className="relative h-44 w-full overflow-hidden bg-slate-100 shrink-0">
@@ -6312,7 +5858,7 @@ function CategoryCarousel({
                     className="h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-105"
                   />
                   {/* Rating Badge Overlay */}
-                  <div className="absolute top-3 left-3 bg-[#002a22]/90 backdrop-blur-md border border-[#cb9f5a]/40 px-2.5 py-1 rounded-full text-[10px] font-black text-[#cb9f5a] flex items-center gap-1 shadow-sm">
+                  <div className="absolute top-3 left-3 bg-[#002a22]/90 backdrop-blur-md border border-[#cb9f5a]/40 px-2.5 py-1 rounded-none text-[10px] font-black text-[#cb9f5a] flex items-center gap-1 shadow-sm">
                     <Star className="h-3 w-3 fill-[#cb9f5a] text-[#cb9f5a]" />
                     <span>{rating}</span>
                   </div>
@@ -6356,7 +5902,7 @@ function CategoryCarousel({
                           e.stopPropagation();
                           onSelectService(s);
                         }}
-                        className="flex-1 sm:flex-none text-center px-3.5 py-1.5 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5 text-[10px] font-bold rounded-xl text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer"
+                        className="flex-1 sm:flex-none text-center px-3.5 py-1.5 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5 text-[10px] font-bold rounded-none text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer"
                       >
                         View details
                       </button>
@@ -6366,7 +5912,7 @@ function CategoryCarousel({
                           e.stopPropagation();
                           onAddToCart(s);
                         }}
-                        className="flex-1 sm:flex-none text-center px-4 py-1.5 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-[10px] font-bold uppercase transition-all shadow-md cursor-pointer"
+                        className="flex-1 sm:flex-none text-center px-4 py-1.5 rounded-none bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-[10px] font-bold uppercase transition-all shadow-md cursor-pointer"
                       >
                         Add
                       </button>

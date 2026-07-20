@@ -33,6 +33,7 @@ import {
   rescheduleBooking,
 } from "@/api/admin-api";
 import { BookingModal, CartItem } from "./index";
+import Header from "@/components/Header";
 
 import imgKitchen from "@/assets/service-kitchen.jpg";
 import imgSofa from "@/assets/service-sofa.jpg";
@@ -102,6 +103,12 @@ function MyBookingsPage() {
   const [dateFilter, setDateFilter] = useState("past-3-months");
   const [catalogServices, setCatalogServices] = useState<any[]>([]);
   const [isPayingId, setIsPayingId] = useState<string | null>(null);
+
+  const [cartOpen, setCartOpen] = useState(false);
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [userLocation, setUserLocation] = useState("Guntur, Andhra Pradesh");
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [favs, setFavs] = useState<string[]>([]);
 
   // Review Modal States
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
@@ -181,6 +188,31 @@ function MyBookingsPage() {
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [bookings, activeTab, dateFilter]);
+
+  useEffect(() => {
+    try {
+      const c = localStorage.getItem("thedeepcleanerz_cart_v1");
+      if (c) setCart(JSON.parse(c));
+      const f = localStorage.getItem("thedeepcleanerz_favs_v1");
+      if (f) setFavs(JSON.parse(f));
+    } catch {}
+
+    const handleLocationSync = () => {
+      const email = sessionStorage.getItem("user_email");
+      const keySuffix = email ? `_${email.toLowerCase().trim()}` : "";
+      const saved =
+        sessionStorage.getItem(`user_location_address${keySuffix}`) ||
+        sessionStorage.getItem("user_location_address");
+      if (saved) {
+        setUserLocation(saved);
+      } else {
+        setUserLocation("Guntur, Andhra Pradesh");
+      }
+    };
+    handleLocationSync();
+    window.addEventListener("location-updated", handleLocationSync);
+    return () => window.removeEventListener("location-updated", handleLocationSync);
+  }, []);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -341,25 +373,7 @@ function MyBookingsPage() {
     }
   };
 
-  const [userLocation, setUserLocation] = useState("Guntur, Andhra Pradesh");
 
-  useEffect(() => {
-    const handleLocationSync = () => {
-      const email = sessionStorage.getItem("user_email");
-      const keySuffix = email ? `_${email.toLowerCase().trim()}` : "";
-      const saved =
-        sessionStorage.getItem(`user_location_address${keySuffix}`) ||
-        sessionStorage.getItem("user_location_address");
-      if (saved) {
-        setUserLocation(saved);
-      } else {
-        setUserLocation("Guntur, Andhra Pradesh");
-      }
-    };
-    handleLocationSync();
-    window.addEventListener("location-updated", handleLocationSync);
-    return () => window.removeEventListener("location-updated", handleLocationSync);
-  }, []);
 
   const handleLogout = () => {
     sessionStorage.clear();
@@ -370,167 +384,23 @@ function MyBookingsPage() {
   const navLinks = [
     { href: "/#home", label: "Home" },
     { href: "/services", label: "Services" },
-    { href: "/#about", label: "About Us" },
+    { href: "/customized", label: "Customized" },
     { href: "/#reviews", label: "Reviews" },
-    { href: "/#contact", label: "Contact" },
   ];
 
   if (!userProfile) return null;
 
   return (
     <div className="min-h-screen bg-[#faf8f5] font-sans flex flex-col pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px]">
-      {/* FIXED TOPBAR */}
-      <div className="fixed top-0 left-0 right-0 z-45">
-        {/* ANNOUNCEMENT BAR */}
-        <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 text-[11px] lg:px-8">
-          <div className="flex flex-1 items-center gap-3 truncate">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#cb9f5a] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#cb9f5a]"></span>
-            </span>
-            <span className="truncate text-[#faf8f5]/90 font-medium tracking-wide">
-              <span className="font-semibold text-[#cb9f5a] uppercase text-[9px] tracking-wider bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 px-2 py-0.5 rounded-full mr-2">
-                PROMO
-              </span>
-              Exclusive Privilege: Enjoy <span className="font-bold text-white">Flat 20% OFF</span>{" "}
-              on your first booking — apply code{" "}
-              <span className="inline-flex items-center gap-1 font-mono font-extrabold text-[#cb9f5a] bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full hover:bg-white/10 transition-colors">
-                CLEAN20
-              </span>
-            </span>
-          </div>
-          <div className="hidden items-center gap-5 md:flex font-semibold tracking-wide text-[#faf8f5]/85">
-            <a
-              href="tel:+919876543210"
-              className="inline-flex items-center gap-1.5 hover:text-[#cb9f5a] transition-colors duration-250"
-            >
-              <Phone className="h-3.5 w-3.5 text-[#cb9f5a]" /> +91 98765 43210
-            </a>
-            <span className="h-3 w-px bg-white/15" />
-            <span className="inline-flex items-center gap-1.5 text-cream/75">
-              <MapPin className="h-3.5 w-3.5 text-[#cb9f5a]" /> 25+ Premium Cities
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* HEADER - ULTRA-PREMIUM GLASS DESIGN */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-[#cb9f5a]/20 text-[#002a22] shadow-[0_4px_25px_-5px_rgba(0,42,34,0.06)]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3 lg:px-8">
-          <div className="flex items-center gap-4 sm:gap-6">
-            <Link to="/" className="flex items-center gap-3 group">
-              <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-2xl bg-gradient-to-br from-[#002a22] to-[#001c17] flex items-center justify-center border border-[#cb9f5a]/40 shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Star className="h-5 w-5 text-[#cb9f5a] fill-[#cb9f5a]" />
-              </div>
-              <div className="leading-none">
-                <div className="font-display text-base sm:text-lg md:text-xl font-black tracking-tight text-[#002a22]">
-                  TheDeep CleanerZ
-                </div>
-                <div className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.25em] text-[#cb9f5a] mt-1">
-                  PREMIUM SERVICES
-                </div>
-              </div>
-            </Link>
-
-            {/* Location Display Capsule */}
-            <div className="flex items-center gap-2 border border-[#cb9f5a]/30 bg-[#faf8f5] px-3.5 py-1.5 rounded-full text-xs font-bold text-[#002a22] shadow-3xs">
-              <MapPin className="h-3.5 w-3.5 text-[#cb9f5a]" />
-              <span className="truncate max-w-[120px] sm:max-w-[180px]" title={userLocation}>
-                {userLocation}
-              </span>
-            </div>
-          </div>
-
-          <nav className="hidden items-center gap-6 xl:gap-8 lg:flex">
-            {navLinks.map((l) => (
-              <Link
-                key={l.label}
-                to={l.href}
-                className="relative py-1 text-xs font-extrabold uppercase tracking-wider text-[#002a22]/80 hover:text-[#cb9f5a] transition-colors"
-              >
-                {l.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-2.5">
-            <Link
-              to="/"
-              className="relative hidden h-10 w-10 place-items-center rounded-full border border-[#002a22]/15 text-[#002a22] transition-colors hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/10 md:grid"
-            >
-              <Heart className="h-4.5 w-4.5" />
-            </Link>
-            <button className="relative grid h-10 w-10 place-items-center rounded-full border border-[#002a22]/15 text-[#002a22] transition-colors hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/10">
-              <ShoppingCart className="h-4.5 w-4.5" />
-            </button>
-            <div className="hidden items-center gap-3.5 md:flex">
-              <button
-                onClick={() => navigate({ to: "/my-bookings" })}
-                className="rounded-full border border-[#cb9f5a]/40 bg-[#cb9f5a]/10 px-4 py-2 text-xs font-extrabold text-[#cb9f5a] transition-all hover:bg-[#cb9f5a]/20 cursor-pointer font-sans"
-              >
-                My Bookings
-              </button>
-              <span className="text-xs font-bold text-[#002a22] bg-[#faf8f5] px-3.5 py-1.5 rounded-full border border-[#cb9f5a]/30">
-                Hi, {userProfile?.name?.split(" ")[0] || userEmail?.split("@")[0]}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="rounded-full bg-red-500/10 border border-red-500/30 px-4 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-500 hover:text-white cursor-pointer"
-              >
-                Logout
-              </button>
-            </div>
-            <button
-              onClick={() => setNavOpen((v) => !v)}
-              className="grid h-10 w-10 place-items-center rounded-full border border-[#002a22]/15 text-[#002a22] lg:hidden"
-            >
-              {navOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
-        </div>
-
-        {navOpen && (
-          <div className="border-t border-gold/20 px-5 pb-5 lg:hidden">
-            <div className="flex flex-col gap-3 pt-4">
-              {navLinks.map((l) => (
-                <Link
-                  key={l.label}
-                  to={l.href}
-                  onClick={() => setNavOpen(false)}
-                  className="text-sm font-semibold transition-colors text-cream/90 hover:text-gold"
-                >
-                  {l.label}
-                </Link>
-              ))}
-              <div className="flex flex-col gap-2 mt-2">
-                <button
-                  onClick={() => {
-                    navigate({ to: "/my-bookings" });
-                    setNavOpen(false);
-                  }}
-                  className="w-full text-center rounded-full border border-gold bg-gold/10 py-2.5 text-sm font-bold text-gold transition-colors hover:bg-gold/20 cursor-pointer font-sans"
-                >
-                  My Bookings
-                </button>
-                <span className="text-center text-sm font-medium text-cream bg-gold/10 px-3 py-2 rounded-full border border-gold/20">
-                  Hi, {userProfile?.name || userEmail?.split("@")[0]}
-                </span>
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setNavOpen(false);
-                  }}
-                  className="w-full rounded-full bg-red-500/10 border border-red-500/30 py-2.5 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500 hover:text-white cursor-pointer"
-                >
-                  Logout
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </header>
-      </div>
+      <Header
+        cartCount={cart.reduce((acc, i) => acc + i.qty, 0)}
+        favsCount={favs.length}
+        userLocation={userLocation}
+        onOpenCart={() => setCartOpen(true)}
+        onOpenLocation={() => setLocationModalOpen(true)}
+        activeHash=""
+        isSubPage={true}
+      />
 
       {/* MAIN CONTENT */}
       <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
