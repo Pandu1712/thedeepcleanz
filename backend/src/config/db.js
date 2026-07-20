@@ -818,13 +818,7 @@ async function initDb() {
       }
       console.log("Seeding services completed successfully!");
     } else {
-      // Clean up any extra categories and associated services from DB so only the 3 main categories exist
-      try {
-        await query("DELETE FROM services WHERE categoryId NOT IN ('full-house', 'customized', 'commercial')");
-        await query("DELETE FROM categories WHERE id NOT IN ('full-house', 'customized', 'commercial')");
-      } catch (err) {
-        console.warn("Category cleanup note:", err.message);
-      }
+      // Automatic cleanup of user-created categories is disabled to allow dynamic admin-created catalog categories to persist.
       console.log("MySQL Database verified. Categories and tables exist.");
       // Migrate existing services if they have empty plans, disclaimer or cover images
       const defaultServicesPlans = [
