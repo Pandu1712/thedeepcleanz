@@ -1792,10 +1792,13 @@ function Index() {
       ctrl = new AbortController();
       fetchAdminCatalog(ctrl.signal)
         .then((catalog) => {
-          if (!catalog.categories?.length) return;
           const merged = mergeAdminCatalog(catalog);
           setCategories(merged);
-          setSelectedCat((prev) => (merged.find((c) => c.id === prev) ? prev : merged[0].id));
+          if (merged.length > 0) {
+            setSelectedCat((prev) => (merged.find((c) => c.id === prev) ? prev : merged[0].id));
+          } else {
+            setSelectedCat("");
+          }
           try {
             localStorage.setItem(CAT_STORAGE_KEY, JSON.stringify(merged));
           } catch {
@@ -1804,7 +1807,7 @@ function Index() {
         })
         .catch((err) => {
           if ((err as { name?: string })?.name !== "AbortError") {
-            console.warn("Admin API unreachable, using local catalog:", err);
+            console.warn("Admin API unreachable:", err);
           }
         });
     };
