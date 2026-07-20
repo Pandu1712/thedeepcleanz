@@ -4698,65 +4698,112 @@ export function BookingModal({
         return;
       }
 
-      // Local Admin fallback check for development/testing ease
-      const normEmail = authEmail.trim().toLowerCase();
-      if (
-        (normEmail === "admin@thedeepcleanerz.com" || normEmail === "admin") &&
-        authPassword === "admin123"
-      ) {
-        sessionStorage.setItem("user_authenticated", "true");
-        sessionStorage.setItem("admin_authenticated", "true");
-        sessionStorage.setItem("user_email", "admin@thedeepcleanerz.com");
-        sessionStorage.setItem(
-          "user_profile",
-          JSON.stringify({
-            id: "admin-id",
-            name: "Administrator",
-            email: "admin@thedeepcleanerz.com",
-            phone: "9876543210",
-          }),
-        );
-        window.dispatchEvent(new Event("auth-state-change"));
-        toast.success("Welcome back, Administrator!", { icon: "👑" });
-        setShowAuthGate(false);
-        setStep(2);
-        return;
+      setAuthLoading(true);
+      const normInput = authEmail.trim().toLowerCase();
+
+      // 1. Admin Login Check
+      const isAdmin =
+        normInput === "admin@thedeepcleanerz.com" ||
+        normInput === "thedeepcleanerz.info@gmail.com" ||
+        normInput === "admin";
+
+      if (isAdmin) {
+        if (authPassword === "admin123") {
+          const targetAdminEmail =
+            normInput === "admin" ? "thedeepcleanerz.info@gmail.com" : normInput;
+
+          try {
+            await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/send`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: targetAdminEmail }),
+            });
+          } catch (e) {
+            console.warn("Backend API OTP send unavailable");
+          }
+
+          toast.success(`Verification code sent to ${targetAdminEmail}! Please enter OTP on login page.`, { icon: "📨" });
+          setShowAuthGate(false);
+          navigate({ to: "/login" });
+          setAuthLoading(false);
+          return;
+        } else {
+          setAuthError("Incorrect password. Please check your admin password and try again.");
+          setAuthLoading(false);
+          return;
+        }
       }
 
-      setAuthLoading(true);
+      // 2. Staff / Technician Login Check
+      const isTech =
+        normInput === "technician@thedeepcleanerz.com" ||
+        normInput === "tech" ||
+        normInput.includes("technician");
+
+      if (isTech) {
+        if (authPassword === "tech123") {
+          sessionStorage.setItem("technician_authenticated", "true");
+          sessionStorage.setItem(
+            "technician_profile",
+            JSON.stringify({
+              id: "tech-1",
+              name: "Lead Technician",
+              email: normInput,
+              role: "technician",
+            }),
+          );
+          window.dispatchEvent(new Event("auth-state-change"));
+          toast.success("Welcome back! Staff Portal active.", { icon: "🛠️" });
+          setShowAuthGate(false);
+          navigate({ to: "/technician" });
+          setAuthLoading(false);
+          return;
+        } else {
+          setAuthError("Incorrect staff password. Please try again.");
+          setAuthLoading(false);
+          return;
+        }
+      }
+
+      // 3. Try Backend Database Login API
       try {
-        let resData: any = null;
+        let loggedUser: any = null;
         try {
           const res = await fetch(`${ADMIN_API_URL}/api/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ emailOrPhone: authEmail, password: authPassword }),
           });
-          if (res.ok) {
-            resData = await res.json();
-          } else {
-            const errJson = await res.json().catch(() => ({}));
-            if (errJson.error && authPassword.length < 4) {
-              throw new Error(errJson.error);
-            }
+          const data = await res.json().catch(() => null);
+
+          if (res.ok && data?.user) {
+            loggedUser = data.user;
+          } else if (!res.ok && data?.error) {
+            throw new Error(data.error);
           }
         } catch (netErr: any) {
-          if (netErr.message && !netErr.message.includes("Invalid")) {
-            console.warn("Backend API unreachable in modal auth, using local fallback");
-          } else {
+          if (netErr.message && !netErr.message.includes("Failed to fetch") && !netErr.message.includes("connect")) {
             throw netErr;
           }
         }
 
-        const rawName = authEmail.split("@")[0].replace(/[^a-zA-Z0-9]/g, " ");
-        const formattedName = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : "Valued Client";
+        // 4. Local Registered Users Database Lookup (fallback for static hostinger)
+        if (!loggedUser) {
+          const stored = localStorage.getItem("app_registered_users");
+          const localUsers: any[] = stored ? JSON.parse(stored) : [];
+          const matchedUser = localUsers.find(
+            (u) => u.email?.toLowerCase() === normInput || u.phone === normInput.replace(/\D/g, ""),
+          );
 
-        const loggedUser = resData?.user || {
-          id: `user-${Date.now()}`,
-          name: formattedName,
-          email: authEmail,
-          phone: "9876543210",
-        };
+          if (matchedUser) {
+            if (matchedUser.password && matchedUser.password !== authPassword) {
+              throw new Error("Incorrect password. Please check your credentials and try again.");
+            }
+            loggedUser = matchedUser;
+          } else {
+            throw new Error("No account found with this email/phone. Please register your account first.");
+          }
+        }
 
         sessionStorage.setItem("user_authenticated", "true");
         sessionStorage.setItem("user_email", loggedUser.email);
@@ -4767,9 +4814,9 @@ export function BookingModal({
 
         toast.success(`Logged in as ${loggedUser.name}!`, { icon: "✨" });
         setShowAuthGate(false);
-        setStep(2); // Go directly to Step 2!
+        setStep(2);
       } catch (err: any) {
-        setAuthError(err.message || "Invalid email or password.");
+        setAuthError(err.message || "Invalid email/phone or password.");
       } finally {
         setAuthLoading(false);
       }

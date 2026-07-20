@@ -147,14 +147,14 @@ function LoginComponent() {
       setIsLoading(true);
       const normInput = email.trim().toLowerCase();
 
-      // 1. Direct Admin Credential Check (Triggers Live 6-Digit Email OTP Verification)
+      // 1. Admin Login Verification (Triggers Live 6-Digit Email OTP Verification)
       const isAdmin =
         normInput === "admin@thedeepcleanerz.com" ||
         normInput === "thedeepcleanerz.info@gmail.com" ||
         normInput === "admin";
 
       if (isAdmin) {
-        if (password === "admin123" || password.length >= 4) {
+        if (password === "admin123") {
           const targetAdminEmail =
             normInput === "admin" ? "thedeepcleanerz.info@gmail.com" : normInput;
 
@@ -183,34 +183,40 @@ function LoginComponent() {
           setIsLoading(false);
           return;
         } else {
-          setError("Invalid admin password. Please try again.");
+          setError("Incorrect password. Please check your admin password and try again.");
           setIsLoading(false);
           return;
         }
       }
 
-      // 2. Direct Technician Credential Check
+      // 2. Staff / Technician Login Verification
       const isTech =
         normInput === "technician@thedeepcleanerz.com" ||
         normInput === "tech" ||
         normInput.includes("technician");
 
-      if (isTech && (password === "tech123" || password === "admin123" || password.length >= 4)) {
-        sessionStorage.setItem("technician_authenticated", "true");
-        sessionStorage.setItem(
-          "technician_profile",
-          JSON.stringify({
-            id: "tech-1",
-            name: "Lead Technician",
-            email: normInput,
-            role: "technician",
-          }),
-        );
-        window.dispatchEvent(new Event("auth-state-change"));
-        toast.success("Welcome back! Staff Portal active.", { icon: "🛠️" });
-        navigate({ to: "/technician" });
-        setIsLoading(false);
-        return;
+      if (isTech) {
+        if (password === "tech123") {
+          sessionStorage.setItem("technician_authenticated", "true");
+          sessionStorage.setItem(
+            "technician_profile",
+            JSON.stringify({
+              id: "tech-1",
+              name: "Lead Technician",
+              email: normInput,
+              role: "technician",
+            }),
+          );
+          window.dispatchEvent(new Event("auth-state-change"));
+          toast.success("Welcome back! Staff Portal active.", { icon: "🛠️" });
+          navigate({ to: "/technician" });
+          setIsLoading(false);
+          return;
+        } else {
+          setError("Incorrect staff password. Please try again.");
+          setIsLoading(false);
+          return;
+        }
       }
 
       // 3. Try Backend Database Login API
@@ -266,7 +272,7 @@ function LoginComponent() {
       );
 
       if (matchedUser) {
-        if (matchedUser.password && matchedUser.password !== password) {
+        if (matchedUser.password !== password) {
           setError("Incorrect password. Please check your credentials and try again.");
           setIsLoading(false);
           return;
