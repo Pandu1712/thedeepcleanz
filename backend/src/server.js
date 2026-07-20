@@ -625,8 +625,8 @@ app.post("/api/auth/admin-otp/verify", async (req, res) => {
         error: "Verification code expired. Please request a new code.",
       });
     }
-    if (stored.otp !== otp.trim() && otp.trim() !== "123456") {
-      return res.status(400).json({ error: "Incorrect verification code." });
+    if (stored.otp !== otp.trim()) {
+      return res.status(400).json({ error: "Incorrect verification code. Please check your email inbox." });
     }
 
     // Success! Clean up the OTP

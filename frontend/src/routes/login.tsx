@@ -147,7 +147,7 @@ function LoginComponent() {
       setIsLoading(true);
       const normInput = email.trim().toLowerCase();
 
-      // 1. Admin Login Verification (Triggers 6-Digit Email OTP Verification)
+      // 1. Admin Login Verification (Strict Live Email OTP Dispatch)
       const isAdmin =
         normInput === "admin@thedeepcleanerz.com" ||
         normInput === "thedeepcleanerz.info@gmail.com" ||
@@ -157,8 +157,7 @@ function LoginComponent() {
         if (password === "admin123") {
           const targetAdminEmail = "thedeepcleanerz.info@gmail.com";
 
-          // Try to dispatch live email OTP via Backend Mailer
-          let mailSent = false;
+          // Dispatch live 6-digit OTP email to Admin Gmail via Nodemailer
           try {
             const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/send`, {
               method: "POST",
@@ -166,24 +165,25 @@ function LoginComponent() {
               body: JSON.stringify({ email: targetAdminEmail }),
             });
             const data = await res.json().catch(() => null);
+
             if (res.ok && data?.ok) {
-              mailSent = true;
+              setRequiresOtp(true);
+              setOtpEmail(targetAdminEmail);
+              toast.success(`Live 6-digit verification code sent to ${targetAdminEmail}! Please check your email inbox.`, { icon: "📨" });
+              setIsLoading(false);
+              return;
+            } else {
+              throw new Error(data?.error || "Failed to send verification code to email.");
             }
-          } catch (e) {
-            console.warn("Backend mailer endpoint unreachable, switching to admin verification gateway");
+          } catch (e: any) {
+            setError(
+              e.message?.includes("Failed to fetch") || e.message?.includes("connect")
+                ? "Cannot send OTP email: Backend server is offline or unreachable. Please ensure the Express backend server (node backend/src/server.js) is running."
+                : e.message || "Failed to send verification email.",
+            );
+            setIsLoading(false);
+            return;
           }
-
-          setRequiresOtp(true);
-          setOtpEmail(targetAdminEmail);
-
-          if (mailSent) {
-            toast.success(`Live verification code sent to ${targetAdminEmail}!`, { icon: "📨" });
-          } else {
-            toast.success(`Verification code required. (Default OTP: 123456)`, { icon: "📨" });
-          }
-
-          setIsLoading(false);
-          return;
         } else {
           setError("Incorrect password. Please check your admin password and try again.");
           setIsLoading(false);
@@ -298,59 +298,41 @@ function LoginComponent() {
 
     const cleanOtp = otpCode.trim();
     if (!cleanOtp || cleanOtp.length < 6) {
-      setError("Please enter the 6-digit verification code.");
+      setError("Please enter the 6-digit verification code received in your email.");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      let verified = false;
-      try {
-        const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/verify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: otpEmail, otp: cleanOtp }),
-        });
-        const data = await res.json().catch(() => null);
+      const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: otpEmail, otp: cleanOtp }),
+      });
+      const data = await res.json().catch(() => null);
 
-        if (res.ok && data?.ok) {
-          verified = true;
-        } else if (!res.ok && data?.error) {
-          throw new Error(data.error);
-        }
-      } catch (netErr: any) {
-        if (netErr.message && !netErr.message.includes("Failed to fetch") && !netErr.message.includes("connect")) {
-          throw netErr;
-        }
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "Incorrect verification code. Please check your email inbox and try again.");
       }
 
-      // Offline / Static Hostinger fallback verification
-      if (!verified && (cleanOtp === "123456" || cleanOtp.replace(/\D/g, "").length === 6)) {
-        verified = true;
-      }
-
-      if (verified) {
-        sessionStorage.setItem("admin_authenticated", "true");
-        sessionStorage.setItem("user_authenticated", "true");
-        sessionStorage.setItem("user_email", otpEmail);
-        sessionStorage.setItem(
-          "user_profile",
-          JSON.stringify({
-            id: "admin-1",
-            name: "Administrator",
-            email: otpEmail,
-            role: "admin",
-          }),
-        );
-        window.dispatchEvent(new Event("auth-state-change"));
-        toast.success("Welcome back, Administrator!", { icon: "👑" });
-        navigate({ to: "/admin" });
-      } else {
-        throw new Error("Incorrect verification code. Please try again.");
-      }
+      sessionStorage.setItem("admin_authenticated", "true");
+      sessionStorage.setItem("user_authenticated", "true");
+      sessionStorage.setItem("user_email", otpEmail);
+      sessionStorage.setItem(
+        "user_profile",
+        JSON.stringify({
+          id: "admin-1",
+          name: "Administrator",
+          email: otpEmail,
+          role: "admin",
+        }),
+      );
+      window.dispatchEvent(new Event("auth-state-change"));
+      toast.success("Welcome back, Administrator!", { icon: "👑" });
+      navigate({ to: "/admin" });
     } catch (err: any) {
-      setError(err.message || "Failed to verify OTP. Please try again.");
+      setError(err.message || "Failed to verify OTP code. Please try again.");
     } finally {
       setIsLoading(false);
     }
