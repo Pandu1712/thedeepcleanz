@@ -147,31 +147,46 @@ function LoginComponent() {
       setIsLoading(true);
       const normInput = email.trim().toLowerCase();
 
-      // 1. Direct Admin Credential Check
+      // 1. Direct Admin Credential Check (Triggers Live 6-Digit Email OTP Verification)
       const isAdmin =
         normInput === "admin@thedeepcleanerz.com" ||
         normInput === "thedeepcleanerz.info@gmail.com" ||
         normInput === "admin";
 
-      if (isAdmin && (password === "admin123" || password.length >= 4)) {
-        sessionStorage.setItem("admin_authenticated", "true");
-        sessionStorage.setItem("user_authenticated", "true");
-        sessionStorage.setItem("user_email", "thedeepcleanerz.info@gmail.com");
-        sessionStorage.setItem(
-          "user_profile",
-          JSON.stringify({
-            id: "admin-1",
-            name: "Administrator",
-            email: "thedeepcleanerz.info@gmail.com",
-            phone: "9876543210",
-            role: "admin",
-          }),
-        );
-        window.dispatchEvent(new Event("auth-state-change"));
-        toast.success("Welcome back, Administrator!", { icon: "👑" });
-        navigate({ to: "/admin" });
-        setIsLoading(false);
-        return;
+      if (isAdmin) {
+        if (password === "admin123" || password.length >= 4) {
+          const targetAdminEmail =
+            normInput === "admin" ? "thedeepcleanerz.info@gmail.com" : normInput;
+
+          // Send Live OTP to Admin Email
+          try {
+            const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/send`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: targetAdminEmail }),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+              throw new Error(data?.error || "Failed to send verification code to email.");
+            }
+          } catch (e: any) {
+            if (e.message && !e.message.includes("Failed to fetch")) {
+              setError(e.message);
+              setIsLoading(false);
+              return;
+            }
+          }
+
+          setRequiresOtp(true);
+          setOtpEmail(targetAdminEmail);
+          toast.success(`Verification code sent to ${targetAdminEmail}!`, { icon: "📨" });
+          setIsLoading(false);
+          return;
+        } else {
+          setError("Invalid admin password. Please try again.");
+          setIsLoading(false);
+          return;
+        }
       }
 
       // 2. Direct Technician Credential Check
@@ -209,22 +224,10 @@ function LoginComponent() {
         const data = await res.json().catch(() => null);
 
         if (res.ok && data?.user) {
-          if (data.requiresOtp) {
+          if (data.requiresOtp || data.role === "admin") {
             setRequiresOtp(true);
-            setOtpEmail(data.email);
-            toast.success("Verification code sent to your email!", { icon: "📨" });
-            setIsLoading(false);
-            return;
-          }
-
-          if (data.role === "admin") {
-            sessionStorage.setItem("admin_authenticated", "true");
-            sessionStorage.setItem("user_authenticated", "true");
-            sessionStorage.setItem("user_email", data.user.email);
-            sessionStorage.setItem("user_profile", JSON.stringify(data.user));
-            window.dispatchEvent(new Event("auth-state-change"));
-            toast.success("Welcome back, Administrator!", { icon: "👑" });
-            navigate({ to: "/admin" });
+            setOtpEmail(data.email || data.user.email);
+            toast.success("Verification code sent to admin email!", { icon: "📨" });
             setIsLoading(false);
             return;
           } else if (data.role === "technician") {
@@ -246,7 +249,6 @@ function LoginComponent() {
             return;
           }
         } else if (!res.ok && data?.error) {
-          // Explicit invalid password or credential error returned by backend
           throw new Error(data.error);
         }
       } catch (err: any) {
@@ -257,7 +259,7 @@ function LoginComponent() {
         }
       }
 
-      // 4. Local Registered Users Database Lookup (for static / offline deployment)
+      // 4. Local Registered Users Database Lookup
       const localUsers = getLocalRegisteredUsers();
       const matchedUser = localUsers.find(
         (u) => u.email?.toLowerCase() === normInput || u.phone === normInput.replace(/\D/g, ""),
@@ -276,7 +278,6 @@ function LoginComponent() {
         toast.success(`Logged in as ${matchedUser.name}!`, { icon: "✨" });
         navigate({ to: "/" });
       } else {
-        // If user is brand new or entering credentials for the first time
         if (password.length >= 4) {
           const rawName = normInput.split("@")[0].replace(/[^a-zA-Z0-9]/g, " ");
           const formattedName = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : "Valued Client";
@@ -306,29 +307,44 @@ function LoginComponent() {
   const handleOtpVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (otpCode.length < 6) {
-      setError("Please enter a valid 6-digit verification code.");
+
+    if (!otpCode.trim() || otpCode.trim().length < 6) {
+      setError("Please enter the 6-digit verification code received in your email.");
       return;
     }
 
     setIsLoading(true);
+
     try {
       const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: otpEmail, otp: otpCode }),
+        body: JSON.stringify({ email: otpEmail, otp: otpCode.trim() }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Incorrect OTP code. Please try again.");
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "Incorrect verification code. Please check your email and try again.");
       }
 
       sessionStorage.setItem("admin_authenticated", "true");
-      sessionStorage.setItem("user_email", data.user.email);
+      sessionStorage.setItem("user_authenticated", "true");
+      sessionStorage.setItem("user_email", otpEmail);
+      sessionStorage.setItem(
+        "user_profile",
+        JSON.stringify({
+          id: "admin-1",
+          name: "Administrator",
+          email: otpEmail,
+          role: "admin",
+        }),
+      );
+      window.dispatchEvent(new Event("auth-state-change"));
       toast.success("Welcome back, Administrator!", { icon: "👑" });
       navigate({ to: "/admin" });
     } catch (err: any) {
-      setError(err.message || "Failed to verify. Please try again.");
+      setError(err.message || "Failed to verify OTP. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -343,14 +359,14 @@ function LoginComponent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: otpEmail }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(data.error || "Failed to resend code.");
+        throw new Error(data?.error || "Failed to resend verification code.");
       }
-      toast.success("New verification code sent!", { icon: "📨" });
+      toast.success(`New verification code sent to ${otpEmail}!`, { icon: "📨" });
       setOtpCode("");
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Failed to resend code.");
     } finally {
       setIsLoading(false);
     }
