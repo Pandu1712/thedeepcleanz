@@ -50,8 +50,11 @@ app.use(express.static(path.join(__dirname, "../../frontend/dist/client")));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride("_method"));
+// Silence express-session MemoryStore warning in dev mode
+const sessionStore = new session.MemoryStore();
 app.use(
   session({
+    store: sessionStore,
     secret: process.env.SESSION_SECRET || "dev-secret-change-me",
     resave: false,
     saveUninitialized: false,
