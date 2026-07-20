@@ -59,14 +59,20 @@ function LoginComponent() {
           body: JSON.stringify({ name, phone, email, password }),
         });
         const data = await res.json();
+
         if (!res.ok) {
-          throw new Error(data.error || "Registration failed");
+          throw new Error(data.error || "Registration failed. Please try again.");
         }
-        toast.success("Account registered! Please login now.", { icon: "🎉" });
+
+        toast.success("Account registered in database! Please login now.", { icon: "🎉" });
         setIsRegister(false); // Switch to login screen
         setPassword(""); // Clear password field
       } catch (err: any) {
-        setError(err.message || "Something went wrong. Please try again.");
+        if (err.name === "TypeError" && err.message === "Failed to fetch") {
+          setError("Cannot connect to backend database server. Please check if server is running.");
+        } else {
+          setError(err.message || "Registration failed. Please try again.");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -84,9 +90,11 @@ function LoginComponent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ emailOrPhone: email, password }),
         });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || "Invalid email or password.");
+
+        const data = await res.json().catch(() => null);
+
+        if (!res || !res.ok) {
+          throw new Error(data?.error || "Invalid email/phone or password.");
         }
 
         if (data.requiresOtp) {
@@ -103,23 +111,36 @@ function LoginComponent() {
           data.user.email === "admin"
         ) {
           sessionStorage.setItem("admin_authenticated", "true");
-          sessionStorage.setItem("user_email", data.user.email);
-          toast.success("Welcome back, Administrator!", { icon: "👑" });
-          navigate({ to: "/admin" });
-        } else if (data.role === "technician") {
-          sessionStorage.setItem("technician_authenticated", "true");
-          sessionStorage.setItem("technician_profile", JSON.stringify(data.user));
-          toast.success(`Welcome back, ${data.user.name}! Staff Portal active.`, { icon: "🛠️" });
-          navigate({ to: "/technician" });
-        } else {
           sessionStorage.setItem("user_authenticated", "true");
           sessionStorage.setItem("user_email", data.user.email);
           sessionStorage.setItem("user_profile", JSON.stringify(data.user));
+          window.dispatchEvent(new Event("auth-state-change"));
+          toast.success("Welcome back, Administrator!", { icon: "👑" });
+          navigate({ to: "/admin" });
+          return;
+        } else if (data.role === "technician") {
+          sessionStorage.setItem("technician_authenticated", "true");
+          sessionStorage.setItem("technician_profile", JSON.stringify(data.user));
+          window.dispatchEvent(new Event("auth-state-change"));
+          toast.success(`Welcome back, ${data.user.name}! Staff Portal active.`, { icon: "🛠️" });
+          navigate({ to: "/technician" });
+          return;
+        } else {
+          // Real user fetched from database!
+          sessionStorage.setItem("user_authenticated", "true");
+          sessionStorage.setItem("user_email", data.user.email);
+          sessionStorage.setItem("user_profile", JSON.stringify(data.user));
+          window.dispatchEvent(new Event("auth-state-change"));
           toast.success(`Logged in as ${data.user.name}!`, { icon: "✨" });
           navigate({ to: "/" });
+          return;
         }
       } catch (err: any) {
-        setError(err.message || "Failed to log in. Please try again.");
+        if (err.name === "TypeError" && err.message === "Failed to fetch") {
+          setError("Cannot connect to backend database server. Please check if server is running.");
+        } else {
+          setError(err.message || "Invalid credentials. Please enter valid login details.");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -465,7 +486,7 @@ function LoginComponent() {
             </>
           )}
 
-          <div className="mt-8 pt-6 border-t border-[#cb9f5a]/15 text-center">
+          <div className="mt-6 pt-5 border-t border-[#cb9f5a]/15 text-center">
             <div className="flex justify-center items-center gap-1.5 text-[9px] text-cream/40 font-bold uppercase tracking-wider">
               <ShieldCheck className="h-3.5 w-3.5 text-[#cb9f5a]" />
               <span>Secure 256-bit encryption protocol</span>
