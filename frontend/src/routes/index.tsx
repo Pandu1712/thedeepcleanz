@@ -1785,25 +1785,37 @@ function Index() {
   // Sync categories + services live from the admin API. Falls back silently to
   // the localStorage / DEFAULT_CATEGORIES copy if the admin server is offline.
   useEffect(() => {
-    const ctrl = new AbortController();
-    fetchAdminCatalog(ctrl.signal)
-      .then((catalog) => {
-        if (!catalog.categories?.length) return;
-        const merged = mergeAdminCatalog(catalog);
-        setCategories(merged);
-        setSelectedCat((prev) => (merged.find((c) => c.id === prev) ? prev : merged[0].id));
-        try {
-          localStorage.setItem(CAT_STORAGE_KEY, JSON.stringify(merged));
-        } catch {
-          /* ignore */
-        }
-      })
-      .catch((err) => {
-        if ((err as { name?: string })?.name !== "AbortError") {
-          console.warn("Admin API unreachable, using local catalog:", err);
-        }
-      });
-    return () => ctrl.abort();
+    let ctrl: AbortController | null = null;
+
+    const syncCatalog = () => {
+      if (ctrl) ctrl.abort();
+      ctrl = new AbortController();
+      fetchAdminCatalog(ctrl.signal)
+        .then((catalog) => {
+          if (!catalog.categories?.length) return;
+          const merged = mergeAdminCatalog(catalog);
+          setCategories(merged);
+          setSelectedCat((prev) => (merged.find((c) => c.id === prev) ? prev : merged[0].id));
+          try {
+            localStorage.setItem(CAT_STORAGE_KEY, JSON.stringify(merged));
+          } catch {
+            /* ignore */
+          }
+        })
+        .catch((err) => {
+          if ((err as { name?: string })?.name !== "AbortError") {
+            console.warn("Admin API unreachable, using local catalog:", err);
+          }
+        });
+    };
+
+    syncCatalog();
+    window.addEventListener("catalog-updated", syncCatalog);
+
+    return () => {
+      if (ctrl) ctrl.abort();
+      window.removeEventListener("catalog-updated", syncCatalog);
+    };
   }, []);
 
   useEffect(() => {
