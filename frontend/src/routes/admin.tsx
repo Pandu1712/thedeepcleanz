@@ -1129,7 +1129,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
         </div>
 
         {/* Navigation Menu Links */}
-        <nav className="flex-1 space-y-1 px-3">
+        <nav className="flex-1 space-y-1 px-3 overflow-y-auto scrollbar-none">
           <button
             onClick={() => {
               setActiveTab("dashboard");
@@ -1618,7 +1618,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           {activeTab === "categories" && (
             <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
               {/* Category selector panel */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm h-fit lg:sticky lg:top-0">
                 <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     Categories
@@ -1631,7 +1631,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                     <Plus className="h-4.5 w-4.5" />
                   </button>
                 </div>
-                <ul className="space-y-2">
+                <ul className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
                   {categories.map((c) => (
                     <li key={c.id}>
                       <button
@@ -1828,7 +1828,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           {activeTab === "services" && (
             <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
               {/* Service selector panel */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm h-fit lg:sticky lg:top-0">
                 <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     Services
@@ -1841,7 +1841,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                     <Plus className="h-4.5 w-4.5" />
                   </button>
                 </div>
-                <ul className="space-y-2 max-h-[60vh] overflow-y-auto scrollbar-none">
+                <ul className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
                   {categories.map((c) => {
                     const catServices = services.filter((s) => s.categoryId === c.id);
                     if (catServices.length === 0) return null;
@@ -2701,7 +2701,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           {activeTab === "customized" && (
             <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
               {/* Customized item selector list */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm h-fit lg:sticky lg:top-0">
                 <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     Customized Items
@@ -2714,7 +2714,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                     <Plus className="h-4.5 w-4.5" />
                   </button>
                 </div>
-                <ul className="space-y-2 max-h-[60vh] overflow-y-auto scrollbar-none">
+                <ul className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
                   {customizedServices.map((s) => (
                     <li key={s.id}>
                       <button

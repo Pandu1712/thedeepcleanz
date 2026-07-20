@@ -378,9 +378,11 @@ function MyBookingsPage() {
   if (!userProfile) return null;
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] font-sans flex flex-col">
-      {/* ANNOUNCEMENT BAR */}
-      <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
+    <div className="min-h-screen bg-[#faf8f5] font-sans flex flex-col pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px]">
+      {/* FIXED TOPBAR */}
+      <div className="fixed top-0 left-0 right-0 z-45">
+        {/* ANNOUNCEMENT BAR */}
+        <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 text-[11px] lg:px-8">
           <div className="flex flex-1 items-center gap-3 truncate">
             <span className="relative flex h-2 w-2">
@@ -528,6 +530,7 @@ function MyBookingsPage() {
           </div>
         )}
       </header>
+      </div>
 
       {/* MAIN CONTENT */}
       <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">

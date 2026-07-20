@@ -329,9 +329,11 @@ function ServicesComponent() {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden">
-      {/* ANNOUNCEMENT BAR */}
-      <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
+    <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px]">
+      {/* FIXED TOPBAR */}
+      <div className="fixed top-0 left-0 right-0 z-45">
+        {/* ANNOUNCEMENT BAR */}
+        <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 text-[11px] lg:px-8">
           <div className="flex flex-1 items-center gap-3 truncate">
             <span className="relative flex h-2 w-2">
@@ -638,6 +640,7 @@ function ServicesComponent() {
           </div>
         )}
       </header>
+      </div>
 
       {/* CHOOSE YOUR CATEGORY HERO */}
       <section className="mx-auto max-w-[1400px] px-5 pt-12 pb-8 lg:px-8 text-center">
@@ -801,9 +804,9 @@ function ServicesComponent() {
                     <article
                       key={s.id}
                       onClick={() => navigate({ to: "/service-detail", search: { id: s.id } })}
-                      className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 xs:p-5 bg-white border border-slate-100 rounded-2xl hover:border-[#cb9f5a]/60 hover:shadow-[0_8px_25px_-8px_rgba(0,42,34,0.08)] transition-all duration-300 cursor-pointer relative"
+                      className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:border-[#cb9f5a]/60 hover:shadow-[0_8px_25px_-8px_rgba(0,42,34,0.08)] transition-all duration-300 cursor-pointer relative"
                     >
-                      <div className="flex items-center gap-3.5 xs:gap-4 min-w-0">
+                      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                         <div className="h-11 w-11 xs:h-12 xs:w-12 rounded-full bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 flex items-center justify-center text-[#cb9f5a] shrink-0 group-hover:scale-105 transition-transform duration-300">
                           <ServiceIcon className="h-4.5 w-4.5 xs:h-5 xs:w-5" />
                         </div>
@@ -822,7 +825,7 @@ function ServicesComponent() {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between sm:justify-end gap-5 shrink-0 border-t border-slate-50 sm:border-t-0 pt-3 sm:pt-0 w-full sm:w-auto">
+                      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-5 shrink-0 border-t border-slate-50 sm:border-t-0 pt-3 sm:pt-0 w-full sm:w-auto">
                         <div className="flex flex-col text-left sm:text-right shrink-0 min-w-[70px]">
                           <span className="whitespace-nowrap text-[9px] uppercase tracking-wider text-slate-400 font-extrabold">
                             Starts at
@@ -838,7 +841,7 @@ function ServicesComponent() {
                               e.stopPropagation();
                               navigate({ to: "/service-detail", search: { id: s.id } });
                             }}
-                            className="px-3.5 py-1.5 sm:px-4 sm:py-2 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5 text-xs font-bold rounded-xl text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer"
+                            className="px-2.5 py-1.5 sm:px-4 sm:py-2 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5 text-[11px] sm:text-xs font-bold rounded-xl text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer"
                           >
                             View details
                           </button>
@@ -852,7 +855,7 @@ function ServicesComponent() {
                                 addDefaultServiceToCart(s);
                               }
                             }}
-                            className="px-4 py-1.5 sm:px-5 sm:py-2 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-xs font-bold uppercase transition-all shadow-md cursor-pointer"
+                            className="px-3 py-1.5 sm:px-5 sm:py-2 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-[11px] sm:text-xs font-bold uppercase transition-all shadow-md cursor-pointer"
                           >
                             Add
                           </button>

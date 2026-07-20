@@ -62,6 +62,7 @@ import {
   Locate,
   User,
   Map,
+  Smartphone,
 } from "lucide-react";
 
 import heroImg from "@/assets/hero-cleaning.jpg";
@@ -2033,9 +2034,11 @@ function Index() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] text-[#002a22] overflow-x-hidden">
-      {/* ANNOUNCEMENT BAR */}
-      <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
+    <div className="min-h-screen bg-[#faf8f5] text-[#002a22] overflow-x-hidden pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px]">
+      {/* FIXED TOPBAR */}
+      <div className="fixed top-0 left-0 right-0 z-45">
+        {/* ANNOUNCEMENT BAR */}
+        <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 text-[11px] lg:px-8">
           <div className="flex flex-1 items-center gap-3 truncate">
             <span className="relative flex h-2 w-2">
@@ -2370,6 +2373,7 @@ function Index() {
           </div>
         )}
       </header>
+      </div>
 
       {/* HERO SECTION - LUXURY DARK EMERALD & GOLD THEME */}
       <section
@@ -2419,7 +2423,7 @@ function Index() {
 
               {/* Trust Feature Badges */}
               <div
-                className="mt-6 grid grid-cols-3 gap-3 w-full max-w-lg animate-fade-in-left"
+                className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-lg animate-fade-in-left"
                 style={{ animationDelay: "400ms" }}
               >
                 <div className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-2.5 shadow-sm transition-transform hover:scale-[1.02]">
@@ -2706,7 +2710,7 @@ function Index() {
             </aside>
 
             {/* Ultra-Premium Service List */}
-            <div className="rounded-3xl bg-white border border-[#cb9f5a]/25 p-6 sm:p-8 shadow-[0_15px_40px_-15px_rgba(0,42,34,0.08)]">
+            <div className="rounded-3xl bg-white border border-[#cb9f5a]/25 p-4 sm:p-8 shadow-[0_15px_40px_-15px_rgba(0,42,34,0.08)]">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#cb9f5a]/15 pb-4 mb-6">
                 <div>
                   <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#cb9f5a] mb-1">
@@ -2737,9 +2741,9 @@ function Index() {
                   return (                    <article
                       key={s.id}
                       onClick={() => setDetail(s)}
-                      className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 xs:p-5 bg-white border border-slate-100 rounded-2xl hover:border-[#cb9f5a]/60 hover:shadow-[0_8px_25px_-8px_rgba(0,42,34,0.08)] transition-all duration-300 cursor-pointer relative"
+                      className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:border-[#cb9f5a]/60 hover:shadow-[0_8px_25px_-8px_rgba(0,42,34,0.08)] transition-all duration-300 cursor-pointer relative"
                     >
-                      <div className="flex items-center gap-3.5 xs:gap-4 min-w-0">
+                      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                         <div className="h-11 w-11 xs:h-12 xs:w-12 rounded-full bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 flex items-center justify-center text-[#cb9f5a] shrink-0 group-hover:scale-105 transition-transform duration-300">
                           <ServiceIcon className="h-4.5 w-4.5 xs:h-5 xs:w-5" />
                         </div>
@@ -2758,7 +2762,7 @@ function Index() {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between sm:justify-end gap-5 shrink-0 border-t border-slate-50 sm:border-t-0 pt-3 sm:pt-0 w-full sm:w-auto">
+                      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-5 shrink-0 border-t border-slate-50 sm:border-t-0 pt-3 sm:pt-0 w-full sm:w-auto">
                         <div className="flex flex-col text-left sm:text-right shrink-0 min-w-[70px]">
                           <span className="whitespace-nowrap text-[9px] uppercase tracking-wider text-slate-400 font-extrabold">
                             Starts at
@@ -2774,7 +2778,7 @@ function Index() {
                               e.stopPropagation();
                               setDetail(s);
                             }}
-                            className="px-3.5 py-1.5 sm:px-4 sm:py-2 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5 text-xs font-bold rounded-xl text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer"
+                            className="px-2.5 py-1.5 sm:px-4 sm:py-2 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5 text-[11px] sm:text-xs font-bold rounded-xl text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer"
                           >
                             View details
                           </button>
@@ -2784,7 +2788,7 @@ function Index() {
                               e.stopPropagation();
                               addToCart(s);
                             }}
-                            className="px-4 py-1.5 sm:px-5 sm:py-2 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-xs font-bold uppercase transition-all shadow-md cursor-pointer"
+                            className="px-3 py-1.5 sm:px-5 sm:py-2 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-[11px] sm:text-xs font-bold uppercase transition-all shadow-md cursor-pointer"
                           >
                             Add
                           </button>
@@ -4923,6 +4927,9 @@ export function BookingModal({
   const [useWalletCredit, setUseWalletCredit] = useState(false);
 
   const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
+  const [showOtpVerification, setShowOtpVerification] = useState(false);
+  const [otpInput, setOtpInput] = useState("");
+  const [otpVerified, setOtpVerified] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -4938,7 +4945,9 @@ export function BookingModal({
       setAuthName("");
       setAuthPhone("");
       setAuthError("");
-      setAuthLoading(false);
+      setShowOtpVerification(false);
+      setOtpInput("");
+      setOtpVerified(false);
       const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
       let initName = "";
       let initPhone = "";
@@ -5198,6 +5207,8 @@ export function BookingModal({
     }
   };
 
+
+
   const userWalletBalance = (() => {
     try {
       const prof = sessionStorage.getItem("user_profile");
@@ -5369,19 +5380,40 @@ export function BookingModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-[#001712]/60 p-4 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#001712]/60 sm:p-4 backdrop-blur-md animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="relative max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-3xl bg-[#faf8f5] shadow-2xl border border-[#cb9f5a]/25 animate-in zoom-in-95 duration-250"
+        className="relative flex flex-col h-[94vh] sm:h-auto sm:max-h-[90vh] w-full sm:max-w-3xl overflow-hidden rounded-t-[32px] sm:rounded-3xl bg-[#faf8f5] shadow-2xl border-t-2 border-x sm:border border-[#cb9f5a]/25 animate-in slide-in-from-bottom duration-300 sm:zoom-in-95 sm:duration-250"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* PREMIUM PULL SHEET INDICATOR FOR MOBILE */}
+        <div className="flex justify-center py-2.5 sm:hidden bg-gradient-to-r from-[#00231c] to-[#002a22]">
+          <div className="h-1.5 w-12 rounded-full bg-cream/20" />
+        </div>
         <div className="flex items-center justify-between gradient-premium px-6 py-4 text-cream border-b border-[#cb9f5a]/20">
-          <div>
-            <div className="text-[9px] font-extrabold uppercase tracking-[0.25em] text-gold">
-              Checkout · Step {step} of 2
+          <div className="flex items-center gap-3.5">
+            {(step === 2 || showOtpVerification) && (
+              <button
+                onClick={() => {
+                  if (showOtpVerification) {
+                    setShowOtpVerification(false);
+                  } else {
+                    setStep(1);
+                  }
+                }}
+                className="grid h-8 w-8 place-items-center rounded-full border border-gold/30 hover:bg-[#cb9f5a] hover:text-[#001712] transition-all cursor-pointer mr-0.5"
+                aria-label="Back"
+              >
+                <ArrowLeft className="h-4 w-4 text-gold" />
+              </button>
+            )}
+            <div>
+              <div className="text-[9px] font-extrabold uppercase tracking-[0.25em] text-gold">
+                Checkout · Step {step} of 2
+              </div>
+              <div className="font-display text-base sm:text-xl font-bold">Confirm your booking</div>
             </div>
-            <div className="font-display text-xl font-bold">Confirm your booking</div>
           </div>
           <button
             onClick={onClose}
@@ -5418,7 +5450,7 @@ export function BookingModal({
           </div>
         </div>
 
-        <div className="max-h-[60vh] overflow-y-auto p-6 font-sans">
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6 font-sans">
           {success ? (
             <div className="grid place-items-center py-10 text-center">
               <div className="grid h-20 w-20 place-items-center rounded-full gradient-gold pulse-gold">
@@ -5483,74 +5515,89 @@ export function BookingModal({
                 {authIsRegister && (
                   <>
                     <div>
-                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">
+                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1.5">
                         Full Name
                       </div>
-                      <input
-                        type="text"
-                        required
-                        value={authName}
-                        onChange={(e) => setAuthName(e.target.value)}
-                        placeholder="John Doe"
-                        className="w-full rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 text-xs outline-none focus:border-[#cb9f5a] font-semibold text-slate-800 placeholder:text-slate-400"
-                      />
+                      <div className="flex items-center gap-2.5 rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 focus-within:border-[#cb9f5a] focus-within:ring-1 focus-within:ring-[#cb9f5a] transition-all shadow-sm">
+                        <User className="h-4 w-4 text-[#cb9f5a]" />
+                        <input
+                          type="text"
+                          required
+                          value={authName}
+                          onChange={(e) => setAuthName(e.target.value)}
+                          placeholder="John Doe"
+                          className="w-full bg-transparent text-xs font-semibold outline-none text-slate-800 placeholder:text-slate-400"
+                        />
+                      </div>
                     </div>
                     <div>
-                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">
+                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1.5">
                         Mobile Number
                       </div>
-                      <input
-                        type="tel"
-                        required
-                        value={authPhone}
-                        onChange={(e) =>
-                          setAuthPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
-                        }
-                        placeholder="98765 43210"
-                        className="w-full rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 text-xs outline-none focus:border-[#cb9f5a] font-semibold text-slate-800 placeholder:text-slate-400"
-                      />
+                      <div className="flex items-center gap-2.5 rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 focus-within:border-[#cb9f5a] focus-within:ring-1 focus-within:ring-[#cb9f5a] transition-all shadow-sm">
+                        <span className="text-xs font-bold text-[#cb9f5a]">+91</span>
+                        <input
+                          type="tel"
+                          required
+                          value={authPhone}
+                          onChange={(e) =>
+                            setAuthPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
+                          }
+                          placeholder="98765 43210"
+                          className="w-full bg-transparent text-xs font-semibold outline-none text-slate-800 placeholder:text-slate-400"
+                        />
+                      </div>
                     </div>
                     <div>
-                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">
+                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1.5">
                         Referral Code (Optional)
                       </div>
-                      <input
-                        type="text"
-                        value={authReferralCode}
-                        onChange={(e) => setAuthReferralCode(e.target.value.toUpperCase())}
-                        placeholder="e.g. CLEAN-PANDU50"
-                        className="w-full rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 text-xs outline-none focus:border-[#cb9f5a] font-mono font-bold text-slate-800 placeholder:text-slate-400 uppercase tracking-widest"
-                      />
+                      <div className="flex items-center gap-2.5 rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 focus-within:border-[#cb9f5a] focus-within:ring-1 focus-within:ring-[#cb9f5a] transition-all shadow-sm">
+                        <Gift className="h-4 w-4 text-[#cb9f5a]" />
+                        <input
+                          type="text"
+                          value={authReferralCode}
+                          onChange={(e) => setAuthReferralCode(e.target.value.toUpperCase())}
+                          placeholder="e.g. CLEAN-PANDU50"
+                          className="w-full bg-transparent text-xs font-mono font-bold outline-none text-slate-800 placeholder:text-slate-400 uppercase tracking-widest"
+                        />
+                      </div>
                     </div>
                   </>
                 )}
 
                 <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">
-                    Email Address
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1.5">
+                    Email / Mobile Number
                   </div>
-                  <input
-                    type="email"
-                    required
-                    value={authEmail}
-                    onChange={(e) => setAuthEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    className="w-full rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 text-xs outline-none focus:border-[#cb9f5a] font-semibold text-slate-800 placeholder:text-slate-400"
-                  />
+                  <div className="flex items-center gap-2.5 rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 focus-within:border-[#cb9f5a] focus-within:ring-1 focus-within:ring-[#cb9f5a] transition-all shadow-sm">
+                    <Mail className="h-4 w-4 text-[#cb9f5a]" />
+                    <input
+                      type="text"
+                      required
+                      value={authEmail}
+                      onChange={(e) => setAuthEmail(e.target.value)}
+                      placeholder="email@example.com or 9876543210"
+                      className="w-full bg-transparent text-xs font-semibold outline-none text-slate-800 placeholder:text-slate-400"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1.5">
                     Password
                   </div>
-                  <input
-                    type="password"
-                    required
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 text-xs outline-none focus:border-[#cb9f5a] font-semibold text-slate-800 placeholder:text-slate-400"
-                  />
+                  <div className="flex items-center gap-2.5 rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 focus-within:border-[#cb9f5a] focus-within:ring-1 focus-within:ring-[#cb9f5a] transition-all shadow-sm">
+                    <Lock className="h-4 w-4 text-[#cb9f5a]" />
+                    <input
+                      type="password"
+                      required
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-transparent text-xs font-semibold outline-none text-slate-800 placeholder:text-slate-400"
+                    />
+                  </div>
                 </div>
 
                 <div className="pt-2 flex flex-col gap-2">
@@ -5577,6 +5624,64 @@ export function BookingModal({
                   </button>
                 </div>
               </form>
+            </div>
+          ) : showOtpVerification ? (
+            <div className="mx-auto max-w-sm py-6 text-center">
+              <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#cb9f5a]/10 mb-4 text-[#cb9f5a] border border-[#cb9f5a]/25">
+                <Smartphone className="h-7 w-7" />
+              </div>
+              <h3 className="font-display text-xl font-bold text-[#002a22]">Verify Your Mobile</h3>
+              <p className="text-xs text-slate-500 font-semibold mt-1">
+                We have sent a 6-digit OTP code to <span className="font-bold text-[#002a22]">+91 {form.phone}</span>.
+              </p>
+              
+              <div className="mt-6">
+                <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">
+                  Enter 6-Digit OTP Code
+                </div>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={otpInput}
+                  onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="••••••"
+                  className="w-full max-w-[200px] text-center rounded-xl border-2 border-[#cb9f5a]/30 bg-white px-4 py-3.5 text-lg font-mono font-bold tracking-[0.5em] text-[#002a22] outline-none focus:border-[#cb9f5a] placeholder:text-slate-300 shadow-sm"
+                />
+                <div className="mt-3.5">
+                  <div className="text-[10px] text-slate-450 font-bold bg-[#cb9f5a]/10 inline-block px-3 py-1 rounded-full text-[#cb9f5a] border border-[#cb9f5a]/20">
+                    💡 Dummy OTP: <span className="font-mono font-extrabold">123456</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (otpInput === "123456") {
+                      setOtpVerified(true);
+                      setShowOtpVerification(false);
+                      setStep(2);
+                      toast.success("Mobile number verified successfully!", { icon: "✅" });
+                    } else {
+                      toast.error("Invalid verification code. Please enter 123456.", { icon: "❌" });
+                    }
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl gradient-gold py-3.5 text-xs font-bold text-navy shadow-gold hover:scale-[1.01] transition-all cursor-pointer font-sans"
+                >
+                  Verify & Continue
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowOtpVerification(false);
+                    setOtpInput("");
+                  }}
+                  className="w-full py-2.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors font-sans cursor-pointer"
+                >
+                  Change Mobile Number / Back
+                </button>
+              </div>
             </div>
           ) : step === 1 ? (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -5996,27 +6101,33 @@ export function BookingModal({
           )}
         </div>
 
-        {!success && !showAuthGate && (
-          <div className="flex items-center justify-between border-t border-[#cb9f5a]/15 bg-white/70 p-5">
-            <button
-              disabled={isPaying}
-              onClick={step === 1 ? onClose : () => setStep(1)}
-              className="rounded-full border border-[#cb9f5a]/30 px-5 py-2.5 text-xs font-bold text-[#002a22] hover:bg-slate-50/50 disabled:opacity-50 font-sans cursor-pointer transition-colors"
-            >
-              {step === 1 ? "Cancel" : "← Back"}
-            </button>
+        {!success && !showAuthGate && !showOtpVerification && (
+          <div className="flex items-center justify-between border-t border-[#cb9f5a]/15 bg-white px-6 py-4.5">
+            <div className="flex flex-col text-left">
+              <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
+                {step === 1 ? "Subtotal" : "Upfront Payment"}
+              </span>
+              <span className="font-display text-lg sm:text-xl font-black text-[#002a22]">
+                ₹{step === 1 ? total : upfrontPayAmount}
+              </span>
+            </div>
+            
             {step === 1 ? (
               <button
                 disabled={!canStep2}
                 onClick={() => {
                   const email = sessionStorage.getItem("user_email");
                   if (email) {
-                    setStep(2);
+                    if (otpVerified) {
+                      setStep(2);
+                    } else {
+                      setShowOtpVerification(true);
+                    }
                   } else {
                     setShowAuthGate(true);
                   }
                 }}
-                className="inline-flex items-center gap-2 rounded-full gradient-gold px-7 py-3 text-xs font-bold text-navy shadow-gold transition-transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 font-sans cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#cb9f5a] via-[#e5be7a] to-[#cb9f5a] px-8 py-3 text-xs font-black uppercase tracking-wider text-[#002a22] shadow-[0_4px_15px_rgba(203,159,90,0.35)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 font-sans cursor-pointer"
               >
                 Continue <ArrowRight className="h-4 w-4" />
               </button>
@@ -6024,13 +6135,9 @@ export function BookingModal({
               <button
                 disabled={isPaying}
                 onClick={handleConfirm}
-                className="inline-flex items-center gap-2 rounded-full gradient-gold px-7 py-3 text-xs font-bold text-navy shadow-gold transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#cb9f5a] via-[#e5be7a] to-[#cb9f5a] px-8 py-3 text-xs font-black uppercase tracking-wider text-[#002a22] shadow-[0_4px_15px_rgba(203,159,90,0.35)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 font-sans cursor-pointer"
               >
-                {isPaying
-                  ? "Processing..."
-                  : upfrontPayAmount === finalTotal
-                    ? `Pay Full Amount · ₹${upfrontPayAmount}`
-                    : `Pay Upfront Deposit · ₹${upfrontPayAmount}`}{" "}
+                {isPaying ? "Processing..." : "Confirm & Pay"}{" "}
                 <CheckCircle2 className="h-4 w-4" />
               </button>
             )}
@@ -6233,8 +6340,8 @@ function CategoryCarousel({
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between">
-                    <div className="flex flex-col">
+                  <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2">
+                    <div className="flex items-center justify-between sm:flex-col sm:items-start shrink-0">
                       <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold">
                         Starts at
                       </span>
@@ -6242,14 +6349,14 @@ function CategoryCarousel({
                         ₹{getServicePrice(s.price)}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectService(s);
                         }}
-                        className="px-3.5 py-1.5 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5 text-[10px] font-bold rounded-xl text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer"
+                        className="flex-1 sm:flex-none text-center px-3.5 py-1.5 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5 text-[10px] font-bold rounded-xl text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer"
                       >
                         View details
                       </button>
@@ -6259,7 +6366,7 @@ function CategoryCarousel({
                           e.stopPropagation();
                           onAddToCart(s);
                         }}
-                        className="px-4 py-1.5 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-[10px] font-bold uppercase transition-all shadow-md cursor-pointer"
+                        className="flex-1 sm:flex-none text-center px-4 py-1.5 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-[10px] font-bold uppercase transition-all shadow-md cursor-pointer"
                       >
                         Add
                       </button>

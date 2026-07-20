@@ -451,9 +451,11 @@ function ServiceDetailPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
-      {/* ANNOUNCEMENT BAR */}
-      <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
+    <div className="min-h-screen bg-background text-foreground font-sans pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px]">
+      {/* FIXED TOPBAR */}
+      <div className="fixed top-0 left-0 right-0 z-45">
+        {/* ANNOUNCEMENT BAR */}
+        <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 text-[11px] lg:px-8">
           <div className="flex flex-1 items-center gap-3 truncate">
             <span className="relative flex h-2 w-2">
@@ -743,6 +745,7 @@ function ServiceDetailPage() {
           </div>
         )}
       </header>
+      </div>
 
       {/* BREADCRUMB NAVIGATION */}
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 pt-6">
