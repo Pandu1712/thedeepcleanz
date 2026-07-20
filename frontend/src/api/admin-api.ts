@@ -1,12 +1,21 @@
 // Client for the standalone Node/Express admin server (admin-server/).
 // Configure the base URL via VITE_ADMIN_API_URL (defaults to http://localhost:4000).
 export const ADMIN_API_URL =
-  (import.meta.env.VITE_ADMIN_API_URL as string | undefined)?.replace(/\/$/, "") ||
-  (typeof window !== "undefined" &&
-  !window.location.hostname.includes("localhost") &&
-  !window.location.hostname.includes("127.0.0.1")
-    ? window.location.origin
-    : "http://localhost:4000");
+  (() => {
+    const envUrl = (import.meta.env.VITE_ADMIN_API_URL as string | undefined)?.replace(/\/$/, "");
+    if (typeof window !== "undefined") {
+      const hostname = window.location.hostname;
+      if (hostname.includes("localhost") || hostname.includes("127.0.0.1")) {
+        return "http://localhost:4000";
+      }
+      // If we are on production (e.g., thedeepcleanerz.in), but VITE_ADMIN_API_URL points to thedeepcleanerz.com, ignore it and use window.location.origin
+      if (envUrl && envUrl.includes(hostname)) {
+        return envUrl;
+      }
+      return window.location.origin;
+    }
+    return envUrl || "http://localhost:4000";
+  })();
 
 export type AdminCategory = {
   id: string;

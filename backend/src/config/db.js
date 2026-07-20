@@ -419,7 +419,8 @@ async function initDb() {
       cats[0].count > 0 &&
       (await query("SELECT id FROM categories WHERE id = 'cat-1'")).length > 0;
 
-    if (cats[0].count === 0 || hasOldSeed) {
+    // Automatic seeding of categories, services, and reviews is disabled as requested by the administrator
+    if (false) {
       if (hasOldSeed) {
         console.log(
           "Old demo seed detected. Clearing tables for new unified database catalog...",
