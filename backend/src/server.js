@@ -525,6 +525,12 @@ app.post("/api/auth/login", async (req, res) => {
         // Check if user is an administrator
         const isAdmin = user.role === "admin" || user.email === "thedeepcleanerz.info@gmail.com" || user.email === "admin@thedeepcleanerz.com";
         if (isAdmin) {
+          /*
+          // =========================================================================
+          // TEMPORARILY DISABLED: Admin OTP Verification via Email
+          // Reason: Gmail account (thedeepcleanerz.info@gmail.com) is disabled by Google.
+          // TO RE-ENABLE OTP: Uncomment this block and comment out the direct login response below.
+          // =========================================================================
           const otp = Math.floor(100000 + Math.random() * 900000).toString();
           adminOtps.set(user.email, {
             otp,
@@ -543,6 +549,22 @@ app.post("/api/auth/login", async (req, res) => {
             requiresOtp: true,
             email: user.email,
             role: "admin",
+          });
+          // =========================================================================
+          */
+
+          // Direct Admin Login (Bypassing OTP until Gmail account is restored)
+          return res.json({
+            ok: true,
+            requiresOtp: false,
+            role: "admin",
+            user: {
+              id: user.id || "admin-1",
+              name: user.name || "Administrator",
+              email: user.email,
+              phone: user.phone || "",
+              role: "admin",
+            },
           });
         }
 
@@ -739,13 +761,18 @@ app.post("/api/auth/mobile-otp/send", async (req, res) => {
       }
     }
 
-    // 3. Fallback to Email if no SMS gateway configured
-    if (!smsSent && email) {
-      try {
-        const mailer = require("./utils/mailer");
-        await mailer.sendMobileOtpEmail(email, otp, cleanPhone);
-      } catch (err) {
-        console.error("Fallback Email failed:", err.message);
+    // 3. Fallback to Email & Console Log if no SMS gateway configured
+    if (!smsSent) {
+      console.log("\n==================================================");
+      console.log(`[LOCAL DEV] MOBILE OTP FOR +91 ${cleanPhone} IS: ${otp}`);
+      console.log("==================================================\n");
+      if (email) {
+        try {
+          const mailer = require("./utils/mailer");
+          await mailer.sendMobileOtpEmail(email, otp, cleanPhone);
+        } catch (err) {
+          console.error("Fallback Email failed:", err.message);
+        }
       }
     }
 
