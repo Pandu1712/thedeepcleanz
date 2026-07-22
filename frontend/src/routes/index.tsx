@@ -98,6 +98,8 @@ import {
   type AdminCustomizedService,
 } from "@/api/admin-api";
 import Header from "@/components/Header";
+import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
+import { auth, isFirebaseConfigured } from "@/utils/firebase";
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -4530,6 +4532,7 @@ export function BookingModal({
   const [mobileOtpLoading, setMobileOtpLoading] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [otpSentMessage, setOtpSentMessage] = useState("");
+  const [confirmationResult, setConfirmationResult] = useState<any>(null);
 
   const handleSendMobileOtp = async () => {
     if (!form.phone) {
@@ -4537,26 +4540,47 @@ export function BookingModal({
       return;
     }
     
+    const cleanPhone = form.phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      toast.error("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+
     setMobileOtpLoading(true);
-    const activeEmail = sessionStorage.getItem("user_email") || "";
     
-    try {
-      const res = await fetch(`${ADMIN_API_URL}/api/auth/mobile-otp/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: form.phone, email: activeEmail }),
-      });
-      const data = await res.json().catch(() => null);
-      if (res.ok) {
-        setOtpSentMessage(data?.message || `We have sent a 6-digit OTP code to +91 ${form.phone}.`);
-        toast.success(data?.message || "OTP code sent successfully!", { icon: "📨" });
+    if (isFirebaseConfigured && auth) {
+      try {
+        console.log(`[Firebase SMS] Sending OTP to +91${cleanPhone} via Firebase Auth...`);
+        
+        let appVerifier = (window as any).recaptchaVerifier;
+        if (!appVerifier) {
+          appVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            size: 'invisible',
+            callback: () => {
+              // reCAPTCHA solved
+            },
+            'expired-callback': () => {
+              toast.error("reCAPTCHA expired. Please try again.");
+            }
+          });
+          (window as any).recaptchaVerifier = appVerifier;
+        }
+
+        const formattedPhone = `+91${cleanPhone}`;
+        const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+        setConfirmationResult(confirmation);
+        setOtpSentMessage(`Verification code sent to +91 ${cleanPhone} via SMS.`);
+        toast.success("OTP sent to your phone via SMS!", { icon: "📨" });
         setShowOtpVerification(true);
-      } else {
-        throw new Error(data?.error || "Failed to dispatch OTP");
+      } catch (err: any) {
+        console.error("Firebase Phone Auth failed:", err);
+        toast.error(err.message || "Failed to send SMS via Firebase. Make sure Phone Auth is enabled in the Firebase Console.");
+        setOtpSentMessage("Failed to send verification SMS. (Firebase Auth Error)");
+      } finally {
+        setMobileOtpLoading(false);
       }
-    } catch (err: any) {
-      toast.error(err.message || "Network error. Please try again.");
-    } finally {
+    } else {
+      toast.error("Firebase is not configured. Please define Firebase variables in your environment.");
       setMobileOtpLoading(false);
     }
   };
@@ -4568,24 +4592,23 @@ export function BookingModal({
     }
 
     setVerifyLoading(true);
-    try {
-      const res = await fetch(`${ADMIN_API_URL}/api/auth/mobile-otp/verify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: form.phone, otp: otpInput }),
-      });
-      const data = await res.json().catch(() => null);
-      if (res.ok && data?.ok) {
+
+    if (confirmationResult) {
+      try {
+        const result = await confirmationResult.confirm(otpInput);
+        console.log("Firebase Auth success user:", result.user);
         setOtpVerified(true);
         setShowOtpVerification(false);
         setStep(2);
         toast.success("Mobile number verified successfully!", { icon: "✅" });
-      } else {
-        throw new Error(data?.error || "Invalid verification code. Please check your inputs.");
+      } catch (err: any) {
+        console.error("Firebase OTP Verification failed:", err);
+        toast.error("Invalid verification code. Please check and try again.");
+      } finally {
+        setVerifyLoading(false);
       }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to verify OTP.");
-    } finally {
+    } else {
+      toast.error("No active verification session. Please click resend OTP.");
       setVerifyLoading(false);
     }
   };
@@ -5196,6 +5219,7 @@ export function BookingModal({
         className="relative flex flex-col h-[94vh] sm:h-auto sm:max-h-[90vh] w-full sm:max-w-3xl overflow-hidden rounded-t-[32px] sm:rounded-3xl bg-[#faf8f5] shadow-2xl border-t-2 border-x sm:border border-[#cb9f5a]/25 animate-in slide-in-from-bottom duration-300 sm:zoom-in-95 sm:duration-250"
         onClick={(e) => e.stopPropagation()}
       >
+        <div id="recaptcha-container"></div>
         {/* PREMIUM PULL SHEET INDICATOR FOR MOBILE */}
         <div className="flex justify-center py-2.5 sm:hidden bg-gradient-to-r from-[#00231c] to-[#002a22]">
           <div className="h-1.5 w-12 rounded-full bg-cream/20" />
@@ -5922,15 +5946,10 @@ export function BookingModal({
               <button
                 disabled={!canStep2 || mobileOtpLoading}
                 onClick={() => {
-                  const email = sessionStorage.getItem("user_email");
-                  if (email) {
-                    if (otpVerified) {
-                      setStep(2);
-                    } else {
-                      handleSendMobileOtp();
-                    }
+                  if (otpVerified) {
+                    setStep(2);
                   } else {
-                    setShowAuthGate(true);
+                    handleSendMobileOtp();
                   }
                 }}
                 className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#cb9f5a] via-[#e5be7a] to-[#cb9f5a] px-8 py-3 text-xs font-black uppercase tracking-wider text-[#002a22] shadow-[0_4px_15px_rgba(203,159,90,0.35)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 font-sans cursor-pointer"
