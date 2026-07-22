@@ -126,6 +126,7 @@ function LoginComponent() {
         const data = await res.json().catch(() => null);
 
         if (res.ok && data) {
+          /*
           if (data.role === "admin" && !data.requiresOtp) {
             sessionStorage.setItem("admin_authenticated", "true");
             sessionStorage.setItem("user_authenticated", "true");
@@ -141,24 +142,9 @@ function LoginComponent() {
             setIsLoading(false);
             return;
           }
-
-          /*
-          // =========================================================================
-          // TEMPORARILY DISABLED: OTP Required Step for Admin Login
-          // Reason: Gmail account (thedeepcleanerz.info@gmail.com) is disabled by Google.
-          // TO RE-ENABLE OTP: Uncomment the block below and comment out direct admin login handling above.
-          // =========================================================================
-          if (data.requiresOtp || data.role === "admin") {
-            setRequiresOtp(true);
-            setOtpEmail(data.email || (data.user && data.user.email));
-            toast.success("Verification code sent to admin email!", { icon: "📨" });
-            setIsLoading(false);
-            return;
-          }
-          // =========================================================================
           */
 
-          if (data.requiresOtp) {
+          if (data.requiresOtp || data.role === "admin") {
             setRequiresOtp(true);
             setOtpEmail(data.email || (data.user && data.user.email));
             toast.success("Verification code sent to admin email!", { icon: "📨" });

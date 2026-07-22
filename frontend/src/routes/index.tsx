@@ -4882,12 +4882,6 @@ export function BookingModal({
         if (authPassword === "admin123") {
           const targetAdminEmail = "thedeepcleanerz.info@gmail.com";
 
-          /*
-          // =========================================================================
-          // TEMPORARILY DISABLED: OTP Send & Redirect on Admin Login
-          // Reason: Gmail account (thedeepcleanerz.info@gmail.com) is disabled by Google.
-          // TO RE-ENABLE OTP: Uncomment the block below and comment out direct admin auth.
-          // =========================================================================
           try {
             await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/send`, {
               method: "POST",
@@ -4903,9 +4897,8 @@ export function BookingModal({
           navigate({ to: "/login" });
           setAuthLoading(false);
           return;
-          // =========================================================================
-          */
 
+          /*
           // Direct Admin Authentication while Gmail is unavailable
           sessionStorage.setItem("admin_authenticated", "true");
           sessionStorage.setItem("user_authenticated", "true");
@@ -4926,6 +4919,7 @@ export function BookingModal({
           navigate({ to: "/admin" });
           setAuthLoading(false);
           return;
+          */
         } else {
           setAuthError("Incorrect password. Please check your admin password and try again.");
           setAuthLoading(false);
