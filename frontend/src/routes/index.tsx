@@ -92,6 +92,8 @@ import {
   fetchCoupons,
   ADMIN_API_URL,
   fetchAllReviews,
+  fetchRecentTransformations,
+  type RecentTransformation,
   type AdminCatalog,
   type ServicePlan,
   type ServiceReview,
@@ -498,7 +500,7 @@ export type CatService = {
   plans?: ServicePlan[];
   disclaimer?: string;
   requirements?: string;
-  paymentType?: "full" | "deposit_25";
+  paymentType?: "full" | "deposit_25" | "deposit_50" | "free_advance";
   precautions?: PrecautionItem[];
 };
 export type Category = {
@@ -507,6 +509,7 @@ export type Category = {
   tagline: string;
   emoji: string;
   image?: string;
+  parentId?: string | null;
   services: CatService[];
 };
 export type Service = CatService;
@@ -1384,6 +1387,8 @@ export function mergeAdminCatalog(catalog: AdminCatalog): Category[] {
       tagline: categoryTagline,
       emoji: c.emoji || "✨",
       image: categoryImage,
+      parentId: c.parentId || null,
+      includes: c.includes || [],
       services,
     };
   });
@@ -1395,7 +1400,7 @@ export type CartItem = {
   price: number;
   img: string;
   qty: number;
-  paymentType?: "full" | "deposit_25";
+  paymentType?: "full" | "deposit_25" | "deposit_50" | "free_advance";
 };
 
 function Index() {
@@ -1408,6 +1413,13 @@ function Index() {
   const [detail, setDetail] = useState<Service | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
+  const [transformations, setTransformations] = useState<RecentTransformation[]>([]);
+  const [toggledTrans, setToggledTrans] = useState<string[]>([]);
+  const toggleTransImage = (id: string) => {
+    setToggledTrans((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
   const categoryScrollRef = useRef<HTMLDivElement>(null);
 
   const scrollCategories = (direction: "left" | "right") => {
@@ -1420,6 +1432,7 @@ function Index() {
     }
   };
   const [selectedCat, setSelectedCat] = useState<string>(DEFAULT_CATEGORIES[0].id);
+  const [selectedSubCat, setSelectedSubCat] = useState<string | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [favs, setFavs] = useState<string[]>([]);
@@ -1812,6 +1825,21 @@ function Index() {
     };
   }, []);
 
+  // Load recent transformations from admin API
+  useEffect(() => {
+    let active = true;
+    fetchRecentTransformations()
+      .then((data) => {
+        if (active) setTransformations(data);
+      })
+      .catch((err) => {
+        console.warn("Failed to fetch transformations from backend:", err);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Sync categories + services live from the admin API. Falls back silently to
   // the localStorage / DEFAULT_CATEGORIES copy if the admin server is offline.
   useEffect(() => {
@@ -1894,6 +1922,53 @@ function Index() {
   };
 
   const activeCategory = categories.find((c) => c.id === selectedCat) ?? categories[0];
+  const parentCat = categories.find((c) => c.id === selectedCat) ?? categories[0];
+  const subCats = parentCat ? categories.filter((c) => c.parentId === parentCat.id) : [];
+  const activeSubCat = selectedSubCat 
+    ? categories.find((c) => c.id === selectedSubCat) 
+    : (subCats.length > 0 ? subCats[0] : null);
+
+  const parentCategoriesWithSubServices = useMemo(() => {
+    const parentCats = categories.filter((c) => !c.parentId);
+    return parentCats.map((parent) => {
+      const childCats = categories.filter((c) => c.parentId === parent.id);
+      const allServices = [
+        ...parent.services,
+        ...childCats.flatMap((c) => c.services)
+      ];
+      const uniqueServices = allServices.filter(
+        (s, index, self) => self.findIndex((x) => x.id === s.id) === index
+      );
+      return {
+        ...parent,
+        services: uniqueServices
+      };
+    });
+  }, [categories]);
+
+  const displayCategories = useMemo(() => {
+    return categories.filter((c) => !c.parentId);
+  }, [categories]);
+
+  const handleSelectService = (s: Service) => {
+    navigate({
+      to: "/service-detail",
+      search: { id: s.id },
+    });
+  };
+
+  const getSubCategoryRating = (subId: string) => {
+    const subServices = categories.find((c) => c.id === subId)?.services || [];
+    const serviceIds = subServices.map((s) => s.id);
+    const subReviews = liveReviews.filter((r) => serviceIds.includes(r.serviceId));
+    if (subReviews.length > 0) {
+      const avg = subReviews.reduce((acc, r) => acc + r.rating, 0) / subReviews.length;
+      return avg.toFixed(2);
+    }
+    const charCodeSum = subId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const ratingVal = 4.6 + (charCodeSum % 31) * 0.01;
+    return ratingVal.toFixed(2);
+  };
 
   const toggleFav = (id: string, title: string) => {
     setFavs((f) => {
@@ -2034,7 +2109,7 @@ function Index() {
     title: string;
     price: number;
     img: string;
-    paymentType?: "full" | "deposit_25";
+    paymentType?: "full" | "deposit_25" | "deposit_50" | "free_advance";
   }) => {
     setCart((c) => {
       const ex = c.find((i) => i.id === item.id);
@@ -2080,7 +2155,7 @@ function Index() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] text-[#002a22] overflow-x-hidden pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px]">
+    <div className="min-h-screen bg-[#faf8f5] text-[#002a22] pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px]">
       
       <Header
         cartCount={cartCount}
@@ -2108,7 +2183,7 @@ function Index() {
         {/* Decorative Grid Mesh */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#cb9f5a0d_1px,transparent_1px),linear-gradient(to_bottom,#cb9f5a0d_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
 
-        <div className="relative mx-auto max-w-7xl px-5 lg:px-8 z-10">
+        <div className="relative mx-auto max-w-[1400px] px-5 lg:px-8 z-10">
           <div className="grid gap-10 lg:grid-cols-12 items-center">
             {/* Left Column: Text & CTAs */}
             <div className="lg:col-span-6 flex flex-col items-start text-left">
@@ -2291,107 +2366,103 @@ function Index() {
       {/* CATEGORIES (admin-managed) */}
       <section
         id="categories"
-        className="relative mx-auto max-w-7xl px-5 pt-2 pb-6 md:pb-8 lg:px-8"
+        className="relative mx-auto max-w-[1400px] px-5 pt-2 pb-6 md:pb-8 lg:px-8"
       >
         <div className="w-full text-left font-sans">
           <span className="text-[10px] uppercase tracking-[0.2em] text-[#cb9f5a] font-black block mb-1">
-            Your Space, Our Expertise
+            Explore Options
           </span>
           <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-black leading-tight tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#002a22] via-[#00382d] to-[#cb9f5a] w-fit">
-            Choose your category
+            ALL SERVICES
           </h2>
           <p className="mt-2.5 text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed font-medium">
-            Pick a category to see all services available under it.
+            Choose a category or sub-category package below to explore all professional services.
           </p>
         </div>
 
-        <div className="mt-8 max-w-6xl mx-auto">
+        <div className="mt-8 max-w-[1400px] mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 justify-center items-stretch">
-            {categories.length === 0 ? (
+            {displayCategories.length === 0 ? (
               <div className="col-span-full text-center py-16 bg-white border border-[#cb9f5a]/25 p-8 w-full">
                 <span className="text-2xl block mb-2">✨</span>
                 <h3 className="font-display text-sm font-bold text-[#002a22]">No Services Launched Yet</h3>
                 <p className="text-2xs text-slate-550 mt-1">Please configure catalog categories and services in the Admin Console.</p>
               </div>
             ) : (
-              categories.map((c) => {
-              const active = c.id === selectedCat;
-              const CategoryIcon = getCategoryIcon(c.title);
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedCat(c.id);
-                    document
-                      .getElementById("cat-services")
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                  className={`group relative overflow-hidden rounded-none text-left transition-all duration-500 border flex flex-col p-5 cursor-pointer hover:-translate-y-2.5 ${
-                    active
-                      ? "border-[#cb9f5a] bg-gradient-to-b from-white via-slate-50 to-[#cb9f5a]/10 shadow-[0_20px_50px_-12px_rgba(203,159,90,0.35)] ring-2 ring-[#cb9f5a]/40"
-                      : "border-[#cb9f5a]/20 bg-white shadow-[0_10px_35px_-10px_rgba(0,42,34,0.08)] hover:border-[#cb9f5a]/80 hover:shadow-[0_22px_55px_-12px_rgba(0,42,34,0.15)]"
-                  }`}
-                >
-                  {/* Category Main Image */}
-                  <div className="relative w-full h-44 overflow-hidden rounded-none bg-slate-100 flex-shrink-0">
-                    {c.image ? (
-                      <img
-                        src={c.image}
-                        alt={c.title}
-                        loading="lazy"
-                        className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
-                      />
-                    ) : (
-                      <div className="h-full w-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                        <Sparkles className="h-10 w-10 text-[#cb9f5a]" />
+              displayCategories.map((c) => {
+                const CategoryIcon = getCategoryIcon(c.title);
+                const parent = c.parentId ? categories.find((cat) => cat.id === c.parentId) : null;
+                const parentName = parent ? parent.title : null;
+
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      navigate({
+                        to: "/services",
+                        search: { category: c.id },
+                      });
+                    }}
+                    className="group relative overflow-hidden rounded-none text-left transition-all duration-500 border border-[#cb9f5a]/20 bg-white shadow-[0_10px_35px_-10px_rgba(0,42,34,0.08)] hover:border-[#cb9f5a]/80 hover:shadow-[0_22px_55px_-12px_rgba(0,42,34,0.15)] flex flex-col p-5 cursor-pointer hover:-translate-y-2.5"
+                  >
+                    {/* Category Main Image */}
+                    <div className="relative w-full h-44 overflow-hidden rounded-none bg-slate-100 flex-shrink-0">
+                      {c.image ? (
+                        <img
+                          src={c.image}
+                          alt={c.title}
+                          loading="lazy"
+                          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                          <Sparkles className="h-10 w-10 text-[#cb9f5a]" />
+                        </div>
+                      )}
+
+                      {/* Gradient Overlay on Image */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
+
+                      {/* Services Count Badge */}
+                      <span className="absolute top-3.5 left-3.5 rounded-full bg-[#002a22]/90 backdrop-blur-md border border-white/20 text-[#cb9f5a] px-3.5 py-1 text-[10px] font-extrabold uppercase tracking-widest shadow-md">
+                        {c.services?.length || 0} SERVICES
+                      </span>
+                    </div>
+
+                    {/* Floating Icon badge */}
+                    <div className="absolute top-[182px] left-9 -translate-y-1/2 grid h-12 w-12 place-items-center rounded-none bg-white text-[#002a22] shadow-lg border border-[#cb9f5a]/30 group-hover:scale-110 group-hover:bg-[#002a22] group-hover:text-[#cb9f5a] transition-all duration-300 z-10">
+                      <CategoryIcon className="h-6 w-6" />
+                    </div>
+
+                    {/* Content Details */}
+                    <div className="mt-7 px-2 flex-1 flex flex-col justify-between">
+                      <div>
+                        {parentName && (
+                          <span className="text-[10px] font-black text-[#cb9f5a] uppercase tracking-[0.12em] block mb-1">
+                            {parentName}
+                          </span>
+                        )}
+                        <h3 className="font-display text-lg font-bold text-[#002a22] group-hover:text-[#cb9f5a] transition-colors leading-snug">
+                          {c.title}
+                        </h3>
+                        <p className="mt-1.5 text-xs text-[#4a5f5b] leading-relaxed line-clamp-2">
+                          {c.tagline}
+                        </p>
                       </div>
-                    )}
 
-                    {/* Gradient Overlay on Image */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
-
-                    {/* Services Count Badge */}
-                    <span className="absolute top-3.5 left-3.5 rounded-full bg-[#002a22]/90 backdrop-blur-md border border-white/20 text-[#cb9f5a] px-3.5 py-1 text-[10px] font-extrabold uppercase tracking-widest shadow-md">
-                      {c.services.length} SERVICES
-                    </span>
-
-                    {/* Active Ribbon Badge */}
-                    {active && (
-                      <span className="absolute top-3.5 right-3.5 rounded-full bg-[#cb9f5a] text-[#002a22] px-3 py-1 text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> Selected
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Floating Icon badge */}
-                  <div className="absolute top-[182px] left-9 -translate-y-1/2 grid h-12 w-12 place-items-center rounded-none bg-white text-[#002a22] shadow-lg border border-[#cb9f5a]/30 group-hover:scale-110 group-hover:bg-[#002a22] group-hover:text-[#cb9f5a] transition-all duration-300 z-10">
-                    <CategoryIcon className="h-6 w-6" />
-                  </div>
-
-                  {/* Content Details */}
-                  <div className="mt-7 px-2 flex-1 flex flex-col justify-between">
-                    <div>
-                      <h3 className="font-display text-lg font-bold text-[#002a22] group-hover:text-[#cb9f5a] transition-colors leading-snug">
-                        {c.title}
-                      </h3>
-                      <p className="mt-1.5 text-xs text-[#4a5f5b] leading-relaxed">
-                        {c.tagline}
-                      </p>
+                      <div className="mt-5 pt-3 border-t border-[#cb9f5a]/15 flex items-center justify-between">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#cb9f5a] transition-transform group-hover:translate-x-1">
+                          View services <ArrowRight className="h-4 w-4" />
+                        </span>
+                        <span className="text-[10px] font-bold text-[#002a22]/40 group-hover:text-[#002a22]/80 transition-colors uppercase tracking-wider">
+                          Explore →
+                        </span>
+                      </div>
                     </div>
-
-                    <div className="mt-5 pt-3 border-t border-[#cb9f5a]/15 flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#cb9f5a] transition-transform group-hover:translate-x-1">
-                        View services <ArrowRight className="h-4 w-4" />
-                      </span>
-                      <span className="text-[10px] font-bold text-[#002a22]/40 group-hover:text-[#002a22]/80 transition-colors uppercase tracking-wider">
-                        Explore →
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              );
-            })
+                  </button>
+                );
+              })
             )}
           </div>
         </div>
@@ -2464,17 +2535,36 @@ function Index() {
         </div>
       </section>
       */}
-      {/* ORDER-WISE CATEGORIES SERVICES CAROUSELS */}
-      <div className="bg-slate-50/50 py-6 space-y-12">
-        {categories.map((cat) => (
-          <CategoryCarousel
-            key={cat.id}
-            category={cat}
-            onSelectService={setDetail}
-            onAddToCart={addToCart}
-            getServicePrice={getServicePrice}
-          />
-        ))}
+      {/* DYNAMIC HIERARCHICAL CATEGORY SERVICES SECTION */}
+      <div id="cat-services" className="bg-[#faf8f5] py-12 border-t border-[#cb9f5a]/20 space-y-16">
+        {parentCategoriesWithSubServices.map((cat) => {
+          if (!cat.services || cat.services.length === 0) return null;
+          return (
+            <div key={cat.id} className="animate-fade-in duration-300">
+              {/* Category Section Header */}
+              <div className="text-center mb-6">
+                <span className="text-[10px] uppercase tracking-[0.25em] text-[#cb9f5a] font-black block mb-1">
+                  Category
+                </span>
+                <h3 className="font-display text-2xl md:text-3xl font-black text-[#002a22] uppercase tracking-wide">
+                  {cat.title}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1.5 font-medium max-w-xl mx-auto px-5">
+                  {cat.tagline}
+                </p>
+                <div className="h-0.5 w-16 bg-[#cb9f5a]/40 mx-auto mt-3 rounded-full" />
+              </div>
+
+              <CategoryCarousel
+                category={cat as Category}
+                onSelectService={handleSelectService}
+                onAddToCart={addToCart}
+                getServicePrice={getServicePrice}
+                liveReviews={liveReviews}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {/* WHY CHOOSE US */}
@@ -2552,7 +2642,7 @@ function Index() {
       </section>
 
       {/* PROCESS */}
-      <section className="mx-auto max-w-7xl px-5 py-6 md:py-8 lg:px-8">
+      <section className="mx-auto max-w-[1400px] px-5 py-6 md:py-8 lg:px-8">
         <SectionHeader eyebrow="How It Works" title="Four Simple Steps to a Spotless Space" />
         <div className="relative mt-5 grid gap-4 md:grid-cols-4">
           <div className="absolute left-0 right-0 top-6 hidden h-[1px] bg-gradient-to-r from-transparent via-[#cb9f5a]/30 to-transparent md:block" />
@@ -2599,38 +2689,31 @@ function Index() {
 
       {/* RECENT WORKS */}
       <section className="bg-white py-6 md:py-8 border-b border-[#cb9f5a]/10">
-        <div className="mx-auto max-w-7xl px-5 lg:px-8">
+        <div className="mx-auto max-w-[1400px] px-5 lg:px-8">
           <SectionHeader eyebrow="Recent Services" title="Recently Completed Transformations" />
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              { t: "Villa Deep Cleaning", l: "Bandra, Mumbai", img: imgHouse },
-              { t: "Apartment Cleaning", l: "HSR Layout, Bengaluru", img: imgInterior },
-              { t: "Corporate Office", l: "Gurugram, DLF", img: imgOffice },
-              { t: "Hotel Room Cleaning", l: "Goa Resort", img: imgHotel },
-              { t: "Kitchen Restoration", l: "Powai, Mumbai", img: imgKitchen },
-              { t: "Balcony Transformation", l: "Whitefield, Bengaluru", img: imgBalcony },
-            ].map((w) => (
-              <article
-                key={w.t}
-                className="group relative overflow-hidden rounded-none shadow-sm aspect-[4/3] w-full cursor-pointer border border-[#cb9f5a]/10"
-              >
-                <img
-                  src={w.img}
-                  alt={w.t}
-                  loading="lazy"
-                  width={800}
-                  height={640}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-103"
+            {transformations.map((w) => (
+              w.beforeImage ? (
+                <BeforeAfterSlider
+                  key={w.id}
+                  before={w.beforeImage}
+                  after={w.afterImage}
+                  title={w.title}
+                  location={w.location}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#001712] via-[#001712]/30 to-transparent opacity-85" />
-                <div className="absolute bottom-0 left-0 right-0 p-4 text-cream">
-                  <div className="inline-flex items-center gap-1 rounded-full bg-[#cb9f5a] px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-navy">
-                    After
+              ) : (
+                <div key={w.id} className="relative overflow-hidden rounded-none shadow-sm aspect-[4/3] w-full border border-[#cb9f5a]/10 bg-slate-900">
+                  <img
+                    src={w.afterImage}
+                    alt={w.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent z-10 pointer-events-none text-white p-4 flex flex-col justify-end">
+                    <h3 className="font-display text-xs font-bold text-white leading-tight">{w.title}</h3>
+                    <p className="text-[9px] text-[#cb9f5a] font-extrabold mt-0.5">{w.location}</p>
                   </div>
-                  <h3 className="mt-1 font-display text-base font-bold">{w.t}</h3>
-                  <p className="text-[10px] text-cream/70 font-semibold">{w.l}</p>
                 </div>
-              </article>
+              )
             ))}
           </div>
         </div>
@@ -2640,7 +2723,7 @@ function Index() {
       <section className="gradient-premium relative overflow-hidden py-6 md:py-8 text-cream noise-overlay">
         <div className="absolute -left-32 top-0 h-72 w-72 rounded-full bg-[#cb9f5a]/15 blur-3xl" />
         <div className="absolute -right-32 bottom-0 h-72 w-72 rounded-full bg-[#cb9f5a]/10 blur-3xl" />
-        <div className="relative mx-auto grid max-w-7xl gap-6 px-5 sm:grid-cols-2 lg:grid-cols-4 lg:px-8">
+        <div className="relative mx-auto grid max-w-[1400px] gap-6 px-5 sm:grid-cols-2 lg:grid-cols-4 lg:px-8">
           {[
             { n: 10000, suffix: "+", l: "Happy Customers" },
             { n: 500, suffix: "+", l: "Daily Bookings" },
@@ -2660,7 +2743,7 @@ function Index() {
       </section>
 
       {/* REVIEWS */}
-      <section id="reviews" className="mx-auto max-w-7xl px-5 py-6 md:py-8 lg:px-8">
+      <section id="reviews" className="mx-auto max-w-[1400px] px-5 py-6 md:py-8 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b border-[#cb9f5a]/10 pb-4">
           <SectionHeader eyebrow="Customer Reviews" title="Loved by Homes & Businesses" />
 
@@ -2744,7 +2827,7 @@ function Index() {
         <div className="absolute right-0 top-0 h-96 w-96 rounded-full bg-[#cb9f5a]/3 blur-3xl pointer-events-none" />
         <div className="absolute -left-48 bottom-0 h-96 w-96 rounded-full bg-[#cb9f5a]/3 blur-3xl pointer-events-none" />
 
-        <div className="mx-auto grid max-w-7xl gap-10 px-5 lg:grid-cols-12 lg:px-8 relative z-10">
+        <div className="mx-auto grid max-w-[1400px] gap-10 px-5 lg:grid-cols-12 lg:px-8 relative z-10">
           {/* Left Column - Contact Info */}
           <div className="lg:col-span-5 flex flex-col justify-between space-y-8">
             <div>
@@ -2876,7 +2959,7 @@ function Index() {
         </div>
 
         {/* OFFICE LOCATION GOOGLE MAPS EMBED */}
-        <div className="mx-auto max-w-7xl px-5 lg:px-8 mt-12 relative z-10">
+        <div className="mx-auto max-w-[1400px] px-5 lg:px-8 mt-12 relative z-10">
           <div className="rounded-3xl overflow-hidden border border-[#f1ede6] shadow-md hover:shadow-lg transition-all duration-300 h-80 w-full relative group">
             {/* Absolute overlay visual hint */}
             <div className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3.5 py-1.5 bg-[#002a22] border border-[#cb9f5a]/30 rounded-full text-[10px] font-bold text-white shadow-md">
@@ -2904,7 +2987,7 @@ function Index() {
         {/* Subtle background glow */}
         <div className="absolute top-0 left-1/4 -translate-y-1/2 w-[500px] h-[250px] bg-[#cb9f5a]/5 blur-[120px] rounded-full pointer-events-none" />
 
-        <div className="mx-auto max-w-7xl px-5 pt-16 pb-12 lg:px-8 relative z-10">
+        <div className="mx-auto max-w-[1400px] px-5 pt-16 pb-12 lg:px-8 relative z-10">
           <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-4 pb-12 border-b border-[#cb9f5a]/10">
             {/* Column 1: Brand Info */}
             <div className="space-y-6">
@@ -3102,16 +3185,6 @@ function Index() {
         onConfirm={completeBooking}
       />
 
-      {/* FLOATING BUTTONS */}
-      <a
-        href="https://wa.me/919876543210?text=Hi%20TheDeep%20CleanerZ%2C%20I%27d%20like%20to%20book%20a%20cleaning%20service"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Chat on WhatsApp"
-        className="fixed bottom-6 right-6 z-40 grid h-14 w-14 place-items-center rounded-full bg-[#25D366] text-white shadow-luxe pulse-gold transition-transform hover:scale-110"
-      >
-        <MessageCircle className="h-6 w-6" />
-      </a>
       {showTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
@@ -4175,16 +4248,8 @@ export function CartDrawer({
 
     const list: Array<{ id: string; title: string; price: number; img: string; desc: string }> = [];
 
-    const hasCustomized = cart.some(
-      (item) =>
-        item.id.includes("mini-services") ||
-        item.id.includes("bedroom-cleaning") ||
-        item.id.includes("terrace-cleaning") ||
-        item.id.includes("mattress-shampooing") ||
-        item.id.startsWith("cust-"),
-    );
-
-    if (hasCustomized && customizedServices.length > 0) {
+    // 1. Prioritize all premium customized services (Tempting & Business Type)
+    if (customizedServices && customizedServices.length > 0) {
       customizedServices.forEach((cs) => {
         const isInCart = cart.some((item) => item.id.includes(cs.id));
         if (!isInCart) {
@@ -4195,12 +4260,13 @@ export function CartDrawer({
             img:
               cs.image ||
               "https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&w=150&q=80",
-            desc: "Customized clean package",
+            desc: cs.tagline || "Exclusive premium customized package",
           });
         }
       });
     }
 
+    // 2. Next, add services in the same category as cart items
     const cartSvcIds = cart.map((item) => {
       const dashIdx = item.id.lastIndexOf("-");
       return dashIdx > -1 ? item.id.substring(0, dashIdx) : item.id;
@@ -4211,7 +4277,7 @@ export function CartDrawer({
 
     if (cartCatIds.length > 0) {
       allServices.forEach((s) => {
-        if (cartCatIds.includes(s.categoryId) && !cartSvcIds.includes(s.id)) {
+        if (cartCatIds.includes(s.categoryId) && !cartSvcIds.includes(s.id) && !list.some((item) => item.id === s.id)) {
           list.push({
             id: s.id,
             title: s.title,
@@ -4226,6 +4292,7 @@ export function CartDrawer({
       });
     }
 
+    // 3. Fallbacks if list is short
     if (list.length < 4 && allServices.length > 0) {
       const cheapAddons = allServices.filter(
         (s) =>
@@ -4512,6 +4579,11 @@ export function BookingModal({
   const [isPaying, setIsPaying] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [checkoutMapPickerOpen, setCheckoutMapPickerOpen] = useState(false);
+  const [saveToProfile, setSaveToProfile] = useState(true);
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+  const [showCheckoutAddressForm, setShowCheckoutAddressForm] = useState(false);
+  const [newAddrType, setNewAddrType] = useState("Home");
 
   // Checkout Auth Gate
   const [showAuthGate, setShowAuthGate] = useState(false);
@@ -4633,26 +4705,76 @@ export function BookingModal({
       const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
       let initName = "";
       let initPhone = "";
+      let initAddress = "";
+      let initLandmark = "";
+      let initCity = "Guntur";
+      let initPincode = "";
       try {
         const prof = sessionStorage.getItem("user_profile");
         if (prof) {
           const u = JSON.parse(prof);
           initName = u.name || "";
           initPhone = u.phone || "";
+
+          if (Array.isArray(u.addresses)) {
+            setSavedAddresses(u.addresses);
+          } else {
+            setSavedAddresses([]);
+          }
+
+          const defaultAddr = u.addresses?.find((a: any) => a.isDefault);
+          if (defaultAddr) {
+            initAddress = defaultAddr.address || "";
+            initLandmark = defaultAddr.landmark || "";
+            initCity = defaultAddr.city || "Guntur";
+            initPincode = defaultAddr.pincode || "";
+          }
+        } else {
+          setSavedAddresses([]);
         }
       } catch (e) {}
       const savedLat = sessionStorage.getItem("user_location_lat");
       const savedLng = sessionStorage.getItem("user_location_lng");
       const savedAddr = sessionStorage.getItem("user_location_address");
 
+      // Fall back to saved GPS address if no profile address is saved
+      const finalLandmark = initLandmark || savedAddr || "";
+
+      // Try to auto-select houseSize based on cart items
+      let matchedSize = "";
+      const sizeOptions = [
+        "1 BHK", "2 BHK", "3 BHK", "4 BHK", "5+ BHK",
+        "1 Room Kitchen", "Commercial Shop", "Office Cabin / Floor"
+      ];
+      
+      for (const item of cart) {
+        const titleUpper = item.title.toUpperCase();
+        const idUpper = item.id.toUpperCase();
+        
+        const found = sizeOptions.find(opt => 
+          titleUpper.includes(opt.toUpperCase()) || 
+          idUpper.includes(opt.toUpperCase()) ||
+          (opt === "1 Room Kitchen" && (titleUpper.includes("1RK") || titleUpper.includes("1 RK")))
+        );
+        
+        if (found) {
+          matchedSize = found;
+          break;
+        }
+      }
+
       setForm((f) => ({
         ...f,
         name: initName || f.name,
         phone: initPhone || f.phone,
         date: tomorrow,
-        landmark: savedAddr || f.landmark,
+        address: initAddress || f.address,
+        landmark: finalLandmark || f.landmark,
+        city: initCity || f.city,
+        pincode: initPincode || f.pincode,
         gpsCoords: savedLat && savedLng ? `${Number(savedLat).toFixed(6)}, ${Number(savedLng).toFixed(6)}` : f.gpsCoords,
         mapsLink: savedLat && savedLng ? `https://www.google.com/maps?q=${savedLat},${savedLng}` : f.mapsLink,
+        ...(matchedSize ? { houseSize: matchedSize } : {}),
       }));
 
       // Reverse geocode saved GPS coordinates if available to auto-fill pincode & city
@@ -5066,6 +5188,10 @@ export function BookingModal({
     const itemPrice = i.price * i.qty;
     if (i.paymentType === "deposit_25") {
       depositSum += itemPrice * 0.25;
+    } else if (i.paymentType === "deposit_50") {
+      depositSum += itemPrice * 0.50;
+    } else if (i.paymentType === "free_advance") {
+      depositSum += itemPrice * 0;
     } else {
       depositSum += itemPrice; // full payment (100%)
     }
@@ -5086,7 +5212,63 @@ export function BookingModal({
       }
     } catch (e) {}
 
+    // Auto-save address to user profile if checked
+    if (saveToProfile && userId) {
+      try {
+        const profStr = sessionStorage.getItem("user_profile");
+        if (profStr) {
+          const u = JSON.parse(profStr);
+          const currentAddresses = Array.isArray(u.addresses) ? u.addresses : [];
+          
+          // Check if this address matches any existing saved address
+          const isDuplicate = currentAddresses.some((a: any) => 
+            a.address.toLowerCase().trim() === form.address.toLowerCase().trim() &&
+            a.pincode.trim() === form.pincode.trim()
+          );
+
+          if (!isDuplicate && form.address.trim() && form.pincode.trim()) {
+            const newAddress = {
+              id: "addr-" + Math.random().toString(36).substr(2, 9),
+              address: form.address.trim(),
+              landmark: form.landmark.trim(),
+              city: form.city.trim(),
+              pincode: form.pincode.trim(),
+              type: "Home", // Default new checkout addresses to 'Home'
+              isDefault: currentAddresses.length === 0, // Set default if it's the first
+            };
+            const updatedAddresses = [...currentAddresses, newAddress];
+            
+            // Call the database API to save it
+            await fetch(`${ADMIN_API_URL}/api/users/${userId}/addresses`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ addresses: updatedAddresses }),
+            });
+
+            // Update sessionStorage user profile representation
+            const updatedProfile = { ...u, addresses: updatedAddresses };
+            sessionStorage.setItem("user_profile", JSON.stringify(updatedProfile));
+            window.dispatchEvent(new Event("storage"));
+          }
+        }
+      } catch (err) {
+        console.error("Error auto-saving address to profile:", err);
+      }
+    }
+
     const upfrontAmount = upfrontPayAmount;
+    const isFreeAdvance = cart.some((i) => i.paymentType === "free_advance");
+    const isDeposit50 = cart.some((i) => i.paymentType === "deposit_50");
+    const isDeposit25 = cart.some((i) => i.paymentType === "deposit_25");
+    const depositPct = isFreeAdvance ? "0%" : isDeposit50 ? "50%" : isDeposit25 ? "25%" : "Deposit";
+    const descriptionText = upfrontAmount < finalTotal
+      ? `Premium Cleaning Booking (${depositPct} Upfront)`
+      : "Premium Cleaning Booking (Full Payment)";
+    
+    const paymentStatusText = upfrontAmount < finalTotal
+      ? isFreeAdvance ? "Free Advance (Pay after Service)" : `Paid ${depositPct} Deposit (₹${upfrontAmount})`
+      : `Paid Full Amount (₹${upfrontAmount})`;
+
     const customerPayload = {
       name: form.name,
       phone: form.phone,
@@ -5101,7 +5283,7 @@ export function BookingModal({
       gpsCoords: form.gpsCoords,
     };
 
-    if (payMethod === "razorpay") {
+    if (payMethod === "razorpay" && upfrontAmount > 0) {
       setIsPaying(true);
       try {
         const loaded = await loadRazorpayScript();
@@ -5111,7 +5293,7 @@ export function BookingModal({
           return;
         }
 
-        // Only pay 25% upfront
+        // Only pay deposit upfront
         const orderInfo = await createRazorpayOrder(upfrontAmount);
 
         const options = {
@@ -5119,7 +5301,7 @@ export function BookingModal({
           amount: orderInfo.amount,
           currency: "INR",
           name: "TheDeep CleanerZ",
-          description: "Premium Cleaning Booking (25% Deposit Upfront)",
+          description: descriptionText,
           order_id: orderInfo.orderId,
           handler: async function (response: any) {
             try {
@@ -5137,7 +5319,7 @@ export function BookingModal({
                   qty: i.qty,
                   img: i.img,
                 })),
-                paymentStatus: `Paid 25% Deposit (₹${upfrontAmount})`,
+                paymentStatus: paymentStatusText,
                 paymentId: response.razorpay_payment_id,
                 userId,
               });
@@ -5190,7 +5372,7 @@ export function BookingModal({
             qty: i.qty,
             img: i.img,
           })),
-          paymentStatus: "Pending Deposit (COD)",
+          paymentStatus: isFreeAdvance ? "Free Advance (Pay after Service)" : "Pending Deposit (COD)",
           paymentId: null,
           userId,
         });
@@ -5565,84 +5747,354 @@ export function BookingModal({
                 </select>
               </div>
 
-              <div className="sm:col-span-2">
-                <Field
-                  label="Full Address"
-                  value={form.address}
-                  onChange={(v) => setForm({ ...form, address: v })}
-                  placeholder="Flat 302, Sunshine Apartments, Indiranagar"
-                  textarea
-                />
-              </div>
-              <div className={`relative ${showGunturSuggestions ? "z-30" : "z-10"}`}>
-                <div onClick={() => setShowGunturSuggestions(true)}>
-                  <Field
-                    label="Landmark / Nearby Place"
-                    value={form.landmark}
-                    onChange={(v) => {
-                      setForm({ ...form, landmark: v });
-                      setShowGunturSuggestions(true);
+              {/* Address Section Title */}
+              <div className="sm:col-span-2 flex items-center justify-between border-b border-slate-100 pb-2 mb-1 mt-2">
+                <span className="text-xs font-black text-[#002a22] uppercase tracking-wider flex items-center gap-1.5">
+                  <span>📍</span> Delivery / Cleaning Address
+                </span>
+                {sessionStorage.getItem("user_profile") && !showCheckoutAddressForm && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingAddressId(null);
+                      // Clear fields for new address
+                      setForm(f => ({ ...f, address: "", landmark: "", pincode: "" }));
+                      setShowCheckoutAddressForm(true);
                     }}
-                    placeholder="e.g. Opposite Metro Station"
-                  />
-                </div>
-                {showGunturSuggestions && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setShowGunturSuggestions(false)}
-                    />
-                    <div className="absolute left-0 right-0 bottom-full mb-1.5 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg z-50 py-1 text-slate-800 font-sans">
-                      <div className="px-3 py-1.5 bg-slate-50 text-[9px] font-extrabold uppercase tracking-wide text-slate-400 border-b border-slate-100 flex items-center justify-between">
-                        <span>📍 Guntur Location Suggestions</span>
-                        <span className="text-[8px] bg-[#cb9f5a]/10 text-[#cb9f5a] px-1 rounded">
-                          Quick Auto-fill
-                        </span>
-                      </div>
-                      {filteredGuntur.map((loc, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            setForm({
-                              ...form,
-                              landmark: loc.landmark,
-                              address: `${loc.landmark}, ${loc.area}`,
-                              pincode: loc.pincode,
-                              city: "Guntur",
-                              mapsLink: loc.mapsLink,
-                            });
-                            setShowGunturSuggestions(false);
-                            toast.success(`Location auto-filled: ${loc.area}!`, { icon: "📍" });
-                          }}
-                          className="w-full text-left px-3 py-2 text-xs hover:bg-[#cb9f5a]/5 transition-colors border-0 bg-transparent cursor-pointer flex flex-col gap-0.5"
-                        >
-                          <div className="font-bold text-[#002a22] flex items-center justify-between">
-                            <span>{loc.area}</span>
-                            <span className="text-[10px] text-[#cb9f5a] font-mono">
-                              {loc.pincode}
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 font-medium truncate">
-                            {loc.landmark}
-                          </div>
-                        </button>
-                      ))}
-                      {filteredGuntur.length === 0 && (
-                        <div className="px-3 py-4 text-center text-slate-400 text-xs italic">
-                          No Guntur landmarks found matching your query
-                        </div>
-                      )}
-                    </div>
-                  </>
+                    className="text-[10px] text-[#cb9f5a] font-extrabold uppercase hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                  >
+                    ➕ Add New Address
+                  </button>
                 )}
               </div>
-              <Field
-                label="Pincode"
-                value={form.pincode}
-                onChange={(v) => setForm({ ...form, pincode: v.replace(/\D/g, "").slice(0, 6) })}
-                placeholder="522002"
-              />
+
+              {/* Saved Addresses Carousel List */}
+              {sessionStorage.getItem("user_profile") && savedAddresses.length > 0 && !showCheckoutAddressForm && (
+                <div className="sm:col-span-2 space-y-2">
+                  <div className="flex gap-2.5 overflow-x-auto pb-2 pt-0.5 scrollbar-thin">
+                    {savedAddresses.map((addr: any) => {
+                      const isSelected = 
+                        form.address === addr.address &&
+                        form.landmark === addr.landmark &&
+                        form.pincode === addr.pincode;
+                      
+                      return (
+                        <div
+                          key={addr.id}
+                          className={`relative flex flex-col justify-between rounded-xl p-3 border shrink-0 min-w-[200px] max-w-[220px] transition-all ${
+                            isSelected
+                              ? "border-[#cb9f5a] bg-[#cb9f5a]/5 ring-1 ring-[#cb9f5a]/20"
+                              : "border-slate-200 bg-white hover:border-[#cb9f5a]/45"
+                          }`}
+                        >
+                          {/* Card click handler */}
+                          <div
+                            className="cursor-pointer flex-1 flex items-start gap-2"
+                            onClick={() => {
+                              setForm((f) => ({
+                                ...f,
+                                address: addr.address || f.address,
+                                landmark: addr.landmark || f.landmark,
+                                city: addr.city || f.city,
+                                pincode: addr.pincode || f.pincode,
+                              }));
+                            }}
+                          >
+                            <div className="text-sm pt-0.5">
+                              {addr.type === "Home" ? "🏠" : addr.type === "Office" ? "🏢" : "📍"}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-extrabold text-[9px] uppercase text-slate-700">{addr.type}</span>
+                                {addr.isDefault && (
+                                  <span className="font-black text-[7px] text-emerald-800 bg-emerald-100 px-1 rounded-full uppercase">Default</span>
+                                )}
+                              </div>
+                              <p className="text-[10px] font-semibold text-slate-600 truncate mt-0.5">{addr.address}</p>
+                              <p className="text-[9px] font-extrabold text-[#cb9f5a]/90 mt-0.5">{addr.city} - {addr.pincode}</p>
+                            </div>
+                          </div>
+
+                          {/* Edit / Delete tiny buttons inside card */}
+                          <div className="flex items-center justify-end gap-1.5 mt-2 pt-2 border-t border-slate-100">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingAddressId(addr.id);
+                                setForm((f) => ({
+                                  ...f,
+                                  address: addr.address,
+                                  landmark: addr.landmark,
+                                  city: addr.city,
+                                  pincode: addr.pincode,
+                                }));
+                                setNewAddrType(addr.type || "Home");
+                                setShowCheckoutAddressForm(true);
+                              }}
+                              className="text-[9px] font-bold text-slate-500 hover:text-[#cb9f5a] cursor-pointer flex items-center gap-0.5 border-0 bg-transparent"
+                            >
+                              ✏️ Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const userId = JSON.parse(sessionStorage.getItem("user_profile") || "{}").id;
+                                if (!userId) return;
+                                const updated = savedAddresses.filter((a: any) => a.id !== addr.id);
+                                if (addr.isDefault && updated.length > 0) {
+                                  updated[0].isDefault = true;
+                                }
+                                try {
+                                  const res = await fetch(`${ADMIN_API_URL}/api/users/${userId}/addresses`, {
+                                    method: "PUT",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ addresses: updated }),
+                                  });
+                                  if (res.ok) {
+                                    setSavedAddresses(updated);
+                                    const prof = JSON.parse(sessionStorage.getItem("user_profile") || "{}");
+                                    const updatedProf = { ...prof, addresses: updated };
+                                    sessionStorage.setItem("user_profile", JSON.stringify(updatedProf));
+                                    window.dispatchEvent(new Event("storage"));
+                                    toast.success("Address deleted successfully!");
+                                    
+                                    // Reset form values if deleted address was selected
+                                    if (isSelected) {
+                                      setForm(f => ({ ...f, address: "", landmark: "", pincode: "" }));
+                                    }
+                                  }
+                                } catch (err) {
+                                  toast.error("Failed to delete address.");
+                                }
+                              }}
+                              className="text-[9px] font-bold text-rose-500 hover:text-rose-700 cursor-pointer flex items-center gap-0.5 border-0 bg-transparent"
+                            >
+                              🗑️ Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Show address input form fields (only if no saved addresses, or adding/editing) */}
+              {(showCheckoutAddressForm || savedAddresses.length === 0) && (
+                <>
+                  {/* Address Type pill selector in edit form */}
+                  {sessionStorage.getItem("user_profile") && (
+                    <div className="sm:col-span-2 flex items-center justify-between p-3 bg-slate-50 border border-slate-200/80 rounded-xl mb-1 text-xs">
+                      <span className="font-bold text-slate-700">Address Label Tag</span>
+                      <div className="flex gap-1.5 text-[10px]">
+                        {["Home", "Office", "Other"].map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setNewAddrType(t)}
+                            className={`px-2.5 py-0.5 rounded-full font-bold transition-colors cursor-pointer border ${
+                              newAddrType === t
+                                ? "bg-[#002a22] border-[#002a22] text-white font-extrabold"
+                                : "bg-slate-50 border-slate-200 text-slate-500"
+                            }`}
+                          >
+                            {t === "Home" ? "🏠 Home" : t === "Office" ? "🏢 Office" : "📍 Other"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="sm:col-span-2">
+                    <Field
+                      label="Full Address"
+                      value={form.address}
+                      onChange={(v) => setForm({ ...form, address: v })}
+                      placeholder="Flat 302, Sunshine Apartments, Indiranagar"
+                      textarea
+                    />
+                  </div>
+                  
+                  <div className={`relative ${showGunturSuggestions ? "z-30" : "z-10"}`}>
+                    <div onClick={() => setShowGunturSuggestions(true)}>
+                      <Field
+                        label="Landmark / Nearby Place"
+                        value={form.landmark}
+                        onChange={(v) => {
+                          setForm({ ...form, landmark: v });
+                          setShowGunturSuggestions(true);
+                        }}
+                        placeholder="e.g. Opposite Metro Station"
+                      />
+                    </div>
+                    {showGunturSuggestions && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setShowGunturSuggestions(false)}
+                        />
+                        <div className="absolute left-0 right-0 bottom-full mb-1.5 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg z-50 py-1 text-slate-800 font-sans">
+                          <div className="px-3 py-1.5 bg-slate-50 text-[9px] font-extrabold uppercase tracking-wide text-slate-400 border-b border-slate-100 flex items-center justify-between">
+                            <span>📍 Guntur Location Suggestions</span>
+                            <span className="text-[8px] bg-[#cb9f5a]/10 text-[#cb9f5a] px-1 rounded">
+                              Quick Auto-fill
+                            </span>
+                          </div>
+                          {filteredGuntur.map((loc, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                setForm({
+                                  ...form,
+                                  landmark: loc.landmark,
+                                  address: `${loc.landmark}, ${loc.area}`,
+                                  pincode: loc.pincode,
+                                  city: "Guntur",
+                                  mapsLink: loc.mapsLink,
+                                });
+                                setShowGunturSuggestions(false);
+                                toast.success(`Location auto-filled: ${loc.area}!`, { icon: "📍" });
+                              }}
+                              className="w-full text-left px-3 py-2 text-xs hover:bg-[#cb9f5a]/5 transition-colors border-0 bg-transparent cursor-pointer flex flex-col gap-0.5"
+                            >
+                              <div className="font-bold text-[#002a22] flex items-center justify-between">
+                                <span>{loc.area}</span>
+                                <span className="text-[10px] text-[#cb9f5a] font-mono">
+                                  {loc.pincode}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-medium truncate">
+                                {loc.landmark}
+                              </div>
+                            </button>
+                          ))}
+                          {filteredGuntur.length === 0 && (
+                            <div className="px-3 py-4 text-center text-slate-400 text-xs italic">
+                              No Guntur landmarks found matching your query
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  
+                  <Field
+                    label="Pincode"
+                    value={form.pincode}
+                    onChange={(v) => setForm({ ...form, pincode: v.replace(/\D/g, "").slice(0, 6) })}
+                    placeholder="522002"
+                  />
+
+                  {/* Save / Cancel buttons in sub-form */}
+                  {sessionStorage.getItem("user_profile") && savedAddresses.length > 0 && (
+                    <div className="sm:col-span-2 flex justify-end gap-2.5 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCheckoutAddressForm(false);
+                          // Restore default or previous address
+                          const defaultAddr = savedAddresses.find((a: any) => a.isDefault) || savedAddresses[0];
+                          if (defaultAddr) {
+                            setForm((f) => ({
+                              ...f,
+                              address: defaultAddr.address,
+                              landmark: defaultAddr.landmark,
+                              city: defaultAddr.city,
+                              pincode: defaultAddr.pincode,
+                            }));
+                          }
+                        }}
+                        className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!form.address.trim() || !form.pincode.trim()) {
+                            toast.error("Full Address and Pincode are required");
+                            return;
+                          }
+                          const userId = JSON.parse(sessionStorage.getItem("user_profile") || "{}").id;
+                          if (!userId) return;
+                          
+                          let updated: any[];
+                          if (editingAddressId) {
+                            // Update existing address
+                            updated = savedAddresses.map((a: any) => 
+                              a.id === editingAddressId
+                                ? { ...a, address: form.address.trim(), landmark: form.landmark.trim(), city: form.city.trim(), pincode: form.pincode.trim(), type: newAddrType }
+                                : a
+                            );
+                          } else {
+                            // Add new address
+                            const newAddr = {
+                              id: "addr-" + Math.random().toString(36).substr(2, 9),
+                              address: form.address.trim(),
+                              landmark: form.landmark.trim(),
+                              city: form.city.trim(),
+                              pincode: form.pincode.trim(),
+                              type: newAddrType,
+                              isDefault: savedAddresses.length === 0,
+                            };
+                            updated = [...savedAddresses, newAddr];
+                          }
+                          
+                          try {
+                            const res = await fetch(`${ADMIN_API_URL}/api/users/${userId}/addresses`, {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ addresses: updated }),
+                            });
+                            if (res.ok) {
+                              setSavedAddresses(updated);
+                              const prof = JSON.parse(sessionStorage.getItem("user_profile") || "{}");
+                              const updatedProf = { ...prof, addresses: updated };
+                              sessionStorage.setItem("user_profile", JSON.stringify(updatedProf));
+                              window.dispatchEvent(new Event("storage"));
+                              toast.success(editingAddressId ? "Address updated!" : "New address added!");
+                              setShowCheckoutAddressForm(false);
+                            }
+                          } catch (err) {
+                            toast.error("Failed to save address changes.");
+                          }
+                        }}
+                        className="px-4 py-2 bg-[#002a22] text-white hover:bg-[#003d32] text-xs font-bold rounded-xl cursor-pointer"
+                      >
+                        {editingAddressId ? "Update Address" : "Save Address"}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Preview of selected address if form is hidden */}
+              {!showCheckoutAddressForm && savedAddresses.length > 0 && form.address && (
+                <div className="sm:col-span-2 bg-[#faf8f5]/85 border border-[#cb9f5a]/25 rounded-2xl p-4 shadow-3xs text-xs font-sans space-y-1 mt-1">
+                  <div className="font-extrabold uppercase text-[9px] text-[#cb9f5a]">Selected Delivery Address</div>
+                  <p className="font-bold text-slate-700 leading-relaxed">{form.address}</p>
+                  {form.landmark && <p className="text-[10px] text-slate-500 font-bold">Nearby: {form.landmark}</p>}
+                  <p className="text-[10px] text-[#cb9f5a] font-extrabold uppercase">{form.city} - {form.pincode}</p>
+                </div>
+              )}
+
+              {/* Save Address to Profile Checkbox for guest users who type manually */}
+              {sessionStorage.getItem("user_profile") && savedAddresses.length === 0 && (
+                <div className="sm:col-span-2 flex items-center gap-2 pt-1 font-sans">
+                  <input
+                    type="checkbox"
+                    id="save-to-profile-checkbox"
+                    checked={saveToProfile}
+                    onChange={(e) => setSaveToProfile(e.target.checked)}
+                    className="rounded border-[#cb9f5a]/30 text-[#002a22] focus:ring-[#cb9f5a] cursor-pointer h-4 w-4"
+                  />
+                  <label htmlFor="save-to-profile-checkbox" className="text-xs font-bold text-[#002a22]/80 select-none cursor-pointer">
+                    Save this address to my profile for future bookings
+                  </label>
+                </div>
+              )}
 
               {/* Technician location detector */}
               <div className="sm:col-span-2">
@@ -6060,6 +6512,7 @@ interface CategoryCarouselProps {
   onSelectService: (s: Service) => void;
   onAddToCart: (s: Service) => void;
   getServicePrice: (basePrice: number) => number;
+  liveReviews?: any[];
 }
 
 function CategoryCarousel({
@@ -6067,6 +6520,7 @@ function CategoryCarousel({
   onSelectService,
   onAddToCart,
   getServicePrice,
+  liveReviews = [],
 }: CategoryCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -6078,6 +6532,11 @@ function CategoryCarousel({
   };
 
   const getServiceRating = (id: string) => {
+    const svcReviews = liveReviews.filter((r) => r.serviceId === id);
+    if (svcReviews.length > 0) {
+      const avg = svcReviews.reduce((acc, r) => acc + r.rating, 0) / svcReviews.length;
+      return avg.toFixed(2);
+    }
     const charCodeSum = id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const ratingVal = 4.5 + (charCodeSum % 51) * 0.01;
     return ratingVal.toFixed(2);
@@ -6086,15 +6545,7 @@ function CategoryCarousel({
   if (!category.services || category.services.length === 0) return null;
 
   return (
-    <div className="relative mx-auto max-w-7xl px-5 py-4 lg:px-8">
-      {/* Category Header */}
-      <div className="text-center mb-6">
-        <h2 className="font-display text-lg md:text-xl font-black tracking-wider uppercase text-[#002a22]">
-          {category.title}
-        </h2>
-        <div className="h-0.5 w-16 bg-[#cb9f5a]/40 mx-auto mt-1.5 rounded-full" />
-      </div>
-
+    <div className="relative mx-auto max-w-[1400px] px-5 py-4 lg:px-8">
       {/* Carousel Wrapper */}
       <div className="group/carousel relative">
         {/* Left Arrow Button */}
@@ -6124,10 +6575,10 @@ function CategoryCarousel({
             const rating = getServiceRating(s.id);
             const numStars = Math.round(parseFloat(rating));
             return (
-              <div
+              <TiltCard
                 key={s.id}
                 onClick={() => onSelectService(s)}
-                className="relative min-w-[260px] sm:min-w-[280px] md:min-w-[300px] flex flex-col rounded-none overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 snap-start select-none bg-white border border-[#cb9f5a]/15 group/card cursor-pointer"
+                className="relative min-w-[260px] sm:min-w-[280px] md:min-w-[300px] flex flex-col rounded-none overflow-hidden snap-start select-none bg-white border border-[#cb9f5a]/15 group/card cursor-pointer"
               >
                 {/* Top Half: Image */}
                 <div className="relative h-44 w-full overflow-hidden bg-slate-100 shrink-0">
@@ -6163,6 +6614,28 @@ function CategoryCarousel({
                       ))}
                       <span className="text-[10px] text-slate-400 font-bold ml-1">({rating})</span>
                     </div>
+
+                    {/* Inclusions list */}
+                    {s.sub && s.sub.length > 0 && (
+                      <div className="mt-3.5 space-y-1.5 border-t border-slate-100/70 pt-3">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                          What's Included:
+                        </span>
+                        <div className="space-y-1">
+                          {s.sub.slice(0, 3).map((item, idx) => (
+                            <div key={idx} className="flex items-start gap-1.5 text-[10px] text-slate-650 font-semibold leading-normal">
+                              <span className="text-[#cb9f5a] font-black mt-0.5">✓</span>
+                              <span className="truncate">{item}</span>
+                            </div>
+                          ))}
+                          {s.sub.length > 3 && (
+                            <span className="text-[9px] text-[#cb9f5a] font-bold block mt-0.5">
+                              + {s.sub.length - 3} more features
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2">
@@ -6198,11 +6671,188 @@ function CategoryCarousel({
                     </div>
                   </div>
                 </div>
-              </div>
+              </TiltCard>
             );
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+interface BeforeAfterSliderProps {
+  before: string;
+  after: string;
+  title: string;
+  location: string;
+}
+
+export function BeforeAfterSlider({ before, after, title, location }: BeforeAfterSliderProps) {
+  const [sliderPosition, setSliderPosition] = useState(50); // percentage (0 to 100)
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+
+  const handleMove = (clientX: number) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width) * 100;
+    setSliderPosition(Math.max(0, Math.min(100, x)));
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      handleMove(e.clientX);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragging.current) return;
+      if (e.touches && e.touches[0]) {
+        handleMove(e.touches[0].clientX);
+      }
+    };
+
+    const handleStop = () => {
+      isDragging.current = false;
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleStop);
+    document.addEventListener("touchmove", handleTouchMove, { passive: true });
+    document.addEventListener("touchend", handleStop);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleStop);
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleStop);
+    };
+  }, []);
+
+  const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
+    isDragging.current = true;
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative overflow-hidden aspect-[4/3] w-full border border-[#cb9f5a]/20 select-none rounded-none group shadow-sm bg-slate-900"
+    >
+      {/* After Image (Background) */}
+      <img
+        src={after}
+        alt={`${title} After`}
+        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+      />
+
+      {/* Before Image (Revealed via Clip Path) */}
+      <div
+        className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none"
+        style={{ clipPath: `polygon(0 0, ${sliderPosition}% 0, ${sliderPosition}% 100%, 0 100%)` }}
+      >
+        <img
+          src={before}
+          alt={`${title} Before`}
+          className="absolute inset-0 w-full h-full object-cover max-w-none"
+          style={{ width: containerRef.current?.getBoundingClientRect().width || "100%" }}
+        />
+      </div>
+
+      {/* Vertical Slider Handle Line */}
+      <div
+        className="absolute top-0 bottom-0 w-1 bg-[#cb9f5a] shadow-[0_0_15px_rgba(203,159,90,0.85)] z-20 cursor-ew-resize flex items-center justify-center"
+        style={{ left: `${sliderPosition}%` }}
+        onMouseDown={handleStart}
+        onTouchStart={handleStart}
+      >
+        {/* Grab Circle */}
+        <div className="h-8 w-8 rounded-full bg-white border border-[#cb9f5a] shadow-lg flex items-center justify-center pointer-events-none select-none">
+          <span className="text-[#002a22] text-xs font-black select-none">↔</span>
+        </div>
+      </div>
+
+      {/* Before / After Badges */}
+      <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-xs px-2 py-0.5 text-[8px] font-black tracking-wider text-white border border-white/10 uppercase z-30 rounded-none select-none pointer-events-none">
+        Before
+      </div>
+      <div className="absolute top-3 right-3 bg-[#cb9f5a] px-2 py-0.5 text-[8px] font-black tracking-wider text-[#002a22] z-30 rounded-none select-none pointer-events-none">
+        After
+      </div>
+
+      {/* Label Content Overlay */}
+      <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/85 via-black/35 to-transparent z-10 pointer-events-none text-white">
+        <h3 className="font-display text-xs font-bold text-white leading-tight">{title}</h3>
+        <p className="text-[9px] text-[#cb9f5a] font-extrabold mt-0.5">{location}</p>
+      </div>
+    </div>
+  );
+}
+
+interface TiltCardProps {
+  children: React.ReactNode;
+  className?: string;
+  onClick?: () => void;
+}
+
+export function TiltCard({ children, className, onClick }: TiltCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ x: 0, y: 0 });
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setCoords({ x, y });
+  };
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    setCoords({ x: 0, y: 0 });
+  };
+
+  const rotateX = -coords.y * 15; // Max 15 degree rotation
+  const rotateY = coords.x * 15;
+
+  const style = isHovered
+    ? {
+        transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`,
+        transition: "transform 0.1s ease-out, box-shadow 0.1s ease-out",
+        boxShadow: "0 15px 30px rgba(0, 42, 34, 0.15)",
+        zIndex: 10,
+      }
+    : {
+        transform: "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)",
+        transition: "transform 0.5s ease-out, box-shadow 0.5s ease-out",
+        boxShadow: "none",
+        zIndex: 1,
+      };
+
+  return (
+    <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onClick={onClick}
+      style={style}
+      className={`relative select-none transition-all duration-300 will-change-transform ${className || ""}`}
+    >
+      {children}
+      {isHovered && (
+        <div
+          className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+          style={{
+            background: `radial-gradient(circle 100px at ${(coords.x + 0.5) * 100}% ${(coords.y + 0.5) * 100}%, rgba(255, 255, 255, 0.25), transparent 70%)`,
+            zIndex: 35,
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -56,6 +56,18 @@ import {
 } from "lucide-react";
 
 import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
+
+import {
   fetchAdminCatalog,
   fetchBookings,
   fetchUsers,
@@ -80,6 +92,7 @@ import {
   updateTechnician,
   deleteTechnician,
   updateBookingTechnician,
+  updateBookingJobStatus,
   rescheduleBooking,
   fetchRescheduleLogs,
   fetchAdmins,
@@ -87,6 +100,11 @@ import {
   registerAdmin,
   updateAdminDetails,
   deleteAdmin,
+  fetchRecentTransformations,
+  addRecentTransformation,
+  updateRecentTransformation,
+  deleteRecentTransformation,
+  type RecentTransformation,
   type AdminCategory,
   type AdminService,
   type AdminCustomizedService,
@@ -167,7 +185,8 @@ type TabType =
   | "coupons"
   | "technicians"
   | "reschedules"
-  | "admins";
+  | "admins"
+  | "transformations";
 
 function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
@@ -210,11 +229,26 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [admFreeRadius, setAdmFreeRadius] = useState<number>(5);
   const [admReferralReward, setAdmReferralReward] = useState<number>(200);
   const [admReferralEnabled, setAdmReferralEnabled] = useState<boolean>(true);
+  const [admPromoText, setAdmPromoText] = useState("Exclusive Privilege: Enjoy Flat 20% OFF on your first booking — apply code");
+  const [admPromoCode, setAdmPromoCode] = useState("CLEAN20");
 
   // User Edit Wallet State
   const [walletEditUserId, setWalletEditUserId] = useState<string | null>(null);
   const [walletEditAmount, setWalletEditAmount] = useState<string>("");
   const [walletEditLoading, setWalletEditLoading] = useState(false);
+
+  // Recent Transformations states
+  const [transformations, setTransformations] = useState<RecentTransformation[]>([]);
+  const [transTitle, setTransTitle] = useState("");
+  const [transLocation, setTransLocation] = useState("");
+  const [transBeforeImage, setTransBeforeImage] = useState("");
+  const [transAfterImage, setTransAfterImage] = useState("");
+  const [selectedTransId, setSelectedTransId] = useState("");
+  const [isEditingTrans, setIsEditingTrans] = useState(false);
+  const [transBeforeImageInputMode, setTransBeforeImageInputMode] = useState<"url" | "file">("file");
+  const [transAfterImageInputMode, setTransAfterImageInputMode] = useState<"url" | "file">("file");
+  const [isUploadingBeforeImage, setIsUploadingBeforeImage] = useState(false);
+  const [isUploadingAfterImage, setIsUploadingAfterImage] = useState(false);
 
   // Technician Editor Draft states
   const [activeTechnicianId, setActiveTechnicianId] = useState("");
@@ -239,6 +273,12 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [catTagline, setCatTagline] = useState("");
   const [catEmoji, setCatEmoji] = useState("🏠");
   const [catImage, setCatImage] = useState("");
+  const [catParentId, setCatParentId] = useState("");
+  const [catIncludes, setCatIncludes] = useState("");
+  const [catIncList, setCatIncList] = useState<string[]>([]);
+  const [editingCatIncIdx, setEditingCatIncIdx] = useState<number | null>(null);
+  const [editCatIncVal, setEditCatIncVal] = useState("");
+  const [categorySubTab, setCategorySubTab] = useState<"main" | "sub">("main");
   const [imageInputMode, setImageInputMode] = useState<"url" | "upload">("url");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
@@ -250,7 +290,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [customizedImageInputMode, setCustomizedImageInputMode] = useState<"url" | "upload">("url");
   const [isUploadingCustomizedImage, setIsUploadingCustomizedImage] = useState(false);
   const [customizedPlans, setCustomizedPlans] = useState<any[]>([]);
-  const [customizedPaymentType, setCustomizedPaymentType] = useState<"full" | "deposit_25">("full");
+  const [customizedPaymentType, setCustomizedPaymentType] = useState<"full" | "deposit_25" | "deposit_50" | "free_advance">("full");
 
   // Service Editor Draft states
   const [activeServiceId, setActiveServiceId] = useState("");
@@ -266,7 +306,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [svcDisclaimer, setSvcDisclaimer] = useState("");
   const [svcRequirements, setSvcRequirements] = useState("");
   const [svcPlans, setSvcPlans] = useState<any[]>([]);
-  const [svcPaymentType, setSvcPaymentType] = useState<"full" | "deposit_25">("full");
+  const [svcPaymentType, setSvcPaymentType] = useState<"full" | "deposit_25" | "deposit_50" | "free_advance">("full");
   const [svcPrecautions, setSvcPrecautions] = useState<any[]>([]);
   const [newPrecautionTitle, setNewPrecautionTitle] = useState("");
   const [newPrecautionDesc, setNewPrecautionDesc] = useState("");
@@ -294,6 +334,122 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [bookingDateFilter, setBookingDateFilter] = useState("all");
   const [bookingSortOrder, setBookingSortOrder] = useState("desc");
 
+  // Analytics Filter States
+  const [analyticsFilterType, setAnalyticsFilterType] = useState<"daily" | "monthly" | "custom">("daily");
+  const [dailyRangeOption, setDailyRangeOption] = useState<7 | 15 | 30>(7);
+  const [customStartDate, setCustomStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split("T")[0];
+  });
+  const [customEndDate, setCustomEndDate] = useState(() => {
+    return new Date().toISOString().split("T")[0];
+  });
+
+  const chartData = useMemo(() => {
+    let result = [...bookings];
+    const parsedBookings = result.map(b => {
+      let dateObj: Date;
+      let dateStr = "";
+      if (b.createdAt) {
+        dateStr = b.createdAt.split("T")[0];
+        dateObj = new Date(b.createdAt);
+      } else if (b.schedule?.date) {
+        dateStr = b.schedule.date;
+        dateObj = new Date(b.schedule.date);
+      } else {
+        dateStr = new Date().toISOString().split("T")[0];
+        dateObj = new Date();
+      }
+      return {
+        ...b,
+        cleanDateStr: dateStr,
+        cleanMonthStr: dateStr.substring(0, 7),
+        dateObj
+      };
+    });
+
+    const now = new Date();
+    let filtered = parsedBookings;
+
+    if (analyticsFilterType === "daily") {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(now.getDate() - dailyRangeOption);
+      cutoffDate.setHours(0, 0, 0, 0);
+      filtered = parsedBookings.filter(b => b.dateObj >= cutoffDate);
+    } else if (analyticsFilterType === "custom") {
+      const start = new Date(customStartDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(customEndDate);
+      end.setHours(23, 59, 59, 999);
+      filtered = parsedBookings.filter(b => b.dateObj >= start && b.dateObj <= end);
+    }
+
+    const aggregation: Record<string, { label: string; orders: number; revenue: number }> = {};
+
+    if (analyticsFilterType === "monthly") {
+      filtered.forEach(b => {
+        const key = b.cleanMonthStr;
+        if (!aggregation[key]) {
+          let label = key;
+          try {
+            const [yr, mn] = key.split("-");
+            const d = new Date(Number(yr), Number(mn) - 1, 1);
+            label = d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+          } catch(e) {}
+          aggregation[key] = { label, orders: 0, revenue: 0 };
+        }
+        aggregation[key].orders += 1;
+        aggregation[key].revenue += Number(b.total) || 0;
+      });
+    } else {
+      let dateRangeList: string[] = [];
+      const start = new Date();
+      if (analyticsFilterType === "daily") {
+        start.setDate(now.getDate() - dailyRangeOption + 1);
+      } else {
+        const customStart = new Date(customStartDate);
+        start.setTime(customStart.getTime());
+      }
+      const endLimit = analyticsFilterType === "daily" ? now : new Date(customEndDate);
+      const loop = new Date(start);
+      let safetyCount = 0;
+      while (loop <= endLimit && safetyCount < 90) {
+        const dateStr = loop.toISOString().split("T")[0];
+        dateRangeList.push(dateStr);
+        loop.setDate(loop.getDate() + 1);
+        safetyCount++;
+      }
+
+      dateRangeList.forEach(dateStr => {
+        let label = dateStr;
+        try {
+          const d = new Date(dateStr);
+          label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        } catch(e) {}
+        aggregation[dateStr] = { label, orders: 0, revenue: 0 };
+      });
+
+      filtered.forEach(b => {
+        const key = b.cleanDateStr;
+        if (aggregation[key]) {
+          aggregation[key].orders += 1;
+          aggregation[key].revenue += Number(b.total) || 0;
+        } else if (analyticsFilterType === "custom") {
+          let label = key;
+          try {
+            const d = new Date(key);
+            label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          } catch(e) {}
+          aggregation[key] = { label, orders: 1, revenue: Number(b.total) || 0 };
+        }
+      });
+    }
+
+    const sortedKeys = Object.keys(aggregation).sort();
+    return sortedKeys.map(k => aggregation[k]);
+  }, [bookings, analyticsFilterType, dailyRangeOption, customStartDate, customEndDate]);
+
   const refreshData = async () => {
     setIsRefreshing(true);
     try {
@@ -317,6 +473,9 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       const rlogs = await fetchRescheduleLogs();
       setRescheduleLogsList(rlogs || []);
 
+      const transData = await fetchRecentTransformations();
+      setTransformations(transData || []);
+
       // Fetch travel distance pricing configurations
       try {
         const sRes = await fetch(`${ADMIN_API_URL}/api/settings`);
@@ -333,6 +492,12 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           }
           if (settings.referral_enabled !== undefined) {
             setAdmReferralEnabled(settings.referral_enabled !== "0");
+          }
+          if (settings.header_promo_text !== undefined) {
+            setAdmPromoText(settings.header_promo_text);
+          }
+          if (settings.header_promo_code !== undefined) {
+            setAdmPromoCode(settings.header_promo_code);
           }
         }
       } catch (err) {
@@ -530,6 +695,11 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const handleAssignTechnician = async (bookingId: string, technicianId: string | null) => {
     try {
       await updateBookingTechnician(bookingId, technicianId);
+      if (technicianId) {
+        await updateBookingJobStatus(bookingId, "Assigned", null);
+      } else {
+        await updateBookingJobStatus(bookingId, "Pending", null);
+      }
       toast.success("Staff assignment updated successfully!");
       refreshData();
     } catch (err: any) {
@@ -678,6 +848,9 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     setCatTagline(taglineVal);
     setCatEmoji(c.emoji || "✨");
     setCatImage(imageVal);
+    setCatParentId(c.parentId || "");
+    setCatIncList(c.includes || []);
+    setCategorySubTab(c.parentId ? "sub" : "main");
     setImageInputMode("url");
   };
 
@@ -720,6 +893,13 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       return;
     }
 
+    if (categorySubTab === "sub" && !catParentId) {
+      toast.error("Please choose a Parent Category");
+      return;
+    }
+
+    const parentIdVal = categorySubTab === "main" ? null : (catParentId || null);
+
     try {
       if (activeCategoryId.startsWith("new-")) {
         // Create
@@ -728,6 +908,8 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           tagline: catTagline,
           emoji: catEmoji,
           image: catImage,
+          parentId: parentIdVal,
+          includes: catIncList,
         });
         setCategories((prev) => [...prev, created]);
         selectCategory(created);
@@ -739,6 +921,8 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           tagline: catTagline,
           emoji: catEmoji,
           image: catImage,
+          parentId: parentIdVal,
+          includes: catIncList,
         });
         setCategories((prev) => prev.map((c) => (c.id === activeCategoryId ? updated : c)));
         toast.success("Category updated successfully!");
@@ -923,8 +1107,17 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     setCatTagline("");
     setCatEmoji("✨");
     setCatImage("");
+    setCatIncludes("");
+    setCatIncList([]);
     setImageInputMode("url");
     setActiveTab("categories");
+
+    if (categorySubTab === "sub") {
+      const firstParent = categories.find((c) => !c.parentId);
+      setCatParentId(firstParent ? firstParent.id : "");
+    } else {
+      setCatParentId("");
+    }
   };
 
   // CRUD Handler - Service
@@ -1025,6 +1218,144 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       toast.success("Booking removed");
     } catch (err) {
       toast.error("Failed to remove booking");
+    }
+  };
+
+  // CRUD Handler - Recent Transformations
+  const clearTransForm = () => {
+    setTransTitle("");
+    setTransLocation("");
+    setTransBeforeImage("");
+    setTransAfterImage("");
+    setSelectedTransId("");
+    setIsEditingTrans(false);
+    setTransBeforeImageInputMode("file");
+    setTransAfterImageInputMode("file");
+  };
+
+  const handleUploadBeforeImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error("Image file is too heavy! Maximum size allowed is 5MB.", { icon: "⚖️" });
+      return;
+    }
+
+    setIsUploadingBeforeImage(true);
+    const toastId = toast.loading("Uploading before image...", { icon: "☁️" });
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(`${ADMIN_API_URL}/api/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Upload failed: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setTransBeforeImage(data.url);
+      toast.success("Before image uploaded successfully!", { id: toastId, icon: "🎉" });
+    } catch (err: any) {
+      console.error("Before image upload error:", err);
+      toast.error(err.message || "Failed to upload before image.", { id: toastId, icon: "❌" });
+    } finally {
+      setIsUploadingBeforeImage(false);
+    }
+  };
+
+  const handleUploadAfterImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error("Image file is too heavy! Maximum size allowed is 5MB.", { icon: "⚖️" });
+      return;
+    }
+
+    setIsUploadingAfterImage(true);
+    const toastId = toast.loading("Uploading after image...", { icon: "☁️" });
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(`${ADMIN_API_URL}/api/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Upload failed: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setTransAfterImage(data.url);
+      toast.success("After image uploaded successfully!", { id: toastId, icon: "🎉" });
+    } catch (err: any) {
+      console.error("After image upload error:", err);
+      toast.error(err.message || "Failed to upload after image.", { id: toastId, icon: "❌" });
+    } finally {
+      setIsUploadingAfterImage(false);
+    }
+  };
+
+  const handleSaveTransformation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transTitle || !transLocation || !transAfterImage) {
+      toast.error("Title, Location and After Image are required.");
+      return;
+    }
+    const payload = {
+      title: transTitle,
+      location: transLocation,
+      beforeImage: transBeforeImage,
+      afterImage: transAfterImage,
+    };
+
+    try {
+      if (isEditingTrans && selectedTransId) {
+        await updateRecentTransformation(selectedTransId, payload);
+        toast.success("Transformation updated successfully!");
+      } else {
+        await addRecentTransformation(payload);
+        toast.success("Transformation added successfully!");
+      }
+      clearTransForm();
+      refreshData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save transformation.");
+    }
+  };
+
+  const handleEditTransformation = (t: RecentTransformation) => {
+    setTransTitle(t.title);
+    setTransLocation(t.location);
+    setTransBeforeImage(t.beforeImage || "");
+    setTransAfterImage(t.afterImage);
+    setSelectedTransId(t.id);
+    setIsEditingTrans(true);
+    setTransBeforeImageInputMode(t.beforeImage ? "url" : "file");
+    setTransAfterImageInputMode("url");
+  };
+
+  const handleDeleteTransformation = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this transformation?")) return;
+    try {
+      await deleteRecentTransformation(id);
+      toast.success("Transformation deleted successfully!");
+      refreshData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete transformation.");
     }
   };
 
@@ -1396,6 +1727,32 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
 
           <button
             onClick={() => {
+              setActiveTab("transformations");
+              setIsSidebarOpen(false);
+            }}
+            className={`flex w-full items-center gap-3.5 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer ${
+              activeTab === "transformations"
+                ? "gradient-gold text-navy shadow-gold font-bold"
+                : "text-cream/80 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <Sparkles className="h-4.5 w-4.5" />
+            <span>Transformations</span>
+            {transformations.length > 0 && (
+              <span
+                className={`ml-auto rounded-full px-2 py-0.5 text-2xs font-extrabold ${
+                  activeTab === "transformations"
+                    ? "bg-[#002a22] text-white"
+                    : "bg-[#cb9f5a]/25 text-[#cb9f5a] border border-[#cb9f5a]/30"
+                }`}
+              >
+                {transformations.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => {
               navigate({ to: "/" });
               setIsSidebarOpen(false);
             }}
@@ -1573,6 +1930,204 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                 </div>
               </div>
 
+              {/* ANALYTICS CHARTS SECTION */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5 mb-6">
+                  <div>
+                    <h3 className="font-display text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <span>📊</span> Console Analytics & Yield Reports
+                    </h3>
+                    <p className="text-xs text-slate-555 mt-0.5 font-sans font-medium">
+                      Visual analysis of order volumes, billing distributions, and daily expected yields.
+                    </p>
+                  </div>
+
+                  {/* Period selection controls */}
+                  <div className="flex flex-wrap items-center gap-2 font-sans">
+                    {/* View Type Toggle */}
+                    <div className="inline-flex rounded-xl bg-slate-100 p-0.5 border border-slate-200">
+                      {(["daily", "monthly", "custom"] as const).map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => setAnalyticsFilterType(type)}
+                          className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase transition-all cursor-pointer ${
+                            analyticsFilterType === type
+                              ? "bg-white text-[#002a22] shadow-xs"
+                              : "text-slate-400 hover:text-slate-700"
+                          }`}
+                        >
+                          {type === "daily" ? "Daily" : type === "monthly" ? "Monthly" : "Custom Date"}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Daily Specific Options */}
+                    {analyticsFilterType === "daily" && (
+                      <div className="inline-flex rounded-xl bg-slate-100 p-0.5 border border-slate-200">
+                        {([7, 15, 30] as const).map((days) => (
+                          <button
+                            key={days}
+                            onClick={() => setDailyRangeOption(days)}
+                            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
+                              dailyRangeOption === days
+                                ? "bg-white text-[#cb9f5a] shadow-xs font-bold"
+                                : "text-slate-400 hover:text-slate-650"
+                            }`}
+                          >
+                            {days}D
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Custom Range Date Pickers */}
+                    {analyticsFilterType === "custom" && (
+                      <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                        <input
+                          type="date"
+                          value={customStartDate}
+                          onChange={(e) => setCustomStartDate(e.target.value)}
+                          className="bg-transparent border-0 text-xs font-bold text-slate-700 focus:outline-none focus:ring-0 p-0 cursor-pointer"
+                        />
+                        <span className="text-slate-350 text-xs font-bold">to</span>
+                        <input
+                          type="date"
+                          value={customEndDate}
+                          onChange={(e) => setCustomEndDate(e.target.value)}
+                          className="bg-transparent border-0 text-xs font-bold text-slate-700 focus:outline-none focus:ring-0 p-0 cursor-pointer"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Grid container for charts */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {/* Card 1: Orders Volume Trend */}
+                  <div className="rounded-xl border border-slate-150/80 bg-slate-50/40 p-4">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-450">
+                          📦 Booking Orders Received
+                        </h4>
+                        <span className="text-[10px] text-[#cb9f5a] font-bold">Total booked frequency count</span>
+                      </div>
+                      <div className="rounded-lg bg-emerald-500/10 px-2 py-0.5 text-3xs font-extrabold text-emerald-700 uppercase">
+                        Volume Trend
+                      </div>
+                    </div>
+
+                    <div className="h-64 w-full font-mono text-[10px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#cb9f5a" stopOpacity={0.4} />
+                              <stop offset="95%" stopColor="#cb9f5a" stopOpacity={0.0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#002a22" strokeOpacity={0.07} />
+                          <XAxis 
+                            dataKey="label" 
+                            stroke="#8c9ba5" 
+                            fontSize={10} 
+                            fontWeight="bold"
+                            tickLine={false} 
+                            axisLine={false} 
+                          />
+                          <YAxis 
+                            stroke="#8c9ba5" 
+                            fontSize={10} 
+                            fontWeight="bold"
+                            tickLine={false} 
+                            axisLine={false} 
+                            allowDecimals={false}
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: "#002a22", 
+                              color: "#fdfcf7", 
+                              borderRadius: "12px", 
+                              border: "1px solid #cb9f5a30",
+                              fontSize: "11px",
+                              fontFamily: "sans-serif"
+                            }} 
+                            labelStyle={{ color: "#cb9f5a", fontWeight: "bold" }}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="orders" 
+                            name="Orders" 
+                            stroke="#cb9f5a" 
+                            strokeWidth={2.5} 
+                            fillOpacity={1} 
+                            fill="url(#colorOrders)" 
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Billing Expected Revenue & Yield */}
+                  <div className="rounded-xl border border-slate-150/80 bg-slate-50/40 p-4">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-450">
+                          💰 Revenue & Yield Stream
+                        </h4>
+                        <span className="text-[10px] text-emerald-600 font-bold">Gross financial invoices value</span>
+                      </div>
+                      <div className="rounded-lg bg-[#002a22]/10 px-2 py-0.5 text-3xs font-extrabold text-[#002a22] uppercase">
+                        Yield Flow
+                      </div>
+                    </div>
+
+                    <div className="h-64 w-full font-mono text-[10px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#002a22" strokeOpacity={0.07} />
+                          <XAxis 
+                            dataKey="label" 
+                            stroke="#8c9ba5" 
+                            fontSize={10} 
+                            fontWeight="bold"
+                            tickLine={false} 
+                            axisLine={false} 
+                          />
+                          <YAxis 
+                            stroke="#8c9ba5" 
+                            fontSize={10} 
+                            fontWeight="bold"
+                            tickLine={false} 
+                            axisLine={false}
+                            tickFormatter={(v) => `₹${v}`}
+                          />
+                          <Tooltip 
+                            formatter={(value) => [`₹${value}`, "Revenue"]}
+                            contentStyle={{ 
+                              backgroundColor: "#002a22", 
+                              color: "#fdfcf7", 
+                              borderRadius: "12px", 
+                              border: "1px solid #cb9f5a30",
+                              fontSize: "11px",
+                              fontFamily: "sans-serif"
+                            }} 
+                            labelStyle={{ color: "#cb9f5a", fontWeight: "bold" }}
+                          />
+                          <Bar 
+                            dataKey="revenue" 
+                            name="Revenue (₹)" 
+                            fill="#004d3e" 
+                            radius={[6, 6, 0, 0]} 
+                            maxBarSize={45}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* RECENT BOOKINGS TABLE */}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
@@ -1649,74 +2204,170 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
 
           {/* CATEGORIES TAB CONTROLS */}
           {activeTab === "categories" && (
-            <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+            <div className="grid gap-6 grid-cols-1 xl:grid-cols-[340px_1fr]">
               {/* Category selector panel */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm h-fit lg:sticky lg:top-0">
-                <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Categories
-                  </span>
+              <div className="rounded-3xl border border-slate-200 bg-white p-5.5 shadow-sm h-fit xl:sticky xl:top-0">
+                <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3.5">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black uppercase tracking-wider text-[#002a22]">
+                      Catalog Hierarchy
+                    </span>
+                    <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#cb9f5a] mt-0.5">
+                      Main & Sub-Categories
+                    </span>
+                  </div>
                   <button
                     onClick={triggerAddCategory}
-                    className="grid h-7 w-7 place-items-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
-                    title="Add Category"
+                    className="flex h-8 px-3 items-center gap-1 text-[10px] font-black uppercase tracking-wider rounded-xl bg-[#002a22] text-[#cb9f5a] border border-[#cb9f5a]/30 hover:bg-[#cb9f5a] hover:text-[#002a22] transition-all cursor-pointer shadow-sm"
+                    title="Add Main Category"
                   >
-                    <Plus className="h-4.5 w-4.5" />
+                    <Plus className="h-3.5 w-3.5" /> Main
                   </button>
                 </div>
-                <ul className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
-                  {categories.map((c) => (
-                    <li key={c.id}>
-                      <button
-                        onClick={() => selectCategory(c)}
-                        className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold transition-all ${
-                          activeCategoryId === c.id
-                            ? "bg-rose-50 text-rose-700 border border-rose-250/20"
-                            : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-                        }`}
-                      >
-                        <span className="text-xl">{c.emoji || "✨"}</span>
-                        <span className="flex-1 truncate">{c.title}</span>
-                      </button>
-                    </li>
-                  ))}
+
+                <div className="space-y-4 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
+                  {categories
+                    .filter((c) => !c.parentId)
+                    .map((parent) => {
+                      const subs = categories.filter((sub) => sub.parentId === parent.id);
+                      const isParentActive = activeCategoryId === parent.id;
+
+                      return (
+                        <div
+                          key={parent.id}
+                          className={`rounded-2xl border transition-all duration-300 p-3.5 space-y-3.5 ${
+                            isParentActive
+                              ? "border-[#cb9f5a]/50 bg-[#cb9f5a]/5 shadow-xs border-l-4 border-l-[#cb9f5a]"
+                              : "border-slate-100 bg-[#faf8f5]/30 hover:border-slate-200"
+                          }`}
+                        >
+                          {/* Parent Category Row */}
+                          <div className="flex items-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCategorySubTab("main");
+                                selectCategory(parent);
+                              }}
+                              className={`flex-1 flex items-center gap-2.5 text-left border-0 cursor-pointer p-2 rounded-xl transition-all ${
+                                isParentActive
+                                  ? "bg-[#002a22] text-[#cb9f5a] shadow-xs"
+                                  : "bg-transparent text-slate-800 hover:bg-slate-100/50"
+                              }`}
+                            >
+                              <span className="text-xl shrink-0">{parent.emoji || "✨"}</span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-black uppercase tracking-wider truncate">
+                                  {parent.title}
+                                </span>
+                                <span className={`text-[8px] font-black uppercase tracking-widest mt-0.5 ${isParentActive ? "text-[#cb9f5a]/70" : "text-slate-400"}`}>
+                                  Main Category
+                                </span>
+                              </div>
+                            </button>
+                          </div>
+
+                          {/* Nested Sub-categories list */}
+                          <div className="pl-3.5 border-l-2 border-dashed border-[#cb9f5a]/30 space-y-2 pt-0.5">
+                            {subs.map((sub) => {
+                              const isSubActive = activeCategoryId === sub.id;
+                              return (
+                                <button
+                                  key={sub.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setCategorySubTab("sub");
+                                    selectCategory(sub);
+                                  }}
+                                  className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-extrabold transition-all border cursor-pointer ${
+                                    isSubActive
+                                      ? "bg-[#002a22] text-[#cb9f5a] border-[#cb9f5a]/30 shadow-md"
+                                      : "text-slate-600 bg-white/70 hover:bg-white hover:text-[#002a22] border-slate-100 hover:border-slate-200"
+                                  }`}
+                                >
+                                  <span className={`text-[10px] ${isSubActive ? "text-[#cb9f5a]" : "text-slate-400 font-normal"}`}>↳</span>
+                                  <span className="text-base shrink-0">{sub.emoji || "✨"}</span>
+                                  <span className="flex-1 truncate">{sub.title}</span>
+                                </button>
+                              );
+                            })}
+                            
+                            {/* Unified 'Add Sub' action block inside hierarchy */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCategorySubTab("sub");
+                                const tempId = `new-${Date.now()}`;
+                                setActiveCategoryId(tempId);
+                                setCatTitle("");
+                                setCatTagline("");
+                                setCatEmoji("✨");
+                                setCatImage("");
+                                setCatIncludes("");
+                                setCatIncList([]);
+                                setCatParentId(parent.id);
+                                setImageInputMode("url");
+                                setActiveTab("categories");
+                              }}
+                              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#cb9f5a]/45 bg-white/50 hover:bg-[#cb9f5a]/10 hover:border-[#cb9f5a] text-[#cb9f5a] py-2 text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-3xs"
+                            >
+                              <Plus className="h-3 w-3" /> Add Sub-Category
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
                   {categories.length === 0 && (
-                    <li className="text-center py-4 text-xs italic text-slate-400">
+                    <div className="text-center py-4 text-xs italic text-slate-400">
                       No categories found.
-                    </li>
+                    </div>
                   )}
-                </ul>
+                </div>
               </div>
 
               {/* Editor panel */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="rounded-3xl border border-slate-200 bg-white p-6.5 shadow-sm font-sans">
                 {activeCategoryId ? (
                   <div className="space-y-6">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <h3 className="font-display text-lg font-bold text-slate-900">
-                        {activeCategoryId.startsWith("new-")
-                          ? "Add New Category"
-                          : "Edit Category Data"}
-                      </h3>
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
+                      <div className="flex flex-col">
+                        <h3 className="font-display text-lg font-black text-[#002a22]">
+                          {activeCategoryId.startsWith("new-")
+                            ? "Add New Category"
+                            : "Edit Category Data"}
+                        </h3>
+                        {activeCategoryId.startsWith("new-") && catParentId && (
+                          <span className="text-[10px] text-[#cb9f5a] font-extrabold uppercase mt-1">
+                            Creating under: {categories.find(c => c.id === catParentId)?.title || "Unknown Parent"}
+                          </span>
+                        )}
+                        {!activeCategoryId.startsWith("new-") && catParentId && (
+                          <span className="text-[10px] text-[#cb9f5a] font-extrabold uppercase mt-1">
+                            Sub-Category of: {categories.find(c => c.id === catParentId)?.title || "Unknown Parent"}
+                          </span>
+                        )}
+                      </div>
                       {!activeCategoryId.startsWith("new-") && (
                         <button
                           onClick={() => handleDeleteCategory(activeCategoryId)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-rose-100 hover:bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-600 transition-colors"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-rose-250/20 hover:bg-rose-50 px-3.5 py-2 text-xs font-black uppercase text-rose-600 transition-all cursor-pointer"
                         >
                           <Trash2 className="h-3.5 w-3.5" /> DELETE CATEGORY
                         </button>
                       )}
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-[100px_1fr]">
+                    <div className={`grid gap-4 ${categorySubTab === "sub" ? "sm:grid-cols-[100px_1fr_265px]" : "sm:grid-cols-[100px_1fr]"}`}>
                       <div>
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                           Emoji Icon
                         </label>
                         <select
                           value={catEmoji}
                           onChange={(e) => setCatEmoji(e.target.value)}
-                          className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-3 text-2xl text-center outline-none focus:border-rose-500 focus:bg-white transition-all"
+                          className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50/55 px-3 py-3 text-2xl text-center outline-none focus:border-[#cb9f5a] focus:bg-white transition-all cursor-pointer"
                         >
                           {EMOJI_OPTIONS.map((e) => (
                             <option key={e} value={e}>
@@ -1726,47 +2377,68 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                           Category Name
                         </label>
                         <input
                           value={catTitle}
                           onChange={(e) => setCatTitle(e.target.value)}
-                          className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:border-rose-500 focus:bg-white transition-all"
-                          placeholder="e.g. Bathroom Cleaning"
+                          className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50/55 px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:border-[#cb9f5a] focus:bg-white transition-all"
+                          placeholder={categorySubTab === "sub" ? "e.g. Furnished" : "e.g. Full House Deep Cleaning"}
                         />
                       </div>
+                      {categorySubTab === "sub" && (
+                        <div>
+                          <label className="text-[10px] font-black uppercase tracking-wider text-[#cb9f5a]">
+                            Belongs to Main Category *
+                          </label>
+                          <select
+                            value={catParentId}
+                            onChange={(e) => setCatParentId(e.target.value)}
+                            className="mt-2 w-full rounded-xl border border-[#cb9f5a]/40 bg-[#faf8f5] px-4 py-3 text-sm text-[#002a22] font-extrabold outline-none focus:border-[#cb9f5a] focus:bg-white transition-all cursor-pointer"
+                          >
+                            <option value="">-- Select Main Category --</option>
+                            {categories
+                              .filter((c) => !c.parentId && c.id !== activeCategoryId)
+                              .map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.emoji} {c.title}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                      )}
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                         Tagline / Subtitle Description
                       </label>
                       <input
                         value={catTagline}
                         onChange={(e) => setCatTagline(e.target.value)}
-                        className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-rose-500 focus:bg-white transition-all"
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50/55 px-4 py-3 text-sm text-slate-700 outline-none focus:border-[#cb9f5a] focus:bg-white transition-all"
                         placeholder="e.g. Spotless sanitize layout for commercial setups"
                       />
                     </div>
 
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                           Category Cover Image
                         </label>
                         <div className="flex gap-1.5 bg-slate-100 border border-slate-200/50 rounded-xl p-1 text-[11px] font-bold text-slate-500">
                           <button
                             type="button"
                             onClick={() => setImageInputMode("url")}
-                            className={`px-3 py-1 rounded-lg transition-all ${imageInputMode === "url" ? "bg-white text-rose-600 shadow-sm border border-slate-200/30" : "hover:text-slate-800"}`}
+                            className={`px-3 py-1 rounded-lg transition-all ${imageInputMode === "url" ? "bg-white text-[#cb9f5a] shadow-sm border border-slate-200/30" : "hover:text-slate-800"}`}
                           >
                             Paste URL
                           </button>
                           <button
                             type="button"
                             onClick={() => setImageInputMode("upload")}
-                            className={`px-3 py-1 rounded-lg transition-all ${imageInputMode === "upload" ? "bg-white text-rose-600 shadow-sm border border-slate-200/30" : "hover:text-slate-800"}`}
+                            className={`px-3 py-1 rounded-lg transition-all ${imageInputMode === "upload" ? "bg-white text-[#cb9f5a] shadow-sm border border-slate-200/30" : "hover:text-slate-800"}`}
                           >
                             Upload File
                           </button>
@@ -1777,12 +2449,12 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                         <input
                           value={catImage}
                           onChange={(e) => setCatImage(e.target.value)}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-rose-500 focus:bg-white transition-all"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-[#cb9f5a] focus:bg-white transition-all"
                           placeholder="e.g. https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80"
                         />
                       ) : (
                         <div className="flex items-center gap-4">
-                          <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 hover:bg-slate-50 hover:border-rose-300 transition-colors p-4 cursor-pointer relative group">
+                          <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 hover:bg-slate-50 hover:border-[#cb9f5a]/60 transition-colors p-4 cursor-pointer relative group">
                             <input
                               type="file"
                               accept="image/*"
@@ -1792,7 +2464,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                             />
                             {isUploadingImage ? (
                               <div className="flex flex-col items-center gap-1.5 py-1">
-                                <span className="h-5 w-5 animate-spin rounded-full border-2 border-rose-500 border-t-transparent" />
+                                <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#cb9f5a] border-t-transparent" />
                                 <span className="text-xs text-slate-400 font-semibold">
                                   Uploading to Cloudinary...
                                 </span>
@@ -1804,7 +2476,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                               </div>
                             ) : (
                               <div className="flex flex-col items-center gap-1">
-                                <Plus className="h-5 w-5 text-slate-400 group-hover:text-rose-500 transition-colors" />
+                                <Plus className="h-5 w-5 text-slate-400 group-hover:text-[#cb9f5a] transition-colors" />
                                 <span className="text-xs text-slate-400 font-bold">
                                   Choose image file
                                 </span>
@@ -1834,12 +2506,117 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                       )}
                     </div>
 
+                    {/* Category Inclusions Manager */}
+                    <div className="space-y-3 pt-2">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Inclusions (Point-by-Point)
+                      </label>
+                      
+                      <div className="flex gap-2">
+                        <input
+                          value={catIncludes}
+                          onChange={(e) => setCatIncludes(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              if (catIncludes.trim()) {
+                                setCatIncList((prev) => [...prev, catIncludes.trim()]);
+                                setCatIncludes("");
+                              }
+                            }
+                          }}
+                          className="flex-1 rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-[#cb9f5a] focus:bg-white transition-all"
+                          placeholder="Type an inclusion and press enter or click '+'"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (catIncludes.trim()) {
+                              setCatIncList((prev) => [...prev, catIncludes.trim()]);
+                              setCatIncludes("");
+                            }
+                          }}
+                          className="grid h-12 w-12 place-items-center rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 transition-colors cursor-pointer"
+                        >
+                          <Plus className="h-5 w-5" />
+                        </button>
+                      </div>
+
+                      {/* List of pills */}
+                      <div className="flex flex-wrap gap-2 pt-1 max-h-[180px] overflow-y-auto pr-1">
+                        {catIncList.map((inc, idx) => {
+                          const isEditing = editingCatIncIdx === idx;
+                          return (
+                            <div
+                              key={idx}
+                              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
+                                isEditing
+                                  ? "border-[#cb9f5a] bg-[#faf8f5] text-[#002a22]"
+                                  : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300"
+                              }`}
+                            >
+                              {isEditing ? (
+                                <input
+                                  value={editCatIncVal}
+                                  onChange={(e) => setEditCatIncVal(e.target.value)}
+                                  onBlur={() => {
+                                    if (editCatIncVal.trim()) {
+                                      setCatIncList((prev) => prev.map((item, i) => (i === idx ? editCatIncVal.trim() : item)));
+                                    }
+                                    setEditingCatIncIdx(null);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      if (editCatIncVal.trim()) {
+                                        setCatIncList((prev) => prev.map((item, i) => (i === idx ? editCatIncVal.trim() : item)));
+                                      }
+                                      setEditingCatIncIdx(null);
+                                    }
+                                  }}
+                                  autoFocus
+                                  className="bg-transparent border-none outline-none font-semibold text-[#002a22] w-36"
+                                />
+                              ) : (
+                                <span
+                                  onClick={() => {
+                                    setEditingCatIncIdx(idx);
+                                    setEditCatIncVal(inc);
+                                  }}
+                                  className="cursor-pointer select-none hover:underline"
+                                  title="Click to edit"
+                                >
+                                  {inc}
+                                </span>
+                              )}
+                              
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCatIncList((prev) => prev.filter((_, i) => i !== idx));
+                                  if (isEditing) setEditingCatIncIdx(null);
+                                }}
+                                className="text-slate-400 hover:text-[#002a22] transition-colors"
+                              >
+                                &times;
+                              </button>
+                            </div>
+                          );
+                        })}
+                        {catIncList.length === 0 && (
+                          <span className="text-2xs italic text-slate-400 select-none">
+                            No inclusions added yet.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
                       <button
                         onClick={handleSaveCategory}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 px-6 py-3 text-xs font-bold text-white shadow-md active:scale-95 transition-all"
+                        className="inline-flex items-center gap-1.5 rounded-2xl bg-[#002a22] text-[#cb9f5a] border border-[#cb9f5a]/30 hover:bg-[#cb9f5a] hover:text-[#002a22] px-6 py-3.5 text-xs font-black uppercase tracking-wider shadow-md active:scale-95 transition-all cursor-pointer"
                       >
-                        <Save className="h-4 w-4" /> SAVE CATEGORY CHANGES
+                        <Save className="h-4 w-4" /> Save Category
                       </button>
                     </div>
                   </div>
@@ -1874,32 +2651,119 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                     <Plus className="h-4.5 w-4.5" />
                   </button>
                 </div>
-                <ul className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
-                  {categories.map((c) => {
-                    const catServices = services.filter((s) => s.categoryId === c.id);
-                    if (catServices.length === 0) return null;
+                <ul className="space-y-4 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+                  {categories
+                    .filter((c) => !c.parentId || !categories.some((parent) => parent.id === c.parentId)) // Only top-level categories
+                    .map((parent) => {
+                      const subcats = categories.filter((sub) => sub.parentId === parent.id);
+                      const directServices = services.filter((s) => s.categoryId === parent.id);
+                      
+                      // Check if there are any services in this parent or in any of its subcategories
+                      const hasSubcatServices = subcats.some(
+                        (sub) => services.some((s) => s.categoryId === sub.id)
+                      );
+                      
+                      if (directServices.length === 0 && !hasSubcatServices) return null;
+
+                      return (
+                        <li key={parent.id} className="space-y-2 border-b border-slate-100 pb-2.5">
+                          {/* Parent Category Header */}
+                          <div className="flex items-center gap-1.5 text-xs font-black text-[#002a22] uppercase tracking-wider px-1 pt-1">
+                            <span>{parent.emoji || "📁"}</span>
+                            <span>{parent.title}</span>
+                          </div>
+
+                          {/* Direct Services under Parent */}
+                          {directServices.length > 0 && (
+                            <div className="space-y-1 pl-2.5">
+                              {directServices.map((s) => (
+                                <button
+                                  key={s.id}
+                                  onClick={() => selectService(s)}
+                                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold transition-all cursor-pointer ${
+                                    activeServiceId === s.id
+                                      ? "bg-rose-50 text-[#cb9f5a] border border-[#cb9f5a]/30"
+                                      : "text-slate-650 hover:bg-slate-50 hover:text-slate-900"
+                                  }`}
+                                >
+                                  <span className="truncate pr-2">{s.title}</span>
+                                  <span className="font-bold shrink-0">₹{s.price}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Subcategories under Parent */}
+                          {subcats.map((sub) => {
+                            const subServices = services.filter((s) => s.categoryId === sub.id);
+                            if (subServices.length === 0) return null;
+
+                            return (
+                              <div key={sub.id} className="space-y-1 pl-3.5">
+                                {/* Subcategory Header */}
+                                <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1 py-1">
+                                  <span>↳</span>
+                                  <span>{sub.emoji || "📁"}</span>
+                                  <span>{sub.title}</span>
+                                </div>
+
+                                {/* Services under Subcategory */}
+                                <div className="space-y-1 pl-2.5">
+                                  {subServices.map((s) => (
+                                    <button
+                                      key={s.id}
+                                      onClick={() => selectService(s)}
+                                      className={`flex w-full items-center justify-between rounded-xl px-3 py-1.5 text-left text-xs font-semibold transition-all cursor-pointer ${
+                                        activeServiceId === s.id
+                                          ? "bg-rose-50 text-[#cb9f5a] border border-[#cb9f5a]/30"
+                                          : "text-slate-650 hover:bg-slate-50 hover:text-slate-900"
+                                      }`}
+                                    >
+                                      <span className="truncate pr-2">{s.title}</span>
+                                      <span className="font-bold shrink-0">₹{s.price}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </li>
+                      );
+                    })}
+
+                  {/* Fallback for Uncategorized Services */}
+                  {(() => {
+                    const uncategorized = services.filter(
+                      (s) => !categories.some((c) => c.id === s.categoryId)
+                    );
+                    if (uncategorized.length === 0) return null;
+
                     return (
-                      <li key={c.id} className="space-y-1">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase px-2 pt-2">
-                          {c.title}
+                      <li className="space-y-2 border-b border-slate-100 pb-2.5">
+                        <div className="flex items-center gap-1.5 text-xs font-black text-slate-400 uppercase tracking-wider px-1 pt-1">
+                          <span>📦</span>
+                          <span>Uncategorized Services</span>
                         </div>
-                        {catServices.map((s) => (
-                          <button
-                            key={s.id}
-                            onClick={() => selectService(s)}
-                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold transition-all ${
-                              activeServiceId === s.id
-                                ? "bg-rose-50 text-rose-700 border border-rose-250/20"
-                                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                            }`}
-                          >
-                            <span className="truncate pr-2">{s.title}</span>
-                            <span className="font-bold shrink-0">₹{s.price}</span>
-                          </button>
-                        ))}
+                        <div className="space-y-1 pl-2.5">
+                          {uncategorized.map((s) => (
+                            <button
+                              key={s.id}
+                              onClick={() => selectService(s)}
+                              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold transition-all cursor-pointer ${
+                                activeServiceId === s.id
+                                  ? "bg-rose-50 text-[#cb9f5a] border border-[#cb9f5a]/30"
+                                  : "text-slate-650 hover:bg-slate-50 hover:text-slate-900"
+                              }`}
+                            >
+                              <span className="truncate pr-2">{s.title}</span>
+                              <span className="font-bold shrink-0">₹{s.price}</span>
+                            </button>
+                          ))}
+                        </div>
                       </li>
                     );
-                  })}
+                  })()}
+
                   {services.length === 0 && (
                     <li className="text-center py-4 text-xs italic text-slate-400">
                       No services found.
@@ -1939,11 +2803,23 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                           className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-rose-500 focus:bg-white transition-all"
                         >
                           <option value="">-- Choose Category --</option>
-                          {categories.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.emoji} {c.title}
-                            </option>
-                          ))}
+                          {categories
+                            .filter((c) => !c.parentId)
+                            .map((parent) => {
+                              const subs = categories.filter((c) => c.parentId === parent.id);
+                              return (
+                                <optgroup key={parent.id} label={`${parent.emoji} ${parent.title}`}>
+                                  <option value={parent.id}>
+                                    {parent.emoji} {parent.title} (Top-Level)
+                                  </option>
+                                  {subs.map((sub) => (
+                                    <option key={sub.id} value={sub.id}>
+                                      ↳ {sub.emoji} {sub.title}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              );
+                            })}
                         </select>
                       </div>
                       <div>
@@ -1969,6 +2845,8 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                         >
                           <option value="full">Full Payment (100% Online)</option>
                           <option value="deposit_25">Partial Deposit (25% Online)</option>
+                          <option value="deposit_50">Half Payment (50% Online)</option>
+                          <option value="free_advance">Free Advance (0% Online)</option>
                         </select>
                       </div>
                     </div>
@@ -2827,6 +3705,8 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                         >
                           <option value="full">Full Payment (100% Online)</option>
                           <option value="deposit_25">Partial Deposit (25% Online)</option>
+                          <option value="deposit_50">Half Payment (50% Online)</option>
+                          <option value="free_advance">Free Advance (0% Online)</option>
                         </select>
                       </div>
                     </div>
@@ -4865,6 +5745,382 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                       Save Referral Settings
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* Top Header Promo Bar Configuration */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm mt-6 font-sans">
+                <h3 className="font-display text-base font-bold text-[#002a22] flex items-center gap-2">
+                  📢 Top Header Announcement & Promo Configuration
+                </h3>
+                <p className="text-2xs text-slate-500 font-semibold mt-0.5">
+                  Update the live scrolling announcement bar text and dynamic promo coupon code displayed at the top of all pages.
+                </p>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-12 text-xs">
+                  {/* Promo Banner Text */}
+                  <div className="md:col-span-8">
+                    <label className="text-2xs font-extrabold uppercase tracking-wider block mb-1 text-[#cb9f5a]">
+                      Promo Announcement Text
+                    </label>
+                    <input
+                      type="text"
+                      value={admPromoText}
+                      onChange={(e) => setAdmPromoText(e.target.value)}
+                      placeholder="e.g. Enjoy Flat 20% OFF on your first booking — apply code"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-semibold"
+                    />
+                  </div>
+
+                  {/* Promo Code Name */}
+                  <div className="md:col-span-4">
+                    <label className="text-2xs font-extrabold uppercase tracking-wider block mb-1 text-[#cb9f5a]">
+                      Coupon Code (Target)
+                    </label>
+                    <input
+                      type="text"
+                      value={admPromoCode}
+                      onChange={(e) => setAdmPromoCode(e.target.value.toUpperCase().trim())}
+                      placeholder="e.g. CLEAN20"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-850 outline-none focus:border-[#cb9f5a] font-mono font-extrabold"
+                    />
+                  </div>
+                </div>
+
+                {/* Save button */}
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={async () => {
+                      try {
+                        toast.loading("Saving promo banner settings...", {
+                          id: "promo-settings",
+                        });
+                        const res = await fetch(`${ADMIN_API_URL}/api/settings`, {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            header_promo_text: admPromoText,
+                            header_promo_code: admPromoCode,
+                          }),
+                        });
+                        if (!res.ok) throw new Error();
+                        toast.success("Promo announcement bar updated successfully!", {
+                          id: "promo-settings",
+                          icon: "📢",
+                        });
+                        refreshData();
+                      } catch (err) {
+                        toast.error("Failed to update announcement bar.", {
+                          id: "promo-settings",
+                        });
+                      }
+                    }}
+                    className="rounded-xl bg-[#002a22] hover:bg-[#002a22]/90 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] px-6 py-2.5 font-bold text-[#cb9f5a] hover:text-white transition-all cursor-pointer shadow-sm active:scale-[0.98]"
+                  >
+                    Save Promo Banner
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === "transformations" && (
+            <>
+              <div className="grid gap-6 md:grid-cols-12">
+                {/* Left Column: Transformations List */}
+                <div className="md:col-span-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+                    <div>
+                      <h3 className="font-display text-base font-bold text-[#002a22] flex items-center gap-2">
+                        ✨ Transformations list
+                      </h3>
+                      <p className="text-2xs text-slate-550 font-semibold mt-0.5">
+                        Manage before/after cleaning work transformations.
+                      </p>
+                    </div>
+                    <button
+                      onClick={clearTransForm}
+                      className="flex items-center gap-1 rounded-xl bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 px-2.5 py-1.5 text-2xs font-extrabold text-[#cb9f5a] hover:bg-[#cb9f5a]/20 transition-all cursor-pointer"
+                    >
+                      <Plus className="h-3 w-3" /> New
+                    </button>
+                  </div>
+
+                  <div className="space-y-3.5 max-h-[600px] overflow-y-auto pr-1">
+                    {transformations.length === 0 ? (
+                      <p className="text-2xs text-slate-400 text-center py-8">No transformations added yet.</p>
+                    ) : (
+                      transformations.map((t) => {
+                        const isSelected = selectedTransId === t.id && isEditingTrans;
+                        return (
+                          <div
+                            key={t.id}
+                            onClick={() => handleEditTransformation(t)}
+                            className={`p-3 rounded-xl border transition-all cursor-pointer flex gap-3 items-center justify-between group ${
+                              isSelected
+                                ? "bg-[#cb9f5a]/5 border-[#cb9f5a] shadow-sm"
+                                : "border-slate-100 hover:border-[#cb9f5a]/30 hover:bg-slate-50/50"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 overflow-hidden">
+                              <div className="flex -space-x-2 shrink-0">
+                                {t.beforeImage ? (
+                                  <img
+                                    src={t.beforeImage}
+                                    alt="Before"
+                                    className="h-10 w-10 object-cover rounded border border-white shadow-xs"
+                                  />
+                                ) : (
+                                  <div className="h-10 w-10 bg-slate-100 rounded border border-white flex items-center justify-center text-[8px] text-slate-400">
+                                    No Pre
+                                  </div>
+                                )}
+                                <img
+                                  src={t.afterImage}
+                                  alt="After"
+                                  className="h-10 w-10 object-cover rounded border border-white shadow-xs"
+                                />
+                              </div>
+                              <div className="truncate">
+                                <h4 className="text-xs font-bold text-slate-850 truncate">{t.title}</h4>
+                                <p className="text-[10px] text-slate-550 font-semibold truncate">{t.location}</p>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTransformation(t.id);
+                              }}
+                              className="p-1 rounded text-slate-350 hover:text-rose-500 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100"
+                              title="Delete Transformation"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column: Form */}
+                <div className="md:col-span-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <h3 className="font-display text-base font-bold text-[#002a22]">
+                    {isEditingTrans ? "✏️ Edit Transformation" : "✨ Add New Transformation"}
+                  </h3>
+                  <p className="text-2xs text-slate-550 font-semibold mt-0.5">
+                    Provide the title, location details, and link before & after transformation images.
+                  </p>
+
+                  <form onSubmit={handleSaveTransformation} className="mt-5 space-y-4 font-sans text-xs">
+                    {/* Title */}
+                    <div>
+                      <label className="text-2xs font-extrabold uppercase tracking-wider text-slate-450 block mb-1 text-[#cb9f5a]">
+                        Job Name / Title
+                      </label>
+                      <input
+                        type="text"
+                        value={transTitle}
+                        onChange={(e) => setTransTitle(e.target.value)}
+                        placeholder="e.g. Villa Deep Cleaning"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a]"
+                      />
+                    </div>
+
+                    {/* Location */}
+                    <div>
+                      <label className="text-2xs font-extrabold uppercase tracking-wider text-slate-450 block mb-1 text-[#cb9f5a]">
+                        Location
+                      </label>
+                      <input
+                        type="text"
+                        value={transLocation}
+                        onChange={(e) => setTransLocation(e.target.value)}
+                        placeholder="e.g. Bandra, Mumbai"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a]"
+                      />
+                    </div>
+
+                    {/* Before Image Input */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-2xs font-extrabold uppercase tracking-wider block mb-1 text-[#cb9f5a]">
+                          Before Image (Optional)
+                        </label>
+                        <div className="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => setTransBeforeImageInputMode("file")}
+                            className={`px-2 py-0.5 text-[9px] font-bold rounded ${
+                              transBeforeImageInputMode === "file"
+                                ? "bg-white text-slate-800 shadow-2xs border border-slate-250/50"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            Upload File
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTransBeforeImageInputMode("url")}
+                            className={`px-2 py-0.5 text-[9px] font-bold rounded ${
+                              transBeforeImageInputMode === "url"
+                                ? "bg-white text-slate-800 shadow-2xs border border-slate-250/50"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            Paste URL
+                          </button>
+                        </div>
+                      </div>
+
+                      {transBeforeImageInputMode === "url" ? (
+                        <input
+                          type="text"
+                          value={transBeforeImage}
+                          onChange={(e) => setTransBeforeImage(e.target.value)}
+                          placeholder="e.g. https://images.unsplash.com/..."
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a]"
+                        />
+                      ) : (
+                        <div className="flex items-center gap-4">
+                          <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 hover:bg-slate-50 hover:border-[#cb9f5a]/50 transition-colors p-4 cursor-pointer relative group">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleUploadBeforeImageFile}
+                              disabled={isUploadingBeforeImage}
+                              className="hidden"
+                            />
+                            {isUploadingBeforeImage ? (
+                              <div className="flex flex-col items-center gap-1 py-1">
+                                <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#cb9f5a] border-t-transparent" />
+                                <span className="text-[10px] text-slate-405 font-semibold">
+                                  Uploading before image...
+                                </span>
+                              </div>
+                            ) : transBeforeImage ? (
+                              <div className="flex flex-col items-center gap-1.5 py-1">
+                                <div className="flex items-center gap-2 text-green-600 font-bold text-xs">
+                                  <Check className="h-4.5 w-4.5" />
+                                  <span className="text-slate-650 font-extrabold">Change Uploaded Before Image</span>
+                                </div>
+                                <span className="text-[9px] text-slate-400 truncate max-w-[200px]">
+                                  {transBeforeImage}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <Plus className="h-5 w-5 text-slate-400 group-hover:text-[#cb9f5a] transition-colors" />
+                                <span className="text-[11px] text-slate-500 font-bold">
+                                  Choose before image file
+                                </span>
+                              </div>
+                            )}
+                          </label>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* After Image Input */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-2xs font-extrabold uppercase tracking-wider block mb-1 text-[#cb9f5a]">
+                          After Image (Required)
+                        </label>
+                        <div className="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => setTransAfterImageInputMode("file")}
+                            className={`px-2 py-0.5 text-[9px] font-bold rounded ${
+                              transAfterImageInputMode === "file"
+                                ? "bg-white text-slate-800 shadow-2xs border border-slate-250/50"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            Upload File
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTransAfterImageInputMode("url")}
+                            className={`px-2 py-0.5 text-[9px] font-bold rounded ${
+                              transAfterImageInputMode === "url"
+                                ? "bg-white text-slate-800 shadow-2xs border border-slate-250/50"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            Paste URL
+                          </button>
+                        </div>
+                      </div>
+
+                      {transAfterImageInputMode === "url" ? (
+                        <input
+                          type="text"
+                          value={transAfterImage}
+                          onChange={(e) => setTransAfterImage(e.target.value)}
+                          placeholder="e.g. https://images.unsplash.com/..."
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a]"
+                        />
+                      ) : (
+                        <div className="flex items-center gap-4">
+                          <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 hover:bg-slate-50 hover:border-[#cb9f5a]/50 transition-colors p-4 cursor-pointer relative group">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleUploadAfterImageFile}
+                              disabled={isUploadingAfterImage}
+                              className="hidden"
+                            />
+                            {isUploadingAfterImage ? (
+                              <div className="flex flex-col items-center gap-1 py-1">
+                                <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#cb9f5a] border-t-transparent" />
+                                <span className="text-[10px] text-slate-405 font-semibold">
+                                  Uploading after image...
+                                </span>
+                              </div>
+                            ) : transAfterImage ? (
+                              <div className="flex flex-col items-center gap-1.5 py-1">
+                                <div className="flex items-center gap-2 text-green-600 font-bold text-xs">
+                                  <Check className="h-4.5 w-4.5" />
+                                  <span className="text-slate-650 font-extrabold">Change Uploaded After Image</span>
+                                </div>
+                                <span className="text-[9px] text-slate-400 truncate max-w-[200px]">
+                                  {transAfterImage}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <Plus className="h-5 w-5 text-slate-400 group-hover:text-[#cb9f5a] transition-colors" />
+                                <span className="text-[11px] text-slate-500 font-bold">
+                                  Choose after image file
+                                </span>
+                              </div>
+                            )}
+                          </label>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Buttons */}
+                    <div className="flex items-center justify-end gap-3 pt-2">
+                      {isEditingTrans && (
+                        <button
+                          type="button"
+                          onClick={clearTransForm}
+                          className="rounded-xl border border-slate-200 hover:bg-slate-50 px-5 py-2.5 text-xs font-bold text-slate-700 transition-all cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      <button
+                        type="submit"
+                        className="rounded-xl bg-[#002a22] hover:bg-[#0a3d33] px-6 py-2.5 text-xs font-bold text-white transition-all active:scale-[0.98] cursor-pointer"
+                      >
+                        {isEditingTrans ? "Update Transformation" : "Save Transformation"}
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             </>

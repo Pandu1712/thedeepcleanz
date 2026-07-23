@@ -84,6 +84,54 @@ function TechnicianPortal() {
     }
   }, [navigate]);
 
+  // Real-time geolocation tracking for In Transit jobs
+  useEffect(() => {
+    if (!profile?.id) return;
+    
+    // Check if any booking is actively "Started" (En Route)
+    const hasInTransitJob = bookings.some(b => b.jobStatus === "Started");
+    
+    if (!hasInTransitJob) return;
+    
+    console.log("Starting real-time GPS location tracker for technician...");
+    let watchId: number | null = null;
+    
+    if (navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          try {
+            await fetch(`${ADMIN_API_URL}/api/technicians/${profile.id}/location`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ lat: latitude, lng: longitude }),
+            });
+            console.log(`GPS Ping sent: ${latitude}, ${longitude}`);
+          } catch (e) {
+            console.error("Failed to send GPS coordinates:", e);
+          }
+        },
+        (error) => {
+          console.error("GPS Watch Position error:", error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    } else {
+      console.warn("Geolocation is not supported by this browser.");
+    }
+    
+    return () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        console.log("Stopped real-time GPS location tracker.");
+      }
+    };
+  }, [profile?.id, bookings]);
+
   const loadBookings = async (techId: string) => {
     setIsLoading(true);
     try {
@@ -206,7 +254,7 @@ function TechnicianPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans relative overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans relative">
 
       {/* Header Bar */}
       <header className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3 shadow-xs">
@@ -653,14 +701,24 @@ function TechnicianPortal() {
                           <div className="flex flex-wrap gap-2.5">
                             {[
                               {
-                                value: "Pending",
-                                label: "⏳ Pending",
+                                value: "Assigned",
+                                label: "📋 Assigned",
                                 color: "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100",
+                              },
+                              {
+                                value: "Accepted",
+                                label: "🤝 Accept Job / Agree",
+                                color: "bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100",
                               },
                               {
                                 value: "Started",
                                 label: "🚗 On My Way",
                                 color: "bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100",
+                              },
+                              {
+                                value: "Arrived",
+                                label: "📍 Arrived / In Location",
+                                color: "bg-teal-50 border-teal-200 text-teal-755 hover:bg-teal-100",
                               },
                               {
                                 value: "Ongoing",
@@ -669,7 +727,7 @@ function TechnicianPortal() {
                               },
                               {
                                 value: "Completed",
-                                label: "✅ Completed",
+                                label: "✅ Complete Work / Finished",
                                 color: "bg-emerald-50 border-emerald-250 text-emerald-700 hover:bg-emerald-100",
                               },
                               {

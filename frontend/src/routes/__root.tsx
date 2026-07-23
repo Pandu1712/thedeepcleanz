@@ -7,8 +7,8 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
-import { Toaster } from "sonner";
+import { useEffect, useState, type ReactNode } from "react";
+import { Toaster, toast } from "sonner";
 
 import "../styles/styles.css";
 import appCss from "../styles/styles.css?url";
@@ -99,7 +99,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700;800&family=Epilogue:wght@500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700;800&family=Epilogue:wght@500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap",
       },
       { rel: "stylesheet", href: import.meta.env.DEV ? `${appCss}?direct` : appCss },
     ],
@@ -126,6 +126,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const [isOnline, setIsOnline] = useState(true);
 
   // Prompt user for location on site visit and store in database
   const getLiveLocation = () => {
@@ -195,7 +196,42 @@ function RootComponent() {
         getLiveLocation();
       };
       window.addEventListener("auth-state-change", handleAuth);
-      return () => window.removeEventListener("auth-state-change", handleAuth);
+
+      // Track online status
+      setIsOnline(navigator.onLine);
+      const handleOnlineStatus = () => {
+        setIsOnline(true);
+        toast.success("Internet connection restored!", { id: "network-toast" });
+        window.dispatchEvent(new Event("network-state-change"));
+      };
+      const handleOfflineStatus = () => {
+        setIsOnline(false);
+        toast.error("Offline. Running in high-speed cached mode.", { id: "network-toast" });
+        window.dispatchEvent(new Event("network-state-change"));
+      };
+
+      window.addEventListener("online", handleOnlineStatus);
+      window.addEventListener("offline", handleOfflineStatus);
+
+      // Register Custom Service Worker
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .then((reg) => {
+              console.log("Service Worker registered scope:", reg.scope);
+            })
+            .catch((err) => {
+              console.error("Service Worker registration failed:", err);
+            });
+        });
+      }
+
+      return () => {
+        window.removeEventListener("auth-state-change", handleAuth);
+        window.removeEventListener("online", handleOnlineStatus);
+        window.removeEventListener("offline", handleOfflineStatus);
+      };
     }
   }, []);
 
@@ -203,6 +239,15 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      
+      {/* Offline Status Float Banner */}
+      {!isOnline && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-pulse bg-rose-600/90 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 border border-rose-500/30 text-xs font-bold font-sans">
+          <span className="h-2 w-2 rounded-full bg-white animate-ping" />
+          <span>Offline (High-Speed Cache Mode)</span>
+        </div>
+      )}
+
       <Toaster
         position="top-center"
         toastOptions={{

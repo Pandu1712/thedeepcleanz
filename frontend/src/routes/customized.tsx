@@ -177,7 +177,7 @@ function CustomizedComponent() {
     title: string;
     price: number;
     img: string;
-    paymentType?: "full" | "deposit_25";
+    paymentType?: "full" | "deposit_25" | "deposit_50" | "free_advance";
   }) => {
     setCart((c) => {
       const ex = c.find((i) => i.id === item.id);
@@ -298,25 +298,26 @@ function CustomizedComponent() {
             {services.map((s) => (
               <div
                 key={s.id}
-                className="group relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all hover:shadow-xl hover:-translate-y-1.5 flex flex-col justify-between"
+                onClick={() => setSelectedService(s)}
+                className="group relative overflow-hidden rounded-none text-left transition-all duration-500 border border-[#cb9f5a]/20 bg-white shadow-[0_10px_35px_-10px_rgba(0,42,34,0.08)] hover:border-[#cb9f5a]/80 hover:shadow-[0_22px_55px_-12px_rgba(0,42,34,0.15)] flex flex-col p-5 cursor-pointer hover:-translate-y-2.5 justify-between"
               >
                 <div>
                   {/* Aspect Ratio 4:3 Image */}
-                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-none bg-slate-100 flex-shrink-0">
                     <img
                       src={
                         s.image ||
                         "https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&w=800&q=80"
                       }
                       alt={s.title}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                     />
 
                     {/* Floating Rating Badge on Top Right */}
-                    <div className="absolute top-4 right-4 flex items-center gap-1 rounded-full bg-slate-950/80 backdrop-blur-sm px-3 py-1 text-2xs font-extrabold text-gold">
-                      <Star className="h-3.5 w-3.5 fill-gold stroke-none" />
-                      <span>4.83 Stars</span>
-                    </div>
+                    <span className="absolute top-3.5 right-3.5 rounded-full bg-[#002a22]/90 backdrop-blur-md border border-white/20 text-[#cb9f5a] px-3.5 py-1 text-[10px] font-extrabold uppercase tracking-widest shadow-md">
+                      ⭐ 4.83 Stars
+                    </span>
 
                     {/* Floating Fav Button */}
                     <button
@@ -324,36 +325,36 @@ function CustomizedComponent() {
                         e.stopPropagation();
                         toggleFav(s.id);
                       }}
-                      className="absolute top-4 left-4 grid h-8 w-8 place-items-center rounded-full bg-white/95 text-slate-600 shadow-md hover:text-red-500 transition-colors"
+                      className="absolute top-3.5 left-3.5 grid h-8 w-8 place-items-center rounded-none bg-white border border-[#cb9f5a]/30 text-slate-650 shadow-md hover:bg-[#002a22] hover:text-[#cb9f5a] transition-all duration-300 z-10"
                     >
                       <Heart
-                        className={`h-4.5 w-4.5 ${favs.includes(s.id) ? "fill-red-500 text-red-500" : ""}`}
+                        className={`h-4.5 w-4.5 ${favs.includes(s.id) ? "fill-red-500 text-red-500 border-red-500" : ""}`}
                       />
                     </button>
                   </div>
 
                   {/* Body Content */}
-                  <div className="p-6">
-                    <h3 className="font-display text-lg font-bold text-slate-900 leading-snug group-hover:text-[#d91b5c] transition-colors">
+                  <div className="mt-6 px-1">
+                    <h3 className="font-display text-lg font-bold text-[#002a22] group-hover:text-[#cb9f5a] transition-colors leading-snug">
                       {s.title}
                     </h3>
-                    <div className="mt-3.5 flex items-baseline gap-1.5">
-                      <span className="text-2xs font-bold uppercase tracking-wider text-slate-400">
+                    <div className="mt-3 flex items-baseline gap-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                         Starts At
                       </span>
-                      <span className="text-xl font-black text-slate-900">₹{s.price}</span>
+                      <span className="text-xl font-black text-[#002a22]">₹{s.price}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="px-6 pb-6">
-                  <button
-                    onClick={() => setSelectedService(s)}
-                    className="w-full flex items-center justify-center gap-2 rounded-2xl bg-slate-950 py-3.5 text-xs font-extrabold text-white transition-all hover:bg-[#d91b5c] hover:shadow-lg group-hover:shadow-md cursor-pointer"
-                  >
-                    <span>View Service Plans</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
+                {/* Premium Action Divider & Text Button */}
+                <div className="mt-5 px-1 pt-3 border-t border-[#cb9f5a]/15 flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#cb9f5a] transition-transform group-hover:translate-x-1">
+                    View Service Plans <ArrowRight className="h-4 w-4" />
+                  </span>
+                  <span className="text-[10px] font-bold text-[#002a22]/40 group-hover:text-[#002a22]/80 transition-colors uppercase tracking-wider">
+                    Customize →
+                  </span>
                 </div>
               </div>
             ))}

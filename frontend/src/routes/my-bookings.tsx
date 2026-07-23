@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   X,
   Menu,
@@ -22,6 +22,12 @@ import {
   Star,
   Mail,
   ChevronDown,
+  RefreshCw,
+  Clock,
+  XCircle,
+  Calendar,
+  User,
+  CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -31,6 +37,7 @@ import {
   fetchAdminCatalog,
   fetchCustomizedServices,
   rescheduleBooking,
+  updateBookingJobStatus,
 } from "@/api/admin-api";
 import { BookingModal, CartItem } from "./index";
 import Header from "@/components/Header";
@@ -86,6 +93,130 @@ const loadRazorpayScript = () => {
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
+};
+
+interface MapContainerProps {
+  techLat: number | null;
+  techLng: number | null;
+  customerLat: number | null;
+  customerLng: number | null;
+  customerAddress?: string;
+}
+
+const MapContainer = ({ techLat, techLng, customerLat, customerLng, customerAddress }: MapContainerProps) => {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstance = useRef<any>(null);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    
+    // Dynamically load Leaflet CSS if it hasn't been loaded already
+    const linkId = "leaflet-css";
+    if (!document.getElementById(linkId)) {
+      const link = document.createElement("link");
+      link.id = linkId;
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
+
+    // Initialize/update Leaflet Map
+    const loadMap = () => {
+      const L = (window as any).L;
+      if (!L || !mapRef.current) return;
+
+      // Clean up previous map instance to prevent target container already initialized errors
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+
+      const points: [number, number][] = [];
+      if (techLat && techLng) points.push([techLat, techLng]);
+      if (customerLat && customerLng) points.push([customerLat, customerLng]);
+
+      const center: [number, number] = points.length > 0 ? points[0] : [16.307888, 80.438993]; // default Guntur office
+      const zoom = points.length === 2 ? 13 : 15;
+
+      const map = L.map(mapRef.current, { zoomControl: false }).setView(center, zoom);
+      L.control.zoom({ position: "topright" }).addTo(map);
+      mapInstance.current = map;
+
+      // Premium maps tile layer
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: "abcd",
+        maxZoom: 20
+      }).addTo(map);
+
+      // Custom marker icon setup
+      const techIcon = L.icon({
+        iconUrl: "https://cdn-icons-png.flaticon.com/512/7542/7542670.png", // Delivery van pin
+        iconSize: [38, 38],
+        iconAnchor: [19, 19],
+        popupAnchor: [0, -19]
+      });
+
+      const homeIcon = L.icon({
+        iconUrl: "https://cdn-icons-png.flaticon.com/512/25/25694.png", // Home doorstep pin
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+      });
+
+      const bounds = L.latLngBounds(points);
+
+      if (techLat && techLng) {
+        L.marker([techLat, techLng], { icon: techIcon })
+          .addTo(map)
+          .bindPopup("<div class='font-sans font-bold text-xs text-slate-800'>📍 Cleaning Expert<br/><span class='text-[10px] text-emerald-800'>On the way to your address</span></div>")
+          .openPopup();
+      }
+
+      if (customerLat && customerLng) {
+        L.marker([customerLat, customerLng], { icon: homeIcon })
+          .addTo(map)
+          .bindPopup(`<div class='font-sans font-bold text-xs text-slate-800'>🏠 Your doorstep<br/><span class='text-[9px] text-slate-500 font-medium'>${customerAddress || ""}</span></div>`);
+      }
+
+      if (points.length === 2) {
+        map.fitBounds(bounds, { padding: [40, 40] });
+      }
+    };
+
+    if (!(window as any).L) {
+      const scriptId = "leaflet-js";
+      if (!document.getElementById(scriptId)) {
+        const script = document.createElement("script");
+        script.id = scriptId;
+        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+        script.onload = loadMap;
+        document.body.appendChild(script);
+      }
+    } else {
+      loadMap();
+    }
+
+    return () => {
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+    };
+  }, [techLat, techLng, customerLat, customerLng]);
+
+  return (
+    <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50 h-[300px] w-full z-10 font-sans mt-3 mb-4">
+      <div ref={mapRef} className="h-full w-full" />
+      <div className="absolute bottom-3 left-3 bg-white/95 border border-[#cb9f5a]/30 backdrop-blur-xs px-3 py-1.5 rounded-xl shadow-xs z-50 text-[10px] font-sans flex items-center gap-1.5">
+        <span className="flex h-2 w-2 relative">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span className="font-extrabold uppercase text-[#002a22] tracking-wider">Live Expert Tracking Active</span>
+      </div>
+    </div>
+  );
 };
 
 export const Route = createFileRoute("/my-bookings")({
@@ -144,6 +275,78 @@ function MyBookingsPage() {
       loadBookings();
     } catch (err: any) {
       toast.error(`Reschedule failed: ${err.message}`);
+    }
+  };
+
+  // Cancellation Modal States
+  const [cancellingBooking, setCancellingBooking] = useState<any | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const handleCancelBooking = async () => {
+    if (!cancellingBooking) return;
+    setIsCancelling(true);
+    try {
+      const bookingDate = cancellingBooking.schedule?.date;
+      const bookingTimeRaw = cancellingBooking.schedule?.time || "10:00";
+      const bookingTime = bookingTimeRaw.split(" - ")[0].trim();
+      const bookingDateTime = new Date(`${bookingDate}T${bookingTime}:00`);
+      const now = new Date();
+      const diffHours = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+      const isFullyPaid =
+        typeof cancellingBooking.paymentStatus === "string" &&
+        (cancellingBooking.paymentStatus.includes("Paid In Full") ||
+         cancellingBooking.paymentStatus.toLowerCase().includes("full amount"));
+      const isPaid =
+        typeof cancellingBooking.paymentStatus === "string" &&
+        (cancellingBooking.paymentStatus.includes("Paid") || cancellingBooking.paymentStatus.includes("Success"));
+
+      let paidAmount = 0;
+      if (isFullyPaid) {
+        paidAmount = cancellingBooking.total;
+      } else if (isPaid) {
+        const match = cancellingBooking.paymentStatus.match(/\(₹(\d+)\)/);
+        if (match && match[1]) {
+          paidAmount = parseInt(match[1], 10);
+        } else {
+          if (cancellingBooking.paymentStatus.includes("50%")) {
+            paidAmount = Math.round(cancellingBooking.total * 0.50);
+          } else {
+            paidAmount = Math.round(cancellingBooking.total * 0.25);
+          }
+        }
+      }
+
+      let penaltyPercent = 0;
+      let refundAmount = paidAmount;
+
+      if (diffHours < 12) {
+        const elapsed = 12 - diffHours;
+        penaltyPercent = Math.min(100, Math.round(elapsed * 10));
+        refundAmount = Math.max(0, Math.round(paidAmount * (1 - penaltyPercent / 100)));
+      }
+
+      const refundMsg = refundAmount > 0 
+        ? `Refund Initiated (₹${refundAmount})` 
+        : "Cancelled (No Refund)";
+
+      // Update job status to Cancelled
+      await updateBookingJobStatus(
+        cancellingBooking.id, 
+        "Cancelled", 
+        `Cancelled by user. Penalty: ${penaltyPercent}%, Refund: ₹${refundAmount}`
+      );
+
+      // Update payment status
+      await updateBookingPayment(cancellingBooking.id, refundMsg, cancellingBooking.paymentId);
+
+      toast.success("Service booking cancelled successfully.", { icon: "👋" });
+      setCancellingBooking(null);
+      loadBookings();
+    } catch (err: any) {
+      toast.error(`Cancellation failed: ${err.message}`);
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -403,7 +606,7 @@ function MyBookingsPage() {
       />
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      <main className="flex-1 mx-auto w-full max-w-[1400px] px-5 py-10 lg:px-8">
         {/* Breadcrumb / Page Title */}
         <div className="mb-8">
           <div className="text-sm text-slate-500 mb-2 font-semibold">
@@ -417,23 +620,32 @@ function MyBookingsPage() {
         </div>
 
         {/* Tab Navigation & Date Filter */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#cb9f5a]/20 mb-6 gap-4 font-sans">
-          <div className="flex items-center gap-6 px-1 overflow-x-auto no-scrollbar">
-            {["Orders", "Buy Again", "Not Yet Serviced", "Cancelled Orders"].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`pb-3 text-sm font-bold transition-colors relative whitespace-nowrap cursor-pointer ${
-                  activeTab === tab
-                    ? "text-[#002a22] border-b-2 border-[#cb9f5a]"
-                    : "text-slate-500 hover:text-[#002a22] hover:border-b-2 hover:border-slate-350"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between border-b border-[#cb9f5a]/20 mb-6 gap-4 font-sans">
+          <div className="flex items-center gap-6 px-1 overflow-x-auto no-scrollbar min-w-0 flex-1">
+            {["Orders", "Buy Again", "Not Yet Serviced", "Cancelled Orders"].map((tab) => {
+              const getTabIcon = () => {
+                if (tab === "Orders") return <Calendar className="h-4 w-4 mr-1.5" />;
+                if (tab === "Buy Again") return <RefreshCw className="h-4 w-4 mr-1.5" />;
+                if (tab === "Not Yet Serviced") return <Clock className="h-4 w-4 mr-1.5" />;
+                return <XCircle className="h-4 w-4 mr-1.5" />;
+              };
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`pb-3 text-sm font-bold transition-colors relative whitespace-nowrap cursor-pointer flex items-center ${
+                    activeTab === tab
+                      ? "text-[#002a22] border-b-2 border-[#cb9f5a]"
+                      : "text-slate-500 hover:text-[#002a22] hover:border-b-2 hover:border-slate-350"
+                  }`}
+                >
+                  {getTabIcon()}
+                  {tab}
+                </button>
+              );
+            })}
           </div>
-          <div className="flex items-center gap-2 pb-3">
+          <div className="flex items-center gap-2 pb-3 shrink-0">
             <span className="text-xs font-extrabold text-[#002a22] uppercase tracking-wider bg-[#002a22]/5 px-2.5 py-1 rounded-full border border-[#002a22]/10">
               {filteredBookings.length} orders
             </span>
@@ -509,13 +721,44 @@ function MyBookingsPage() {
                 parsedItems = [];
               }
               const isFullyPaid =
-                typeof b.paymentStatus === "string" && b.paymentStatus.includes("Paid In Full");
+                typeof b.paymentStatus === "string" && 
+                (b.paymentStatus.includes("Paid In Full") || b.paymentStatus.toLowerCase().includes("full amount"));
               const isPaid =
                 typeof b.paymentStatus === "string" &&
-                (b.paymentStatus.includes("Paid") || b.paymentStatus.includes("Success"));
+                (b.paymentStatus.includes("Paid") || b.paymentStatus.includes("Success") || b.paymentStatus.includes("Refund"));
               const isCod = !isPaid && !isFullyPaid;
+              const isCancelled = b.jobStatus === "Cancelled";
 
-              const paidAmount = isFullyPaid ? b.total : isPaid ? Math.round(b.total * 0.25) : 0;
+              let paidAmount = 0;
+              if (isFullyPaid) {
+                paidAmount = b.total;
+              } else if (isPaid) {
+                const match = b.paymentStatus.match(/\(₹(\d+)\)/);
+                if (match && match[1]) {
+                  paidAmount = parseInt(match[1], 10);
+                } else {
+                  if (b.paymentStatus.includes("50%")) {
+                    paidAmount = Math.round(b.total * 0.50);
+                  } else {
+                    paidAmount = Math.round(b.total * 0.25);
+                  }
+                }
+              } else if (isCancelled) {
+                const note = b.statusNote || "";
+                const refundMatch = b.paymentStatus?.match(/Refund Initiated \(₹(\d+)\)/);
+                const penaltyMatch = note.match(/Penalty: (\d+)%/);
+                if (refundMatch && refundMatch[1]) {
+                  const refunded = parseInt(refundMatch[1], 10);
+                  if (penaltyMatch && penaltyMatch[1]) {
+                    const penaltyPct = parseInt(penaltyMatch[1], 10);
+                    if (penaltyPct < 100) {
+                      paidAmount = Math.round(refunded / (1 - penaltyPct / 100));
+                    }
+                  } else {
+                    paidAmount = refunded;
+                  }
+                }
+              }
               const balanceAmount = b.total - paidAmount;
 
               return (
@@ -525,61 +768,69 @@ function MyBookingsPage() {
                 >
                   {/* Card Header (Luxury brand style) */}
                   <div className="bg-[#002a22]/5 border-b border-[#cb9f5a]/10 px-5 py-4 flex flex-wrap gap-y-4 gap-x-8 text-xs text-slate-600">
-                    <div className="flex flex-col">
-                      <span className="uppercase text-[9px] font-extrabold text-[#cb9f5a] tracking-wider mb-1">
-                        Booking Placed
-                      </span>
-                      <span className="font-bold text-[#002a22]">
-                        {b.createdAt
-                          ? new Date(b.createdAt).toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })
-                          : "Unknown"}
-                      </span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="uppercase text-[9px] font-extrabold text-[#cb9f5a] tracking-wider mb-1">
-                        Total
-                      </span>
-                      <div className="flex flex-col items-start gap-0.5">
-                        {b.discount > 0 && (
-                          <span className="text-[10px] text-slate-400 font-bold line-through">
-                            ₹{Number(b.total) + Number(b.discount)}
-                          </span>
-                        )}
-                        <span className="font-extrabold text-[#002a22]">₹{b.total}</span>
-                        {b.discount > 0 && b.coupon && (
-                          <span
-                            className="inline-flex items-center text-[9px] font-extrabold text-white bg-[#002a22] border border-[#cb9f5a]/20 px-2 py-0.5 rounded-full mt-0.5 max-w-[120px] truncate"
-                            title={`${b.coupon}: -₹${b.discount}`}
-                          >
-                            🏷️ {b.coupon} (-₹{b.discount})
-                          </span>
-                        )}
+                    <div className="flex items-center gap-2.5">
+                      <Calendar className="h-4.5 w-4.5 text-slate-400 shrink-0" />
+                      <div className="flex flex-col">
+                        <span className="uppercase text-[9px] font-extrabold text-[#cb9f5a] tracking-wider mb-0.5">
+                          Booking Placed
+                        </span>
+                        <span className="font-bold text-[#002a22]">
+                          {b.createdAt
+                            ? new Date(b.createdAt).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })
+                            : "Unknown"}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex flex-col group relative">
-                      <span className="uppercase text-[9px] font-extrabold text-[#cb9f5a] tracking-wider mb-1">
-                        Service Address
-                      </span>
-                      <span className="font-bold text-[#cb9f5a] hover:text-[#cb9f5a]/80 hover:underline cursor-pointer flex items-center gap-1">
-                        {userProfile?.name}
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="10"
-                          height="10"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="m6 9 6 6 6-6" />
-                        </svg>
-                      </span>
+                    <div className="flex items-center gap-2.5">
+                      <CreditCard className="h-4.5 w-4.5 text-slate-400 shrink-0" />
+                      <div className="flex flex-col">
+                        <span className="uppercase text-[9px] font-extrabold text-[#cb9f5a] tracking-wider mb-0.5">
+                          Total
+                        </span>
+                        <div className="flex flex-col items-start gap-0.5">
+                          {b.discount > 0 && (
+                            <span className="text-[10px] text-slate-400 font-bold line-through">
+                              ₹{Number(b.total) + Number(b.discount)}
+                            </span>
+                          )}
+                          <span className="font-extrabold text-[#002a22]">₹{b.total}</span>
+                          {b.discount > 0 && b.coupon && (
+                            <span
+                              className="inline-flex items-center text-[9px] font-extrabold text-white bg-[#002a22] border border-[#cb9f5a]/20 px-2 py-0.5 rounded-full mt-0.5 max-w-[120px] truncate"
+                              title={`${b.coupon}: -₹${b.discount}`}
+                            >
+                              🏷️ {b.coupon} (-₹{b.discount})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <User className="h-4.5 w-4.5 text-slate-400 shrink-0" />
+                      <div className="flex flex-col group relative">
+                        <span className="uppercase text-[9px] font-extrabold text-[#cb9f5a] tracking-wider mb-0.5">
+                          Service Address
+                        </span>
+                        <span className="font-bold text-[#cb9f5a] hover:text-[#cb9f5a]/80 hover:underline cursor-pointer flex items-center gap-1">
+                          {userProfile?.name}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="10"
+                            height="10"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
+                        </span>
                       {/* Address Popover */}
                       <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-[#cb9f5a]/20 shadow-xl rounded-2xl p-4 hidden group-hover:block z-10">
                         <div className="font-bold text-[#002a22] mb-1">{userProfile?.name}</div>
@@ -591,11 +842,12 @@ function MyBookingsPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-col ml-auto text-right">
+                  </div>
+                    <div className="flex flex-col text-left sm:text-right sm:ml-auto">
                       <span className="uppercase text-[9px] font-extrabold text-slate-400 tracking-wider mb-1">
                         Booking # {b.id.substring(0, 12).toUpperCase()}
                       </span>
-                      <div className="flex items-center justify-end gap-2 text-[#cb9f5a]">
+                      <div className="flex items-center sm:justify-end gap-2 text-[#cb9f5a]">
                         <button
                           onClick={() => {
                             const itemsList = (parsedItems || []).map((i: any) => i.title).join(", ");
@@ -622,14 +874,18 @@ function MyBookingsPage() {
                             ? "Scheduled for Servicing"
                             : "Confirmed & Deposit Paid"}
                       </h3>
-                      <p className="text-sm text-slate-600 mb-3 flex items-center gap-1.5 font-semibold">
-                        <Truck className="h-4 w-4 text-emerald-600" />
-                        Arrival expected:{" "}
-                        <span className="font-bold text-emerald-700">
-                          {b.schedule && typeof b.schedule === "object"
-                            ? `${b.schedule.date || "TBD"} at ${b.schedule.time || "TBD"}`
-                            : String(b.schedule || "TBD")}
-                        </span>
+                      <div className="text-sm text-slate-600 mb-4 font-semibold flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Truck className="h-4 w-4 text-emerald-600 shrink-0" />
+                          <span className="truncate">
+                            Arrival expected:{" "}
+                            <span className="font-bold text-emerald-700 whitespace-nowrap">
+                              {b.schedule && typeof b.schedule === "object"
+                                ? `${b.schedule.date || "TBD"} at ${b.schedule.time || "TBD"}`
+                                : String(b.schedule || "TBD")}
+                            </span>
+                          </span>
+                        </div>
                         <button
                           onClick={() => {
                             setRescheduleBookingId(b.id);
@@ -637,11 +893,11 @@ function MyBookingsPage() {
                             setNewTime(b.schedule?.time || "");
                             setRescheduleModalOpen(true);
                           }}
-                          className="ml-3 text-[10px] text-[#cb9f5a] hover:underline font-bold bg-[#002a22]/5 px-2 py-0.5 rounded border border-[#cb9f5a]/30 cursor-pointer"
+                          className="w-fit text-[10px] text-[#cb9f5a] hover:underline font-bold bg-[#002a22]/5 px-2.5 py-1 rounded-xl border border-[#cb9f5a]/30 cursor-pointer whitespace-nowrap"
                         >
                           🗓️ Reschedule Clean
                         </button>
-                      </p>
+                      </div>
 
                       {/* Live Job Progress Stepper Timeline */}
                       <div className="my-4 bg-slate-50 border border-slate-200/80 rounded-2xl p-4 font-sans">
@@ -650,22 +906,30 @@ function MyBookingsPage() {
                         </span>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-bold">
                           {[
-                            { key: "Pending", label: "1. Assigned", icon: "📋" },
+                            { key: "Assigned", label: "1. Assigned", icon: "📋" },
                             { key: "Started", label: "2. En Route", icon: "🚗" },
                             { key: "Ongoing", label: "3. In Progress", icon: "🧼" },
                             { key: "Completed", label: "4. Completed", icon: "✅" },
                           ].map((stepItem, idx) => {
                             const currentStatus = b.jobStatus || "Pending";
-                            const isDone =
-                              currentStatus === "Completed" ||
-                              (currentStatus === "Ongoing" && idx <= 2) ||
-                              (currentStatus === "Started" && idx <= 1) ||
-                              idx === 0;
-                            const isCurrent =
-                              currentStatus === stepItem.key ||
-                              (currentStatus === "Pending" && idx === 0) ||
-                              (currentStatus === "Ongoing" && idx === 2) ||
-                              (currentStatus === "Started" && idx === 1);
+                            const hasTech = !!b.technicianId;
+                            
+                            let isDone = false;
+                            let isCurrent = false;
+
+                            if (idx === 0) {
+                              isDone = hasTech;
+                              isCurrent = hasTech && currentStatus === "Assigned";
+                            } else if (idx === 1) {
+                              isDone = hasTech && ["Accepted", "Started", "Arrived", "Ongoing", "Completed"].includes(currentStatus);
+                              isCurrent = hasTech && ["Accepted", "Started"].includes(currentStatus);
+                            } else if (idx === 2) {
+                              isDone = hasTech && ["Arrived", "Ongoing", "Completed"].includes(currentStatus);
+                              isCurrent = hasTech && ["Arrived", "Ongoing"].includes(currentStatus);
+                            } else if (idx === 3) {
+                              isDone = hasTech && currentStatus === "Completed";
+                              isCurrent = hasTech && currentStatus === "Completed";
+                            }
 
                             return (
                               <div
@@ -686,6 +950,28 @@ function MyBookingsPage() {
                         </div>
                       </div>
 
+                      {/* Uber-Style Real-time Map Tracking */}
+                      {!isCancelled &&
+                        (b.jobStatus === "Started" || b.jobStatus === "Arrived" || b.jobStatus === "Ongoing") &&
+                        b.technician?.lat &&
+                        b.technician?.lng && (
+                          <MapContainer
+                            techLat={Number(b.technician.lat)}
+                            techLng={Number(b.technician.lng)}
+                            customerLat={
+                              b.customer?.gpsCoords
+                                ? Number(b.customer.gpsCoords.split(",")[0].trim())
+                                : null
+                            }
+                            customerLng={
+                              b.customer?.gpsCoords
+                                ? Number(b.customer.gpsCoords.split(",")[1].trim())
+                                : null
+                            }
+                            customerAddress={b.customer?.address}
+                          />
+                        )}
+
                       {/* Live Job Progress Status Note */}
                       {b.statusNote && (
                         <div className="mb-4 bg-rose-50 border border-rose-200 p-3.5 rounded-2xl text-xs text-rose-750 max-w-2xl font-sans">
@@ -697,16 +983,16 @@ function MyBookingsPage() {
                       )}
 
                       {/* Assigned Technician Profile */}
-                      {b.technician ? (
+                      {!isCancelled && (b.technician ? (
                         <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-emerald-500/10 to-[#002a22]/5 border border-emerald-500/20 px-4 py-3.5 rounded-2xl text-xs text-slate-700">
                           <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-full bg-[#002a22] text-[#cb9f5a] flex items-center justify-center font-black text-sm uppercase shrink-0 shadow-md">
                               {b.technician.name.substring(0, 2).toUpperCase()}
                             </div>
                             <div>
-                              <div className="font-extrabold text-[#002a22] text-sm flex items-center gap-1.5">
+                              <div className="font-extrabold text-[#002a22] text-sm flex flex-wrap items-center gap-1.5">
                                 <span>Assigned Expert: {b.technician.name}</span>
-                                <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase">
+                                <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full uppercase whitespace-nowrap shrink-0">
                                   Verified Staff
                                 </span>
                               </div>
@@ -729,7 +1015,7 @@ function MyBookingsPage() {
                           <span className="text-base">⏳</span>
                           <span>Technician assignment in progress. Verified clean expert will be assigned prior to slot.</span>
                         </div>
-                      )}
+                      ))}
 
                       {/* Before & After Transformation Gallery Card */}
                       {(b.beforeImage || b.afterImage) && (
@@ -779,56 +1065,97 @@ function MyBookingsPage() {
                         </div>
                       )}
 
-                      {/* Payment Breakup */}
-                      <div className="mb-5 inline-flex flex-wrap items-center gap-x-6 gap-y-2 bg-[#002a22]/3 border border-[#cb9f5a]/10 px-4 py-2.5 rounded-2xl text-xs font-bold">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                            Payment Status:
-                          </span>
-                          <span
-                            className={`font-extrabold px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider ${
-                              isFullyPaid
-                                ? "bg-emerald-500/10 text-emerald-700 border border-emerald-500/25"
-                                : isPaid
-                                  ? "bg-blue-500/10 text-blue-700 border border-blue-500/25"
-                                  : "bg-amber-500/10 text-amber-700 border border-amber-500/25"
-                            }`}
-                          >
-                            {isFullyPaid
-                              ? "Paid in Full"
-                              : isPaid
-                                ? "Deposit Paid (25%)"
-                                : "Pending (COD)"}
-                          </span>
-                        </div>
-                        {b.discount > 0 && b.coupon && (
-                          <>
-                            <div className="h-4 w-px bg-[#cb9f5a]/20 hidden sm:block" />
+                      {/* Cancellation Refund & Money Status Info Card */}
+                      {isCancelled && (
+                        <div className="mb-5 bg-rose-50/55 border border-rose-200/50 px-5 py-4 rounded-2xl text-xs font-semibold text-rose-800 max-w-2xl">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm">💸</span>
+                            <span className="font-extrabold uppercase tracking-wide text-[10px] text-rose-900">Refund & Money Status</span>
+                            <span className="ml-auto bg-rose-100 text-rose-850 font-extrabold text-[9px] uppercase tracking-wider px-2.5 py-0.5 rounded-full">Initiated</span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-3 pt-3 border-t border-rose-200/30 text-rose-950 font-bold">
                             <div>
-                              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                                Coupon Applied:
-                              </span>
-                              <span className="ml-1 text-[#cb9f5a]">
-                                {b.coupon} (-₹{b.discount})
-                              </span>
+                              <div className="text-[10px] text-rose-600 uppercase font-extrabold tracking-wider">Amount Paid</div>
+                              <div className="text-sm mt-0.5">₹{paidAmount}</div>
                             </div>
-                          </>
-                        )}
-                        <div className="h-4 w-px bg-[#cb9f5a]/20 hidden sm:block" />
-                        <div>
-                          <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                            Amount Paid:
-                          </span>
-                          <span className="ml-1 text-[#002a22]">₹{paidAmount}</span>
+                            <div>
+                              <div className="text-[10px] text-rose-600 uppercase font-extrabold tracking-wider">Refund Amount</div>
+                              <div className="text-sm mt-0.5 text-emerald-700">₹{(() => {
+                                const rMatch = b.paymentStatus?.match(/Refund Initiated \(₹(\d+)\)/);
+                                return rMatch && rMatch[1] ? rMatch[1] : "0";
+                              })()}</div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-rose-600 uppercase font-extrabold tracking-wider">Deduction</div>
+                              <div className="text-sm mt-0.5 text-rose-650">₹{(() => {
+                                const rMatch = b.paymentStatus?.match(/Refund Initiated \(₹(\d+)\)/);
+                                const refundVal = rMatch && rMatch[1] ? parseInt(rMatch[1], 10) : 0;
+                                return Math.max(0, paidAmount - refundVal);
+                              })()}</div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-rose-600 uppercase font-extrabold tracking-wider">Timeline</div>
+                              <div className="text-[11px] mt-0.5 leading-tight font-semibold text-rose-700">5-7 working days</div>
+                            </div>
+                          </div>
+                          <div className="mt-3 text-[10px] text-rose-500 font-bold leading-normal">
+                            * Refund has been processed to your original payment mode. Expected settlement: 5-7 bank business days.
+                          </div>
                         </div>
-                        <div className="h-4 w-px bg-[#cb9f5a]/20 hidden sm:block" />
-                        <div>
-                          <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                            Balance Due:
-                          </span>
-                          <span className="ml-1 text-[#cb9f5a]">₹{balanceAmount}</span>
+                      )}
+
+                      {/* Payment Breakup */}
+                      {!isCancelled && (
+                        <div className="mb-5 inline-flex flex-wrap items-center gap-x-6 gap-y-2 bg-[#002a22]/3 border border-[#cb9f5a]/10 px-4 py-2.5 rounded-2xl text-xs font-bold">
+                          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                            <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px] shrink-0">
+                              Payment Status:
+                            </span>
+                            <span
+                              className={`font-extrabold px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider whitespace-nowrap shrink-0 ${
+                                isFullyPaid
+                                  ? "bg-emerald-500/10 text-emerald-700 border border-emerald-500/25"
+                                  : isPaid
+                                    ? "bg-blue-500/10 text-blue-700 border border-blue-500/25"
+                                    : "bg-amber-500/10 text-amber-700 border border-amber-500/25"
+                              }`}
+                            >
+                              {b.paymentStatus || (isFullyPaid
+                                ? "Paid in Full"
+                                : isPaid
+                                  ? "Deposit Paid"
+                                  : "Pending (COD)")}
+                            </span>
+                          </div>
+                          {b.discount > 0 && b.coupon && (
+                            <>
+                              <div className="h-4 w-px bg-[#cb9f5a]/20 hidden sm:block" />
+                              <div>
+                                <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                                  Coupon Applied:
+                                </span>
+                                <span className="ml-1 text-[#cb9f5a]">
+                                  {b.coupon} (-₹{b.discount})
+                                </span>
+                              </div>
+                            </>
+                          )}
+                          <div className="h-4 w-px bg-[#cb9f5a]/20 hidden sm:block" />
+                          <div>
+                            <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                              Amount Paid:
+                            </span>
+                            <span className="ml-1 text-[#002a22]">₹{paidAmount}</span>
+                          </div>
+                          <div className="h-4 w-px bg-[#cb9f5a]/20 hidden sm:block" />
+                          <div>
+                            <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                              Balance Due:
+                            </span>
+                            <span className="ml-1 text-[#cb9f5a]">₹{balanceAmount}</span>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       <div className="space-y-4">
                         {(parsedItems || []).map((item: any, idx: number) => {
@@ -915,10 +1242,10 @@ function MyBookingsPage() {
                                   </span>
                                 </div>
 
-                                <div className="mt-2 text-xs flex gap-3">
+                                <div className="mt-2.5 text-xs flex flex-col sm:flex-row gap-2 sm:gap-3">
                                   <button
                                     onClick={() => handleBuyItAgain(item, itemImg)}
-                                    className="flex items-center gap-1.5 gradient-gold text-navy px-4 py-1.5 rounded-full shadow-gold font-bold transition-all hover:scale-[1.02] cursor-pointer"
+                                    className="flex items-center justify-center gap-1.5 gradient-gold text-navy px-4 py-1.5 rounded-full shadow-gold font-bold transition-all hover:scale-[1.02] cursor-pointer whitespace-nowrap"
                                   >
                                     <svg
                                       xmlns="http://www.w3.org/2000/svg"
@@ -930,6 +1257,7 @@ function MyBookingsPage() {
                                       strokeWidth="2.5"
                                       strokeLinecap="round"
                                       strokeLinejoin="round"
+                                      className="shrink-0"
                                     >
                                       <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
                                       <path d="m3.3 7 8.7 5 8.7-5" />
@@ -972,7 +1300,7 @@ function MyBookingsPage() {
                                         });
                                       }
                                     }}
-                                    className="flex items-center gap-1.5 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-slate-50/50 text-[#002a22] px-4 py-1.5 rounded-full font-bold transition-all cursor-pointer"
+                                    className="flex items-center justify-center gap-1.5 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-slate-50/50 text-[#002a22] px-4 py-1.5 rounded-full font-bold transition-all cursor-pointer whitespace-nowrap"
                                   >
                                     View your service
                                   </button>
@@ -985,71 +1313,92 @@ function MyBookingsPage() {
                     </div>
 
                     {/* Right Column (Actions) */}
-                    <div className="md:w-64 flex flex-col gap-2 border-t md:border-t-0 md:border-l border-[#cb9f5a]/15 pt-4 md:pt-0 md:pl-6">
-                      <button className="w-full bg-white border border-[#cb9f5a]/30 hover:border-[#cb9f5a] text-[#002a22] text-xs font-bold py-2.5 rounded-xl shadow-sm hover:bg-slate-50/50 transition-all duration-200 cursor-pointer">
-                        Track cleaner status
-                      </button>
-                      <button className="w-full bg-white border border-[#cb9f5a]/30 hover:border-[#cb9f5a] text-[#002a22] text-xs font-bold py-2.5 rounded-xl shadow-sm hover:bg-slate-50/50 transition-all duration-200 cursor-pointer">
-                        Return or replace service
-                      </button>
-                      {balanceAmount > 0 ? (
-                        <button
-                          onClick={() =>
-                            handlePayBalance(
-                              b.id,
-                              balanceAmount,
-                              b.customer?.name,
-                              b.customer?.phone,
-                            )
-                          }
-                          disabled={isPayingId === b.id}
-                          className="w-full gradient-gold text-[#001712] text-xs font-bold py-2.5 rounded-xl shadow-gold hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                        >
-                          {isPayingId === b.id ? (
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-navy border-t-transparent" />
-                          ) : (
-                            <Receipt className="h-4 w-4 text-[#001712]" />
-                          )}
-                          Pay Balance (₹{balanceAmount})
-                        </button>
+                    <div className="md:w-64 flex flex-col gap-2 border-t md:border-t-0 md:border-l border-[#cb9f5a]/15 pt-4 md:pt-0 md:pl-6 font-sans">
+                      {isCancelled ? (
+                        <div className="w-full bg-slate-50 border border-slate-200 text-slate-400 text-xs font-bold py-2.5 rounded-xl text-center select-none">
+                          ❌ Booking Cancelled
+                        </div>
                       ) : (
-                        <button className="w-full bg-white border border-[#cb9f5a]/30 hover:border-[#cb9f5a] text-[#002a22] text-xs font-bold py-2.5 rounded-xl shadow-sm hover:bg-slate-50/50 transition-all duration-200 cursor-pointer">
-                          Share gift receipt
-                        </button>
+                        <>
+                          {balanceAmount > 0 ? (
+                            <button
+                              onClick={() =>
+                                handlePayBalance(
+                                  b.id,
+                                  balanceAmount,
+                                  b.customer?.name,
+                                  b.customer?.phone,
+                                )
+                              }
+                              disabled={isPayingId === b.id}
+                              className="w-full gradient-gold text-[#001712] text-xs font-bold py-2.5 rounded-xl shadow-gold hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              {isPayingId === b.id ? (
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-navy border-t-transparent" />
+                              ) : (
+                                <Receipt className="h-4 w-4 text-[#001712]" />
+                              )}
+                              Pay Balance (₹{balanceAmount})
+                            </button>
+                          ) : (
+                            <button className="w-full bg-white border border-[#cb9f5a]/30 hover:border-[#cb9f5a] text-[#002a22] text-xs font-bold py-2.5 rounded-xl shadow-sm hover:bg-slate-50/50 transition-all duration-200 cursor-pointer flex items-center justify-center">
+                              <Gift className="h-3.5 w-3.5 mr-2 shrink-0 text-[#cb9f5a]" />
+                              Share gift receipt
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              const firstItem = parsedItems[0] || {
+                                id: "house",
+                                title: "Full House Cleaning",
+                              };
+                              const catItem = catalogServices.find(
+                                (s) =>
+                                  s.id === firstItem.id ||
+                                  (firstItem.id &&
+                                    typeof firstItem.id === "string" &&
+                                    (firstItem.id.startsWith(s.id + "-") ||
+                                      s.id.startsWith(firstItem.id + "-"))) ||
+                                  s.title?.toLowerCase() === firstItem.title?.toLowerCase() ||
+                                  (firstItem.title &&
+                                    typeof firstItem.title === "string" &&
+                                    s.title &&
+                                    (firstItem.title.toLowerCase().startsWith(s.title.toLowerCase()) ||
+                                      s.title.toLowerCase().startsWith(firstItem.title.toLowerCase()))),
+                              );
+                              const baseId = catItem?.id || firstItem.id || "house";
+                              setSelectedServiceToReview({ id: baseId, title: firstItem.title });
+                              setReviewModalOpen(true);
+                            }}
+                            className="w-full bg-white border border-[#cb9f5a]/30 hover:border-[#cb9f5a] text-[#002a22] text-xs font-bold py-2.5 rounded-xl shadow-sm hover:bg-slate-50/50 transition-all duration-200 cursor-pointer font-sans flex items-center justify-center"
+                          >
+                            <Star className="h-3.5 w-3.5 mr-2 shrink-0 text-[#cb9f5a]" />
+                            Write a product review
+                          </button>
+                          {b.jobStatus !== "Cancelled" && b.jobStatus !== "Completed" && (() => {
+                            const bookingDate = b.schedule?.date;
+                            const bookingTimeRaw = b.schedule?.time || "10:00";
+                            const bookingTime = bookingTimeRaw.split(" - ")[0].trim();
+                            const bookingDateTime = new Date(`${bookingDate}T${bookingTime}:00`);
+                            const now = new Date();
+                            const diffHours = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+                            return diffHours > 0;
+                          })() && (
+                            <button
+                              onClick={() => setCancellingBooking(b)}
+                              className="w-full bg-white border border-rose-200 hover:border-rose-450 hover:bg-rose-50/50 text-rose-600 text-xs font-bold py-2.5 rounded-xl shadow-sm transition-all duration-200 cursor-pointer flex items-center justify-center mt-1"
+                            >
+                              <XCircle className="h-3.5 w-3.5 mr-2 shrink-0 text-rose-500" />
+                              Cancel Booking
+                            </button>
+                          )}
+                        </>
                       )}
-                      <button
-                        onClick={() => {
-                          const firstItem = parsedItems[0] || {
-                            id: "house",
-                            title: "Full House Cleaning",
-                          };
-                          const catItem = catalogServices.find(
-                            (s) =>
-                              s.id === firstItem.id ||
-                              (firstItem.id &&
-                                typeof firstItem.id === "string" &&
-                                (firstItem.id.startsWith(s.id + "-") ||
-                                  s.id.startsWith(firstItem.id + "-"))) ||
-                              s.title?.toLowerCase() === firstItem.title?.toLowerCase() ||
-                              (firstItem.title &&
-                                typeof firstItem.title === "string" &&
-                                s.title &&
-                                (firstItem.title.toLowerCase().startsWith(s.title.toLowerCase()) ||
-                                  s.title.toLowerCase().startsWith(firstItem.title.toLowerCase()))),
-                          );
-                          const baseId = catItem?.id || firstItem.id || "house";
-                          setSelectedServiceToReview({ id: baseId, title: firstItem.title });
-                          setReviewModalOpen(true);
-                        }}
-                        className="w-full bg-white border border-[#cb9f5a]/30 hover:border-[#cb9f5a] text-[#002a22] text-xs font-bold py-2.5 rounded-xl shadow-sm hover:bg-slate-50/50 transition-all duration-200 cursor-pointer font-sans"
-                      >
-                        Write a product review
-                      </button>
                     </div>
                   </div>
 
                   {/* Payment Alert Banner if balance remains */}
-                  {balanceAmount > 0 && (
+                  {balanceAmount > 0 && !isCancelled && (
                     <div className="bg-[#cb9f5a]/5 border-t border-[#cb9f5a]/15 px-5 py-3 flex items-center justify-between text-xs font-bold">
                       <div className="flex items-center gap-2 text-[#002a22]">
                         <svg
@@ -1441,6 +1790,123 @@ function MyBookingsPage() {
           </div>
         </div>
       )}
+
+      {/* Cancellation Confirmation Modal */}
+      {cancellingBooking && (() => {
+        const bookingDate = cancellingBooking.schedule?.date;
+        const bookingTimeRaw = cancellingBooking.schedule?.time || "10:00";
+        const bookingTime = bookingTimeRaw.split(" - ")[0].trim();
+        const bookingDateTime = new Date(`${bookingDate}T${bookingTime}:00`);
+        const now = new Date();
+        const diffHours = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+        const isFullyPaid =
+          typeof cancellingBooking.paymentStatus === "string" &&
+          (cancellingBooking.paymentStatus.includes("Paid In Full") ||
+           cancellingBooking.paymentStatus.toLowerCase().includes("full amount"));
+        const isPaid =
+          typeof cancellingBooking.paymentStatus === "string" &&
+          (cancellingBooking.paymentStatus.includes("Paid") || cancellingBooking.paymentStatus.includes("Success"));
+
+        let paidAmount = 0;
+        if (isFullyPaid) {
+          paidAmount = cancellingBooking.total;
+        } else if (isPaid) {
+          const match = cancellingBooking.paymentStatus.match(/\(₹(\d+)\)/);
+          if (match && match[1]) {
+            paidAmount = parseInt(match[1], 10);
+          } else {
+            if (cancellingBooking.paymentStatus.includes("50%")) {
+              paidAmount = Math.round(cancellingBooking.total * 0.50);
+            } else {
+              paidAmount = Math.round(cancellingBooking.total * 0.25);
+            }
+          }
+        }
+
+        let penaltyPercent = 0;
+        let refundAmount = paidAmount;
+
+        if (diffHours < 12) {
+          const elapsed = 12 - diffHours;
+          penaltyPercent = Math.min(100, Math.round(elapsed * 10));
+          refundAmount = Math.max(0, Math.round(paidAmount * (1 - penaltyPercent / 100)));
+        }
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white border border-[#cb9f5a]/35 rounded-3xl p-6 w-full max-w-sm shadow-2xl relative font-sans text-slate-800">
+              <button
+                onClick={() => setCancellingBooking(null)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              <h3 className="text-lg font-display font-bold flex items-center gap-2 text-[#002a22]">
+                ⚠️ Cancel Cleaning Service?
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Booking ID: #{cancellingBooking.id.substring(0, 8).toUpperCase()}
+              </p>
+
+              <div className="mt-4 space-y-3.5 bg-slate-50 border border-slate-200/60 p-4 rounded-2xl text-xs font-semibold">
+                <div>
+                  <span className="text-slate-450 uppercase text-[9px] block">Time Remaining</span>
+                  <span className="text-slate-700 font-bold">{diffHours.toFixed(1)} Hours before slot</span>
+                </div>
+
+                <div className="pt-2 border-t border-slate-200/50">
+                  <span className="text-slate-450 uppercase text-[9px] block">Cancellation Rule Status</span>
+                  {diffHours >= 12 ? (
+                    <span className="text-emerald-700 font-bold flex items-center gap-1 mt-0.5">
+                      ✅ Free cancellation (12hr+ window)
+                    </span>
+                  ) : (
+                    <span className="text-rose-700 font-bold flex items-center gap-1 mt-0.5">
+                      ⚠️ Late fee: {penaltyPercent}% charge ({Math.min(12, Math.ceil(12 - diffHours))} hrs elapsed)
+                    </span>
+                  )}
+                </div>
+
+                <div className="pt-2.5 border-t border-slate-200/50 grid grid-cols-2 gap-y-2 text-slate-700">
+                  <div>Amount Paid:</div>
+                  <div className="text-right font-extrabold">₹{paidAmount}</div>
+                  
+                  <div>Deduction Fee:</div>
+                  <div className="text-right font-extrabold text-rose-650">-₹{paidAmount - refundAmount}</div>
+
+                  <div className="border-t border-dashed border-slate-300 pt-1 text-slate-900 font-bold">Estimated Refund:</div>
+                  <div className="border-t border-dashed border-slate-300 pt-1 text-right font-black text-emerald-700 text-sm">₹{refundAmount}</div>
+                </div>
+              </div>
+
+              <div className="mt-3.5 bg-blue-50/50 border border-blue-200/50 px-3 py-2.5 rounded-xl text-[10px] text-blue-750 font-bold leading-normal">
+                💡 Timeline: Refunds are processed immediately back to original payment mode. Settlement takes 5-7 working days.
+              </div>
+
+              <div className="mt-5 flex items-center justify-end gap-3 text-xs">
+                <button
+                  onClick={() => setCancellingBooking(null)}
+                  className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-4 py-2.5 font-semibold text-slate-700 transition-all cursor-pointer"
+                >
+                  Keep Booking
+                </button>
+                <button
+                  onClick={handleCancelBooking}
+                  disabled={isCancelling}
+                  className="rounded-xl bg-rose-600 hover:bg-rose-700 px-5 py-2.5 font-bold text-white transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {isCancelling && (
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  )}
+                  Confirm Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

@@ -38,7 +38,7 @@
   --color-gold-soft: var(--gold-soft);
   --color-cream: var(--cream);
 
-  --font-display: "Source Sans 3", "Urbanist", sans-serif;
+  --font-display: "Canela", "Cormorant Garamond", "Playfair Display", serif;
   --font-sans: "Source Sans 3", "Urbanist", sans-serif;
 
   --shadow-luxe: 0 30px 60px -20px color-mix(in oklab, var(--navy) 35%, transparent);
@@ -100,6 +100,8 @@
 @layer base {
   * {
     border-color: var(--color-border);
+    font-variant-numeric: lining-nums;
+    font-feature-settings: "lnum" 1;
   }
   html {
     scroll-behavior: smooth;
@@ -110,6 +112,7 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
   h1,
   h2,
@@ -117,6 +120,28 @@
   h4 {
     font-family: var(--font-display);
     letter-spacing: -0.01em;
+  }
+
+  /* Premium Linear Heading Color Gradients */
+  h1, h2, h3, h4 {
+    background: linear-gradient(135deg, #002a22 15%, #cb9f5a 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Contrast color gradient adjustments for dark layout containers/footer/dark-mode */
+  .dark h1, .dark h2, .dark h3, .dark h4,
+  [class*="bg-navy"] h1, [class*="bg-navy"] h2, [class*="bg-navy"] h3, [class*="bg-navy"] h4,
+  [class*="bg-[#002a22]"] h1, [class*="bg-[#002a22]"] h2, [class*="bg-[#002a22]"] h3, [class*="bg-[#002a22]"] h4,
+  [class*="bg-[#001712]"] h1, [class*="bg-[#001712]"] h2, [class*="bg-[#001712]"] h3, [class*="bg-[#001712]"] h4,
+  footer h1, footer h2, footer h3, footer h4 {
+    background: linear-gradient(135deg, #faf8f5 10%, #cb9f5a 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
   }
 }
 
@@ -415,4 +440,22 @@ input::-webkit-inner-spin-button {
 }
 input[type="number"] {
   -moz-appearance: textfield;
+}
+
+/* Hide scrollbars but keep functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Prevent status badges, labels and pill tags from wrapping internally across all pages */
+.rounded-full.uppercase,
+[class*="rounded-full"][class*="uppercase"] {
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
 }

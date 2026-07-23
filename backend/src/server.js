@@ -491,6 +491,100 @@ app.post("/api/auth/register", async (req, res) => {
   }
 });
 
+const forgotPasswordOtps = new Map();
+
+// 1. Send Password Recovery OTP
+app.post("/api/auth/forgot-password/send-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: "Email is required." });
+    }
+
+    const normEmail = email.trim().toLowerCase();
+    const user = await db.getUserByEmail(normEmail);
+    if (!user) {
+      return res.status(404).json({ error: "User with this email does not exist." });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    forgotPasswordOtps.set(normEmail, {
+      otp,
+      expiresAt: Date.now() + 10 * 60 * 1000, // 10 mins expiry
+    });
+
+    const mailer = require("./utils/mailer");
+    await mailer.sendForgotPasswordOtpEmail(normEmail, otp);
+
+    return res.json({ ok: true, message: "OTP sent to email successfully." });
+  } catch (err) {
+    console.error("Forgot password send-otp error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Verify OTP & Reset Password
+app.post("/api/auth/forgot-password/reset", async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ error: "Email, OTP, and new password are required." });
+    }
+
+    const normEmail = email.trim().toLowerCase();
+    const record = forgotPasswordOtps.get(normEmail);
+
+    if (!record || record.otp !== otp.trim()) {
+      return res.status(400).json({ error: "Invalid OTP code." });
+    }
+
+    if (Date.now() > record.expiresAt) {
+      forgotPasswordOtps.delete(normEmail);
+      return res.status(400).json({ error: "OTP code has expired." });
+    }
+
+    // Hash the password and save to DB
+    const hashedPassword = bcrypt.hashSync(newPassword, 10);
+    await db.query("UPDATE users SET password = ? WHERE email = ?", [hashedPassword, normEmail]);
+
+    // Clean up OTP record
+    forgotPasswordOtps.delete(normEmail);
+
+    return res.json({ ok: true, message: "Password updated successfully! Please login." });
+  } catch (err) {
+    console.error("Forgot password reset error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Change Password (Inside Profile - Logged In)
+app.post("/api/auth/change-password", async (req, res) => {
+  try {
+    const { userId, currentPassword, newPassword } = req.body;
+    if (!userId || !currentPassword || !newPassword) {
+      return res.status(400).json({ error: "All fields are required." });
+    }
+
+    const user = await db.getUserById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const valid = bcrypt.compareSync(currentPassword, user.password);
+    if (!valid) {
+      return res.status(400).json({ error: "Incorrect current password." });
+    }
+
+    const hashedPassword = bcrypt.hashSync(newPassword, 10);
+    await db.query("UPDATE users SET password = ? WHERE id = ?", [hashedPassword, userId]);
+
+    return res.json({ ok: true, message: "Password changed successfully!" });
+  } catch (err) {
+    console.error("Change password error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 const adminOtps = new Map();
 
 app.post("/api/auth/login", async (req, res) => {
@@ -570,6 +664,13 @@ app.post("/api/auth/login", async (req, res) => {
           await db.query("UPDATE users SET referral_code = ? WHERE id = ?", [userRefCode, user.id]);
         }
 
+        let parsedAddresses = [];
+        try {
+          parsedAddresses = user.addresses ? (typeof user.addresses === "string" ? JSON.parse(user.addresses) : user.addresses) : [];
+        } catch (e) {
+          parsedAddresses = [];
+        }
+
         return res.json({
           ok: true,
           role: "user",
@@ -580,6 +681,7 @@ app.post("/api/auth/login", async (req, res) => {
             phone: user.phone,
             referralCode: userRefCode,
             walletBalance: user.wallet_balance || 0,
+            addresses: parsedAddresses,
           },
         });
       }
@@ -1070,6 +1172,20 @@ app.put("/api/users/:id/wallet", async (req, res) => {
   }
 });
 
+// Update user addresses API
+app.put("/api/users/:id/addresses", async (req, res) => {
+  try {
+    const { addresses } = req.body;
+    if (!addresses || !Array.isArray(addresses)) {
+      return res.status(400).json({ error: "Addresses array is required." });
+    }
+    await db.updateUserAddresses(req.params.id, addresses);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete("/api/bookings/:id", async (req, res) => {
   try {
     await db.deleteBooking(req.params.id);
@@ -1226,6 +1342,19 @@ app.delete("/api/technicians/:id", async (req, res) => {
   }
 });
 
+app.put("/api/technicians/:id/location", async (req, res) => {
+  try {
+    const { lat, lng } = req.body;
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ error: "Latitude (lat) and Longitude (lng) are required." });
+    }
+    await db.updateTechnicianLocation(req.params.id, lat, lng);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.put("/api/bookings/:id/technician", async (req, res) => {
   try {
     const { technicianId } = req.body;
@@ -1242,6 +1371,87 @@ app.put("/api/bookings/:id/job-status", async (req, res) => {
     if (!jobStatus) {
       return res.status(400).json({ error: "Job status is required." });
     }
+
+    // Automatic Refund via Razorpay API on cancellation
+    if (jobStatus === "Cancelled") {
+      try {
+        const bookings = await db.getBookings();
+        const booking = bookings.find((b) => b.id === req.params.id);
+        if (booking) {
+          const paymentId = booking.paymentId;
+          const paymentStatus = booking.paymentStatus;
+
+          // Parse booking date & time
+          const bookingDate = booking.schedule?.date;
+          const bookingTimeRaw = booking.schedule?.time || "10:00";
+          const bookingTime = bookingTimeRaw.split(" - ")[0].trim();
+          const bookingDateTime = new Date(`${bookingDate}T${bookingTime}:00`);
+          const now = new Date();
+          const diffHours = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+          const isFullyPaid =
+            typeof paymentStatus === "string" &&
+            (paymentStatus.includes("Paid In Full") || paymentStatus.toLowerCase().includes("full amount"));
+          const isPaid =
+            typeof paymentStatus === "string" &&
+            (paymentStatus.includes("Paid") || paymentStatus.includes("Success"));
+
+          let paidAmount = 0;
+          if (isFullyPaid) {
+            paidAmount = booking.total;
+          } else if (isPaid) {
+            const match = paymentStatus.match(/\(₹(\d+)\)/);
+            if (match && match[1]) {
+              paidAmount = parseInt(match[1], 10);
+            } else {
+              if (paymentStatus.includes("50%")) {
+                paidAmount = Math.round(booking.total * 0.50);
+              } else {
+                paidAmount = Math.round(booking.total * 0.25);
+              }
+            }
+          }
+
+          let penaltyPercent = 0;
+          let refundAmount = paidAmount;
+
+          if (diffHours < 12) {
+            const elapsed = 12 - diffHours;
+            penaltyPercent = Math.min(100, Math.round(elapsed * 10));
+            refundAmount = Math.max(0, Math.round(paidAmount * (1 - penaltyPercent / 100)));
+          }
+
+          // Trigger Razorpay Refund API
+          if (paymentId && refundAmount > 0) {
+            const keyId = process.env.RAZORPAY_KEY_ID;
+            const keySecret = process.env.RAZORPAY_KEY_SECRET;
+            if (keyId && keySecret) {
+              const auth = Buffer.from(keyId + ":" + keySecret).toString("base64");
+              const rzpRes = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}/refund`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Basic ${auth}`,
+                },
+                body: JSON.stringify({
+                  amount: refundAmount * 100, // paise
+                  speed: "normal",
+                }),
+              });
+              const rzpData = await rzpRes.json();
+              if (rzpRes.ok) {
+                console.log(`[AutoRefund] Successfully refunded ₹${refundAmount} for booking ${req.params.id}. Refund ID: ${rzpData.id}`);
+              } else {
+                console.error(`[AutoRefund] Razorpay returned error:`, rzpData);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`[AutoRefund] Error processing refund logic:`, err);
+      }
+    }
+
     await db.updateBookingJobStatus(
       req.params.id,
       jobStatus,
@@ -1292,12 +1502,20 @@ app.put("/api/bookings/:id/reschedule", async (req, res) => {
 
 app.post("/api/categories", async (req, res) => {
   try {
+    const includes = Array.isArray(req.body.includes)
+      ? req.body.includes
+      : (req.body.includes || "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
     const newCat = {
       id: req.body.id || `cat-${Date.now()}`,
       title: req.body.title || "New Category",
       tagline: req.body.tagline || "",
       emoji: req.body.emoji || "✨",
       image: req.body.image || null,
+      parentId: req.body.parentId || null,
+      includes,
     };
     await db.addCategory(newCat);
     res.json({ ok: true, category: newCat });
@@ -1308,11 +1526,19 @@ app.post("/api/categories", async (req, res) => {
 
 app.put("/api/categories/:id", async (req, res) => {
   try {
+    const includes = Array.isArray(req.body.includes)
+      ? req.body.includes
+      : (req.body.includes || "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
     const c = await db.updateCategory(req.params.id, {
       title: req.body.title,
       tagline: req.body.tagline,
       emoji: req.body.emoji,
       image: req.body.image,
+      parentId: req.body.parentId || null,
+      includes,
     });
     res.json({ ok: true, category: c });
   } catch (err) {
@@ -1468,6 +1694,13 @@ app.get("/api/user/profile", async (req, res) => {
       await db.query("UPDATE users SET referral_code = ? WHERE id = ?", [userRefCode, user.id]);
     }
 
+    let parsedAddresses = [];
+    try {
+      parsedAddresses = user.addresses ? (typeof user.addresses === "string" ? JSON.parse(user.addresses) : user.addresses) : [];
+    } catch (e) {
+      parsedAddresses = [];
+    }
+
     res.json({
       id: user.id,
       name: user.name,
@@ -1475,6 +1708,7 @@ app.get("/api/user/profile", async (req, res) => {
       phone: user.phone,
       referralCode: userRefCode,
       walletBalance: user.wallet_balance || 0,
+      addresses: parsedAddresses,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1512,9 +1746,17 @@ app.get("/api/settings", async (req, res) => {
   }
 });
 
-app.put("/api/settings", async (req, res) => {
+const handleSaveSettings = async (req, res) => {
   try {
-    const { referral_reward_amount, referral_enabled, travel_rate_per_km, travel_free_radius_km } = req.body;
+    const { 
+      referral_reward_amount, 
+      referral_enabled, 
+      travel_rate_per_km, 
+      travel_free_radius_km,
+      header_promo_text,
+      header_promo_code
+    } = req.body;
+
     if (referral_reward_amount !== undefined) {
       await db.updateSetting("referral_reward_amount", referral_reward_amount);
     }
@@ -1527,13 +1769,22 @@ app.put("/api/settings", async (req, res) => {
     if (travel_free_radius_km !== undefined) {
       await db.updateSetting("travel_free_radius_km", travel_free_radius_km);
     }
+    if (header_promo_text !== undefined) {
+      await db.updateSetting("header_promo_text", header_promo_text);
+    }
+    if (header_promo_code !== undefined) {
+      await db.updateSetting("header_promo_code", header_promo_code);
+    }
 
     const updated = await db.getSettings();
     res.json({ ok: true, settings: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+};
+
+app.post("/api/settings", handleSaveSettings);
+app.put("/api/settings", handleSaveSettings);
 
 // Reviews API
 app.get("/api/reviews", async (req, res) => {
@@ -1565,6 +1816,56 @@ app.post("/api/reviews", async (req, res) => {
     };
     const r = await db.addReview(payload);
     res.json({ ok: true, review: r });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Transformations API
+app.get("/api/transformations", async (req, res) => {
+  try {
+    const list = await db.getRecentTransformations();
+    res.json(list || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/transformations", async (req, res) => {
+  try {
+    const payload = {
+      id: req.body.id || `trans-${Date.now()}`,
+      title: req.body.title || "",
+      location: req.body.location || "",
+      beforeImage: req.body.beforeImage || "",
+      afterImage: req.body.afterImage || "",
+    };
+    const item = await db.addRecentTransformation(payload);
+    res.json({ ok: true, transformation: item });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/transformations/:id", async (req, res) => {
+  try {
+    const payload = {
+      title: req.body.title || "",
+      location: req.body.location || "",
+      beforeImage: req.body.beforeImage || "",
+      afterImage: req.body.afterImage || "",
+    };
+    const item = await db.updateRecentTransformation(req.params.id, payload);
+    res.json({ ok: true, transformation: item });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/transformations/:id", async (req, res) => {
+  try {
+    await db.deleteRecentTransformation(req.params.id);
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

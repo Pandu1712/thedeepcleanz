@@ -74,6 +74,19 @@ function ServicesComponent() {
   const [userLocation, setUserLocation] = useState("Guntur, Andhra Pradesh");
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [referralModalOpen, setReferralModalOpen] = useState(false);
+  const [activeSubId, setActiveSubId] = useState<string | null>(null);
+
+  const parentCategories = useMemo(() => {
+    return categories.filter((c) => !c.parentId);
+  }, [categories]);
+
+  const subCategories = useMemo(() => {
+    return categories.filter((c) => c.parentId === selectedCatId);
+  }, [categories, selectedCatId]);
+
+  useEffect(() => {
+    setActiveSubId(null);
+  }, [selectedCatId]);
 
   const isAdmin = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -126,19 +139,22 @@ function ServicesComponent() {
       .then((catalog) => {
         const merged = mergeAdminCatalog(catalog);
         setCategories(merged);
-        if (merged.length > 0) {
-          // Set initial category
+        const parents = merged.filter((c) => !c.parentId);
+        if (parents.length > 0) {
+          // Set initial category to first parent
           const defaultCat =
-            searchParams.category && merged.some((c) => c.id === searchParams.category)
+            searchParams.category && parents.some((c) => c.id === searchParams.category)
               ? searchParams.category
-              : merged[0].id;
+              : parents[0].id;
           setSelectedCatId(defaultCat);
+        } else if (merged.length > 0) {
+          setSelectedCatId(merged[0].id);
         } else {
           setSelectedCatId("");
         }
       })
       .catch(() => {
-        setSelectedCatId(searchParams.category || DEFAULT_CATEGORIES[0].id);
+        setSelectedCatId(searchParams.category || DEFAULT_CATEGORIES.find((c) => !c.parentId)?.id || DEFAULT_CATEGORIES[0].id);
       })
       .finally(() => setIsLoading(false));
 
@@ -168,8 +184,9 @@ function ServicesComponent() {
   }, [cart]);
 
   const activeCategory = useMemo(() => {
-    return categories.find((c) => c.id === selectedCatId) || categories[0];
-  }, [categories, selectedCatId]);
+    const targetId = activeSubId || selectedCatId;
+    return categories.find((c) => c.id === targetId) || categories.find((c) => !c.parentId) || categories[0];
+  }, [categories, selectedCatId, activeSubId]);
 
   const allServices = useMemo(() => {
     return categories.flatMap((c) => c.services || []);
@@ -329,7 +346,7 @@ function ServicesComponent() {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px]">
+    <div className="min-h-screen bg-background text-foreground font-sans pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px]">
       <Header
         cartCount={cart.reduce((acc, i) => acc + i.qty, 0)}
         favsCount={favs.length}
@@ -340,153 +357,172 @@ function ServicesComponent() {
         isSubPage={true}
       />
 
-      {/* CHOOSE YOUR CATEGORY HERO */}
-      <section className="mx-auto max-w-[1400px] px-5 pt-12 pb-8 lg:px-8 text-center">
-        <span className="text-2xs font-extrabold uppercase tracking-[0.25em] text-gold bg-gold/10 px-4 py-1.5 rounded-full border border-gold/25">
+      {/* SERVICES HERO HEADER */}
+      <section className="mx-auto max-w-[1400px] px-5 pt-12 pb-4 lg:px-8 text-left">
+        <span className="text-2xs font-extrabold uppercase tracking-[0.25em] text-[#cb9f5a] bg-[#cb9f5a]/10 px-4 py-1.5 rounded-full border border-[#cb9f5a]/25">
           Your Space · Our Expertise
         </span>
-        <h1 className="mt-4 font-display text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">
-          Choose your category
+        <h1 className="mt-4 font-display text-3xl font-extrabold tracking-tight text-[#002a22] sm:text-4xl">
+          Our Premium Cleaning Services
         </h1>
-        <p className="mt-2 text-xs text-slate-500">
-          Pick a category to list all services available under it
+        <p className="mt-2 text-xs text-slate-500 max-w-xl">
+          Select a category from the sidebar to view our specialized hotel-grade deep cleaning solutions and customized packages.
         </p>
-
-        {/* Categories Grid (Top Cards) */}
-        {isLoading ? (
-          <div className="flex justify-center items-center py-10">
-            <span className="h-8 w-8 animate-spin rounded-full border-4 border-gold border-t-transparent" />
-          </div>
-        ) : (
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 justify-center items-stretch max-w-6xl mx-auto">
-            {categories.map((cat) => {
-              const active = selectedCatId === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedCatId(cat.id)}
-                  className={`group relative overflow-hidden rounded-[28px] text-left transition-all duration-500 border flex flex-col p-5 cursor-pointer hover:-translate-y-2.5 ${
-                    active
-                      ? "border-[#cb9f5a] bg-gradient-to-b from-white via-slate-50 to-[#cb9f5a]/10 shadow-[0_20px_50px_-12px_rgba(203,159,90,0.35)] ring-2 ring-[#cb9f5a]/40"
-                      : "border-[#cb9f5a]/20 bg-white shadow-[0_10px_35px_-10px_rgba(0,42,34,0.08)] hover:border-[#cb9f5a]/80 hover:shadow-[0_22px_55px_-12px_rgba(0,42,34,0.15)]"
-                  }`}
-                >
-                  {/* Category Main Image */}
-                  <div className="relative w-full h-44 overflow-hidden rounded-[22px] bg-slate-100 flex-shrink-0">
-                    {cat.image ? (
-                      <img
-                        src={cat.image}
-                        alt={cat.title}
-                        loading="lazy"
-                        className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
-                      />
-                    ) : (
-                      <div className="h-full w-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                        <Sparkles className="h-10 w-10 text-[#cb9f5a]" />
-                      </div>
-                    )}
-
-                    {/* Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
-
-                    {/* Services Count Badge */}
-                    <span className="absolute top-3.5 left-3.5 rounded-full bg-[#002a22]/90 backdrop-blur-md border border-white/20 text-[#cb9f5a] px-3.5 py-1 text-[10px] font-extrabold uppercase tracking-widest shadow-md">
-                      {cat.services?.length || 0} SERVICES
-                    </span>
-
-                    {/* Active Ribbon Badge */}
-                    {active && (
-                      <span className="absolute top-3.5 right-3.5 rounded-full bg-[#cb9f5a] text-[#002a22] px-3 py-1 text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1">
-                        <Check className="h-3 w-3" /> Selected
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Content Details */}
-                  <div className="mt-6 px-2 flex-1 flex flex-col justify-between">
-                    <div>
-                      <h3 className="font-display text-lg font-bold text-[#002a22] group-hover:text-[#cb9f5a] transition-colors leading-snug">
-                        {cat.title}
-                      </h3>
-                      <p className="mt-1.5 text-xs text-[#4a5f5b] leading-relaxed">
-                        {cat.tagline || "Browse our catalog of professional cleaning services."}
-                      </p>
-                    </div>
-
-                    <div className="mt-5 pt-3 border-t border-[#cb9f5a]/15 flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#cb9f5a] transition-transform group-hover:translate-x-1">
-                        {active ? "Showing below" : "View services"} <ArrowRight className="h-4 w-4" />
-                      </span>
-                      <span className="text-[10px] font-bold text-[#002a22]/40 group-hover:text-[#002a22]/80 transition-colors uppercase tracking-wider">
-                        Explore →
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
       </section>
 
       {/* SPLIT SCREEN SIDEBAR & SERVICES LAYOUT */}
-      <section className="mx-auto max-w-[1400px] px-5 py-12 lg:px-8 border-t border-slate-200/60 mt-4">
+      <section className="mx-auto max-w-[1400px] px-5 pb-12 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Left Column: Select a Category Checkbox Sidebar */}
-          <aside className="w-full lg:w-3/12 flex-shrink-0">
-            <div className="sticky top-24 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm space-y-4">
-              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
+          <aside className="w-full lg:w-[28%] shrink-0 lg:sticky lg:top-[120px] self-start z-10">
+            <div className="bg-white border border-[#cb9f5a]/15 rounded-3xl p-5 shadow-sm space-y-4">
+              <div className="font-sans text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] border-b border-slate-100 pb-2.5">
                 Select A Category
-              </h4>
+              </div>
 
               <div className="flex flex-col gap-2.5">
-                {categories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedCatId(cat.id)}
-                    className={`w-full flex items-center gap-3.5 p-3.5 rounded-2xl border text-left text-xs font-bold transition-all ${
-                      selectedCatId === cat.id
-                        ? "border-emerald-600 bg-emerald-50/20 text-emerald-800 shadow-sm"
-                        : "border-slate-200/80 bg-white text-slate-600 hover:border-slate-300"
-                    }`}
-                  >
-                    {/* Checkbox Icon */}
-                    <div
-                      className={`grid h-5 w-5 place-items-center rounded border transition-colors ${
-                        selectedCatId === cat.id
-                          ? "bg-emerald-600 border-emerald-600 text-white"
-                          : "border-slate-300 bg-white"
+                {parentCategories.map((cat) => {
+                  const isActive = selectedCatId === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSelectedCatId(cat.id)}
+                      className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all duration-300 cursor-pointer relative overflow-hidden group ${
+                        isActive
+                          ? "border-[#cb9f5a] bg-gradient-to-r from-[#cb9f5a]/8 to-transparent text-[#002a22] shadow-3xs font-display text-[15px] font-black"
+                          : "border-slate-100 bg-white text-slate-500 hover:border-slate-200 hover:bg-slate-50/50 hover:shadow-2xs font-display text-[15px] font-black"
                       }`}
                     >
-                      {selectedCatId === cat.id && <Check className="h-3.5 w-3.5" />}
-                    </div>
-                    <span className="truncate flex-1">{cat.title}</span>
-                  </button>
-                ))}
+                      {/* Left accent line for active item */}
+                      {isActive && (
+                        <div className="absolute left-1.5 top-3.5 bottom-3.5 w-1 bg-[#cb9f5a] rounded-full" />
+                      )}
+
+                      {/* Icon/Emoji */}
+                      <span className={`text-base shrink-0 transition-transform duration-300 group-hover:scale-110 pl-1.5 ${isActive ? "scale-105" : ""}`}>
+                        {cat.emoji || "🧹"}
+                      </span>
+
+                      <span className="flex-1 pl-1 leading-snug break-words pr-1">{cat.title}</span>
+
+                      {/* Chevron indicator */}
+                      <ChevronDown className={`h-3.5 w-3.5 text-slate-450 shrink-0 transition-transform duration-300 -rotate-90 ${isActive ? "text-[#cb9f5a] translate-x-0.5" : "group-hover:translate-x-0.5"}`} />
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </aside>
 
           {/* Right Column: Services Row List */}
-          <div className="w-full lg:w-9/12 flex-1 space-y-6">
+          <div className="w-full lg:w-[72%] flex-1 space-y-6">
             {/* Category Header */}
             <div className="border-b border-slate-200/80 pb-4">
               <h2 className="font-display text-2xl font-extrabold text-navy">
-                {activeCategory?.title || "Cleaning Services"}
+                {categories.find((c) => c.id === selectedCatId)?.title || activeCategory?.title || "Cleaning Services"}
               </h2>
               <p className="mt-1 text-xs text-slate-500">
-                {activeCategory?.tagline || "Pick from our best-loved deep cleaning solutions."}
+                {categories.find((c) => c.id === selectedCatId)?.tagline || activeCategory?.tagline || "Pick from our best-loved deep cleaning solutions."}
               </p>
             </div>
 
-            {/* List */}
+            {/* List content (conditional subcategories or services) */}
             {isLoading ? (
               <div className="flex justify-center items-center py-20">
                 <span className="h-10 w-10 animate-spin rounded-full border-4 border-gold border-t-transparent" />
               </div>
+            ) : subCategories.length > 0 && activeSubId === null ? (
+              // Display Sub-categories as premium cards
+              <div className="space-y-6 pb-24 md:pb-6">
+                {subCategories.map((sub) => {
+                  return (
+                    <article
+                      key={sub.id}
+                      onClick={() => setActiveSubId(sub.id)}
+                      className="group flex flex-col md:flex-row gap-6 p-5 bg-white border border-slate-200/60 rounded-3xl hover:border-[#cb9f5a]/60 hover:shadow-[0_12px_35px_-8px_rgba(0,42,34,0.08)] transition-all duration-300 cursor-pointer relative"
+                    >
+                      {/* Top Section: Image beside Name/Description */}
+                      <div className="flex flex-col sm:flex-row gap-5 items-start">
+                        {/* Left Side: Decreased Image Container */}
+                        <div className="relative w-full sm:w-4/12 md:w-3/12 aspect-[4/3] rounded-xl overflow-hidden bg-slate-50 flex-shrink-0 border border-slate-100 shadow-3xs">
+                          {sub.image ? (
+                            <img
+                              src={sub.image}
+                              alt={sub.title}
+                              loading="lazy"
+                              className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="h-full w-full bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+                              <Sparkles className="h-6 w-6 text-[#cb9f5a]/60" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Right Side: Name & Description beside Image */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-display text-[15px] sm:text-base font-black text-[#002a22] group-hover:text-[#cb9f5a] transition-colors leading-tight">
+                            {sub.title}
+                          </h3>
+                          <p className="mt-1.5 text-[11px] sm:text-xs text-[#4a5f5b] leading-relaxed line-clamp-2">
+                            {sub.tagline || "Browse our catalog of professional cleaning services."}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Bottom Section: Info and CTA button */}
+                      <div className="mt-4 pt-4 border-t border-slate-150/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        {/* Inclusions checklist (bottom includes for subcat) */}
+                        <div className="flex-1">
+                          {sub.includes && sub.includes.length > 0 ? (
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <span className="text-[9px] font-extrabold text-[#cb9f5a] uppercase tracking-wider">
+                                Includes:
+                              </span>
+                              <ul className="flex flex-wrap gap-x-3 gap-y-1 text-2xs text-[#4a5f5b] font-semibold">
+                                {sub.includes.slice(0, 3).map((incl, idx) => (
+                                  <li key={idx} className="flex items-center gap-1.5">
+                                    <div className="h-3.5 w-3.5 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+                                      <Check className="h-2 w-2 text-emerald-600 stroke-[3px]" />
+                                    </div>
+                                    <span>{incl}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 text-2xs text-[#cb9f5a] font-bold">
+                              <span>{sub.services?.length || 0} services available</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* View Details Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveSubId(sub.id);
+                          }}
+                          className="px-5 py-2 rounded-lg bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-2xs font-black uppercase tracking-wider transition-all duration-300 cursor-pointer shadow-3xs hover:-translate-y-0.5 active:scale-[0.98]"
+                        >
+                          View details
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             ) : !activeCategory?.services || activeCategory.services.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-12 bg-white border border-slate-100 rounded-3xl text-center">
+                {subCategories.length > 0 && activeSubId !== null && (
+                  <button
+                    onClick={() => setActiveSubId(null)}
+                    className="mb-4 inline-flex items-center gap-1.5 text-2xs font-extrabold uppercase text-[#cb9f5a] hover:text-[#002a22] cursor-pointer transition-colors"
+                  >
+                    ← Back to sub-categories
+                  </button>
+                )}
                 <span className="text-3xl">🧹</span>
                 <h5 className="mt-3 font-semibold text-sm text-slate-700">No services active</h5>
                 <p className="text-2xs text-slate-400 mt-1">
@@ -494,72 +530,109 @@ function ServicesComponent() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-5 pb-24 md:pb-6">
+              <div className="space-y-6 pb-24 md:pb-6">
+                {subCategories.length > 0 && activeSubId !== null && (
+                  <button
+                    onClick={() => setActiveSubId(null)}
+                    className="mb-4 inline-flex items-center gap-1.5 text-2xs font-extrabold uppercase text-[#cb9f5a] hover:text-[#002a22] cursor-pointer transition-colors"
+                  >
+                    ← Back to sub-categories
+                  </button>
+                )}
+                
                 {activeCategory.services.map((s) => {
-                  const ServiceIcon = getServiceIcon(s.id);
-                  const rating = "5.0";
+                  const rating = "4.8";
+                  const imageUrl = s.image || s.img;
                   return (
                     <article
                       key={s.id}
                       onClick={() => navigate({ to: "/service-detail", search: { id: s.id } })}
-                      className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:border-[#cb9f5a]/60 hover:shadow-[0_8px_25px_-8px_rgba(0,42,34,0.08)] transition-all duration-300 cursor-pointer relative"
+                      className="group flex flex-col p-5 bg-white border border-slate-200/60 rounded-3xl hover:border-[#cb9f5a]/60 hover:shadow-[0_12px_35px_-8px_rgba(0,42,34,0.08)] transition-all duration-300 cursor-pointer relative"
                     >
-                      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-                        <div className="h-11 w-11 xs:h-12 xs:w-12 rounded-full bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 flex items-center justify-center text-[#cb9f5a] shrink-0 group-hover:scale-105 transition-transform duration-300">
-                          <ServiceIcon className="h-4.5 w-4.5 xs:h-5 xs:w-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-display text-sm font-bold text-[#002a22] group-hover/row:text-[#cb9f5a] transition-colors leading-tight">
-                              {s.title}
-                            </h4>
-                            <div className="flex items-center gap-0.5 text-2xs text-amber-500 font-bold bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10">
-                              ★ {rating}
+                      {/* Top Section: Image beside Name/Description */}
+                      <div className="flex flex-col sm:flex-row gap-5 items-start">
+                        {/* Left Side: Decreased Image Container */}
+                        <div className="relative w-full sm:w-4/12 md:w-3/12 aspect-[4/3] rounded-xl overflow-hidden bg-slate-50 flex-shrink-0 border border-slate-100 shadow-3xs">
+                          {imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={s.title}
+                              loading="lazy"
+                              className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="h-full w-full bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+                              <Sparkles className="h-6 w-6 text-[#cb9f5a]/60" />
                             </div>
+                          )}
+                          
+                          {/* Rating Badge Overlay */}
+                          <div className="absolute top-2 left-2 bg-white/95 backdrop-blur-md px-2 py-0.5 text-[9px] font-black text-amber-500 rounded-full border border-amber-500/25 flex items-center gap-0.5 shadow-sm select-none">
+                            <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
+                            <span>{rating}</span>
                           </div>
-                          <p className="mt-1.5 text-xs text-slate-500 font-normal leading-relaxed line-clamp-1">
+                        </div>
+
+                        {/* Right Side: Name & Description beside Image */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3">
+                            <h3 className="font-display text-[15px] sm:text-base font-black text-[#002a22] group-hover:text-[#cb9f5a] transition-colors leading-tight">
+                              {s.title}
+                            </h3>
+                            {s.price && s.price > 0 && (
+                              <div className="text-right flex-shrink-0">
+                                <span className="block text-[8px] uppercase font-extrabold tracking-wider text-slate-450">
+                                  Starts at
+                                </span>
+                                <span className="font-display text-sm font-black text-[#002a22]">
+                                  ₹{getServicePrice(s.price)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <p className="mt-1.5 text-[11px] sm:text-xs text-[#4a5f5b] leading-relaxed line-clamp-2">
                             {s.desc}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-5 shrink-0 border-t border-slate-50 sm:border-t-0 pt-3 sm:pt-0 w-full sm:w-auto">
-                        <div className="flex flex-col text-left sm:text-right shrink-0 min-w-[70px]">
-                          <span className="whitespace-nowrap text-[9px] uppercase tracking-wider text-slate-400 font-extrabold">
-                            Starts at
-                          </span>
-                          <span className="whitespace-nowrap font-display text-sm font-black text-[#002a22]">
-                            ₹{getServicePrice(s.price)}
-                          </span>
+                      {/* Bottom Section: Includes checklist and CTA button */}
+                      <div className="mt-4 pt-4 border-t border-slate-150/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        {/* Inclusions checklist (bottom includes) */}
+                        <div className="flex-1">
+                          {s.sub && s.sub.length > 0 && (
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <span className="text-[9px] font-extrabold text-[#cb9f5a] uppercase tracking-wider">
+                                Includes:
+                              </span>
+                              <ul className="flex flex-wrap gap-x-3 gap-y-1 text-2xs text-[#4a5f5b] font-semibold">
+                                {s.sub.slice(0, 3).map((subItem, idx) => (
+                                  <li key={idx} className="flex items-center gap-1.5">
+                                    <div className="h-3.5 w-3.5 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+                                      <Check className="h-2 w-2 text-emerald-600 stroke-[3px]" />
+                                    </div>
+                                    <span>{subItem}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate({ to: "/service-detail", search: { id: s.id } });
-                            }}
-                            className="px-2.5 py-1.5 sm:px-4 sm:py-2 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5 text-[11px] sm:text-xs font-bold rounded-xl text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer"
-                          >
-                            View details
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (s.plans && s.plans.length > 0) {
-                                navigate({ to: "/service-detail", search: { id: s.id } });
-                              } else {
-                                addDefaultServiceToCart(s);
-                              }
-                            }}
-                            className="px-3 py-1.5 sm:px-5 sm:py-2 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-[11px] sm:text-xs font-bold uppercase transition-all shadow-md cursor-pointer"
-                          >
-                            Add
-                          </button>
-                        </div>
+
+                        {/* View Details Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate({ to: "/service-detail", search: { id: s.id } });
+                          }}
+                          className="px-5 py-2 rounded-lg bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-2xs font-black uppercase tracking-wider transition-all duration-300 cursor-pointer shadow-3xs hover:-translate-y-0.5 active:scale-[0.98]"
+                        >
+                          View details
+                        </button>
                       </div>
-                    </article>                  );
+                    </article>
+                  );
                 })}
               </div>
             )}

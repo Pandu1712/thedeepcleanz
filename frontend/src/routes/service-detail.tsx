@@ -40,6 +40,7 @@ import {
   fetchReviews,
   postReview,
   type ServiceReview,
+  fetchCustomizedServices,
 } from "@/api/admin-api";
 
 type ServiceDetailSearch = {
@@ -102,6 +103,7 @@ function ServiceDetailPage() {
   // Catalog state
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
+  const [customizedServices, setCustomizedServices] = useState<any[]>([]);
 
   // Cart & Booking State
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -181,6 +183,10 @@ function ServiceDetailPage() {
       })
       .catch((err) => console.error("Catalog load error:", err))
       .finally(() => setLoadingCatalog(false));
+
+    fetchCustomizedServices()
+      .then((data) => setCustomizedServices(data || []))
+      .catch((err) => console.error("Customized services load error:", err));
   }, []);
 
   // Find target service
@@ -251,6 +257,18 @@ function ServiceDetailPage() {
   }, [serviceId]);
 
   const activePlan = plans[selectedPlanIdx] || plans[0];
+
+  const isSizeConfigPlans = useMemo(() => {
+    return plans.some(p => 
+      p.name.toUpperCase().includes("BHK") || 
+      p.name.toUpperCase().includes("RK") ||
+      p.name.toUpperCase().includes("ROOM") ||
+      p.name.toUpperCase().includes("SHOP") ||
+      p.name.toUpperCase().includes("CABIN") ||
+      p.name.toUpperCase().includes("OFFICE") ||
+      p.name.toUpperCase().includes("FLOOR")
+    );
+  }, [plans]);
 
   // Inclusions and Exclusions for active plan
   const planInclusions = useMemo(() => {
@@ -495,14 +513,45 @@ function ServiceDetailPage() {
 
             {/* Premium Plan Cards Selector */}
             {plans.length > 0 && (
-              <div className="space-y-3 pt-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#cb9f5a]">
-                  Select Service Package Tier
+              <div className="space-y-3.5 pt-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#cb9f5a] block">
+                  {isSizeConfigPlans ? "Select Property Size / Configuration" : "Select Service Package Tier"}
                 </span>
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className={isSizeConfigPlans ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" : "grid gap-3 sm:grid-cols-3"}>
                   {plans.map((p, idx) => {
                     const isSelected = selectedPlanIdx === idx;
-                    const isPro = p.name.toUpperCase() === "PRO" || idx === 2;
+                    const isPro = p.name.toUpperCase() === "PRO" || (!isSizeConfigPlans && idx === 2);
+                    
+                    if (isSizeConfigPlans) {
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setSelectedPlanIdx(idx)}
+                          className={`relative flex flex-col justify-between p-4 rounded-xl border text-center transition-all duration-300 cursor-pointer ${
+                            isSelected
+                              ? "border-[#cb9f5a] bg-[#002a22] text-white shadow-lg scale-[1.03]"
+                              : "border-slate-200 bg-[#faf8f5] hover:border-[#cb9f5a]/60 hover:bg-white text-slate-800"
+                          }`}
+                        >
+                          <div>
+                            <span className="text-xl block mb-1">🏠</span>
+                            <h3 className={`font-display text-xs font-black uppercase tracking-wider ${isSelected ? "text-[#cb9f5a]" : "text-[#002a22]"}`}>
+                              {p.name}
+                            </h3>
+                          </div>
+                          <div className="mt-3 pt-2 border-t border-slate-200/40 flex flex-col items-center">
+                            <span className={`font-display text-xs font-black ${isSelected ? "text-white" : "text-[#002a22]"}`}>
+                              ₹{getServicePrice(p.price || service.price || 0)}
+                            </span>
+                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded mt-1.5 ${isSelected ? "bg-white/10 text-white" : "bg-slate-200/60 text-slate-500"}`}>
+                              ⏱️ {p.duration || "2h"}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    }
+
                     return (
                       <button
                         key={idx}
@@ -1220,6 +1269,7 @@ function ServiceDetailPage() {
         }}
         onAddItem={addRawItemToCart}
         allServices={categories.flatMap((c) => c.services || [])}
+        customizedServices={customizedServices}
       />
 
       <BookingModal

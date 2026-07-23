@@ -159,6 +159,39 @@ async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    // Verify and add addresses JSON column to users if not existing
+    let userColumns = await query("SHOW COLUMNS FROM users");
+    const hasAddresses = userColumns.some((c) => c.Field === "addresses");
+    if (!hasAddresses) {
+      await query(`
+        ALTER TABLE users 
+        ADD COLUMN addresses JSON DEFAULT NULL
+      `);
+      console.log("Altered users table to add addresses JSON column.");
+    }
+
+    // Seed a sample default address for pandu1@gmail.com if they have no addresses saved
+    const sampleAddresses = [
+      {
+        id: "addr-sample1",
+        address: "Flat 402, Lotus Towers, Arundelpet",
+        landmark: "Opposite Guntur Public School",
+        city: "Guntur",
+        pincode: "522002",
+        type: "Home",
+        isDefault: true
+      }
+    ];
+    try {
+      await query("UPDATE users SET addresses = ? WHERE email = ? AND (addresses IS NULL OR addresses = '[]' OR JSON_LENGTH(addresses) = 0)", [
+        JSON.stringify(sampleAddresses),
+        "pandu1@gmail.com"
+      ]);
+      console.log("Seeded sample addresses for user pandu1@gmail.com.");
+    } catch (e) {
+      console.error("Failed to seed sample address:", e);
+    }
+
     // Create customized_services table
     await query(`
       CREATE TABLE IF NOT EXISTS customized_services (
@@ -278,6 +311,23 @@ async function initDb() {
     `);
     console.log("Technicians table verified/created.");
 
+    // Verify and add lat, lng, lastPing columns to technicians if not existing
+    try {
+      const techCols = await query("SHOW COLUMNS FROM technicians");
+      const hasLat = techCols.some((c) => c.Field === "lat");
+      if (!hasLat) {
+        await query(`
+          ALTER TABLE technicians 
+          ADD COLUMN lat DECIMAL(10, 8) DEFAULT NULL,
+          ADD COLUMN lng DECIMAL(11, 8) DEFAULT NULL,
+          ADD COLUMN lastPing VARCHAR(100) DEFAULT NULL
+        `);
+        console.log("Altered technicians table to add GPS location columns.");
+      }
+    } catch (e) {
+      console.warn("Could not alter technicians table for GPS columns:", e.message);
+    }
+
     // Create reschedule_logs table
     await query(`
       CREATE TABLE IF NOT EXISTS reschedule_logs (
@@ -314,8 +364,21 @@ async function initDb() {
     `);
     console.log("Settings table verified/created.");
 
+    // Create recent_transformations table
+    await query(`
+      CREATE TABLE IF NOT EXISTS recent_transformations (
+        id VARCHAR(50) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        location VARCHAR(255) NOT NULL,
+        beforeImage TEXT NOT NULL,
+        afterImage TEXT NOT NULL,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+    console.log("Recent transformations table verified/created.");
+
     // Alter table users to add role column if it doesn't exist
-    const userColumns = await query("SHOW COLUMNS FROM users");
+    userColumns = await query("SHOW COLUMNS FROM users");
     const hasRole = userColumns.some((c) => c.Field === "role");
     if (!hasRole) {
       await query(`
@@ -365,6 +428,24 @@ async function initDb() {
         ADD COLUMN image VARCHAR(1000) DEFAULT NULL
       `);
       console.log("Altered categories table to add image column.");
+    }
+
+    const hasParentId = catColumns.some((c) => c.Field === "parentId");
+    if (!hasParentId) {
+      await query(`
+        ALTER TABLE categories 
+        ADD COLUMN parentId VARCHAR(255) DEFAULT NULL
+      `);
+      console.log("Altered categories table to add parentId column.");
+    }
+
+    const hasIncludes = catColumns.some((c) => c.Field === "includes");
+    if (!hasIncludes) {
+      await query(`
+        ALTER TABLE categories 
+        ADD COLUMN includes JSON DEFAULT NULL
+      `);
+      console.log("Altered categories table to add includes column.");
     }
 
     // Alter table services to add columns if they don't exist
@@ -1327,6 +1408,66 @@ async function initDb() {
     } catch (e) {
       console.warn("Could not seed default settings:", e.message);
     }
+
+    // Seed default transformations
+    try {
+      const countRes = await query("SELECT COUNT(*) as count FROM recent_transformations");
+      if (countRes && countRes[0] && countRes[0].count === 0) {
+        const defaults = [
+          {
+            id: "trans-1",
+            title: "Villa Deep Cleaning",
+            location: "Bandra, Mumbai",
+            beforeImage: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=600",
+            afterImage: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?q=80&w=600"
+          },
+          {
+            id: "trans-2",
+            title: "Apartment Cleaning",
+            location: "HSR Layout, Bengaluru",
+            beforeImage: "https://images.unsplash.com/photo-1560185007-cde436f6a4d0?q=80&w=600",
+            afterImage: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=600"
+          },
+          {
+            id: "trans-3",
+            title: "Corporate Office",
+            location: "Gurugram, DLF",
+            beforeImage: "https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=600",
+            afterImage: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?q=80&w=600"
+          },
+          {
+            id: "trans-4",
+            title: "Hotel Room Cleaning",
+            location: "Goa Resort",
+            beforeImage: "https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=600",
+            afterImage: "https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=600"
+          },
+          {
+            id: "trans-5",
+            title: "Kitchen Restoration",
+            location: "Powai, Mumbai",
+            beforeImage: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=600",
+            afterImage: "https://images.unsplash.com/photo-1556911220-b1a4a407300c?q=80&w=600"
+          },
+          {
+            id: "trans-6",
+            title: "Balcony Transformation",
+            location: "Whitefield, Bengaluru",
+            beforeImage: "https://images.unsplash.com/photo-1538688525198-9b88f6f53126?q=80&w=600",
+            afterImage: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=600"
+          }
+        ];
+        for (const item of defaults) {
+          await query(
+            "INSERT INTO recent_transformations (id, title, location, beforeImage, afterImage) VALUES (?, ?, ?, ?, ?)",
+            [item.id, item.title, item.location, item.beforeImage, item.afterImage]
+          );
+        }
+        console.log("Seeded default recent transformations.");
+      }
+    } catch (e) {
+      console.warn("Could not seed default recent transformations:", e.message);
+    }
   } catch (err) {
     console.error("MySQL database initialization failed:", err.message);
     console.warn(
@@ -1338,26 +1479,53 @@ async function initDb() {
 // Database methods
 module.exports = {
   pool,
-  query,
+query,
   initDb,
+
+  // Recent Transformations
+  async getRecentTransformations() {
+    return await query("SELECT * FROM recent_transformations ORDER BY createdAt DESC");
+  },
+  async addRecentTransformation({ id, title, location, beforeImage, afterImage }) {
+    await query(
+      "INSERT INTO recent_transformations (id, title, location, beforeImage, afterImage) VALUES (?, ?, ?, ?, ?)",
+      [id, title, location, beforeImage, afterImage]
+    );
+    return { id, title, location, beforeImage, afterImage };
+  },
+  async updateRecentTransformation(id, { title, location, beforeImage, afterImage }) {
+    await query(
+      "UPDATE recent_transformations SET title = ?, location = ?, beforeImage = ?, afterImage = ? WHERE id = ?",
+      [title, location, beforeImage, afterImage, id]
+    );
+    return { id, title, location, beforeImage, afterImage };
+  },
+  async deleteRecentTransformation(id) {
+    await query("DELETE FROM recent_transformations WHERE id = ?", [id]);
+    return { id };
+  },
 
   // Categories
   async getCategories() {
-    return await query("SELECT * FROM categories");
+    const rows = await query("SELECT * FROM categories");
+    return rows.map((r) => ({
+      ...r,
+      includes: typeof r.includes === "string" ? JSON.parse(r.includes) : r.includes || [],
+    }));
   },
-  async addCategory({ id, title, tagline, emoji, image }) {
+  async addCategory({ id, title, tagline, emoji, image, parentId, includes }) {
     await query(
-      "INSERT INTO categories (id, title, tagline, emoji, image) VALUES (?, ?, ?, ?, ?)",
-      [id, title, tagline, emoji, image || null],
+      "INSERT INTO categories (id, title, tagline, emoji, image, parentId, includes) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [id, title, tagline, emoji, image || null, parentId || null, JSON.stringify(includes || [])],
     );
-    return { id, title, tagline, emoji, image };
+    return { id, title, tagline, emoji, image, parentId, includes };
   },
-  async updateCategory(id, { title, tagline, emoji, image }) {
+  async updateCategory(id, { title, tagline, emoji, image, parentId, includes }) {
     await query(
-      "UPDATE categories SET title = ?, tagline = ?, emoji = ?, image = ? WHERE id = ?",
-      [title, tagline, emoji, image, id],
+      "UPDATE categories SET title = ?, tagline = ?, emoji = ?, image = ?, parentId = ?, includes = ? WHERE id = ?",
+      [title, tagline, emoji, image, parentId || null, JSON.stringify(includes || []), id],
     );
-    return { id, title, tagline, emoji, image };
+    return { id, title, tagline, emoji, image, parentId, includes };
   },
   async deleteCategory(id) {
     await query("DELETE FROM categories WHERE id = ?", [id]);
@@ -1509,7 +1677,7 @@ module.exports = {
   // Bookings
   async getBookings() {
     const rows = await query(`
-      SELECT b.*, t.name as technicianName, t.phone as technicianPhone, t.specialty as technicianSpecialty, t.status as technicianStatus
+      SELECT b.*, t.name as technicianName, t.phone as technicianPhone, t.specialty as technicianSpecialty, t.status as technicianStatus, t.lat as technicianLat, t.lng as technicianLng, t.lastPing as technicianLastPing
       FROM bookings b
       LEFT JOIN technicians t ON b.technicianId = t.id
     `);
@@ -1547,6 +1715,9 @@ module.exports = {
             phone: r.technicianPhone,
             specialty: r.technicianSpecialty,
             status: r.technicianStatus,
+            lat: r.technicianLat ? Number(r.technicianLat) : null,
+            lng: r.technicianLng ? Number(r.technicianLng) : null,
+            lastPing: r.technicianLastPing || null,
           }
         : null,
     }));
@@ -1692,6 +1863,10 @@ module.exports = {
   },
   async updateUserWallet(userId, newBalance) {
     await query("UPDATE users SET wallet_balance = ? WHERE id = ?", [newBalance, userId]);
+    return true;
+  },
+  async updateUserAddresses(userId, addresses) {
+    await query("UPDATE users SET addresses = ? WHERE id = ?", [JSON.stringify(addresses), userId]);
     return true;
   },
 
@@ -1909,6 +2084,16 @@ module.exports = {
   async updateBookingTechnician(id, technicianId) {
     await query("UPDATE bookings SET technicianId = ? WHERE id = ?", [
       technicianId || null,
+      id,
+    ]);
+    return true;
+  },
+  async updateTechnicianLocation(id, lat, lng) {
+    const lastPing = new Date().toISOString();
+    await query("UPDATE technicians SET lat = ?, lng = ?, lastPing = ? WHERE id = ?", [
+      lat !== null ? Number(lat) : null,
+      lng !== null ? Number(lng) : null,
+      lastPing,
       id,
     ]);
     return true;

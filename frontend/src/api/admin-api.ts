@@ -23,6 +23,8 @@ export type AdminCategory = {
   tagline: string;
   emoji: string;
   image?: string;
+  parentId?: string | null;
+  includes?: string[];
 };
 export type ServicePlan = {
   name: string;
@@ -129,6 +131,8 @@ export async function createCategory(cat: {
   tagline: string;
   emoji: string;
   image?: string;
+  parentId?: string | null;
+  includes?: string[];
 }): Promise<AdminCategory> {
   const res = await fetch(`${ADMIN_API_URL}/api/categories`, {
     method: "POST",
@@ -493,5 +497,48 @@ export async function deleteAdmin(email: string): Promise<boolean> {
     body: JSON.stringify({ email }),
   });
   if (!res.ok) throw new Error(`Delete admin failed: ${res.status}`);
+  return (await res.json()).ok as boolean;
+}
+
+export interface RecentTransformation {
+  id: string;
+  title: string;
+  location: string;
+  beforeImage: string;
+  afterImage: string;
+  createdAt?: string;
+}
+
+export async function fetchRecentTransformations(signal?: AbortSignal): Promise<RecentTransformation[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/transformations`, { signal });
+  if (!res.ok) throw new Error(`Fetch transformations failed: ${res.status}`);
+  return (await res.json()) as RecentTransformation[];
+}
+
+export async function addRecentTransformation(payload: Omit<RecentTransformation, "id"> & { id?: string }): Promise<RecentTransformation> {
+  const res = await fetch(`${ADMIN_API_URL}/api/transformations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`Add transformation failed: ${res.status}`);
+  return (await res.json()).transformation as RecentTransformation;
+}
+
+export async function updateRecentTransformation(id: string, payload: Omit<RecentTransformation, "id" | "createdAt">): Promise<RecentTransformation> {
+  const res = await fetch(`${ADMIN_API_URL}/api/transformations/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`Update transformation failed: ${res.status}`);
+  return (await res.json()).transformation as RecentTransformation;
+}
+
+export async function deleteRecentTransformation(id: string): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/transformations/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(`Delete transformation failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
