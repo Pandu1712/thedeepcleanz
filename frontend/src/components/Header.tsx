@@ -399,10 +399,10 @@ export default function Header({
             {/* Location Display Capsule */}
             <div
               onClick={onOpenLocation}
-              className="hidden md:flex items-center gap-2 border border-[#cb9f5a]/30 bg-[#faf8f5] p-2 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold text-[#002a22] transition-all cursor-pointer shadow-3xs hover:border-[#cb9f5a]/60 shrink-0"
+              className="hidden md:flex items-center gap-2 border border-[#cb9f5a]/30 bg-[#faf8f5] p-2 sm:px-3 sm:py-1 rounded-full text-xs font-bold text-[#002a22] transition-all cursor-pointer shadow-3xs hover:border-[#cb9f5a]/60 shrink-0"
             >
               <MapPin className="h-3.5 w-3.5 text-[#cb9f5a] shrink-0" />
-              <span className="hidden sm:inline truncate max-w-[100px] sm:max-w-[160px] md:max-w-[200px]" title={userLocation}>
+              <span className="hidden sm:inline truncate max-w-[80px] lg:max-w-[120px] 2xl:max-w-[200px]" title={userLocation}>
                 {userLocation}
               </span>
               <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-rose-500 animate-pulse"} shrink-0`} />
@@ -447,8 +447,8 @@ export default function Header({
 
           <div className="flex items-center gap-2.5">
             {/* Elegant Search Bar */}
-            <div className="relative hidden md:block w-44 lg:w-56 font-sans shrink-0">
-              <div className="relative flex items-center bg-[#faf8f5] border border-[#002a22]/15 focus-within:border-[#cb9f5a] focus-within:bg-white rounded-full transition-all px-3 py-1.5 shadow-3xs">
+            <div className="relative hidden md:block w-36 lg:w-44 xl:w-48 2xl:w-56 font-sans shrink-0">
+              <div className="relative flex items-center bg-[#faf8f5] border border-[#002a22]/15 focus-within:border-[#cb9f5a] focus-within:bg-white rounded-full transition-all px-2.5 py-1.5 shadow-3xs">
                 <Search className="h-4 w-4 text-[#cb9f5a]/75 mr-2 shrink-0" />
                 <input
                   type="text"
@@ -565,12 +565,12 @@ export default function Header({
                 </div>
               </div>
             ) : (
-              <div className="hidden items-center gap-3.5 md:flex">
+              <div className="hidden items-center gap-3 md:flex">
                 <Link
                   to="/login"
-                  className="rounded-full bg-[#002a22] hover:bg-[#cb9f5a] text-[#cb9f5a] hover:text-[#002a22] border border-[#cb9f5a]/35 hover:border-[#cb9f5a] px-6 py-2.5 text-[11px] font-black uppercase tracking-widest transition-all duration-350 active:scale-[0.98] shadow-md hover:shadow-[0_4px_20px_rgba(203,159,90,0.25)]"
+                  className="rounded-full bg-[#002a22] hover:bg-[#cb9f5a] text-[#cb9f5a] hover:text-[#002a22] border border-[#cb9f5a]/35 hover:border-[#cb9f5a] px-4 py-2 xl:px-6 xl:py-2.5 text-[11px] font-black uppercase tracking-wider xl:tracking-widest transition-all duration-350 active:scale-[0.98] shadow-md hover:shadow-[0_4px_20px_rgba(203,159,90,0.25)] whitespace-nowrap shrink-0"
                 >
-                  Register / Login
+                  Login
                 </Link>
               </div>
             )}
@@ -747,7 +747,7 @@ export default function Header({
                   onClick={() => setNavOpen(false)}
                   className="w-full text-center rounded-full bg-[#002a22] border border-[#cb9f5a]/30 py-2.5 text-xs font-extrabold uppercase tracking-widest text-[#cb9f5a] active:bg-[#cb9f5a] active:text-[#002a22] transition-all duration-200 block"
                 >
-                  Register / Login
+                  Login / Register
                 </Link>
               )}
             </div>
