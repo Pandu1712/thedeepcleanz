@@ -520,51 +520,55 @@ async function initDb() {
         if (fileContent && fileContent !== "{}" && fileContent !== "[]") {
           const dbData = JSON.parse(fileContent);
           
-          // Seed categories if empty
-          const catsCount = await query("SELECT COUNT(*) as count FROM categories");
-          if (catsCount[0].count === 0 && dbData.categories && dbData.categories.length > 0) {
-            console.log(`Seeding ${dbData.categories.length} categories from db.json...`);
+          // Seed categories individually if they do not exist
+          if (dbData.categories && dbData.categories.length > 0) {
             for (const cat of dbData.categories) {
-              await query(
-                "INSERT INTO categories (id, title, tagline, emoji, image, parentId, includes) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                [
-                  cat.id,
-                  cat.title,
-                  cat.tagline || null,
-                  cat.emoji || null,
-                  cat.image || null,
-                  cat.parentId || null,
-                  JSON.stringify(cat.includes || []),
-                ]
-              );
+              const existing = await query("SELECT id FROM categories WHERE id = ?", [cat.id]);
+              if (existing.length === 0) {
+                console.log(`Seeding category: ${cat.title} (${cat.id}) from db.json...`);
+                await query(
+                  "INSERT INTO categories (id, title, tagline, emoji, image, parentId, includes) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                  [
+                    cat.id,
+                    cat.title,
+                    cat.tagline || null,
+                    cat.emoji || null,
+                    cat.image || null,
+                    cat.parentId || null,
+                    JSON.stringify(cat.includes || []),
+                  ]
+                );
+              }
             }
-            console.log("Categories seeded successfully from db.json.");
+            console.log("Categories checked/seeded successfully from db.json.");
           }
 
-          // Seed services if empty
-          const servicesCount = await query("SELECT COUNT(*) as count FROM services");
-          if (servicesCount[0].count === 0 && dbData.services && dbData.services.length > 0) {
-            console.log(`Seeding ${dbData.services.length} services from db.json...`);
+          // Seed services individually if they do not exist
+          if (dbData.services && dbData.services.length > 0) {
             for (const s of dbData.services) {
-              await query(
-                "INSERT INTO services (id, categoryId, title, price, description, includes, image, plans, disclaimer, requirements, precautions, payment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [
-                  s.id,
-                  s.categoryId,
-                  s.title,
-                  Number(s.price) || 0,
-                  s.description || null,
-                  JSON.stringify(s.includes || []),
-                  s.image || null,
-                  JSON.stringify(s.plans || null),
-                  s.disclaimer || null,
-                  s.requirements || null,
-                  JSON.stringify(s.precautions || null),
-                  s.paymentType || s.payment_type || "full",
-                ]
-              );
+              const existing = await query("SELECT id FROM services WHERE id = ?", [s.id]);
+              if (existing.length === 0) {
+                console.log(`Seeding service: ${s.title} (${s.id}) from db.json...`);
+                await query(
+                  "INSERT INTO services (id, categoryId, title, price, description, includes, image, plans, disclaimer, requirements, precautions, payment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                  [
+                    s.id,
+                    s.categoryId,
+                    s.title,
+                    Number(s.price) || 0,
+                    s.description || null,
+                    JSON.stringify(s.includes || []),
+                    s.image || null,
+                    JSON.stringify(s.plans || null),
+                    s.disclaimer || null,
+                    s.requirements || null,
+                    JSON.stringify(s.precautions || null),
+                    s.paymentType || s.payment_type || "full",
+                  ]
+                );
+              }
             }
-            console.log("Services seeded successfully from db.json.");
+            console.log("Services checked/seeded successfully from db.json.");
           }
         }
       } catch (jsonErr) {

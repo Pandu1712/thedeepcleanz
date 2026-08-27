@@ -2383,14 +2383,14 @@ function Index() {
 
         <div className="mt-8 max-w-[1400px] mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 justify-center items-stretch">
-            {displayCategories.length === 0 ? (
+            {parentCategoriesWithSubServices.length === 0 ? (
               <div className="col-span-full text-center py-16 bg-white border border-[#cb9f5a]/25 p-8 w-full">
                 <span className="text-2xl block mb-2">✨</span>
                 <h3 className="font-display text-sm font-bold text-[#002a22]">No Services Launched Yet</h3>
                 <p className="text-2xs text-slate-550 mt-1">Please configure catalog categories and services in the Admin Console.</p>
               </div>
             ) : (
-              displayCategories.map((c) => {
+              parentCategoriesWithSubServices.map((c) => {
                 const CategoryIcon = getCategoryIcon(c.title);
                 const parent = c.parentId ? categories.find((cat) => cat.id === c.parentId) : null;
                 const parentName = parent ? parent.title : null;
