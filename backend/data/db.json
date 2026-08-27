@@ -5,60 +5,584 @@
       "title": "Full House Deep Cleaning",
       "tagline": "Top-to-bottom ultra-premium sanitization and deep cleaning engineered for luxury homes.",
       "emoji": "🏠",
-      "image": "/images/full_house.jpg"
+      "image": "/images/full_house.jpg",
+      "parentId": null,
+      "includes": []
+    },
+    {
+      "id": "furnished",
+      "title": "Furnished Home Deep Cleaning",
+      "tagline": "Professional full house deep cleaning service for furnished homes. Covers kitchen, bathrooms, bedrooms, living room, balcony, furniture exteriors, windows, fans, switches, doors and complete floor cleaning using professional equipment.",
+      "emoji": "✨",
+      "image": "/images/full_house.jpg",
+      "parentId": "full-house",
+      "includes": []
+    },
+    {
+      "id": "vacant",
+      "title": "Vacant Home Deep Cleaning",
+      "tagline": "Professional deep cleaning service for vacant homes before possession, move-in or rental handover.",
+      "emoji": "✨",
+      "image": "/images/full_house.jpg",
+      "parentId": "full-house",
+      "includes": []
+    },
+    {
+      "id": "villa",
+      "title": "Bungalow / Villa Deep Cleaning",
+      "tagline": "Premium cleaning service for independent villas and bungalows with multiple bedrooms and living areas.",
+      "emoji": "✨",
+      "image": "/images/full_house.jpg",
+      "parentId": "full-house",
+      "includes": []
     },
     {
       "id": "customized",
       "title": "Customized Cleaning Package",
       "tagline": "Bespoke, room-by-room professional cleaning tailored entirely to your personal space.",
       "emoji": "🛋️",
-      "image": "/images/customized.jpg"
+      "image": "/images/customized.jpg",
+      "parentId": null,
+      "includes": []
     },
     {
       "id": "commercial",
       "title": "Commercial Post Interior Cleaning",
       "tagline": "Elite clinical-grade sanitation for corporate offices, hotels, and post-construction spaces.",
       "emoji": "🏢",
-      "image": "/images/commercial.jpg"
+      "image": "/images/commercial.jpg",
+      "parentId": null,
+      "includes": []
     }
   ],
   "services": [
     {
-      "id": "house",
-      "categoryId": "full-house",
-      "title": "Full House Cleaning",
-      "price": 1999,
-      "description": "Complete top-to-bottom deep clean for every room.",
+      "id": "furnished-1bhk",
+      "categoryId": "furnished",
+      "title": "1 BHK (Furnished) — Up to 500 Sq.ft",
+      "price": 3499,
+      "description": "Professional full house deep cleaning service for furnished homes. Covers kitchen, bathrooms, bedrooms, living room, balcony, furniture exteriors, windows, fans, switches, doors and complete floor cleaning using professional equipment and eco-friendly chemicals.",
       "includes": [
-        "All rooms HEPA vacuuming",
-        "Floor machine scrubbing",
-        "Window glass polishing",
-        "Kitchen sanitization",
-        "Bathroom deep cleaning"
+        "Kitchen Platform, sink & wall tiles cleaning",
+        "Bathroom WC, basin, mirrors & shower deep scrub",
+        "Bed & wardrobe exterior wet/dry dusting",
+        "Windows, doors, switch boards & fan blades",
+        "Sofa, carpet & mattress dry vacuuming",
+        "Balcony floor wet mopping & railing wipe",
+        "Cobweb removal and complete floor sanitization"
+      ],
+      "image": "/images/full_house.jpg",
+      "plans": [
+        {
+          "name": "Express",
+          "price": 3499,
+          "duration": "5 Hours",
+          "description": "Enhance your 1 BHK with comprehensive home cleaning. Surface-level cleaning of kitchen, bathrooms, furniture exteriors and dry vacuuming of sofa, carpet and mattress.",
+          "includes": [
+            "Kitchen platform/sink/wall tiles cleaning",
+            "Cabinet & appliance exteriors cleaning",
+            "WC sanitization, basin & mirror cleaning",
+            "Shower fittings & bathroom wall/floor tiles",
+            "Bed, wardrobe & switch board exterior wet dusting",
+            "Window glass, doors & fan cleaning",
+            "Sofa, carpet & mattress dry vacuum",
+            "Balcony floor & railing cleaning",
+            "Cobweb removal and floor mopping/sanitization"
+          ],
+          "excludes": [
+            "Glue/Paint/Sticker removal",
+            "Sofa, carpet & mattress shampooing",
+            "Wardrobe & cabinet interior",
+            "Terrace cleaning & heavy shifting"
+          ]
+        },
+        {
+          "name": "Elite",
+          "price": 4499,
+          "duration": "5 Hours",
+          "description": "Detailed kitchen interior cleaning along with furniture wet & dry dusting and sanitization.",
+          "includes": [
+            "Everything in Express plan",
+            "Kitchen cabinet & drawer interior cleaning",
+            "Chimney exterior deep degreasing",
+            "Fridge & microwave exterior detailed sanitization",
+            "Furniture wet dusting & dry dusting",
+            "TV unit, wardrobe exterior, dining table & chairs",
+            "Window tracks, door frames, switch & fan blades detailed",
+            "Sofa, carpet & mattress dry vacuuming",
+            "Bathroom floor scrubbing & basic hard water stain removal"
+          ],
+          "excludes": [
+            "Post renovation / post-interior cleaning",
+            "Paint & glue removal",
+            "Terrace cleaning & heavy material shifting",
+            "Sofa & carpet shampooing"
+          ]
+        },
+        {
+          "name": "Exclusive",
+          "price": 5499,
+          "duration": "5 Hours",
+          "description": "Premium deep cleaning package with shampooing services included.",
+          "includes": [
+            "Everything in Elite plan",
+            "Kitchen deep degreasing, cabinet interior & exterior",
+            "Fridge, microwave & OTG exterior cleaning",
+            "Furniture wet wiping & detailed sanitization",
+            "Sofa shampooing & vacuum extraction (up to 5 seats)",
+            "Carpet shampooing (up to 36 sq ft)",
+            "Mattress shampooing (1 double/queen mattress)",
+            "Bathroom deep sanitization & scale removal",
+            "Floor machine scrubbing & sanitization"
+          ],
+          "excludes": [
+            "Paint & glue removal",
+            "Terrace cleaning & inaccessible glass at height",
+            "Heavy furniture shifting"
+          ]
+        }
+      ],
+      "disclaimer": "Please ensure that all valuables are removed or securely stored. The company will not be responsible for any items left unsecured.",
+      "requirements": "Continuous power supply & water facility are required for the cleaning machine.",
+      "precautions": []
+    },
+    {
+      "id": "furnished-2bhk",
+      "categoryId": "furnished",
+      "title": "2 BHK (Furnished) — Up to 800 Sq.ft",
+      "price": 4499,
+      "description": "Professional full house deep cleaning for 2 BHK furnished homes, covering 2 bedrooms, living area, kitchen, bathrooms and balcony.",
+      "includes": [
+        "Kitchen Platform, sink & wall tiles cleaning",
+        "2 Bathrooms WC, basin, mirrors & shower deep scrub",
+        "2 Bedrooms bed & wardrobe exterior wet/dry dusting",
+        "Windows, doors, switch boards & fan blades",
+        "Sofa, carpet & mattress dry vacuuming",
+        "Balcony floor wet mopping & railing wipe",
+        "Cobweb removal and complete floor sanitization"
+      ],
+      "image": "/images/full_house.jpg",
+      "plans": [
+        {
+          "name": "Express",
+          "price": 4499,
+          "duration": "5 Hours",
+          "description": "Express cleaning for 2 BHK furnished home.",
+          "includes": [
+            "Kitchen cleaning (platform, sink, tiles)",
+            "2 Bathrooms basic scrub & sanitization",
+            "2 Bedrooms cleaning (dusting, mopping)",
+            "Living room cleaning & dusting",
+            "Balcony cleaning",
+            "Floor cleaning",
+            "Sofa/Carpet/Mattress dry vacuum"
+          ],
+          "excludes": [
+            "Interior cabinets",
+            "Sofa, carpet & mattress shampooing"
+          ]
+        },
+        {
+          "name": "Elite",
+          "price": 5499,
+          "duration": "5 Hours",
+          "description": "Elite cleaning for 2 BHK furnished home.",
+          "includes": [
+            "Kitchen interior + exterior cleaning",
+            "Furniture wet & dry dusting",
+            "Wardrobe exterior wet dusting",
+            "Windows, grills & tracks cleaning",
+            "Bathroom sanitization & descaling",
+            "Sofa dry vacuum",
+            "Carpet dry vacuum"
+          ],
+          "excludes": [
+            "Paint removal",
+            "Glue removal",
+            "Terrace cleaning"
+          ]
+        },
+        {
+          "name": "Exclusive",
+          "price": 6499,
+          "duration": "5 Hours",
+          "description": "Exclusive cleaning with shampooing for 2 BHK.",
+          "includes": [
+            "Kitchen deep cleaning (degreasing, cabinets inside-out)",
+            "Sofa shampooing (up to 5 seats)",
+            "Carpet shampooing",
+            "Mattress shampooing (1 double mattress)",
+            "Furniture wet wiping & detailed sanitization",
+            "Machine floor scrubbing & sanitization"
+          ],
+          "excludes": [
+            "Heavy shifting",
+            "Paint removal",
+            "Exterior glass cleaning at height"
+          ]
+        }
+      ],
+      "disclaimer": "Please ensure that all valuables are removed or securely stored. The company will not be responsible for any items left unsecured.",
+      "requirements": "Continuous power supply & water facility are required for the cleaning machine.",
+      "precautions": []
+    },
+    {
+      "id": "furnished-3bhk",
+      "categoryId": "furnished",
+      "title": "3 BHK (Furnished) — Up to 1200 Sq.ft",
+      "price": 5499,
+      "description": "Professional full house deep cleaning for 3 BHK furnished homes, covering 3 bedrooms, living area, kitchen, bathrooms and balcony.",
+      "includes": [
+        "Kitchen Platform, sink & wall tiles cleaning",
+        "3 Bathrooms WC, basin, mirrors & shower deep scrub",
+        "3 Bedrooms bed & wardrobe exterior wet/dry dusting",
+        "Windows, doors, switch boards & fan blades",
+        "Sofa, carpet & mattress dry vacuuming",
+        "Balcony floor wet mopping & railing wipe",
+        "Cobweb removal and complete floor sanitization"
+      ],
+      "image": "/images/full_house.jpg",
+      "plans": [
+        {
+          "name": "Express",
+          "price": 5499,
+          "duration": "5 Hours",
+          "description": "Includes kitchen, 3 bathrooms, 3 bedrooms, living room, balcony, floor cleaning and dry vacuuming.",
+          "includes": [
+            "Kitchen cleaning (platform, sink, tiles)",
+            "3 Bathrooms cleaning",
+            "3 Bedrooms cleaning",
+            "Living room cleaning",
+            "Balcony cleaning",
+            "Floor cleaning",
+            "Sofa/Carpet/Mattress dry vacuum"
+          ],
+          "excludes": [
+            "Interior cabinets",
+            "Sofa, carpet & mattress shampooing"
+          ]
+        },
+        {
+          "name": "Elite",
+          "price": 6499,
+          "duration": "5 Hours",
+          "description": "Adds cabinet interiors, furniture wet & dry dusting, detailed window cleaning and sanitization.",
+          "includes": [
+            "Kitchen interior + exterior cleaning",
+            "Furniture wet & dry dusting",
+            "Wardrobe exterior wet dusting",
+            "Windows, grills & tracks cleaning",
+            "Bathroom sanitization & descaling",
+            "Sofa dry vacuum",
+            "Carpet dry vacuum"
+          ],
+          "excludes": [
+            "Paint removal",
+            "Glue removal",
+            "Terrace cleaning"
+          ]
+        },
+        {
+          "name": "Exclusive",
+          "price": 7499,
+          "duration": "5 Hours",
+          "description": "Adds sofa shampooing, mattress shampooing, carpet shampooing and premium machine scrubbing.",
+          "includes": [
+            "Kitchen deep cleaning (degreasing, cabinets inside-out)",
+            "Sofa shampooing (up to 5 seats)",
+            "Carpet shampooing",
+            "Mattress shampooing (1 double mattress)",
+            "Furniture wet wiping & detailed sanitization",
+            "Machine floor scrubbing & sanitization"
+          ],
+          "excludes": [
+            "Heavy shifting",
+            "Paint removal",
+            "Exterior glass cleaning at height"
+          ]
+        }
+      ],
+      "disclaimer": "Please ensure that all valuables are removed or securely stored. The company will not be responsible for any items left unsecured.",
+      "requirements": "Continuous power supply & water facility are required for the cleaning machine.",
+      "precautions": []
+    },
+    {
+      "id": "furnished-4bhk",
+      "categoryId": "furnished",
+      "title": "4 BHK (Furnished Large Home) — Up to 1500 Sq.ft",
+      "price": 6499,
+      "description": "Professional full house deep cleaning for 4 BHK furnished homes, covering 4 bedrooms, living area, kitchen, bathrooms and balcony.",
+      "includes": [
+        "Kitchen Platform, sink & wall tiles cleaning",
+        "4 Bathrooms WC, basin, mirrors & shower deep scrub",
+        "4 Bedrooms bed & wardrobe exterior wet/dry dusting",
+        "Windows, doors, switch boards & fan blades",
+        "Sofa, carpet & mattress dry vacuuming",
+        "Balcony floor wet mopping & railing wipe",
+        "Cobweb removal and complete floor sanitization"
+      ],
+      "image": "/images/full_house.jpg",
+      "plans": [
+        {
+          "name": "Express",
+          "price": 6499,
+          "duration": "5 Hours",
+          "description": "Includes kitchen, 4 bathrooms, 4 bedrooms, living room, balcony, floor cleaning and dry vacuuming.",
+          "includes": [
+            "Kitchen, 4 Bathrooms, 4 Bedrooms, Living room, Balcony, Floor cleaning, Dry vacuuming"
+          ]
+        },
+        {
+          "name": "Elite",
+          "price": 7499,
+          "duration": "5 Hours",
+          "description": "Everything in Express plus: Kitchen interior, Furniture wet dusting, Window tracks, Bathroom stain removal.",
+          "includes": [
+            "Kitchen interior cabinet cleaning",
+            "Furniture wet & dry dusting",
+            "Window glass & tracks deep cleaning",
+            "Bathroom detailed descaling & stain removal"
+          ],
+          "excludes": [
+            "Sofa & mattress shampooing"
+          ]
+        },
+        {
+          "name": "Exclusive",
+          "price": 8499,
+          "duration": "5 Hours",
+          "description": "Everything in Elite plus: Sofa shampooing, Carpet shampooing, Mattress shampooing, Premium sanitization, Machine floor scrubbing.",
+          "includes": [
+            "Sofa shampooing (up to 7 seats)",
+            "Carpet shampooing",
+            "Mattress shampooing",
+            "Premium sanitization",
+            "Machine floor scrubbing"
+          ]
+        }
+      ],
+      "disclaimer": "Please ensure that all valuables are removed or securely stored. The company will not be responsible for any items left unsecured.",
+      "requirements": "Continuous power supply & water facility are required for the cleaning machine.",
+      "precautions": []
+    },
+    {
+      "id": "vacant-1bhk",
+      "categoryId": "vacant",
+      "title": "1 BHK (Vacant) — Up to 600 Sq.ft",
+      "price": 2499,
+      "description": "Professional deep cleaning service for vacant homes before possession, move-in or rental handover.",
+      "includes": [
+        "Kitchen platform, sink, cabinet & tile deep cleaning",
+        "Bathroom WC sanitization, basin & shower fittings polishing",
+        "Doors, windows, frames & switch boards cleaning",
+        "Fans & light fixtures dusting",
+        "Balcony floor washing & railing dusting",
+        "Floor machine scrubbing & sanitization",
+        "Complete cobweb removal"
+      ],
+      "image": "/images/full_house.jpg",
+      "plans": [],
+      "disclaimer": "Please ensure that all valuables are removed or securely stored.",
+      "requirements": "Continuous power supply & water facility are required for the cleaning machine.",
+      "excludes": [
+        "Furniture cleaning",
+        "Sofa, Mattress & Carpet cleaning",
+        "Appliances cleaning (fridge, oven, etc.)",
+        "Paint, cement & glue stains removal"
       ]
     },
     {
-      "id": "kitchen",
-      "categoryId": "full-house",
-      "title": "Kitchen Deep Cleaning",
-      "price": 999,
-      "description": "Intense kitchen degreasing and tile scrubbing.",
+      "id": "vacant-2bhk",
+      "categoryId": "vacant",
+      "title": "2 BHK (Vacant) — Up to 900 Sq.ft",
+      "price": 3499,
+      "description": "Professional deep cleaning service for vacant homes before possession, move-in or rental handover.",
       "includes": [
-        "Chimney baffle filters",
-        "Cabinet cleaning inside-out",
-        "Countertop sanitization"
+        "Kitchen platform, sink, cabinet & tile deep cleaning",
+        "2 Bathrooms WC sanitization, basin & shower fittings polishing",
+        "Doors, windows, frames & switch boards cleaning",
+        "Fans & light fixtures dusting",
+        "Balcony floor washing & railing dusting",
+        "Floor machine scrubbing & sanitization",
+        "Complete cobweb removal"
+      ],
+      "image": "/images/full_house.jpg",
+      "plans": [],
+      "disclaimer": "Please ensure that all valuables are removed or securely stored.",
+      "requirements": "Continuous power supply & water facility are required for the cleaning machine.",
+      "excludes": [
+        "Furniture cleaning",
+        "Sofa, Mattress & Carpet cleaning",
+        "Appliances cleaning (fridge, oven, etc.)",
+        "Paint, cement & glue stains removal"
       ]
     },
     {
-      "id": "bath",
-      "categoryId": "full-house",
-      "title": "Bathroom Deep Cleaning",
-      "price": 499,
-      "description": "Acid-free scrub cleaning of wall tiles, floors, WC, shower area, mirrors.",
+      "id": "vacant-3bhk",
+      "categoryId": "vacant",
+      "title": "3 BHK (Vacant) — Up to 1200 Sq.ft",
+      "price": 4499,
+      "description": "Professional deep cleaning service for vacant homes before possession, move-in or rental handover.",
       "includes": [
-        "1 Specialist",
-        "Hospital-grade disinfectants",
-        "Limescale removal"
+        "Kitchen platform, sink, cabinet & tile deep cleaning",
+        "3 Bathrooms WC sanitization, basin & shower fittings polishing",
+        "Doors, windows, frames & switch boards cleaning",
+        "Fans & light fixtures dusting",
+        "Balcony floor washing & railing dusting",
+        "Floor machine scrubbing & sanitization",
+        "Complete cobweb removal"
+      ],
+      "image": "/images/full_house.jpg",
+      "plans": [],
+      "disclaimer": "Please ensure that all valuables are removed or securely stored.",
+      "requirements": "Continuous power supply & water facility are required for the cleaning machine.",
+      "excludes": [
+        "Furniture cleaning",
+        "Sofa, Mattress & Carpet cleaning",
+        "Appliances cleaning (fridge, oven, etc.)",
+        "Paint, cement & glue stains removal"
+      ]
+    },
+    {
+      "id": "vacant-4bhk",
+      "categoryId": "vacant",
+      "title": "4 BHK (Vacant) — Up to 1500 Sq.ft",
+      "price": 5499,
+      "description": "Professional deep cleaning service for vacant homes before possession, move-in or rental handover.",
+      "includes": [
+        "Kitchen platform, sink, cabinet & tile deep cleaning",
+        "4 Bathrooms WC sanitization, basin & shower fittings polishing",
+        "Doors, windows, frames & switch boards cleaning",
+        "Fans & light fixtures dusting",
+        "Balcony floor washing & railing dusting",
+        "Floor machine scrubbing & sanitization",
+        "Complete cobweb removal"
+      ],
+      "image": "/images/full_house.jpg",
+      "plans": [],
+      "disclaimer": "Please ensure that all valuables are removed or securely stored.",
+      "requirements": "Continuous power supply & water facility are required for the cleaning machine.",
+      "excludes": [
+        "Furniture cleaning",
+        "Sofa, Mattress & Carpet cleaning",
+        "Appliances cleaning (fridge, oven, etc.)",
+        "Paint, cement & glue stains removal"
+      ]
+    },
+    {
+      "id": "villa-2000",
+      "categoryId": "villa",
+      "title": "Up to 2000 Sq.ft (Bungalow/Villa)",
+      "price": 6999,
+      "description": "Premium cleaning service for independent villas and bungalows with multiple bedrooms and living areas.",
+      "includes": [
+        "Kitchen deep cleaning (degreasing, cabinets inside-out)",
+        "Bathroom descaling & sanitization",
+        "Up to 5 Bedrooms & living areas vacuuming & mopping",
+        "Dining area deep scrub",
+        "Balcony & terrace cleaning",
+        "Staircase floor scrubbing & railing polishing",
+        "Floor single-disc machine scrubbing",
+        "Window glass polishing & grill dusting",
+        "Cobweb removal"
+      ],
+      "image": "/images/full_house.jpg",
+      "plans": [],
+      "disclaimer": "Please ensure that all valuables are removed or securely stored. Custom quote based on scope of work.",
+      "requirements": "Continuous power supply & water facility are required.",
+      "excludes": [
+        "Swimming pool cleaning",
+        "Garden cleaning",
+        "Exterior wall washing",
+        "Water tank cleaning",
+        "Pressure washing & paint/cement removal"
+      ]
+    },
+    {
+      "id": "villa-3000",
+      "categoryId": "villa",
+      "title": "2001–3000 Sq.ft (Bungalow/Villa)",
+      "price": 8999,
+      "description": "Premium cleaning service for independent villas and bungalows with multiple bedrooms and living areas.",
+      "includes": [
+        "Kitchen deep cleaning (degreasing, cabinets inside-out)",
+        "Bathroom descaling & sanitization",
+        "Up to 5 Bedrooms & living areas vacuuming & mopping",
+        "Dining area deep scrub",
+        "Balcony & terrace cleaning",
+        "Staircase floor scrubbing & railing polishing",
+        "Floor single-disc machine scrubbing",
+        "Window glass polishing & grill dusting",
+        "Cobweb removal"
+      ],
+      "image": "/images/full_house.jpg",
+      "plans": [],
+      "disclaimer": "Please ensure that all valuables are removed or securely stored. Custom quote based on scope of work.",
+      "requirements": "Continuous power supply & water facility are required.",
+      "excludes": [
+        "Swimming pool cleaning",
+        "Garden cleaning",
+        "Exterior wall washing",
+        "Water tank cleaning",
+        "Pressure washing & paint/cement removal"
+      ]
+    },
+    {
+      "id": "villa-4000",
+      "categoryId": "villa",
+      "title": "3001–4000 Sq.ft (Bungalow/Villa)",
+      "price": 10999,
+      "description": "Premium cleaning service for independent villas and bungalows with multiple bedrooms and living areas.",
+      "includes": [
+        "Kitchen deep cleaning (degreasing, cabinets inside-out)",
+        "Bathroom descaling & sanitization",
+        "Up to 5 Bedrooms & living areas vacuuming & mopping",
+        "Dining area deep scrub",
+        "Balcony & terrace cleaning",
+        "Staircase floor scrubbing & railing polishing",
+        "Floor single-disc machine scrubbing",
+        "Window glass polishing & grill dusting",
+        "Cobweb removal"
+      ],
+      "image": "/images/full_house.jpg",
+      "plans": [],
+      "disclaimer": "Please ensure that all valuables are removed or securely stored. Custom quote based on scope of work.",
+      "requirements": "Continuous power supply & water facility are required.",
+      "excludes": [
+        "Swimming pool cleaning",
+        "Garden cleaning",
+        "Exterior wall washing",
+        "Water tank cleaning",
+        "Pressure washing & paint/cement removal"
+      ]
+    },
+    {
+      "id": "villa-5000",
+      "categoryId": "villa",
+      "title": "4001–5000 Sq.ft (Bungalow/Villa)",
+      "price": 12999,
+      "description": "Premium cleaning service for independent villas and bungalows with multiple bedrooms and living areas.",
+      "includes": [
+        "Kitchen deep cleaning (degreasing, cabinets inside-out)",
+        "Bathroom descaling & sanitization",
+        "Up to 5 Bedrooms & living areas vacuuming & mopping",
+        "Dining area deep scrub",
+        "Balcony & terrace cleaning",
+        "Staircase floor scrubbing & railing polishing",
+        "Floor single-disc machine scrubbing",
+        "Window glass polishing & grill dusting",
+        "Cobweb removal"
+      ],
+      "image": "/images/full_house.jpg",
+      "plans": [],
+      "disclaimer": "Please ensure that all valuables are removed or securely stored. Custom quote based on scope of work.",
+      "requirements": "Continuous power supply & water facility are required.",
+      "excludes": [
+        "Swimming pool cleaning",
+        "Garden cleaning",
+        "Exterior wall washing",
+        "Water tank cleaning",
+        "Pressure washing & paint/cement removal"
       ]
     },
     {
@@ -72,7 +596,9 @@
         "Stain spot removal",
         "Eco-shampoo scrub",
         "Fabric odor control"
-      ]
+      ],
+      "image": "/images/customized.jpg",
+      "plans": []
     },
     {
       "id": "office",
@@ -85,7 +611,9 @@
         "Carpet HEPA vacuum",
         "Pantry deep clean",
         "Trash clearance"
-      ]
+      ],
+      "image": "/images/commercial.jpg",
+      "plans": []
     },
     {
       "id": "hotel",
@@ -98,7 +626,9 @@
         "Lobby marble polish",
         "Restroom deep scrub",
         "Upholstery care"
-      ]
+      ],
+      "image": "/images/commercial.jpg",
+      "plans": []
     }
   ],
   "bookings": []
