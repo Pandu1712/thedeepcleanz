@@ -1,0 +1,105 @@
+{
+  "categories": [
+    {
+      "id": "full-house",
+      "title": "Full House Deep Cleaning",
+      "tagline": "Top-to-bottom ultra-premium sanitization and deep cleaning engineered for luxury homes.",
+      "emoji": "🏠",
+      "image": "/images/full_house.jpg"
+    },
+    {
+      "id": "customized",
+      "title": "Customized Cleaning Package",
+      "tagline": "Bespoke, room-by-room professional cleaning tailored entirely to your personal space.",
+      "emoji": "🛋️",
+      "image": "/images/customized.jpg"
+    },
+    {
+      "id": "commercial",
+      "title": "Commercial Post Interior Cleaning",
+      "tagline": "Elite clinical-grade sanitation for corporate offices, hotels, and post-construction spaces.",
+      "emoji": "🏢",
+      "image": "/images/commercial.jpg"
+    }
+  ],
+  "services": [
+    {
+      "id": "house",
+      "categoryId": "full-house",
+      "title": "Full House Cleaning",
+      "price": 1999,
+      "description": "Complete top-to-bottom deep clean for every room.",
+      "includes": [
+        "All rooms HEPA vacuuming",
+        "Floor machine scrubbing",
+        "Window glass polishing",
+        "Kitchen sanitization",
+        "Bathroom deep cleaning"
+      ]
+    },
+    {
+      "id": "kitchen",
+      "categoryId": "full-house",
+      "title": "Kitchen Deep Cleaning",
+      "price": 999,
+      "description": "Intense kitchen degreasing and tile scrubbing.",
+      "includes": [
+        "Chimney baffle filters",
+        "Cabinet cleaning inside-out",
+        "Countertop sanitization"
+      ]
+    },
+    {
+      "id": "bath",
+      "categoryId": "full-house",
+      "title": "Bathroom Deep Cleaning",
+      "price": 499,
+      "description": "Acid-free scrub cleaning of wall tiles, floors, WC, shower area, mirrors.",
+      "includes": [
+        "1 Specialist",
+        "Hospital-grade disinfectants",
+        "Limescale removal"
+      ]
+    },
+    {
+      "id": "sofa",
+      "categoryId": "customized",
+      "title": "Sofa Cleaning",
+      "price": 499,
+      "description": "Vacuuming and injection-extraction stain removal.",
+      "includes": [
+        "Allergen extraction",
+        "Stain spot removal",
+        "Eco-shampoo scrub",
+        "Fabric odor control"
+      ]
+    },
+    {
+      "id": "office",
+      "categoryId": "commercial",
+      "title": "Office Cleaning",
+      "price": 2499,
+      "description": "Sanitization of workspaces, carpets & pantries.",
+      "includes": [
+        "Workstation sanitization",
+        "Carpet HEPA vacuum",
+        "Pantry deep clean",
+        "Trash clearance"
+      ]
+    },
+    {
+      "id": "hotel",
+      "categoryId": "commercial",
+      "title": "Hotel Cleaning",
+      "price": 2999,
+      "description": "Premium sanitization for rooms & lobbies.",
+      "includes": [
+        "Room sanitization",
+        "Lobby marble polish",
+        "Restroom deep scrub",
+        "Upholstery care"
+      ]
+    }
+  ],
+  "bookings": []
+}
