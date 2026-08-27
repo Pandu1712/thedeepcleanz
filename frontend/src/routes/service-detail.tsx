@@ -484,7 +484,7 @@ function ServiceDetailPage() {
       {/* BREADCRUMB NAVIGATION */}
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 pt-6">
         <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#cb9f5a]/80 uppercase tracking-wider">
-          <Link to="/" className="hover:underline">Home</Link>
+          <Link to="/" search={{ category: undefined, cart: undefined }} className="hover:underline">Home</Link>
           <span>&gt;</span>
           <Link to="/services" className="hover:underline">Services</Link>
           <span>&gt;</span>
@@ -662,7 +662,7 @@ function ServiceDetailPage() {
               <Star className="h-4 w-4 text-[#cb9f5a] fill-[#cb9f5a]" /> {avgRating} Rating
             </div>
             {/* Bottom translucent metrics card overlay matching mockup */}
-            <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md border border-slate-200/50 rounded-2xl p-3 grid grid-cols-4 gap-1 text-center shadow-lg">
+            <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md border border-slate-200/50 rounded-2xl p-3 hidden sm:grid grid-cols-4 gap-1 text-center shadow-lg">
               <div className="flex flex-col items-center gap-1 text-[8px] font-bold text-slate-700 leading-tight">
                 <span className="text-xs">🧑‍🔧</span>
                 <span>Trained Professionals</span>

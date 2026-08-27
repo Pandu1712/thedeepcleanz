@@ -2193,7 +2193,8 @@ function Index() {
                 style={{ animationDelay: "100ms" }}
               >
                 <Sparkles className="h-3.5 w-3.5 text-[#cb9f5a] animate-pulse" />
-                <span>INDIA'S #1 RATED LUXURY CLEANING SERVICE</span>
+                <span className="hidden sm:inline">INDIA'S #1 RATED LUXURY CLEANING SERVICE</span>
+                <span className="sm:hidden">#1 Rated Luxury Clean</span>
               </div>
 
               {/* Main Headline */}
@@ -2307,18 +2308,18 @@ function Index() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#002a22]/80 via-transparent to-black/30" />
 
                 {/* Floating Glass Pill - Top Left */}
-                <div className="absolute top-4 left-4 bg-[#002a22]/85 backdrop-blur-md border border-[#cb9f5a]/30 rounded-none py-2 px-3.5 text-white shadow-xl flex items-center gap-2 z-10 transition-transform duration-300 hover:scale-105">
-                  <div className="grid h-7 w-7 place-items-center rounded-xl bg-[#cb9f5a] text-[#002a22] font-black text-xs shadow-sm rounded-none">
+                <div className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-[#002a22]/85 backdrop-blur-md border border-[#cb9f5a]/30 rounded-none py-1.5 px-3 sm:py-2 sm:px-3.5 text-white shadow-xl flex items-center gap-2 z-10 transition-transform duration-300 hover:scale-105">
+                  <div className="grid h-6 w-6 sm:h-7 sm:w-7 place-items-center rounded-xl bg-[#cb9f5a] text-[#002a22] font-black text-[10px] sm:text-xs shadow-sm rounded-none">
                     ★
                   </div>
                   <div className="leading-tight text-left">
-                    <div className="text-xs font-bold text-white">4.9 / 5.0 Rating</div>
-                    <div className="text-[9px] text-[#cb9f5a] font-semibold">2,800+ Verified Reviews</div>
+                    <div className="text-[10px] sm:text-xs font-bold text-white">4.9 / 5.0 Rating</div>
+                    <div className="text-[8px] sm:text-[9px] text-[#cb9f5a] font-semibold">2,800+ Verified Reviews</div>
                   </div>
                 </div>
 
                 {/* Floating Glass Pill - Top Right */}
-                <div className="absolute top-4 right-4 bg-[#002a22]/85 backdrop-blur-md border border-white/20 rounded-none py-2 px-3.5 text-white shadow-xl flex items-center gap-2 z-10 transition-transform duration-300 hover:scale-105">
+                <div className="absolute top-4 right-4 bg-[#002a22]/85 backdrop-blur-md border border-white/20 rounded-none py-2 px-3.5 text-white shadow-xl hidden sm:flex items-center gap-2 z-10 transition-transform duration-300 hover:scale-105">
                   <div className="grid h-7 w-7 place-items-center rounded-none bg-emerald-500 text-white font-black text-xs shadow-sm">
                     ✓
                   </div>
@@ -2329,28 +2330,28 @@ function Index() {
                 </div>
 
                 {/* Floating Customer Proof Banner - Bottom Overlay */}
-                <div className="absolute bottom-5 left-5 right-5 bg-[#002a22]/90 backdrop-blur-md border border-[#cb9f5a]/30 rounded-none p-3.5 text-white shadow-2xl flex items-center justify-between z-10 transition-transform duration-300 hover:scale-[1.02]">
+                <div className="absolute bottom-3 left-3 right-3 sm:bottom-5 sm:left-5 sm:right-5 bg-[#002a22]/90 backdrop-blur-md border border-[#cb9f5a]/30 rounded-none p-2.5 sm:p-3.5 text-white shadow-2xl flex items-center justify-between z-10 transition-transform duration-300 hover:scale-[1.02]">
                   <div className="flex items-center gap-3">
                     <div className="flex -space-x-2">
                       <img
-                        className="inline-block h-8 w-8 rounded-full border-2 border-[#cb9f5a] object-cover shadow-sm"
+                        className="inline-block h-6.5 w-6.5 sm:h-8 sm:w-8 rounded-full border-2 border-[#cb9f5a] object-cover shadow-sm"
                         src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&q=80"
                         alt="Customer 1"
                       />
                       <img
-                        className="inline-block h-8 w-8 rounded-full border-2 border-[#cb9f5a] object-cover shadow-sm"
+                        className="inline-block h-6.5 w-6.5 sm:h-8 sm:w-8 rounded-full border-2 border-[#cb9f5a] object-cover shadow-sm"
                         src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=64&q=80"
                         alt="Customer 2"
                       />
                       <img
-                        className="inline-block h-8 w-8 rounded-full border-2 border-[#cb9f5a] object-cover shadow-sm"
+                        className="inline-block h-6.5 w-6.5 sm:h-8 sm:w-8 rounded-full border-2 border-[#cb9f5a] object-cover shadow-sm"
                         src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&q=80"
                         alt="Customer 3"
                       />
                     </div>
                     <div className="leading-tight text-left">
-                      <div className="text-xs font-extrabold text-white">Trusted by 10,000+ Homes</div>
-                      <div className="text-[10px] text-[#cb9f5a] font-semibold">In Guntur & Andhra Pradesh</div>
+                      <div className="text-[10px] sm:text-xs font-extrabold text-white">Trusted by 10,000+ Homes</div>
+                      <div className="text-[8px] sm:text-[10px] text-[#cb9f5a] font-semibold">In Guntur & Andhra Pradesh</div>
                     </div>
                   </div>
                   <div className="hidden sm:flex items-center gap-1 bg-[#cb9f5a]/20 border border-[#cb9f5a]/40 rounded-xl px-3 py-1.5 text-2xs font-extrabold text-[#cb9f5a]">
@@ -6691,6 +6692,7 @@ export function BeforeAfterSlider({ before, after, title, location }: BeforeAfte
   const [sliderPosition, setSliderPosition] = useState(50); // percentage (0 to 100)
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   const handleMove = (clientX: number) => {
     if (!containerRef.current) return;
@@ -6698,6 +6700,20 @@ export function BeforeAfterSlider({ before, after, title, location }: BeforeAfte
     const x = ((clientX - rect.left) / rect.width) * 100;
     setSliderPosition(Math.max(0, Math.min(100, x)));
   };
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    setContainerWidth(containerRef.current.getBoundingClientRect().width);
+
+    const handleResize = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.getBoundingClientRect().width);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -6754,7 +6770,7 @@ export function BeforeAfterSlider({ before, after, title, location }: BeforeAfte
           src={before}
           alt={`${title} Before`}
           className="absolute inset-0 w-full h-full object-cover max-w-none"
-          style={{ width: containerRef.current?.getBoundingClientRect().width || "100%" }}
+          style={{ width: containerWidth ? `${containerWidth}px` : "100%" }}
         />
       </div>
 

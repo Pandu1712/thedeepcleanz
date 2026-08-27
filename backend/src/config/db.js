@@ -1,5 +1,7 @@
 const mysql = require("mysql2/promise");
 const bcrypt = require("bcryptjs");
+const fs = require("fs");
+const path = require("path");
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || "127.0.0.1",
@@ -500,405 +502,77 @@ async function initDb() {
       cats[0].count > 0 &&
       (await query("SELECT id FROM categories WHERE id = 'cat-1'")).length > 0;
 
-    // Automatic seeding of categories, services, and reviews is disabled as requested by the administrator
-    if (false) {
-      if (hasOldSeed) {
-        console.log(
-          "Old demo seed detected. Clearing tables for new unified database catalog...",
-        );
-        await query("SET FOREIGN_KEY_CHECKS = 0");
-        await query("TRUNCATE TABLE services");
-        await query("TRUNCATE TABLE categories");
-        await query("SET FOREIGN_KEY_CHECKS = 1");
-      }
-      console.log("Seeding default database records into MySQL...");
-      const defaultData = {
-        categories: [
-          {
-            id: "full-house",
-            title: "Full House Deep Cleaning",
-            tagline: "Top-to-bottom premium clean for the entire home",
-            emoji: "🏠",
-            image:
-              "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80",
-          },
-          {
-            id: "customized",
-            title: "Customized Cleaning Package",
-            tagline: "Pick exactly what you need — room by room",
-            emoji: "🛋️",
-            image:
-              "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=800&q=80",
-          },
-          {
-            id: "commercial",
-            title: "Commercial Post Interior Cleaning",
-            tagline: "Office, hotel & post-construction expertise",
-            emoji: "🏢",
-            image:
-              "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80",
-          },
-        ],
-        services: [
-          {
-            id: "house",
-            categoryId: "full-house",
-            title: "Full House Cleaning",
-            price: 1999,
-            description: "Complete top-to-bottom deep clean for every room.",
-            includes: [
-              "All rooms HEPA vacuuming",
-              "Floor machine scrubbing",
-              "Window glass polishing",
-              "Kitchen sanitization",
-              "Bathroom deep cleaning",
-            ],
-            image:
-              "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80",
-            disclaimer:
-              "Please ensure all valuables are removed or securely stored before our professionals arrive.",
-            plans: [
-              {
-                name: "Express",
-                price: 1999,
-                duration: "3-4 hours",
-                description:
-                  "Surface dusting, dry vacuuming, and basic mopping.",
-                includes: [
-                  "Dusting surface details",
-                  "Floor wet wiping",
-                  "Trash disposal",
-                ],
-                excludes: ["Deep kitchen scrubbing", "Wall washings"],
-              },
-              {
-                name: "Elite",
-                price: 2999,
-                duration: "5-6 hours",
-                description:
-                  "Full deep clean including kitchen and bathroom machine scrubbing.",
-                includes: [
-                  "Bathroom deep scrub",
-                  "Kitchen sanitization",
-                  "Floor machine scrub",
-                  "HEPA vacuuming",
-                ],
-                excludes: ["Heavy stain restoration"],
-              },
-              {
-                name: "Exclusive",
-                price: 4499,
-                duration: "6-7 hours",
-                description:
-                  "Advanced sterilization, window polishing, and complete steam care.",
-                includes: [
-                  "Bathroom sanitization",
-                  "Kitchen degreasing",
-                  "Floor steam scrub",
-                  "Window glass polishing",
-                  "Switchboard cleaning",
-                ],
-                excludes: ["Heavy lifting or movement of materials"],
-              },
-            ],
-          },
-          {
-            id: "kitchen",
-            categoryId: "full-house",
-            title: "Kitchen Deep Cleaning",
-            price: 999,
-            description: "Intense kitchen degreasing and tile scrubbing.",
-            includes: [
-              "Chimney baffle filters",
-              "Cabinet cleaning inside-out",
-              "Countertop degreasing",
-              "Limescale & oil removal",
-            ],
-            image:
-              "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80",
-            disclaimer:
-              "Admins advise kitchen utensils be placed in closed cabinets before service.",
-            plans: [
-              {
-                name: "Express",
-                price: 999,
-                duration: "2 hours",
-                description:
-                  "Quick wipe down, cabinet outer wiping and counter cleaning.",
-                includes: [
-                  "Countertop wipe",
-                  "Outer cabinet wipe",
-                  "Sink polish",
-                ],
-                excludes: ["Chimney filter scrubbing"],
-              },
-              {
-                name: "Elite",
-                price: 1599,
-                duration: "3 hours",
-                description:
-                  "Complete kitchen degreasing, chimney filter scrubbing, and tile steam wipe.",
-                includes: [
-                  "Countertop degreasing",
-                  "Chimney baffle scrub",
-                  "Wall tiles scrub",
-                  "Cabinet inside-out clean",
-                ],
-                excludes: ["Exhaust fan repair"],
-              },
-            ],
-          },
-          {
-            id: "bath",
-            categoryId: "full-house",
-            title: "Bathroom Cleaning",
-            price: 599,
-            description: "Scrubbing and sanitization of tiles and fixtures.",
-            includes: [
-              "Limescale removal",
-              "WC & washbasin scrub",
-              "Mirror polishing",
-              "Floor deep scrub",
-            ],
-            image:
-              "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80",
-            disclaimer: "Admins advise clear floor path in washrooms.",
-            plans: [
-              {
-                name: "Express",
-                price: 599,
-                duration: "1.5 hours",
-                description: "Basic sanitization of sink and toilet bowl.",
-                includes: ["Sink wash", "WC sanitization", "Mirror wipe"],
-                excludes: ["Wall tile descaling"],
-              },
-              {
-                name: "Elite",
-                price: 999,
-                duration: "2.5 hours",
-                description:
-                  "Complete descaling and floor scrubbing of bathroom.",
-                includes: [
-                  "WC descaling",
-                  "Limescale removal from fixtures",
-                  "Floor deep scrub",
-                  "Wall tiles scrub",
-                ],
-                excludes: ["Exhaust fan repair"],
-              },
-            ],
-          },
-          {
-            id: "sofa",
-            categoryId: "customized",
-            title: "Sofa Cleaning",
-            price: 499,
-            description: "Vacuuming and injection-extraction stain removal.",
-            includes: [
-              "Allergen extraction",
-              "Stain spot removal",
-              "Eco-shampoo scrub",
-              "Fabric odor control",
-            ],
-            image:
-              "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&w=800&q=80",
-            disclaimer: "Drying takes 3-4 hours post extraction.",
-            plans: [
-              {
-                name: "Express",
-                price: 499,
-                duration: "1 hour",
-                description: "Dry vacuuming and fabric sanitization.",
-                includes: ["Fabric dry vacuum", "Odor removal spray"],
-                excludes: ["Wet extraction cleaning"],
-              },
-              {
-                name: "Elite",
-                price: 899,
-                duration: "2 hours",
-                description:
-                  "Wet injection-extraction shampoo scrub for stain removal.",
-                includes: [
-                  "Eco-shampoo scrubbing",
-                  "Wet spot extraction",
-                  "Dry vacuuming",
-                ],
-                excludes: ["Leather polishing"],
-              },
-            ],
-          },
-          {
-            id: "furniture",
-            categoryId: "customized",
-            title: "Furniture Cleaning",
-            price: 699,
-            description: "Polishing and vacuuming of wood & fabric furniture.",
-            includes: [
-              "Wood conditioning",
-              "Fabric vacuuming",
-              "Leather protection",
-              "Glass desk clean",
-            ],
-          },
-          {
-            id: "interior",
-            categoryId: "full-house",
-            title: "Interior Cleaning",
-            price: 1499,
-            description: "Scrubbing wall tiles, fans, light fixtures.",
-            includes: [
-              "Ceiling fan clean",
-              "Cobweb removal",
-              "Switchboard wipe",
-              "Window frame dusting",
-            ],
-          },
-          {
-            id: "balcony",
-            categoryId: "customized",
-            title: "Balcony Cleaning",
-            price: 499,
-            description: "High-pressure wash & tile scrubbing.",
-            includes: [
-              "Pressure wash floor",
-              "Grill dusting & wipe",
-              "Drain clearance",
-              "Glass door cleaning",
-            ],
-          },
-          {
-            id: "office",
-            categoryId: "commercial",
-            title: "Office Cleaning",
-            price: 2499,
-            description: "Sanitization of workspaces, carpets & pantries.",
-            includes: [
-              "Workstation sanitization",
-              "Carpet HEPA vacuum",
-              "Pantry deep clean",
-              "Trash clearance",
-            ],
-          },
-          {
-            id: "hotel",
-            categoryId: "commercial",
-            title: "Hotel Cleaning",
-            price: 2999,
-            description: "Premium sanitization for rooms & lobbies.",
-            includes: [
-              "Room sanitization",
-              "Lobby marble polish",
-              "Restroom deep scrub",
-              "Upholstery care",
-            ],
-          },
-          {
-            id: "fridge",
-            categoryId: "customized",
-            title: "Refrigerator Cleaning",
-            price: 499,
-            description: "Stain and odor removal, tray sanitization.",
-            includes: [
-              "Defrost & interior wipe",
-              "Tray & rack scrub",
-              "Gasket disinfection",
-              "Deodorization",
-            ],
-          },
-          {
-            id: "carpet",
-            categoryId: "customized",
-            title: "Carpet Cleaning",
-            price: 599,
-            description: "Deep extraction shampooing of carpets.",
-            includes: [
-              "Deep soil extraction",
-              "Stain pre-treatment",
-              "Shampoo wash",
-              "Fiber restoration",
-            ],
-          },
-          {
-            id: "mattress",
-            categoryId: "customized",
-            title: "Mattress Cleaning",
-            price: 599,
-            description: "Allergen extraction & stain treatment.",
-            includes: [
-              "Dust-mite removal",
-              "UV sanitization",
-              "Liquid spill treatment",
-              "Odor neutralizer",
-            ],
-          },
-          {
-            id: "glass",
-            categoryId: "customized",
-            title: "Glass Cleaning",
-            price: 499,
-            description: "Window, facade and mirror polishing.",
-            includes: [
-              "Squeegee streak-free",
-              "Frame dust & wipe",
-              "Tough stain scrape",
-              "Sealant check",
-            ],
-          },
-          {
-            id: "floor",
-            categoryId: "full-house",
-            title: "Floor Scrubbing",
-            price: 799,
-            description: "Machine scrubbing and polishing of floors.",
-            includes: [
-              "Single-disc scrubbing",
-              "Grout cleaning",
-              "Stone restoration",
-              "Glossy finish polish",
-            ],
-          },
-          {
-            id: "tank",
-            categoryId: "full-house",
-            title: "Water Tank Cleaning",
-            price: 1499,
-            description: "Drainage, scrubbing and UV sterilization.",
-            includes: [
-              "Sludge drainage",
-              "Manual scrub walls",
-              "High-pressure spray",
-              "UV sanitization",
-            ],
-          },
-        ],
-      };
+    if (hasOldSeed) {
+      console.log(
+        "Old demo seed detected. Clearing tables for new unified database catalog...",
+      );
+      await query("SET FOREIGN_KEY_CHECKS = 0");
+      await query("TRUNCATE TABLE services");
+      await query("TRUNCATE TABLE categories");
+      await query("SET FOREIGN_KEY_CHECKS = 1");
+    }
 
-      for (const c of defaultData.categories) {
-        await query(
-          "INSERT INTO categories (id, title, tagline, emoji, image) VALUES (?, ?, ?, ?, ?)",
-          [c.id, c.title, c.tagline, c.emoji, c.image],
-        );
+    // Dynamic Seeding from data/db.json
+    const dbJsonPath = path.join(__dirname, "..", "..", "data", "db.json");
+    if (fs.existsSync(dbJsonPath)) {
+      try {
+        const fileContent = fs.readFileSync(dbJsonPath, "utf8").trim();
+        if (fileContent && fileContent !== "{}" && fileContent !== "[]") {
+          const dbData = JSON.parse(fileContent);
+          
+          // Seed categories if empty
+          const catsCount = await query("SELECT COUNT(*) as count FROM categories");
+          if (catsCount[0].count === 0 && dbData.categories && dbData.categories.length > 0) {
+            console.log(`Seeding ${dbData.categories.length} categories from db.json...`);
+            for (const cat of dbData.categories) {
+              await query(
+                "INSERT INTO categories (id, title, tagline, emoji, image, parentId, includes) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                [
+                  cat.id,
+                  cat.title,
+                  cat.tagline || null,
+                  cat.emoji || null,
+                  cat.image || null,
+                  cat.parentId || null,
+                  JSON.stringify(cat.includes || []),
+                ]
+              );
+            }
+            console.log("Categories seeded successfully from db.json.");
+          }
+
+          // Seed services if empty
+          const servicesCount = await query("SELECT COUNT(*) as count FROM services");
+          if (servicesCount[0].count === 0 && dbData.services && dbData.services.length > 0) {
+            console.log(`Seeding ${dbData.services.length} services from db.json...`);
+            for (const s of dbData.services) {
+              await query(
+                "INSERT INTO services (id, categoryId, title, price, description, includes, image, plans, disclaimer, requirements, precautions, payment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                  s.id,
+                  s.categoryId,
+                  s.title,
+                  Number(s.price) || 0,
+                  s.description || null,
+                  JSON.stringify(s.includes || []),
+                  s.image || null,
+                  JSON.stringify(s.plans || null),
+                  s.disclaimer || null,
+                  s.requirements || null,
+                  JSON.stringify(s.precautions || null),
+                  s.paymentType || s.payment_type || "full",
+                ]
+              );
+            }
+            console.log("Services seeded successfully from db.json.");
+          }
+        }
+      } catch (jsonErr) {
+        console.error("Error reading or parsing db.json for seeding:", jsonErr.message);
       }
-      for (const s of defaultData.services) {
-        const incString = JSON.stringify(s.includes || []);
-        const plansString = JSON.stringify(s.plans || []);
-        await query(
-          "INSERT INTO services (id, categoryId, title, price, description, includes, image, plans, disclaimer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [
-            s.id,
-            s.categoryId,
-            s.title,
-            s.price,
-            s.description,
-            incString,
-            s.image || null,
-            plansString,
-            s.disclaimer || null,
-          ],
-        );
-      }
-      console.log("Seeding services completed successfully!");
     } else {
+      console.log("No seed file found or db.json has been deleted/emptied.");
+    }
       // Automatic cleanup of user-created categories is disabled to allow dynamic admin-created catalog categories to persist.
       console.log("MySQL Database verified. Categories and tables exist.");
       // Migrate existing services if they have empty plans, disclaimer or cover images
@@ -1213,7 +887,6 @@ async function initDb() {
         }
         console.log("Seeded customized services successfully.");
       }
-    }
 
     // Seed reviews for all default services if they have 0 reviews
     const servicesForReviews = [

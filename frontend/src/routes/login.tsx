@@ -242,7 +242,7 @@ function LoginComponent() {
             sessionStorage.setItem("user_profile", JSON.stringify(data.user));
             window.dispatchEvent(new Event("auth-state-change"));
             toast.success(`Logged in as ${data.user.name}!`, { icon: "✨" });
-            navigate({ to: "/" });
+            navigate({ to: "/", search: { category: undefined, cart: undefined } });
             setIsLoading(false);
             return;
           }
@@ -433,6 +433,7 @@ function LoginComponent() {
         <div className="relative w-full max-w-md overflow-hidden rounded-3xl glass-dark p-8 sm:p-10 shadow-2xl border border-[#cb9f5a]/20 text-white animate-fade-up">
           <Link
             to="/"
+            search={{ category: undefined, cart: undefined }}
             className="inline-flex items-center gap-2 text-xs font-bold text-cream/60 hover:text-[#cb9f5a] transition-colors mb-8 group"
           >
             <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />

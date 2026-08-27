@@ -375,7 +375,8 @@ function ServicesComponent() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Left Column: Select a Category Checkbox Sidebar */}
           <aside className="w-full lg:w-[28%] shrink-0 lg:sticky lg:top-[120px] self-start z-10">
-            <div className="bg-white border border-[#cb9f5a]/15 rounded-3xl p-5 shadow-sm space-y-4">
+            {/* Desktop Vertical Sidebar */}
+            <div className="hidden lg:block bg-white border border-[#cb9f5a]/15 rounded-3xl p-5 shadow-sm space-y-4">
               <div className="font-sans text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] border-b border-slate-100 pb-2.5">
                 Select A Category
               </div>
@@ -407,6 +408,29 @@ function ServicesComponent() {
 
                       {/* Chevron indicator */}
                       <ChevronDown className={`h-3.5 w-3.5 text-slate-450 shrink-0 transition-transform duration-300 -rotate-90 ${isActive ? "text-[#cb9f5a] translate-x-0.5" : "group-hover:translate-x-0.5"}`} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Mobile/Tablet Swipeable Tab Bar */}
+            <div className="lg:hidden w-full overflow-x-auto scrollbar-none py-1 border-b border-[#cb9f5a]/15 mb-4">
+              <div className="flex gap-2.5 px-1 min-w-max">
+                {parentCategories.map((cat) => {
+                  const isActive = selectedCatId === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSelectedCatId(cat.id)}
+                      className={`flex items-center gap-2 px-4.5 py-2.5 rounded-full border transition-all duration-300 cursor-pointer text-xs font-bold whitespace-nowrap ${
+                        isActive
+                          ? "border-[#cb9f5a] bg-[#002a22] text-[#cb9f5a] shadow-sm scale-[1.02]"
+                          : "border-slate-200 bg-white text-slate-500 hover:border-slate-350"
+                      }`}
+                    >
+                      <span className="text-sm shrink-0">{cat.emoji || "🧹"}</span>
+                      <span>{cat.title}</span>
                     </button>
                   );
                 })}

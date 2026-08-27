@@ -581,7 +581,7 @@ function MyBookingsPage() {
   const handleLogout = () => {
     sessionStorage.clear();
     toast.success("Logged out successfully");
-    navigate({ to: "/" });
+    navigate({ to: "/", search: { category: undefined, cart: undefined } });
   };
 
   const navLinks = [
@@ -610,7 +610,7 @@ function MyBookingsPage() {
         {/* Breadcrumb / Page Title */}
         <div className="mb-8">
           <div className="text-sm text-slate-500 mb-2 font-semibold">
-            <Link to="/" className="hover:underline hover:text-slate-800">
+            <Link to="/" search={{ category: undefined, cart: undefined }} className="hover:underline hover:text-slate-800">
               Your Account
             </Link>
             <span className="mx-2">›</span>
@@ -682,7 +682,7 @@ function MyBookingsPage() {
                 Explore our premium deep cleaning services and book your first service today.
               </p>
               <button
-                onClick={() => navigate({ to: "/" })}
+                onClick={() => navigate({ to: "/", search: { category: undefined, cart: undefined } })}
                 className="gradient-gold text-navy font-bold px-8 py-3 rounded-full hover:scale-105 transition-transform"
               >
                 Explore Services

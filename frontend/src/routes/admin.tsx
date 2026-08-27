@@ -157,7 +157,7 @@ function AdminDashboardRoute() {
     sessionStorage.removeItem("user_email");
     sessionStorage.removeItem("user_authenticated");
     toast.success("Logged out successfully.");
-    navigate({ to: "/" });
+    navigate({ to: "/", search: { category: undefined, cart: undefined } });
   };
 
   if (!isAuthenticated) {
@@ -1753,7 +1753,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
 
           <button
             onClick={() => {
-              navigate({ to: "/" });
+              navigate({ to: "/", search: { category: undefined, cart: undefined } });
               setIsSidebarOpen(false);
             }}
             className="flex w-full items-center gap-3.5 rounded-xl px-4 py-2.5 text-xs font-semibold text-cream/70 hover:bg-white/5 hover:text-cream transition-all cursor-pointer border-t border-[#cb9f5a]/10 mt-6"

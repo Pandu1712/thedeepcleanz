@@ -349,12 +349,12 @@ export default function Header({
       {/* ANNOUNCEMENT BAR */}
       <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 text-[11px] lg:px-8">
-          <div className="flex flex-1 items-center gap-3 truncate">
+          <div className="flex flex-1 items-center gap-3 truncate min-w-0">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#cb9f5a] opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[#cb9f5a]"></span>
             </span>
-            <span className="truncate text-[#faf8f5]/90 font-medium tracking-wide">
+            <span className="block truncate text-[#faf8f5]/90 font-medium tracking-wide">
               <span className="font-semibold text-[#cb9f5a] uppercase text-[9px] tracking-wider bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 px-2 py-0.5 rounded-full mr-2">
                 PROMO
               </span>
@@ -383,7 +383,7 @@ export default function Header({
       <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-[#cb9f5a]/12 text-[#002a22] shadow-[0_2px_15px_-3px_rgba(0,42,34,0.04)] transition-all duration-300">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 py-3 lg:px-8">
           <div className="flex items-center gap-4 sm:gap-6">
-            <Link to="/" className="flex items-center gap-3 group">
+            <Link to="/" search={{ category: undefined, cart: undefined }} className="flex items-center gap-3 group">
               <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-2xl bg-gradient-to-br from-[#002a22] to-[#001c17] flex items-center justify-center border border-[#cb9f5a]/40 shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
                 <Star className="h-5 w-5 text-[#cb9f5a] fill-[#cb9f5a]" />
               </div>
@@ -399,7 +399,7 @@ export default function Header({
             {/* Location Display Capsule */}
             <div
               onClick={onOpenLocation}
-              className="hidden md:flex items-center gap-2 border border-[#cb9f5a]/30 bg-[#faf8f5] p-2 sm:px-3 sm:py-1 rounded-full text-xs font-bold text-[#002a22] transition-all cursor-pointer shadow-3xs hover:border-[#cb9f5a]/60 shrink-0"
+              className="hidden lg:flex items-center gap-2 border border-[#cb9f5a]/30 bg-[#faf8f5] p-2 sm:px-3 sm:py-1 rounded-full text-xs font-bold text-[#002a22] transition-all cursor-pointer shadow-3xs hover:border-[#cb9f5a]/60 shrink-0"
             >
               <MapPin className="h-3.5 w-3.5 text-[#cb9f5a] shrink-0" />
               <span className="hidden sm:inline truncate max-w-[80px] lg:max-w-[120px] 2xl:max-w-[200px]" title={userLocation}>
@@ -447,7 +447,7 @@ export default function Header({
 
           <div className="flex items-center gap-2.5">
             {/* Elegant Search Bar */}
-            <div className="relative hidden md:block w-36 lg:w-44 xl:w-48 2xl:w-56 font-sans shrink-0">
+            <div className="relative hidden lg:block w-36 lg:w-44 xl:w-48 2xl:w-56 font-sans shrink-0">
               <div className="relative flex items-center bg-[#faf8f5] border border-[#002a22]/15 focus-within:border-[#cb9f5a] focus-within:bg-white rounded-full transition-all px-2.5 py-1.5 shadow-3xs">
                 <Search className="h-4 w-4 text-[#cb9f5a]/75 mr-2 shrink-0" />
                 <input
@@ -544,7 +544,7 @@ export default function Header({
             </button>
 
             {userEmail || isAdmin ? (
-              <div className="hidden items-center gap-3.5 md:flex relative">
+              <div className="hidden items-center gap-3.5 lg:flex relative">
                 <div className="relative">
                   <button
                     onClick={() => setProfileMenuOpen(!profileMenuOpen)}
@@ -565,7 +565,7 @@ export default function Header({
                 </div>
               </div>
             ) : (
-              <div className="hidden items-center gap-3 md:flex">
+              <div className="hidden items-center gap-3 lg:flex">
                 <Link
                   to="/login"
                   className="rounded-full bg-[#002a22] hover:bg-[#cb9f5a] text-[#cb9f5a] hover:text-[#002a22] border border-[#cb9f5a]/35 hover:border-[#cb9f5a] px-4 py-2 xl:px-6 xl:py-2.5 text-[11px] font-black uppercase tracking-wider xl:tracking-widest transition-all duration-350 active:scale-[0.98] shadow-md hover:shadow-[0_4px_20px_rgba(203,159,90,0.25)] whitespace-nowrap shrink-0"
@@ -725,6 +725,15 @@ export default function Header({
 
               {userEmail ? (
                 <div className="flex flex-col gap-2 mt-2">
+                  <button
+                    onClick={() => {
+                      setNavOpen(false);
+                      setProfileMenuOpen(true);
+                    }}
+                    className="w-full text-center rounded-full border border-[#cb9f5a] bg-[#cb9f5a]/10 py-2.5 text-sm font-bold text-[#cb9f5a] transition-colors hover:bg-[#cb9f5a]/25 cursor-pointer font-sans"
+                  >
+                    Edit Profile & Saved Addresses
+                  </button>
                   <button
                     onClick={() => {
                       navigate({ to: "/my-bookings" });
