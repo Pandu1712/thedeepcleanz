@@ -284,6 +284,46 @@ app.get("/api/catalog", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+app.get("/api/seed-db", async (req, res) => {
+  const fs = require("fs");
+  const path = require("path");
+  const dbJsonPath = path.join(__dirname, "..", "data", "db.json");
+  const fileExists = fs.existsSync(dbJsonPath);
+
+  try {
+    // Run the db.initDb function manually to seed the database
+    await db.initDb();
+    
+    // Fetch the updated catalog to verify
+    const categories = await db.getCategories();
+    const services = await db.getServices();
+    
+    res.json({
+      success: true,
+      message: "Database checked and missing default data seeded successfully!",
+      seedFile: {
+        path: dbJsonPath,
+        exists: fileExists,
+        contentPreview: fileExists ? fs.readFileSync(dbJsonPath, "utf8").substring(0, 100) + "..." : null
+      },
+      catalog: {
+        categoriesCount: categories.length,
+        servicesCount: services.length,
+        categories: categories.map(c => ({ id: c.id, title: c.title, parentId: c.parentId })),
+        services: services.map(s => ({ id: s.id, title: s.title, categoryId: s.categoryId }))
+      }
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+      seedFilePath: dbJsonPath,
+      seedFileExists: fileExists,
+      stack: err.stack
+    });
+  }
+});
 app.post("/api/payment/order", async (req, res) => {
   try {
     console.log(
