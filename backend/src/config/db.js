@@ -756,140 +756,457 @@ async function initDb() {
           console.warn(`Failed to update seed service ${s.id}:`, e.message);
         }
       }
-      // Seed customized services if table is empty
-      const custCount = await query(
-        "SELECT COUNT(*) as count FROM customized_services",
-      );
-      if (custCount[0].count === 0) {
-        console.log("Seeding default customized services...");
-        const defaultCustomized = [
-          {
-            id: "mini-services",
-            title: "Mini Services",
-            price: 59,
-            image:
-              "https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&w=800&q=80",
-            plans: [
-              {
-                name: "Express",
-                price: 59,
-                duration: "1 hour",
-                description: "Basic AC filter cleaning & dusting.",
-                includes: ["Filter washing", "Dry dusting of unit"],
-                excludes: ["Coil deep chemical washing"],
-              },
-              {
-                name: "Elite",
-                price: 149,
-                duration: "2 hours",
-                description: "Premium AC deep chemical cleaning.",
-                includes: [
-                  "Chemical coil scrub",
-                  "Drain pipe flush",
-                  "Condenser cleaning",
-                ],
-                excludes: ["Gas refilling"],
-              },
-            ],
-          },
-          {
-            id: "bedroom-cleaning",
-            title: "Bedroom Deep Cleaning (Only For Flats)",
-            price: 649,
-            image:
-              "https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=800&q=80",
-            plans: [
-              {
-                name: "Express",
-                price: 649,
-                duration: "1.5 hours",
-                description: "Vacuuming and basic dusting.",
-                includes: [
-                  "Dry vacuuming of mattress & floor",
-                  "Dusting surfaces",
-                ],
-                excludes: ["Wet extraction cleaning"],
-              },
-              {
-                name: "Elite",
-                price: 999,
-                duration: "2.5 hours",
-                description: "Deep sanitization and wardrobe clean.",
-                includes: [
-                  "HEPA vacuuming",
-                  "Wardrobe cleaning inside-out",
-                  "Window glass polish",
-                ],
-                excludes: ["Heavy carpet extraction"],
-              },
-            ],
-          },
-          {
-            id: "terrace-cleaning",
-            title: "Terrace Cleaning Service",
-            price: 1999,
-            image:
-              "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&q=80",
-            plans: [
-              {
-                name: "Express",
-                price: 1999,
-                duration: "2 hours",
-                description: "High pressure floor wash.",
-                includes: ["Pressure wash floor tiles", "Grill dusting"],
-                excludes: ["Stain removal scrub"],
-              },
-              {
-                name: "Elite",
-                price: 2999,
-                duration: "3.5 hours",
-                description: "Complete floor scrub, acid wash, wall scrub.",
-                includes: [
-                  "Single-disc scrub floor",
-                  "Wall tile wash",
-                  "Grill rust protection spray",
-                ],
-                excludes: ["Waterproofing treatment"],
-              },
-            ],
-          },
-          {
-            id: "mattress-shampooing",
-            title: "Mattress Shampooing Service",
-            price: 349,
-            image:
-              "https://images.unsplash.com/photo-1631679706909-1844bbd07221?auto=format&fit=crop&w=800&q=80",
-            plans: [
-              {
-                name: "Express",
-                price: 349,
-                duration: "1 hour",
-                description: "Dry vacuuming and UV sanitization.",
-                includes: ["Dry vacuum extraction", "UV disinfection scan"],
-                excludes: ["Wet shampoo extraction"],
-              },
-              {
-                name: "Elite",
-                price: 599,
-                duration: "2.5 hours",
-                description: "Deep wet extraction & steam sanitization.",
-                includes: [
-                  "Eco shampoo scrubbing",
-                  "Injection-extraction wet extraction",
-                  "Steam sanitization",
-                ],
-                excludes: ["Heavy stain dye removal"],
-              },
-            ],
-          },
-        ];
-        for (const c of defaultCustomized) {
-          await query(
-            "INSERT INTO customized_services (id, title, price, image, plans) VALUES (?, ?, ?, ?, ?)",
-            [c.id, c.title, c.price, c.image, JSON.stringify(c.plans)],
-          );
+      // Seed customized services
+      console.log("Verifying customized services catalog...");
+      const defaultCustomized = [
+        {
+          id: "living-room-cleaning",
+          title: "Living room Deep Cleaning (Only For Flats)",
+          price: 699,
+          image: "https://images.unsplash.com/photo-1618219908412-a29a1bb7b86e?auto=format&fit=crop&w=800&q=80",
+          plans: [
+            {
+              name: "Single Living Room Express (only for flat)",
+              price: 699,
+              duration: "40 - 50 min",
+              description: "Refresh your Living Room with our professional basic cleaning service, including window cleaning, wall & ceiling dry dusting, manual floor scrubbing, appliance cleaning, and exterior furniture dusting.",
+              includes: [
+                "Dry dusting of TV unit and exterior cleaning of furniture surfaces only",
+                "Window cleaning & glass surface wiping"
+              ],
+              excludes: [
+                "Cleaning of kitchen & bathroom windows is not included",
+                "Collapsible mosquito nets and Curtains wet cleaning are not included"
+              ]
+            },
+            {
+              name: "Single Living Room Exclusive (only for flat)",
+              price: 1099,
+              duration: "1 hour",
+              description: "Refresh your Living Room with our professional advance cleaning service, including window cleaning, wall & ceiling dry dusting, manual floor scrubbing, appliance cleaning, and exterior furniture dusting.",
+              includes: [
+                "Window cleaning & glass surface wiping",
+                "Wall & ceiling dry dusting"
+              ],
+              excludes: [
+                "Collapsible mosquito nets are not included",
+                "Decorative or etched glass requiring special polishing is not included"
+              ]
+            }
+          ]
+        },
+        {
+          id: "kitchen-deep-cleaning",
+          title: "Kitchen Deep Cleaning Service",
+          price: 1049,
+          image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80",
+          plans: [
+            {
+              name: "Full Occupied Kitchen Deep Cleaning With Chimney",
+              price: 2346,
+              duration: "4 hours",
+              description: "Our professional kitchen deep cleaning service includes detailed cleaning of chimney cabinets, trolleys, kitchen platforms, gas stoves, and appliance exteriors to remove oil, grease, and food stains.",
+              includes: [
+                "Service delivered by trained and professional cleaning experts",
+                "Careful removal and placement of utensils during the cleaning process"
+              ],
+              excludes: [
+                "Internal deep cleaning and filter removal of automatic chimneys",
+                "Cleaning services for commercial kitchens"
+              ]
+            },
+            {
+              name: "Full Occupied Kitchen Deep Cleaning without chimney",
+              price: 1947,
+              duration: "3 hours",
+              description: "Our professional kitchen deep cleaning service includes detailed cleaning of cabinets, trolleys, kitchen platforms, gas stoves, and appliance exteriors to remove oil, grease, and food stains.",
+              includes: [
+                "Removal of oil, grease & food stains from cabinet and kitchen surfaces",
+                "Complete cleaning of kitchen cabinets & trolleys (inside and outside)"
+              ],
+              excludes: [
+                "Internal deep cleaning and filter removal of automatic chimneys",
+                "Cleaning services for commercial kitchens"
+              ]
+            },
+            {
+              name: "Empty Kitchen Cleaning (Only for flats)",
+              price: 1049,
+              duration: "2 hours",
+              description: "Our Empty Kitchen Cleaning service is specially designed for vacant or unfurnished flats where no utensils are present. This service focuses on cleaning cabinets, platforms, tiles, and basic appliances.",
+              includes: [
+                "Complete cleaning of empty kitchen cabinets & trolleys (inside and outside)",
+                "Deep cleaning of kitchen slab / platform and sink area"
+              ],
+              excludes: [
+                "Wet wiping/cleaning of walls, ceiling, or false ceiling",
+                "Cleaning of utility area / dry balcony attached to the kitchen"
+              ]
+            },
+            {
+              name: "Only trolley & cabinets cleaning",
+              price: 1249,
+              duration: "1 hour",
+              description: "Our Kitchen Trolley Cleaning Service includes deep cleaning of kitchen cabinets and trolleys to remove oil, grease, stains, and dirt from both interior and exterior surfaces.",
+              includes: [
+                "Utensils removal and placing back after cleaning",
+                "Removal of oil, grease, sticky marks & food stains"
+              ],
+              excludes: [
+                "Cleaning of utility area / dry balcony attached to the kitchen",
+                "Wet wiping/cleaning of walls, ceiling, or false ceiling"
+              ]
+            }
+          ]
+        },
+        {
+          id: "bathroom-deep-cleaning",
+          title: "Bathroom Deep Cleaning Service",
+          price: 349,
+          image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80",
+          plans: [
+            {
+              name: "Chemical wash (Manual cleaning )",
+              price: 349,
+              duration: "30 - 40 min",
+              description: "Ideal for routinely used bathrooms. Involves a thorough manual deep clean with professional-grade chemicals to eliminate dirt, stains, and germs.",
+              includes: [
+                "Manual hand scrubbing of bathroom floor & wall tiles",
+                "Deep cleaning of toilet, wash basin & bathroom fittings"
+              ],
+              excludes: [
+                "Tough hard-water stain removal is not included",
+                "Deep grout cleaning is not included"
+              ]
+            },
+            {
+              name: "Scrubbing Machine-Based Cleaning",
+              price: 399,
+              duration: "40 - 50 min",
+              description: "Best for deep stains & superior hygiene. Advanced bathroom deep cleaning using scrubbing machines and professional chemicals.",
+              includes: [
+                "Machine-based floor & wall scrubbing",
+                "Enhanced sanitization & odor control"
+              ],
+              excludes: [
+                "Wet cleaning/wiping of walls, ceiling, or false ceiling",
+                "Any repair, electrical, or maintenance work"
+              ]
+            }
+          ]
+        },
+        {
+          id: "bedroom-cleaning",
+          title: "Bedroom Deep Cleaning (Only For Flats)",
+          price: 649,
+          image: "https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=800&q=80",
+          plans: [
+            {
+              name: "Single Bedroom Express (Only for flats)",
+              price: 649,
+              duration: "40 - 50 min",
+              description: "Refresh your bedroom with our professional basic cleaning service, including window cleaning, wall & ceiling dry dusting, manual floor scrubbing, appliance cleaning, and exterior furniture dusting.",
+              includes: [
+                "Window cleaning & glass surface wiping",
+                "Wall & ceiling dry dusting"
+              ],
+              excludes: [
+                "Unsafe or inaccessible window areas will not be covered under the service",
+                "Bathroom cleaning is not included"
+              ]
+            },
+            {
+              name: "Single Bedroom Exclusive (Only for Flats)",
+              price: 1199,
+              duration: "1 hour",
+              description: "A detailed deep cleaning service including mattress shampooing, floor scrubbing, window & grill cleaning, appliance cleaning, and exterior furniture wiping.",
+              includes: [
+                "Wall and ceiling dry dusting",
+                "Mattress & headrest shampooing"
+              ],
+              excludes: [
+                "Unsafe or inaccessible window areas will not be covered",
+                "Bathroom cleaning and duct area"
+              ]
+            }
+          ]
+        },
+        {
+          id: "balcony-cleaning",
+          title: "Balcony Cleaning Service",
+          price: 389,
+          image: "https://images.unsplash.com/photo-1538688525198-9b88f6f53126?auto=format&fit=crop&w=800&q=80",
+          plans: [
+            {
+              name: "Small Balcony – Up to 25 Sq Ft",
+              price: 389,
+              duration: "30 - 40 min",
+              description: "Ideal for compact balconies. Deep cleaning to remove dust, stains, and pollution buildup, making your balcony clean and hygienic.",
+              includes: [
+                "✔ Floor deep cleaning (wet scrubbing)",
+                "✔ Railing & grill cleaning"
+              ],
+              excludes: [
+                "✖ Ceiling cleaning",
+                "✖ Garbage disposal outside premises"
+              ]
+            },
+            {
+              name: "Medium Balcony (Up to 50 Sq Ft)",
+              price: 539,
+              duration: "40 - 50 min",
+              description: "Recommended use: Spacious balconies, plant areas, seating zones, higher dirt buildup.",
+              includes: [
+                "✔ Floor deep cleaning (wet scrubbing)",
+                "✔ Railing & grill cleaning"
+              ],
+              excludes: [
+                "✖ Ceiling cleaning",
+                "✖ Garbage disposal outside premises"
+              ]
+            },
+            {
+              name: "Large Balcony (up to 150 sq feet )",
+              price: 799,
+              duration: "2 hours",
+              description: "Recommended use: Spacious balconies, plant areas, seating zones, higher dirt buildup.",
+              includes: [
+                "✔ Floor deep cleaning (wet scrubbing)",
+                "✔ Railing & grill cleaning"
+              ],
+              excludes: [
+                "✖ Ceiling cleaning",
+                "✖ Garbage disposal outside premises"
+              ]
+            }
+          ]
+        },
+        {
+          id: "terrace-cleaning",
+          title: "Terrace Cleaning Service",
+          price: 1999,
+          image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&q=80",
+          plans: [
+            {
+              name: "Small Terrace (Up to 200 sq ft)",
+              price: 1999,
+              duration: "1 hour",
+              description: "Deep cleaning of open terrace areas to remove dust, algae, mud, bird droppings, and weather stains.",
+              includes: [
+                "✔ Floor deep cleaning (wet scrubbing)",
+                "✔ Removal of mud, dust & algae buildup"
+              ],
+              excludes: [
+                "✖ Gardening / plant maintenance",
+                "✖ Garbage disposal outside premises"
+              ]
+            },
+            {
+              name: "Medium Terrace (up to 500 sq ft)",
+              price: 3499,
+              duration: "2 hours",
+              description: "Deep cleaning of open terrace areas to remove dust, algae, mud, bird droppings, and weather stains.",
+              includes: [
+                "✔ Floor deep cleaning (wet scrubbing)",
+                "✔ Removal of mud, dust & algae buildup"
+              ],
+              excludes: [
+                "✖ Gardening / plant maintenance",
+                "✖ Garbage disposal outside premises"
+              ]
+            },
+            {
+              name: "Large Terrace (up to 1000 sq ft)",
+              price: 5499,
+              duration: "4 hours",
+              description: "Deep cleaning of open terrace areas to remove dust, algae, mud, bird droppings, and weather stains.",
+              includes: [
+                "✔ Floor deep cleaning (wet scrubbing)",
+                "✔ Removal of mud, dust & algae buildup"
+              ],
+              excludes: [
+                "✖ Gardening / plant maintenance",
+                "✖ Garbage disposal outside premises"
+              ]
+            }
+          ]
+        },
+        {
+          id: "sofa-shampooing",
+          title: "Sofa Shampooing & Upholstery Cleaning",
+          price: 469,
+          image: "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&w=800&q=80",
+          plans: [
+            { name: "Sofa Shampoo Wash (up to 3 seater)", price: 469, duration: "40 - 50 min", description: "Your sofa collects dust, stains, food spills, and allergens over time. Upholstery Shampooing Service restores freshness, hygiene, and comfort.", includes: ["Pre-vacuuming to remove loose dust", "Shampoo & foam application", "Machine-based deep scrubbing", "Stain & spot treatment", "Cushion cleaning (front & back)", "Moisture extraction & final wipe"], excludes: ["Fabric repair or foam fixing", "Colour restoration or dyeing"] },
+            { name: "Sofa Shampoo Wash (4 seater)", price: 599, duration: "40 - 50 min", description: "Your sofa collects dust, stains, food spills, and allergens over time. Upholstery Shampooing Service restores freshness, hygiene, and comfort.", includes: ["Pre-vacuuming to remove loose dust", "Shampoo & foam application", "Machine-based deep scrubbing", "Stain & spot treatment", "Cushion cleaning (front & back)", "Moisture extraction & final wipe"], excludes: ["Fabric repair or foam fixing", "Colour restoration or dyeing"] },
+            { name: "Sofa Shampoo Wash (5 seater)", price: 749, duration: "50 - 60 min", description: "Your sofa collects dust, stains, food spills, and allergens over time. Upholstery Shampooing Service restores freshness, hygiene, and comfort.", includes: ["Pre-vacuuming to remove loose dust", "Shampoo & foam application", "Machine-based deep scrubbing", "Stain & spot treatment", "Cushion cleaning (front & back)", "Moisture extraction & final wipe"], excludes: ["Fabric repair or foam fixing", "Colour restoration or dyeing"] },
+            { name: "Sofa Shampoo Wash (6 seater)", price: 799, duration: "1 hour", description: "Your sofa collects dust, stains, food spills, and allergens over time. Upholstery Shampooing Service restores freshness, hygiene, and comfort.", includes: ["Pre-vacuuming to remove loose dust", "Shampoo & foam application", "Machine-based deep scrubbing", "Stain & spot treatment", "Cushion cleaning (front & back)", "Moisture extraction & final wipe"], excludes: ["Fabric repair or foam fixing", "Colour restoration or dyeing"] },
+            { name: "Sofa Shampoo Wash (7 seater)", price: 899, duration: "1 hour", description: "Your sofa collects dust, stains, food spills, and allergens over time. Upholstery Shampooing Service restores freshness, hygiene, and comfort.", includes: ["Pre-vacuuming to remove loose dust", "Shampoo & foam application", "Machine-based deep scrubbing", "Stain & spot treatment", "Cushion cleaning (front & back)", "Moisture extraction & final wipe"], excludes: ["Fabric repair or foam fixing", "Colour restoration or dyeing"] },
+            { name: "Sofa Shampoo Wash (8 seater)", price: 1049, duration: "1 hour", description: "Your sofa collects dust, stains, food spills, and allergens over time. Upholstery Shampooing Service restores freshness, hygiene, and comfort.", includes: ["Pre-vacuuming to remove loose dust", "Shampoo & foam application", "Machine-based deep scrubbing", "Stain & spot treatment", "Cushion cleaning (front & back)", "Moisture extraction & final wipe"], excludes: ["Fabric repair or foam fixing", "Colour restoration or dyeing"] },
+            { name: "Sofa Shampoo Wash (9 seater)", price: 1149, duration: "1 hour", description: "Your sofa collects dust, stains, food spills, and allergens over time. Upholstery Shampooing Service restores freshness, hygiene, and comfort.", includes: ["Pre-vacuuming to remove loose dust", "Shampoo & foam application", "Machine-based deep scrubbing", "Stain & spot treatment", "Cushion cleaning (front & back)", "Moisture extraction & final wipe"], excludes: ["Fabric repair or foam fixing", "Colour restoration or dyeing"] },
+            { name: "Sofa Shampoo Wash (10 seater)", price: 1249, duration: "1 hour", description: "Your sofa collects dust, stains, food spills, and allergens over time. Upholstery Shampooing Service restores freshness, hygiene, and comfort.", includes: ["Pre-vacuuming to remove loose dust", "Shampoo & foam application", "Machine-based deep scrubbing", "Stain & spot treatment", "Cushion cleaning (front & back)", "Moisture extraction & final wipe"], excludes: ["Fabric repair or foam fixing", "Colour restoration or dyeing"] },
+            { name: "Sofa Shampoo Wash (11 seater)", price: 1499, duration: "1 hour", description: "Your sofa collects dust, stains, food spills, and allergens over time. Upholstery Shampooing Service restores freshness, hygiene, and comfort.", includes: ["Pre-vacuuming to remove loose dust", "Shampoo & foam application", "Machine-based deep scrubbing", "Stain & spot treatment", "Cushion cleaning (front & back)", "Moisture extraction & final wipe"], excludes: ["Fabric repair or foam fixing", "Colour restoration or dyeing"] },
+            { name: "Sofa Shampoo Wash (12 seater)", price: 1599, duration: "1 hour", description: "Your sofa collects dust, stains, food spills, and allergens over time. Upholstery Shampooing Service restores freshness, hygiene, and comfort.", includes: ["Pre-vacuuming to remove loose dust", "Shampoo & foam application", "Machine-based deep scrubbing", "Stain & spot treatment", "Cushion cleaning (front & back)", "Moisture extraction & final wipe"], excludes: ["Fabric repair or foam fixing", "Colour restoration or dyeing"] }
+          ]
+        },
+        {
+          id: "carpet-cleaning",
+          title: "Carpet Cleaning Service",
+          price: 499,
+          image: "https://images.unsplash.com/photo-1600121848594-d8644e57abab?auto=format&fit=crop&w=800&q=80",
+          plans: [
+            { name: "Small Carpet (Up to 50 Sq Ft)", price: 499, duration: "30 - 40 min", description: "Ideal for bedside rugs, prayer mats, small area carpets.", includes: ["Dust & stains removal (vacuuming)", "Shampoo-based wash", "Stain & spot treatment (basic)", "Fabric-safe cleaning chemicals"], excludes: ["Paint / cement / permanent stain removal", "Color restoration guarantee"] },
+            { name: "Medium Carpet (50–100 Sq Ft)", price: 649, duration: "40 - 50 min", description: "Living room carpets, medium-sized rugs.", includes: ["Dust & stains removal (vacuuming)", "Shampoo-based wash", "Stain & spot treatment (basic)", "Fabric-safe cleaning chemicals"], excludes: ["Drying via heaters or blowers", "Paint / cement / permanent stain removal"] },
+            { name: "Large Carpet (100–150 Sq Ft)", price: 799, duration: "1 hour", description: "Living room carpets, medium-sized rugs.", includes: ["Dust & stains removal (vacuuming)", "Shampoo-based wash", "Stain & spot treatment (basic)", "Fabric-safe cleaning chemicals"], excludes: ["Drying via heaters or blowers", "Paint / cement / permanent stain removal"] },
+            { name: "Extra Large Carpet (150–200 Sq Ft)", price: 949, duration: "1 - 2 hours", description: "Ideal for bedside rugs, prayer mats, large area carpets.", includes: ["Dust & stains removal (vacuuming)", "Shampoo-based wash", "Stain & spot treatment (basic)", "Fabric-safe cleaning chemicals"], excludes: ["Drying via heaters or blowers", "Paint / cement / permanent stain removal"] }
+          ]
+        },
+        {
+          id: "chimney-cleaning",
+          title: "Chimney Cleaning Service",
+          price: 350,
+          image: "https://images.unsplash.com/photo-1521905252507-b354bc25edac?auto=format&fit=crop&w=800&q=80",
+          plans: [
+            {
+              name: "Standard Chimney",
+              price: 350,
+              duration: "40 - 50 min",
+              description: "Professional kitchen chimney cleaning to remove oil, grease, smoke residue.",
+              includes: [
+                "Re-fixing of filters after cleaning",
+                "Smoke, grease & odor removal"
+              ],
+              excludes: [
+                "Motor repair or servicing",
+                "Duct pipe / external pipe cleaning"
+              ]
+            }
+          ]
+        },
+        {
+          id: "fridge-cleaning",
+          title: "Fridge Cleaning Service",
+          price: 349,
+          image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80",
+          plans: [
+            { name: "Single Door", price: 349, duration: "40 - 50 min", description: "Inside out deep cleaning of single door fridge.", includes: ["Complete inside cleaning of fridge", "Shelves, trays & drawers removal and washing", "Removal of food stains & sticky residue", "Odour removal & sanitization", "Exterior body cleaning", "Handle & rubber lining cleaning"], excludes: ["Appliance repair or servicing", "Electrical or wiring work"] },
+            { name: "Double Door", price: 499, duration: "40 - 50 min", description: "Inside out deep cleaning of double door fridge.", includes: ["Complete inside cleaning of fridge", "Shelves, trays & drawers removal and washing", "Removal of food stains & sticky residue", "Odour removal & sanitization", "Exterior body cleaning", "Handle & rubber lining cleaning"], excludes: ["Appliance repair or servicing", "Electrical or wiring work"] },
+            { name: "Side by side/ Triple Door", price: 749, duration: "1 hour", description: "Inside out deep cleaning of triple/side by side door fridge.", includes: ["Complete inside cleaning of fridge", "Shelves, trays & drawers removal and washing", "Removal of food stains & sticky residue", "Odour removal & sanitization", "Exterior body cleaning", "Handle & rubber lining cleaning"], excludes: ["Appliance repair or servicing", "Electrical or wiring work"] }
+          ]
+        },
+        {
+          id: "exhaust-fan-cleaning",
+          title: "Exhaust Fan Cleaning Service",
+          price: 89,
+          image: "https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&w=800&q=80",
+          plans: [
+            {
+              name: "Express",
+              price: 89,
+              duration: "20 - 30 min",
+              description: "Best for: Bathroom exhaust light dust & regular maintenance.",
+              includes: ["Dust & light grease removal", "Re-fixing after cleaning"],
+              excludes: ["Duct / pipe cleaning", "Motor or electrical servicing"]
+            },
+            {
+              name: "Elite",
+              price: 149,
+              duration: "30 - 40 min",
+              description: "Best for: Kitchen exhaust fans with oil buildup.",
+              includes: ["Exterior body cleaning", "Proper re-fixing"],
+              excludes: ["Motor opening or repair", "External duct / chimney pipe cleaning"]
+            },
+            {
+              name: "Exclusive",
+              price: 299,
+              duration: "40 - 50 min",
+              description: "Best for: Heavy oil, long-time uncleaned exhaust fans.",
+              includes: ["Deep degreasing of fan blades & grill", "Inner housing surface cleaning (accessible areas)"],
+              excludes: ["Replacement of damaged parts", "Duct pipe removal"]
+            }
+          ]
+        },
+        {
+          id: "mini-services",
+          title: "Mini Services",
+          price: 59,
+          image: "https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&w=800&q=80",
+          plans: [
+            { name: "Living/bedroom Ceiling fan cleaning", price: 59, duration: "30 - 40 min", description: "Ceiling fan cleaning including dry dusting & wet wiping.", includes: ["Dry dusting to remove dust, dirt & debris from fan surfaces", "Stain and spot removal using suitable cleaning solutions"], excludes: ["Heavy grease or hard stain removal is not included", "High-rise or unsafe area cleaning is not included"] },
+            { name: "Kitchen Ceiling fan cleaning", price: 89, duration: "30 - 40 min", description: "Kitchen fan cleaning with oil grease removal.", includes: ["Dry dusting to remove dust, dirt & debris from fan surfaces", "Stain and spot removal using suitable cleaning solutions"], excludes: ["Heavy grease or hard stain removal is not included", "High-rise or unsafe area cleaning is not included"] },
+            { name: "Bathroom Exhaust Fan", price: 59, duration: "30 - 40 min", description: "Sanitization and cleaning of bathroom exhaust fan.", includes: ["Dust & light grease removal", "Re-fixing of parts after cleaning"], excludes: ["Window, duct or pipe cleaning is not included", "Motor repair, electrical work, or servicing is not included"] },
+            { name: "Kitchen Exhaust Fan", price: 89, duration: "30 - 40 min", description: "Degreasing and cleaning of kitchen exhaust fan.", includes: ["Exhaust fan grill & blade deep cleaning", "Oil & grease removal using suitable degreasers"], excludes: ["Motor opening, repair, or servicing is not included", "commercial exhaust fan not included"] },
+            { name: "Kitchen Appliance Cleaning with single door fridge", price: 999, duration: "2 hours", description: "Professional appliance combo deep cleaning (Fridge + Chimney + Exhaust + Fan).", includes: ["Final hygiene & quality check after service completion", "Deep chimney degreasing including filters & body cleaning"], excludes: ["Internal deep cleaning and filter removal of automatic chimneys", "Cleaning services for commercial kitchens"] },
+            { name: "Kitchen Appliance Cleaning with Double door fridge", price: 1199, duration: "2 hours", description: "Professional appliance combo deep cleaning (Double Door Fridge + Chimney + Exhaust + Fan).", includes: ["Final hygiene & quality check after service completion", "Deep chimney degreasing including filters & body cleaning"], excludes: ["Internal deep cleaning and filter removal of automatic chimneys", "Cleaning services for commercial kitchens"] },
+            { name: "Kitchen Appliance Cleaning with Side by side door fridge", price: 1399, duration: "3 hours", description: "Professional appliance combo deep cleaning (Side by Side Fridge + Chimney + Exhaust + Fan).", includes: ["Final hygiene & quality check after service completion", "Deep chimney degreasing including filters & body cleaning"], excludes: ["Internal deep cleaning and filter removal of automatic chimneys", "Cleaning services for commercial kitchens"] }
+          ]
+        },
+        {
+          id: "mattress-shampooing",
+          title: "Mattress Shampooing Service",
+          price: 349,
+          image: "https://images.unsplash.com/photo-1631679706909-1844bbd07221?auto=format&fit=crop&w=800&q=80",
+          plans: [
+            {
+              name: "Mattress Shampooing wash (Single Bed)",
+              price: 349,
+              duration: "30 - 40 min",
+              description: "Deep cleaning to remove dust mites, sweat, stains, allergens, and bad odour.",
+              includes: ["High-power vacuuming to remove dust & hair", "Shampoo / foam-based deep cleaning"],
+              excludes: ["Mattress repair, stitching or replacement", "Permanent stains or chemical burns"]
+            },
+            {
+              name: "Mattress Shampooing wash (Double Bed)",
+              price: 599,
+              duration: "1 hour",
+              description: "Deep cleaning to remove dust mites, sweat, stains, allergens, and bad odour.",
+              includes: ["High-power vacuuming to remove dust & hair", "Shampoo / foam-based deep cleaning"],
+              excludes: ["Bed frame or cot cleaning", "Mold removal due to water seepage"]
+            }
+          ]
+        },
+        {
+          id: "dining-cleaning",
+          title: "Dining Table & Chairs Cleaning",
+          price: 249,
+          image: "https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=800&q=80",
+          plans: [
+            { name: "4 Seater", price: 249, duration: "20 - 30 min", description: "Detailed cleaning of 4 seater dining table & chairs.", includes: ["Dining table surface cleaning", "Chair seat & backrest cleaning", "Fabric chair shampooing", "Food stain & spill removal", "Safe & eco-friendly chemicals"], excludes: ["Polish or scratch repair", "Chair structural repair", "Glass replacement", "Antique or fragile furniture restoration"] },
+            { name: "5 Seater", price: 299, duration: "20 - 30 min", description: "Detailed cleaning of 5 seater dining table & chairs.", includes: ["Dining table surface cleaning", "Chair seat & backrest cleaning", "Fabric chair shampooing", "Food stain & spill removal", "Safe & eco-friendly chemicals"], excludes: ["Polish or scratch repair", "Chair structural repair", "Glass replacement", "Antique or fragile furniture restoration"] },
+            { name: "6 Seater", price: 349, duration: "30 - 40 min", description: "Detailed cleaning of 6 seater dining table & chairs.", includes: ["Dining table surface cleaning", "Chair seat & backrest cleaning", "Fabric chair shampooing", "Food stain & spill removal", "Safe & eco-friendly chemicals"], excludes: ["Polish or scratch repair", "Chair structural repair", "Glass replacement", "Antique or fragile furniture restoration"] },
+            { name: "7 Seater", price: 374, duration: "30 - 40 min", description: "Detailed cleaning of 7 seater dining table & chairs.", includes: ["Dining table surface cleaning", "Chair seat & backrest cleaning", "Fabric chair shampooing", "Food stain & spill removal", "Safe & eco-friendly chemicals"], excludes: ["Polish or scratch repair", "Chair structural repair", "Glass replacement", "Antique or fragile furniture restoration"] },
+            { name: "8 Seater", price: 424, duration: "30 - 40 min", description: "Detailed cleaning of 8 seater dining table & chairs.", includes: ["Dining table surface cleaning", "Chair seat & backrest cleaning", "Fabric chair shampooing", "Food stain & spill removal", "Safe & eco-friendly chemicals"], excludes: ["Polish or scratch repair", "Chair structural repair", "Glass replacement", "Antique or fragile furniture restoration"] },
+            { name: "9 Seater", price: 474, duration: "40 - 50 min", description: "Detailed cleaning of 9 seater dining table & chairs.", includes: ["Dining table surface cleaning", "Chair seat & backrest cleaning", "Fabric chair shampooing", "Food stain & spill removal", "Safe & eco-friendly chemicals"], excludes: ["Polish or scratch repair", "Chair structural repair", "Glass replacement", "Antique or fragile furniture restoration"] },
+            { name: "10 Seater", price: 524, duration: "40 - 50 min", description: "Detailed cleaning of 10 seater dining table & chairs.", includes: ["Dining table surface cleaning", "Chair seat & backrest cleaning", "Fabric chair shampooing", "Food stain & spill removal", "Safe & eco-friendly chemicals"], excludes: ["Polish or scratch repair", "Chair structural repair", "Glass replacement", "Antique or fragile furniture restoration"] },
+            { name: "Dining Table + Sofa (3 Seater)", price: 899, duration: "1 - 2 hours", description: "Combo cleaning of dining table, chairs, and 3-seater sofa.", includes: ["Dining table surface dry dusting", "Wet wiping with specialised chemicals"], excludes: ["Polish or scratch repair", "Chair structural repair", "Glass replacement", "Antique or fragile furniture restoration"] },
+            { name: "Dining Table + Sofa (5 Seater)", price: 1099, duration: "1 - 2 hours", description: "Combo cleaning of dining table, chairs, and 5-seater sofa.", includes: ["Food stains, spills & dust removal", "Full dining table & chair cleaning"], excludes: ["Polish or scratch repair", "Chair structural repair", "Glass replacement", "Antique or fragile furniture restoration"] },
+            { name: "Dining Table + Sofa + Mattress (Best Seller)", price: 1399, duration: "2 hours", description: "Comprehensive combo cleaning of dining table, chairs, sofa, and mattress.", includes: ["Odour & allergen removal", "Dining table & chairs cleaning"], excludes: ["Polish or scratch repair", "Chair structural repair", "Glass replacement", "Antique or fragile furniture restoration"] }
+          ]
         }
-        console.log("Seeded customized services successfully.");
+      ];
+
+      for (const c of defaultCustomized) {
+        try {
+          const rows = await query(
+            "SELECT id FROM customized_services WHERE id = ?",
+            [c.id],
+          );
+          if (rows.length === 0) {
+            console.log(`Seeding missing customized service: ${c.title} (${c.id})...`);
+            await query(
+              "INSERT INTO customized_services (id, title, price, image, plans) VALUES (?, ?, ?, ?, ?)",
+              [c.id, c.title, c.price, c.image, JSON.stringify(c.plans)],
+            );
+          } else {
+            console.log(`Updating customized service catalog: ${c.title} (${c.id})...`);
+            await query(
+              "UPDATE customized_services SET title = ?, price = ?, image = ?, plans = ? WHERE id = ?",
+              [c.title, c.price, c.image, JSON.stringify(c.plans), c.id]
+            );
+          }
+        } catch (e) {
+          console.warn(`Failed to seed/update customized service ${c.id}:`, e.message);
+        }
       }
 
     // Seed reviews for all default services if they have 0 reviews
