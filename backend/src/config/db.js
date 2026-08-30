@@ -577,8 +577,60 @@ async function initDb() {
     } else {
       console.log("No seed file found or db.json has been deleted/emptied.");
     }
-      // Automatic cleanup of user-created categories is disabled to allow dynamic admin-created catalog categories to persist.
-      console.log("MySQL Database verified. Categories and tables exist.");
+
+    // Ensure default categories exist in database
+    const defaultCategories = [
+      {
+        id: "full-house",
+        title: "Full House Deep Cleaning",
+        tagline: "Top-to-bottom premium clean for the entire home",
+        emoji: "🏠",
+        image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80",
+        includes: ["House Deep Clean", "Kitchen Deep Clean", "Bathroom Deep Clean"]
+      },
+      {
+        id: "customized",
+        title: "Customized Cleaning Package",
+        tagline: "Pick exactly what you need — room by room",
+        emoji: "🛋️",
+        image: "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&w=800&q=80",
+        includes: ["Living Room", "Kitchen", "Bathroom", "Sofa", "Carpet"]
+      },
+      {
+        id: "commercial",
+        title: "Commercial Post Interior Cleaning",
+        tagline: "Office, hotel & post-construction expertise",
+        emoji: "🏢",
+        image: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80",
+        includes: ["Office Cleaning", "Hotel Cleaning", "Post-Construction"]
+      }
+    ];
+
+    for (const cat of defaultCategories) {
+      try {
+        const existing = await query("SELECT id FROM categories WHERE id = ?", [cat.id]);
+        if (existing.length === 0) {
+          console.log(`Seeding default category: ${cat.title}`);
+          await query(
+            "INSERT INTO categories (id, title, tagline, emoji, image, parentId, includes) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+              cat.id,
+              cat.title,
+              cat.tagline,
+              cat.emoji,
+              cat.image,
+              null,
+              JSON.stringify(cat.includes)
+            ]
+          );
+        }
+      } catch (e) {
+        console.warn(`Failed to seed default category ${cat.id}:`, e.message);
+      }
+    }
+
+    // Automatic cleanup of user-created categories is disabled to allow dynamic admin-created catalog categories to persist.
+    console.log("MySQL Database verified. Categories and tables exist.");
       // Migrate existing services if they have empty plans, disclaimer or cover images
       const defaultServicesPlans = [
         {
@@ -1830,6 +1882,208 @@ async function initDb() {
           }
         } catch (e) {
           console.warn(`Failed to seed/update regular service ${s.id} under customized category:`, e.message);
+        }
+      }
+
+      // Seed commercial services into regular services table under 'commercial' category
+      console.log("Verifying commercial services in regular catalog...");
+      const commercialServices = [
+        {
+          id: "commercial-hotel-cleaning",
+          categoryId: "commercial",
+          title: "Hotel Cleaning",
+          price: 0,
+          description: "Deep cleaning for hotel rooms, lobbies, kitchens, and common areas ensuring hygiene and guest-ready standards.",
+          image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80",
+          includes: [
+            "Basic stain removal",
+            "Supervision",
+            "Eco-friendly cleaning agents"
+          ],
+          plans: [
+            {
+              name: "Express Estimate",
+              price: 0,
+              duration: "Custom",
+              description: "Deep cleaning for hotel rooms, lobbies, kitchens, and common areas.",
+              includes: ["Basic stain removal", "Supervision"],
+              excludes: ["Major repair work", "Paint removal (heavy cases)"]
+            }
+          ],
+          disclaimer: "Please ensure that all valuables are removed or securely stored. The company will not be responsible for any items left unsecured in the absence of the customer.",
+          requirements: "Tell us your requirement, choose if you need a site visit, and our team will provide a customized quotation tailored to your business needs."
+        },
+        {
+          id: "commercial-office-cleaning",
+          categoryId: "commercial",
+          title: "Office Cleaning",
+          price: 0,
+          description: "Workstation, floors, glass, washroom cleaning for a healthy and productive workspace.",
+          image: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80",
+          includes: [
+            "Basic stain removal",
+            "Supervision",
+            "Eco-friendly cleaning agents"
+          ],
+          plans: [
+            {
+              name: "Express Estimate",
+              price: 0,
+              duration: "Custom",
+              description: "Workstation, floors, glass, washroom cleaning for a healthy workspace.",
+              includes: ["Basic stain removal", "Supervision"],
+              excludes: ["Major repair work", "Paint removal (heavy cases)"]
+            }
+          ],
+          disclaimer: "Please ensure that all valuables are removed or securely stored. The company will not be responsible for any items left unsecured in the absence of the customer.",
+          requirements: "Tell us your requirement, choose if you need a site visit, and our team will provide a customized quotation tailored to your business needs."
+        },
+        {
+          id: "commercial-post-construction",
+          categoryId: "commercial",
+          title: "Post-Construction / Interior Cleaning",
+          price: 0,
+          description: "Heavy-duty cleaning after renovation including debris removal, paint marks, dust extraction.",
+          image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80",
+          includes: [
+            "Basic stain removal",
+            "Supervision",
+            "Eco-friendly cleaning agents"
+          ],
+          plans: [
+            {
+              name: "Express Estimate",
+              price: 0,
+              duration: "Custom",
+              description: "Heavy-duty cleaning after renovation including debris removal.",
+              includes: ["Basic stain removal", "Supervision"],
+              excludes: ["Major repair work", "Paint removal (heavy cases)"]
+            }
+          ],
+          disclaimer: "Please ensure that all valuables are removed or securely stored. The company will not be responsible for any items left unsecured in the absence of the customer.",
+          requirements: "Tell us your requirement, choose if you need a site visit, and our team will provide a customized quotation tailored to your business needs."
+        },
+        {
+          id: "commercial-restaurant-cleaning",
+          categoryId: "commercial",
+          title: "Restaurant Cleaning",
+          price: 0,
+          description: "Complete kitchen degreasing, exhaust cleaning, dining area sanitization for FSSAI-level hygiene.",
+          image: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=800&q=80",
+          includes: [
+            "Basic stain removal",
+            "Supervision",
+            "Eco-friendly cleaning agents"
+          ],
+          plans: [
+            {
+              name: "Express Estimate",
+              price: 0,
+              duration: "Custom",
+              description: "Complete kitchen degreasing, exhaust cleaning, dining area sanitization.",
+              includes: ["Basic stain removal", "Supervision"],
+              excludes: ["Major repair work", "Paint removal (heavy cases)"]
+            }
+          ],
+          disclaimer: "Please ensure that all valuables are removed or securely stored. The company will not be responsible for any items left unsecured in the absence of the customer.",
+          requirements: "Tell us your requirement, choose if you need a site visit, and our team will provide a customized quotation tailored to your business needs."
+        },
+        {
+          id: "commercial-shop-showroom",
+          categoryId: "commercial",
+          title: "Shop / Showroom Cleaning",
+          price: 0,
+          description: "Floor polishing, glass cleaning, dust removal to enhance customer experience.",
+          image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80",
+          includes: [
+            "Basic stain removal",
+            "Supervision",
+            "Eco-friendly cleaning agents"
+          ],
+          plans: [
+            {
+              name: "Express Estimate",
+              price: 0,
+              duration: "Custom",
+              description: "Floor polishing, glass cleaning, dust removal.",
+              includes: ["Basic stain removal", "Supervision"],
+              excludes: ["Major repair work", "Paint removal (heavy cases)"]
+            }
+          ],
+          disclaimer: "Please ensure that all valuables are removed or securely stored. The company will not be responsible for any items left unsecured in the absence of the customer.",
+          requirements: "Tell us your requirement, choose if you need a site visit, and our team will provide a customized quotation tailored to your business needs."
+        },
+        {
+          id: "commercial-warehouse-industrial",
+          categoryId: "commercial",
+          title: "Warehouse / Industrial Cleaning",
+          price: 0,
+          description: "Large-area cleaning with machines, ideal for storage units and factories.",
+          image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80",
+          includes: [
+            "Basic stain removal",
+            "Supervision",
+            "Eco-friendly cleaning agents"
+          ],
+          plans: [
+            {
+              name: "Express Estimate",
+              price: 0,
+              duration: "Custom",
+              description: "Large-area cleaning with machines for storage units.",
+              includes: ["Basic stain removal", "Supervision"],
+              excludes: ["Major repair work", "Paint removal (heavy cases)"]
+            }
+          ],
+          disclaimer: "Please ensure that all valuables are removed or securely stored. The company will not be responsible for any items left unsecured in the absence of the customer.",
+          requirements: "Tell us your requirement, choose if you need a site visit, and our team will provide a customized quotation tailored to your business needs."
+        }
+      ];
+
+      for (const s of commercialServices) {
+        try {
+          const rows = await query("SELECT id FROM services WHERE id = ?", [s.id]);
+          if (rows.length === 0) {
+            console.log(`Seeding missing commercial service: ${s.title}`);
+            await query(
+              "INSERT INTO services (id, categoryId, title, price, description, includes, image, plans, disclaimer, requirements, precautions, payment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              [
+                s.id,
+                s.categoryId,
+                s.title,
+                s.price,
+                s.description,
+                JSON.stringify(s.includes),
+                s.image,
+                JSON.stringify(s.plans),
+                s.disclaimer,
+                s.requirements,
+                JSON.stringify(s.precautions || null),
+                "free_advance"
+              ]
+            );
+          } else {
+            console.log(`Updating commercial service: ${s.title}`);
+            await query(
+              "UPDATE services SET categoryId = ?, title = ?, price = ?, description = ?, includes = ?, image = ?, plans = ?, disclaimer = ?, requirements = ?, precautions = ?, payment_type = ? WHERE id = ?",
+              [
+                s.categoryId,
+                s.title,
+                s.price,
+                s.description,
+                JSON.stringify(s.includes),
+                s.image,
+                JSON.stringify(s.plans),
+                s.disclaimer,
+                s.requirements,
+                JSON.stringify(s.precautions || null),
+                "free_advance",
+                s.id
+              ]
+            );
+          }
+        } catch (e) {
+          console.warn(`Failed to seed/update commercial service ${s.id}:`, e.message);
         }
       }
 

@@ -121,6 +121,13 @@ function ServiceDetailPage() {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Quote Request States
+  const [quoteModalOpen, setQuoteModalOpen] = useState(false);
+  const [quoteName, setQuoteName] = useState("");
+  const [quotePhone, setQuotePhone] = useState("");
+  const [quoteRequirements, setQuoteRequirements] = useState("");
+  const [quoteSubmitting, setQuoteSubmitting] = useState(false);
+
   // User & Location state
   const [userLocation, setUserLocation] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -347,10 +354,18 @@ function ServiceDetailPage() {
   }, [service]);
 
   const reviewCount = reviews.length;
+  const defaultRatings: Record<string, string> = {
+    "commercial-hotel-cleaning": "3.8",
+    "commercial-office-cleaning": "3.4",
+    "commercial-post-construction": "3.6",
+    "commercial-restaurant-cleaning": "3.1",
+    "commercial-shop-showroom": "3.8",
+    "commercial-warehouse-industrial": "3.6"
+  };
   const avgRating =
     reviewCount > 0
       ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviewCount).toFixed(1)
-      : "4.9";
+      : (service && defaultRatings[service.id]) || "4.9";
 
   const starsBreakdown = [5, 4, 3, 2, 1].map((star) => {
     const count = reviews.filter((r) => r.rating === star).length;
@@ -445,6 +460,70 @@ function ServiceDetailPage() {
       toast.error("Failed to submit review");
     } finally {
       setIsSubmittingReview(false);
+    }
+  };
+
+  const handleSubmitQuote = async () => {
+    if (!quoteName.trim()) {
+      toast.error("Please enter your name.");
+      return;
+    }
+    if (!quotePhone.trim()) {
+      toast.error("Please enter your phone number.");
+      return;
+    }
+    if (!quoteRequirements.trim()) {
+      toast.error("Please enter your cleaning requirements.");
+      return;
+    }
+
+    setQuoteSubmitting(true);
+    try {
+      const payload = {
+        id: `quote-${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: new Date().toISOString(),
+        customer: {
+          name: quoteName,
+          phone: quotePhone,
+          email: userEmail || "quote@commercial.com"
+        },
+        schedule: {
+          date: new Date().toISOString().split("T")[0],
+          time: "Anytime"
+        },
+        notes: `COMMERCIAL QUOTE REQUEST:\n${quoteRequirements}`,
+        coupon: null,
+        discount: 0,
+        total: 0,
+        items: [
+          {
+            id: service.id,
+            title: `${service.title} (Quote Request)`,
+            price: 0,
+            qty: 1
+          }
+        ]
+      };
+
+      const res = await fetch(`${ADMIN_API_URL}/api/bookings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        toast.success("Quotation request submitted successfully!", { icon: "📋" });
+        setQuoteName("");
+        setQuotePhone("");
+        setQuoteRequirements("");
+        setQuoteModalOpen(false);
+      } else {
+        toast.error("Failed to submit quotation request. Please try again.");
+      }
+    } catch (e: any) {
+      toast.error(`Error submitting request: ${e.message}`);
+    } finally {
+      setQuoteSubmitting(false);
     }
   };
 
@@ -625,21 +704,78 @@ function ServiceDetailPage() {
             {/* Price & Cart row */}
             <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-slate-100 pt-4">
               <div className="flex flex-wrap items-baseline">
-                <span className="text-4xl font-bold text-[#002a22] font-display">
-                  ₹{getServicePrice(activePlan.price || service.price || 0)}
-                </span>
-                <span className="text-[9px] font-bold uppercase text-[#cb9f5a]/90 tracking-wider ml-2">
-                  (Exclusive of all taxes & professional equipment)
-                </span>
+                {service.price && service.price > 0 ? (
+                  <>
+                    <span className="text-4xl font-bold text-[#002a22] font-display">
+                      ₹{getServicePrice(activePlan.price || service.price || 0)}
+                    </span>
+                    <span className="text-[9px] font-bold uppercase text-[#cb9f5a]/90 tracking-wider ml-2">
+                      (Exclusive of all taxes & professional equipment)
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-3xl font-bold text-[#002a22] font-display">
+                      Customised Price
+                    </span>
+                    <span className="text-[9px] font-bold uppercase text-[#cb9f5a]/90 tracking-wider ml-2">
+                      (Free Consultation & Quote Estimate)
+                    </span>
+                  </>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={() => handleAddToCart(activePlan)}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] px-6 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
-              >
-                <ShoppingCart className="h-4 w-4" /> Add {activePlan.name} to Cart
-              </button>
+              
+              {service.price && service.price > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => handleAddToCart(activePlan)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] px-6 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  <ShoppingCart className="h-4 w-4" /> Add {activePlan.name} to Cart
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setQuoteModalOpen(true)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] px-6 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  Get a Quote
+                </button>
+              )}
             </div>
+
+            {(!service.price || service.price === 0) && (
+              <div className="mt-3 p-3.5 bg-[#faf8f5] border border-slate-200/60 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-2xs font-semibold text-slate-500">
+                <span className="flex items-center gap-1.5 text-slate-600">
+                  🛡️ Get a Free Online Quote or book a premium Site inspection:
+                </span>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => setQuoteModalOpen(true)}
+                    className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-[#cb9f5a]/10 hover:bg-[#cb9f5a]/25 border border-[#cb9f5a]/30 text-[#cb9f5a] text-3xs font-extrabold uppercase tracking-wide cursor-pointer transition-colors"
+                  >
+                    Get Free Estimate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addRawItemToCart({
+                        id: `${service.id}-site-visit`,
+                        title: `${service.title} - Site Visit`,
+                        price: 500,
+                        img: service.image || service.img || "",
+                      });
+                      setCartOpen(true);
+                      toast.success("Site visit booking added to cart!", { icon: "📍" });
+                    }}
+                    className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] border border-slate-200/20 text-3xs font-extrabold uppercase tracking-wide cursor-pointer transition-colors"
+                  >
+                    Book Site Visit @ ₹500
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Bottom metrics of hero */}
             <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-5 text-[10px] font-semibold text-slate-500">
@@ -1254,6 +1390,96 @@ function ServiceDetailPage() {
           </div>
         </div>
       </footer>
+
+      {/* QUOTE REQUEST MODAL */}
+      {quoteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-100 rounded-3xl w-full max-w-md p-6 relative shadow-2xl animate-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setQuoteModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-0 cursor-pointer flex items-center justify-center shrink-0"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <h3 className="font-display text-xl font-semibold text-[#002a22] mb-1">
+              Get a Customized Quote
+            </h3>
+            <p className="text-2xs text-[#4a5f5b] mb-4">
+              For {service.title}. Our team will review and respond within 2 hours.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[9px] font-extrabold uppercase text-slate-400 mb-1">Your Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. John Doe"
+                  value={quoteName}
+                  onChange={(e) => setQuoteName(e.target.value)}
+                  className="w-full bg-[#faf8f5] border border-slate-200 rounded-xl px-3 py-2 text-xs text-[#002a22] outline-none focus:border-[#cb9f5a] transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-extrabold uppercase text-slate-400 mb-1">Phone Number</label>
+                <input
+                  type="tel"
+                  placeholder="e.g. +91 98765 43210"
+                  value={quotePhone}
+                  onChange={(e) => setQuotePhone(e.target.value)}
+                  className="w-full bg-[#faf8f5] border border-slate-200 rounded-xl px-3 py-2 text-xs text-[#002a22] outline-none focus:border-[#cb9f5a] transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-extrabold uppercase text-slate-400 mb-1">Requirements / Message</label>
+                <textarea
+                  rows={3}
+                  placeholder="e.g. Need deep cleaning for a 20-room hotel lobby and common areas next Monday..."
+                  value={quoteRequirements}
+                  onChange={(e) => setQuoteRequirements(e.target.value)}
+                  className="w-full bg-[#faf8f5] border border-slate-200 rounded-xl px-3 py-2 text-xs text-[#002a22] outline-none focus:border-[#cb9f5a] transition-all resize-none"
+                />
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
+                <button
+                  type="button"
+                  disabled={quoteSubmitting}
+                  onClick={handleSubmitQuote}
+                  className="w-full py-3 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] border-0 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {quoteSubmitting ? "Submitting..." : "Get Free Estimate"}
+                </button>
+
+                <div className="text-center text-[10px] font-semibold text-slate-400 py-1">— OR —</div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuoteModalOpen(false);
+                    addRawItemToCart({
+                      id: `${service.id}-site-visit`,
+                      title: `${service.title} - Site Visit`,
+                      price: 500,
+                      img: service.image || service.img || "",
+                    });
+                    setCartOpen(true);
+                    toast.success("Site visit booking added to cart!", { icon: "📍" });
+                  }}
+                  className="w-full py-3 rounded-xl border border-[#cb9f5a] bg-transparent hover:bg-[#cb9f5a]/5 text-[#cb9f5a] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  Book Site Visit @ ₹500
+                </button>
+                <p className="text-[9px] text-[#4a5f5b] text-center mt-1 leading-normal">
+                  * Note: Site visit fee of ₹500 is fully deductible from your final service quotation.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* DRAWERS */}
       <CartDrawer

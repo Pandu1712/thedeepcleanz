@@ -565,7 +565,13 @@ function ServicesComponent() {
                 )}
                 
                 {activeCategory.services.map((s) => {
-                  const rating = "4.8";
+                  const rating = s.id === "commercial-hotel-cleaning" ? "3.8"
+                               : s.id === "commercial-office-cleaning" ? "3.4"
+                               : s.id === "commercial-post-construction" ? "3.6"
+                               : s.id === "commercial-restaurant-cleaning" ? "3.1"
+                               : s.id === "commercial-shop-showroom" ? "3.8"
+                               : s.id === "commercial-warehouse-industrial" ? "3.6"
+                               : "4.8";
                   const imageUrl = s.image || s.img;
                   return (
                     <article
@@ -575,7 +581,7 @@ function ServicesComponent() {
                     >
                       {/* Top Section: Image beside Name/Description */}
                       <div className="flex flex-col sm:flex-row gap-5 items-start">
-                        {/* Left Side: Decreased Image Container */}
+                      {/* Left Side: Decreased Image Container */}
                         <div className="relative w-full sm:w-4/12 md:w-3/12 aspect-[4/3] rounded-xl overflow-hidden bg-slate-50 flex-shrink-0 border border-slate-100 shadow-3xs">
                           {imageUrl ? (
                             <img
@@ -603,13 +609,19 @@ function ServicesComponent() {
                             <h3 className="font-display text-[15px] sm:text-base font-black text-[#002a22] group-hover:text-[#cb9f5a] transition-colors leading-tight">
                               {s.title}
                             </h3>
-                            {s.price && s.price > 0 && (
+                            {s.price && s.price > 0 ? (
                               <div className="text-right flex-shrink-0">
                                 <span className="block text-[8px] uppercase font-extrabold tracking-wider text-slate-450">
                                   Starts at
                                 </span>
                                 <span className="font-display text-sm font-black text-[#002a22]">
                                   ₹{getServicePrice(s.price)}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="text-right flex-shrink-0">
+                                <span className="font-display text-sm font-semibold text-[#002a22] whitespace-nowrap">
+                                  Customised Price
                                 </span>
                               </div>
                             )}
