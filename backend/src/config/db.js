@@ -512,71 +512,7 @@ async function initDb() {
       await query("SET FOREIGN_KEY_CHECKS = 1");
     }
 
-    // Dynamic Seeding from data/db.json
-    const dbJsonPath = path.join(__dirname, "..", "..", "data", "db.json");
-    if (fs.existsSync(dbJsonPath)) {
-      try {
-        const fileContent = fs.readFileSync(dbJsonPath, "utf8").trim();
-        if (fileContent && fileContent !== "{}" && fileContent !== "[]") {
-          const dbData = JSON.parse(fileContent);
-          
-          // Seed categories individually if they do not exist
-          if (dbData.categories && dbData.categories.length > 0) {
-            for (const cat of dbData.categories) {
-              const existing = await query("SELECT id FROM categories WHERE id = ?", [cat.id]);
-              if (existing.length === 0) {
-                console.log(`Seeding category: ${cat.title} (${cat.id}) from db.json...`);
-                await query(
-                  "INSERT INTO categories (id, title, tagline, emoji, image, parentId, includes) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                  [
-                    cat.id,
-                    cat.title,
-                    cat.tagline || null,
-                    cat.emoji || null,
-                    cat.image || null,
-                    cat.parentId || null,
-                    JSON.stringify(cat.includes || []),
-                  ]
-                );
-              }
-            }
-            console.log("Categories checked/seeded successfully from db.json.");
-          }
-
-          // Seed services individually if they do not exist
-          if (dbData.services && dbData.services.length > 0) {
-            for (const s of dbData.services) {
-              const existing = await query("SELECT id FROM services WHERE id = ?", [s.id]);
-              if (existing.length === 0) {
-                console.log(`Seeding service: ${s.title} (${s.id}) from db.json...`);
-                await query(
-                  "INSERT INTO services (id, categoryId, title, price, description, includes, image, plans, disclaimer, requirements, precautions, payment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                  [
-                    s.id,
-                    s.categoryId,
-                    s.title,
-                    Number(s.price) || 0,
-                    s.description || null,
-                    JSON.stringify(s.includes || []),
-                    s.image || null,
-                    JSON.stringify(s.plans || null),
-                    s.disclaimer || null,
-                    s.requirements || null,
-                    JSON.stringify(s.precautions || null),
-                    s.paymentType || s.payment_type || "full",
-                  ]
-                );
-              }
-            }
-            console.log("Services checked/seeded successfully from db.json.");
-          }
-        }
-      } catch (jsonErr) {
-        console.error("Error reading or parsing db.json for seeding:", jsonErr.message);
-      }
-    } else {
-      console.log("No seed file found or db.json has been deleted/emptied.");
-    }
+    // Dynamic Seeding from data/db.json has been removed to prevent database overrides and preserve admin modifications.
 
     // Ensure default categories exist in database
     const defaultCategories = [
@@ -1250,11 +1186,7 @@ async function initDb() {
               [c.id, c.title, c.price, c.image, JSON.stringify(c.plans)],
             );
           } else {
-            console.log(`Updating customized service catalog: ${c.title} (${c.id})...`);
-            await query(
-              "UPDATE customized_services SET title = ?, price = ?, image = ?, plans = ? WHERE id = ?",
-              [c.title, c.price, c.image, JSON.stringify(c.plans), c.id]
-            );
+            console.log(`Customized service ${c.title} (${c.id}) already exists. Skipping seed update to preserve admin modifications.`);
           }
         } catch (e) {
           console.warn(`Failed to seed/update customized service ${c.id}:`, e.message);
@@ -1861,24 +1793,7 @@ async function initDb() {
               ]
             );
           } else {
-            console.log(`Updating regular service under customized category: ${s.title}`);
-            await query(
-              "UPDATE services SET categoryId = ?, title = ?, price = ?, description = ?, includes = ?, image = ?, plans = ?, disclaimer = ?, requirements = ?, precautions = ?, payment_type = ? WHERE id = ?",
-              [
-                s.categoryId,
-                s.title,
-                s.price,
-                s.description,
-                JSON.stringify(s.includes),
-                s.image,
-                JSON.stringify(s.plans),
-                s.disclaimer,
-                s.requirements,
-                JSON.stringify(s.precautions || null),
-                s.payment_type || "full",
-                s.id
-              ]
-            );
+            console.log(`Regular customized service ${s.title} (${s.id}) already exists. Skipping seed update to preserve admin modifications.`);
           }
         } catch (e) {
           console.warn(`Failed to seed/update regular service ${s.id} under customized category:`, e.message);
@@ -2063,24 +1978,7 @@ async function initDb() {
               ]
             );
           } else {
-            console.log(`Updating commercial service: ${s.title}`);
-            await query(
-              "UPDATE services SET categoryId = ?, title = ?, price = ?, description = ?, includes = ?, image = ?, plans = ?, disclaimer = ?, requirements = ?, precautions = ?, payment_type = ? WHERE id = ?",
-              [
-                s.categoryId,
-                s.title,
-                s.price,
-                s.description,
-                JSON.stringify(s.includes),
-                s.image,
-                JSON.stringify(s.plans),
-                s.disclaimer,
-                s.requirements,
-                JSON.stringify(s.precautions || null),
-                "free_advance",
-                s.id
-              ]
-            );
+            console.log(`Commercial service ${s.title} (${s.id}) already exists. Skipping seed update to preserve admin modifications.`);
           }
         } catch (e) {
           console.warn(`Failed to seed/update commercial service ${s.id}:`, e.message);
