@@ -48,11 +48,11 @@
 :root {
   --radius: 1rem;
 
-  --navy: #002a22;
-  --navy-light: #0a3d33;
-  --gold: #cb9f5a;
-  --gold-soft: #e2c18d;
-  --cream: #faf8f5;
+  --navy: #033B2E;
+  --navy-light: #0d4a3c;
+  --gold: #C89B3C;
+  --gold-soft: #A67C22;
+  --cream: #F9F7F2;
 
   --background: var(--cream);
   --foreground: var(--navy);
@@ -75,8 +75,8 @@
   --destructive: oklch(0.6 0.22 25);
   --destructive-foreground: oklch(1 0 0);
 
-  --border: #f1ede6;
-  --input: #f1ede6;
+  --border: #e6dfd3;
+  --input: #e6dfd3;
   --ring: var(--gold);
 }
 

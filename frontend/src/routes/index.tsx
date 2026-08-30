@@ -2173,7 +2173,7 @@ function Index() {
       {/* HERO SECTION - BRIGHT & CLEAN PREMIUM WHITE THEME WITH LIGHT BACKGROUND IMAGE */}
       <section
         id="home"
-        className="relative overflow-hidden bg-white text-[#002a22] py-4 sm:py-10 md:py-12 border-b border-[#cb9f5a]/20"
+        className="relative overflow-hidden bg-[#F9F7F2] text-[#033B2E] py-4 sm:py-10 md:py-12 border-b border-[#C89B3C]/20"
       >
         {/* Background Image with high brightness overlay */}
         <div
@@ -2182,26 +2182,26 @@ function Index() {
         />
 
         {/* Subtle, clean gold ambient glow */}
-        <div className="absolute top-1/4 -left-32 h-72 w-72 rounded-full bg-[#cb9f5a]/5 blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-10 -right-32 h-72 w-72 rounded-full bg-[#cb9f5a]/5 blur-[100px] pointer-events-none" />
+        <div className="absolute top-1/4 -left-32 h-72 w-72 rounded-full bg-[#C89B3C]/5 blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-10 -right-32 h-72 w-72 rounded-full bg-[#C89B3C]/5 blur-[100px] pointer-events-none" />
 
         <div className="relative mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 z-10">
           <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:gap-6 lg:items-stretch">
             {/* Left Column: Premium Intro Banner Card */}
             <div className="lg:col-span-6 flex flex-col justify-between w-full">
-              <div className="relative overflow-hidden border-0 bg-transparent p-0 sm:rounded-3xl sm:border sm:border-[#cb9f5a]/30 sm:bg-white sm:p-6 lg:p-8 sm:shadow-[0_15px_45px_rgba(0,42,34,0.06)] h-full flex flex-col justify-between group">
+              <div className="relative overflow-hidden border-0 bg-transparent p-0 sm:rounded-3xl sm:border sm:border-[#C89B3C]/30 sm:bg-white sm:p-6 lg:p-8 sm:shadow-[0_15px_45px_rgba(0,42,34,0.06)] h-full flex flex-col justify-between group">
                 <div>
                   {/* Premium Pill Badge */}
-                  <div className="inline-flex items-center gap-1 rounded-full border border-[#cb9f5a]/40 bg-[#002a22] px-2.5 py-0.5 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-[#cb9f5a] shadow-sm">
-                    <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-[#cb9f5a] animate-pulse" />
+                  <div className="inline-flex items-center gap-1 rounded-full border border-[#C89B3C]/40 bg-[#033B2E] px-2.5 py-0.5 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-[#C89B3C] shadow-sm">
+                    <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-[#C89B3C] animate-pulse" />
                     <span>Trusted Luxury Cleaning</span>
                   </div>
 
                   {/* Main Headline */}
-                  <h1 className="mt-2.5 sm:mt-5 font-display text-xl sm:text-3xl md:text-4xl lg:text-[42px] lg:leading-[1.15] font-black tracking-tight text-[#002a22]">
+                  <h1 className="mt-2.5 sm:mt-5 font-display text-xl sm:text-3xl md:text-4xl lg:text-[42px] lg:leading-[1.15] font-black tracking-tight text-[#033B2E]">
                     Premium App For All Your
                     <br />
-                    <span className="text-[#cb9f5a] font-serif italic font-extrabold">
+                    <span className="text-[#C89B3C] font-serif italic font-extrabold">
                       Home & Deep Cleaning
                     </span>
                     <br />
@@ -2209,7 +2209,7 @@ function Index() {
                   </h1>
 
                   {/* Subtitle */}
-                  <p className="mt-1.5 sm:mt-4 text-[10px] sm:text-xs md:text-sm text-[#002a22]/80 font-semibold leading-normal sm:leading-relaxed max-w-xl">
+                  <p className="mt-1.5 sm:mt-4 text-[10px] sm:text-xs md:text-sm text-[#033B2E]/80 font-semibold leading-normal sm:leading-relaxed max-w-xl">
                     Experience background-verified cleaning specialists, hotel-grade service, and eco-friendly sanitization for luxury homes & offices. Simplified. Booked. Relaxed.
                   </p>
 
@@ -2217,10 +2217,10 @@ function Index() {
                   <div className="mt-2.5 sm:mt-5">
                     <a
                       href="#categories"
-                      className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#cb9f5a] via-[#e5be7a] to-[#cb9f5a] px-4 py-2 sm:px-6 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-wider text-[#002a22] shadow-[0_6px_20px_-5px_rgba(203,159,90,0.3)] transition-all hover:scale-[1.02] active:scale-95 hover:shadow-[0_10px_25px_-5px_rgba(203,159,90,0.5)] cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#C89B3C] hover:bg-[#A67C22] px-4 py-2 sm:px-6 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-wider text-[#033B2E] shadow-[0_6px_20px_-5px_rgba(200,155,60,0.3)] transition-all hover:scale-[1.02] active:scale-95 hover:shadow-[0_10px_25px_-5px_rgba(166,124,34,0.5)] cursor-pointer"
                     >
                       <span>Explore Services</span>
-                      <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#002a22]" />
+                      <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#033B2E]" />
                     </a>
                   </div>
                 </div>
@@ -2228,19 +2228,19 @@ function Index() {
                 {/* Stats row inside the card (hidden on mobile to save height) */}
                 <div className="hidden sm:grid mt-6 pt-5 border-t border-slate-100 grid-cols-4 gap-3 text-center">
                   <div>
-                    <div className="text-base sm:text-lg font-black text-[#002a22]">10,000+</div>
+                    <div className="text-base sm:text-lg font-black text-[#033B2E]">10,000+</div>
                     <div className="text-[9px] text-slate-600 font-extrabold uppercase tracking-wider mt-0.5">Trusted Homes</div>
                   </div>
                   <div>
-                    <div className="text-base sm:text-lg font-black text-[#cb9f5a]">4.9 / 5.0</div>
+                    <div className="text-base sm:text-lg font-black text-[#C89B3C]">4.9 / 5.0</div>
                     <div className="text-[9px] text-slate-600 font-extrabold uppercase tracking-wider mt-0.5">Avg Rating</div>
                   </div>
                   <div>
-                    <div className="text-base sm:text-lg font-black text-[#002a22]">100% Eco</div>
+                    <div className="text-base sm:text-lg font-black text-[#033B2E]">100% Eco</div>
                     <div className="text-[9px] text-slate-600 font-extrabold uppercase tracking-wider mt-0.5">Safe Products</div>
                   </div>
                   <div>
-                    <div className="text-base sm:text-lg font-black text-[#cb9f5a]">On-Time</div>
+                    <div className="text-base sm:text-lg font-black text-[#C89B3C]">On-Time</div>
                     <div className="text-[9px] text-slate-600 font-extrabold uppercase tracking-wider mt-0.5">Guaranteed</div>
                   </div>
                 </div>
@@ -2248,12 +2248,12 @@ function Index() {
             </div>
 
             {/* Right Column: Service Select Grid */}
-            <div className="lg:col-span-6 flex flex-col justify-center border-0 bg-transparent p-0 sm:rounded-3xl sm:border sm:border-[#cb9f5a]/20 sm:bg-white sm:p-6 lg:p-8 sm:shadow-[0_10px_35px_rgba(0,0,0,0.03)] w-full">
+            <div className="lg:col-span-6 flex flex-col justify-center border-0 bg-transparent p-0 sm:rounded-3xl sm:border sm:border-[#C89B3C]/20 sm:bg-white sm:p-6 lg:p-8 sm:shadow-[0_10px_35px_rgba(0,0,0,0.03)] w-full">
               <div className="text-left mt-2 lg:mt-0">
-                <span className="text-[8px] sm:text-[9px] uppercase tracking-[0.25em] text-[#cb9f5a] font-black block mb-0.5">
+                <span className="text-[8px] sm:text-[9px] uppercase tracking-[0.25em] text-[#C89B3C] font-black block mb-0.5">
                   Popular Services
                 </span>
-                <h2 className="font-display text-sm sm:text-xl lg:text-2xl font-black text-[#002a22] leading-tight">
+                <h2 className="font-display text-sm sm:text-xl lg:text-2xl font-black text-[#033B2E] leading-tight">
                   What do you need cleaned?
                 </h2>
                 <p className="text-[9px] sm:text-xs text-slate-400 mt-0.5">
@@ -2320,14 +2320,14 @@ function Index() {
                   <button
                     key={idx}
                     onClick={item.action}
-                    className="group flex flex-col items-center text-center p-2 rounded-xl bg-white border border-[#cb9f5a]/10 hover:border-[#cb9f5a]/60 shadow-[0_4px_12px_rgba(0,42,34,0.02)] hover:shadow-[0_8px_20px_rgba(203,159,90,0.08)] transition-all duration-300 cursor-pointer w-[82px] shrink-0 snap-start sm:w-full"
+                    className="group flex flex-col items-center text-center p-2 rounded-xl bg-white border border-[#C89B3C]/10 hover:border-[#C89B3C]/60 shadow-[0_4px_12px_rgba(0,42,34,0.02)] hover:shadow-[0_8px_20px_rgba(200,155,60,0.08)] transition-all duration-300 cursor-pointer w-[82px] shrink-0 snap-start sm:w-full"
                   >
                     {item.isViewAll ? (
-                      <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 flex items-center justify-center group-hover:bg-[#cb9f5a] group-hover:border-[#cb9f5a] transition-all duration-300 shrink-0">
-                        <ArrowRight className="h-4.5 w-4.5 text-[#cb9f5a] group-hover:text-[#002a22] transition-colors" />
+                      <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-[#C89B3C]/10 border border-[#C89B3C]/30 flex items-center justify-center group-hover:bg-[#C89B3C] group-hover:border-[#C89B3C] transition-all duration-300 shrink-0">
+                        <ArrowRight className="h-4.5 w-4.5 text-[#C89B3C] group-hover:text-[#033B2E] transition-colors" />
                       </div>
                     ) : (
-                      <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full overflow-hidden border border-slate-100 group-hover:border-[#cb9f5a]/50 transition-all duration-300 shrink-0">
+                      <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full overflow-hidden border border-slate-100 group-hover:border-[#C89B3C]/50 transition-all duration-300 shrink-0">
                         <img
                           src={item.image || ""}
                           alt={item.title}
@@ -2335,10 +2335,10 @@ function Index() {
                         />
                       </div>
                     )}
-                    <span className="text-[9px] sm:text-xs font-extrabold text-[#002a22] mt-1.5 group-hover:text-[#cb9f5a] transition-colors line-clamp-1">
+                    <span className="text-[9px] sm:text-xs font-extrabold text-[#033B2E] mt-1.5 group-hover:text-[#C89B3C] transition-colors line-clamp-1">
                       {item.title}
                     </span>
-                    <span className="text-[7.5px] sm:text-[9px] text-[#cb9f5a] font-bold tracking-wide mt-0.5 whitespace-nowrap">
+                    <span className="text-[7.5px] sm:text-[9px] text-[#C89B3C] font-bold tracking-wide mt-0.5 whitespace-nowrap">
                       {item.subtext}
                     </span>
                   </button>

@@ -347,31 +347,31 @@ export default function Header({
   return (
     <div className="fixed top-0 left-0 right-0 z-45">
       {/* ANNOUNCEMENT BAR */}
-      <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
+      <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#C89B3C]/25 font-sans relative z-40 py-1.5">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 text-[11px] lg:px-8">
           {/* Mobile Marquee container (visible on mobile, hidden on desktop) */}
           <div className="flex sm:hidden flex-1 overflow-hidden relative items-center gap-2">
             <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#cb9f5a] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#cb9f5a]"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C89B3C] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#C89B3C]"></span>
             </span>
             <div className="w-full overflow-hidden whitespace-nowrap relative flex items-center">
               <div className="inline-flex gap-8 animate-marquee font-medium text-[10px] text-[#faf8f5]/90 select-none">
                 <span className="flex items-center gap-2">
-                  <span className="font-semibold text-[#cb9f5a] uppercase text-[8px] tracking-wider bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 px-1.5 py-0.5 rounded-full">
+                  <span className="font-semibold text-[#C89B3C] uppercase text-[8px] tracking-wider bg-[#C89B3C]/10 border border-[#C89B3C]/30 px-1.5 py-0.5 rounded-full">
                     PROMO
                   </span>
                   <span>{headerPromoText}</span>
-                  <span className="font-mono font-extrabold text-[#cb9f5a] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-[9px]">
+                  <span className="font-mono font-extrabold text-[#C89B3C] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-[9px]">
                     {headerPromoCode}
                   </span>
                 </span>
                 <span className="flex items-center gap-2">
-                  <span className="font-semibold text-[#cb9f5a] uppercase text-[8px] tracking-wider bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 px-1.5 py-0.5 rounded-full">
+                  <span className="font-semibold text-[#C89B3C] uppercase text-[8px] tracking-wider bg-[#C89B3C]/10 border border-[#C89B3C]/30 px-1.5 py-0.5 rounded-full">
                     PROMO
                   </span>
                   <span>{headerPromoText}</span>
-                  <span className="font-mono font-extrabold text-[#cb9f5a] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-[9px]">
+                  <span className="font-mono font-extrabold text-[#C89B3C] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-[9px]">
                     {headerPromoCode}
                   </span>
                 </span>
@@ -382,15 +382,15 @@ export default function Header({
           {/* Desktop announcement display (hidden on mobile, visible on desktop) */}
           <div className="hidden sm:flex flex-1 items-center gap-3 min-w-0">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#cb9f5a] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#cb9f5a]"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C89B3C] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#C89B3C]"></span>
             </span>
             <span className="block truncate text-[#faf8f5]/90 font-medium tracking-wide text-[11px]">
-              <span className="font-semibold text-[#cb9f5a] uppercase text-[9px] tracking-wider bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 px-2 py-0.5 rounded-full mr-2">
+              <span className="font-semibold text-[#C89B3C] uppercase text-[9px] tracking-wider bg-[#C89B3C]/10 border border-[#C89B3C]/30 px-2 py-0.5 rounded-full mr-2">
                 PROMO
               </span>
               {headerPromoText}{" "}
-              <span className="inline-flex items-center gap-1 font-mono font-extrabold text-[#cb9f5a] bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full hover:bg-white/10 transition-colors text-[10px]">
+              <span className="inline-flex items-center gap-1 font-mono font-extrabold text-[#C89B3C] bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full hover:bg-white/10 transition-colors text-[10px]">
                 {headerPromoCode}
               </span>
             </span>
@@ -398,20 +398,20 @@ export default function Header({
           <div className="hidden items-center gap-5 md:flex font-semibold tracking-wide text-[#faf8f5]/85">
             <a
               href="tel:+919876543210"
-              className="inline-flex items-center gap-1.5 hover:text-[#cb9f5a] transition-colors duration-250"
+              className="inline-flex items-center gap-1.5 hover:text-[#C89B3C] transition-colors duration-250"
             >
-              <Phone className="h-3.5 w-3.5 text-[#cb9f5a]" /> +91 98765 43210
+              <Phone className="h-3.5 w-3.5 text-[#C89B3C]" /> +91 98765 43210
             </a>
             <span className="h-3 w-px bg-white/15" />
             <span className="inline-flex items-center gap-1.5 text-cream/75">
-              <MapPin className="h-3.5 w-3.5 text-[#cb9f5a]" /> Guntur & 25+ Premium Cities
+              <MapPin className="h-3.5 w-3.5 text-[#C89B3C]" /> Guntur & 25+ Premium Cities
             </span>
           </div>
         </div>
       </div>
 
       {/* HEADER - ULTRA-PREMIUM GLASS DESIGN */}
-      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-[#cb9f5a]/12 text-[#002a22] shadow-[0_2px_15px_-3px_rgba(0,42,34,0.04)] transition-all duration-300">
+      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-[#C89B3C]/12 text-[#033B2E] shadow-[0_2px_15px_-3px_rgba(0,42,34,0.04)] transition-all duration-300">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 py-3 lg:px-8">
           <div className="flex items-center gap-4 sm:gap-6">
             <Link to="/" search={{ category: undefined, cart: undefined }} className="flex items-center group shrink-0">
@@ -424,9 +424,9 @@ export default function Header({
             {/* Location Display Capsule */}
             <div
               onClick={onOpenLocation}
-              className="hidden lg:flex items-center gap-2 border border-[#cb9f5a]/30 bg-[#faf8f5] p-2 sm:px-3 sm:py-1 rounded-full text-xs font-semibold text-[#002a22] transition-all cursor-pointer shadow-3xs hover:border-[#cb9f5a]/60 shrink-0"
+              className="hidden lg:flex items-center gap-2 border border-[#C89B3C]/30 bg-[#F9F7F2] p-2 sm:px-3 sm:py-1 rounded-full text-xs font-semibold text-[#033B2E] transition-all cursor-pointer shadow-3xs hover:border-[#C89B3C]/60 shrink-0"
             >
-              <MapPin className="h-3.5 w-3.5 text-[#cb9f5a] shrink-0" />
+              <MapPin className="h-3.5 w-3.5 text-[#C89B3C] shrink-0" />
               <span className="hidden sm:inline truncate max-w-[80px] lg:max-w-[120px] 2xl:max-w-[200px]" title={userLocation}>
                 {userLocation}
               </span>
@@ -439,14 +439,14 @@ export default function Header({
               const isActive = activeHash === l.href || isCurrentPath;
               const linkClasses = `relative px-4 py-2 font-sans text-sm sm:text-[15px] font-medium tracking-wide transition-all duration-300 ${
                 isActive
-                  ? "text-[#cb9f5a]"
-                  : "text-[#002a22]/80 hover:text-[#cb9f5a]"
+                  ? "text-[#C89B3C]"
+                  : "text-[#033B2E]/80 hover:text-[#C89B3C]"
               }`;
               const innerContent = (
                 <>
                   <span>{l.label}</span>
                   {isActive && (
-                    <span className="absolute bottom-0.5 left-4 right-4 h-[2px] bg-[#cb9f5a] rounded-full shadow-[0_1px_5px_rgba(203,159,90,0.4)] animate-in fade-in zoom-in-50 duration-200" />
+                    <span className="absolute bottom-0.5 left-4 right-4 h-[2px] bg-[#C89B3C] rounded-full shadow-[0_1px_5px_rgba(200,155,60,0.4)] animate-in fade-in zoom-in-50 duration-200" />
                   )}
                 </>
               );
@@ -473,18 +473,18 @@ export default function Header({
           <div className="flex items-center gap-2.5">
             {/* Elegant Search Bar */}
             <div className="relative hidden lg:block w-36 lg:w-44 xl:w-48 2xl:w-56 font-sans shrink-0">
-              <div className="relative flex items-center bg-[#faf8f5] border border-[#002a22]/15 focus-within:border-[#cb9f5a] focus-within:bg-white rounded-full transition-all px-2.5 py-1.5 shadow-3xs">
-                <Search className="h-4 w-4 text-[#cb9f5a]/75 mr-2 shrink-0" />
+              <div className="relative flex items-center bg-[#F9F7F2] border border-[#033B2E]/15 focus-within:border-[#C89B3C] focus-within:bg-white rounded-full transition-all px-2.5 py-1.5 shadow-3xs">
+                <Search className="h-4 w-4 text-[#C89B3C]/75 mr-2 shrink-0" />
                 <input
                   type="text"
                   placeholder="Search services..."
                   value={searchQuery}
                   onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setDropdownOpen(true);
+                     setSearchQuery(e.target.value);
+                     setDropdownOpen(true);
                   }}
                   onFocus={() => setDropdownOpen(true)}
-                  className="w-full bg-transparent border-0 outline-none text-xs font-semibold text-[#002a22] placeholder:text-slate-400 p-0"
+                  className="w-full bg-transparent border-0 outline-none text-xs font-semibold text-[#033B2E] placeholder:text-slate-400 p-0"
                 />
                 {searchQuery && (
                   <button
@@ -508,13 +508,13 @@ export default function Header({
                   <div className="absolute top-full right-0 left-0 mt-2 bg-white border border-slate-150 rounded-2xl shadow-xl z-50 max-h-[300px] overflow-y-auto font-sans p-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
                     {filteredServices.length > 0 ? (
                       <div className="space-y-0.5">
-                        <div className="text-[9px] font-black uppercase tracking-wider text-[#cb9f5a] px-2.5 py-1 select-none">
+                        <div className="text-[9px] font-black uppercase tracking-wider text-[#C89B3C] px-2.5 py-1 select-none">
                           Found {filteredServices.length} Matching Services
                         </div>
                         {filteredServices.map((s) => (
                           <div
                             key={s.id}
-                            className="flex items-center justify-between p-2 rounded-xl hover:bg-[#faf8f5] group transition-all"
+                            className="flex items-center justify-between p-2 rounded-xl hover:bg-[#F9F7F2] group transition-all"
                           >
                             <div className="flex items-center gap-2.5 min-w-0 pr-2">
                               {s.img && (
@@ -525,7 +525,7 @@ export default function Header({
                                 />
                               )}
                               <div className="flex flex-col min-w-0">
-                                <span className="text-xs font-extrabold text-[#002a22] truncate group-hover:text-[#cb9f5a] transition-colors">
+                                <span className="text-xs font-extrabold text-[#033B2E] truncate group-hover:text-[#C89B3C] transition-colors">
                                   {s.title}
                                 </span>
                                 <span className="text-[10px] text-slate-400 font-bold">
@@ -539,7 +539,7 @@ export default function Header({
                                 setSearchQuery("");
                                 navigate({ to: "/service-detail", search: { id: s.id } });
                               }}
-                              className="text-[9px] font-black uppercase tracking-wider bg-[#002a22] text-[#cb9f5a] border border-[#cb9f5a]/30 hover:bg-[#cb9f5a] hover:text-[#002a22] px-2.5 py-1.5 rounded-lg transition-all shrink-0 cursor-pointer shadow-3xs"
+                              className="text-[9px] font-black uppercase tracking-wider bg-[#033B2E] text-[#C89B3C] border border-[#C89B3C]/30 hover:bg-[#C89B3C] hover:text-[#033B2E] px-2.5 py-1.5 rounded-lg transition-all shrink-0 cursor-pointer shadow-3xs"
                             >
                               View
                             </button>
@@ -558,11 +558,11 @@ export default function Header({
             <button
               onClick={onOpenCart}
               aria-label="Open cart"
-              className="relative grid h-10 w-10 place-items-center rounded-full border border-[#002a22]/15 text-[#002a22] transition-colors hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/10"
+              className="relative grid h-10 w-10 place-items-center rounded-full border border-[#033B2E]/15 text-[#033B2E] transition-colors hover:border-[#C89B3C] hover:bg-[#C89B3C]/10"
             >
               <ShoppingCart className="h-4.5 w-4.5" />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#cb9f5a] px-1 text-[10px] font-bold text-white shadow">
+                <span className="absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#C89B3C] px-1 text-[10px] font-bold text-white shadow">
                   {cartCount}
                 </span>
               )}
@@ -573,9 +573,9 @@ export default function Header({
                 <div className="relative">
                   <button
                     onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                    className="flex items-center gap-2 rounded-full bg-[#faf8f5] border border-[#cb9f5a]/30 pl-2.5 pr-4 py-1.5 text-xs font-bold text-[#002a22] transition-all hover:bg-white hover:border-[#cb9f5a] shadow-sm cursor-pointer select-none active:scale-[0.98] font-sans"
+                    className="flex items-center gap-2 rounded-full bg-[#F9F7F2] border border-[#C89B3C]/30 pl-2.5 pr-4 py-1.5 text-xs font-bold text-[#033B2E] transition-all hover:bg-white hover:border-[#C89B3C] shadow-sm cursor-pointer select-none active:scale-[0.98] font-sans"
                   >
-                    <div className="h-6 w-6 rounded-full bg-[#cb9f5a] text-white flex items-center justify-center font-black text-[10px] uppercase shadow-sm">
+                    <div className="h-6 w-6 rounded-full bg-[#C89B3C] text-white flex items-center justify-center font-black text-[10px] uppercase shadow-sm">
                       {userProfile?.name
                         ? userProfile.name.substring(0, 2)
                         : userEmail
@@ -593,7 +593,7 @@ export default function Header({
               <div className="hidden items-center gap-3 lg:flex">
                 <Link
                   to="/login"
-                  className="rounded-full bg-[#002a22] hover:bg-[#cb9f5a] text-[#cb9f5a] hover:text-[#002a22] border border-[#cb9f5a]/35 hover:border-[#cb9f5a] px-4 py-2 xl:px-6 xl:py-2.5 text-[11px] font-black uppercase tracking-wider xl:tracking-widest transition-all duration-350 active:scale-[0.98] shadow-md hover:shadow-[0_4px_20px_rgba(203,159,90,0.25)] whitespace-nowrap shrink-0"
+                  className="rounded-full bg-[#C89B3C] hover:bg-[#A67C22] text-[#033B2E] hover:text-[#033B2E] border border-[#C89B3C]/35 hover:border-[#C89B3C] px-4 py-2 xl:px-6 xl:py-2.5 text-[11px] font-black uppercase tracking-wider xl:tracking-widest transition-all duration-350 active:scale-[0.98] shadow-md hover:shadow-[0_4px_20px_rgba(200,155,60,0.25)] whitespace-nowrap shrink-0"
                 >
                   Login
                 </Link>
@@ -602,7 +602,7 @@ export default function Header({
 
             <button
               onClick={() => setNavOpen((v) => !v)}
-              className="grid h-10 w-10 place-items-center rounded-full border border-[#002a22]/15 text-[#002a22] xl:hidden relative"
+              className="grid h-10 w-10 place-items-center rounded-full border border-[#033B2E]/15 text-[#033B2E] xl:hidden relative"
               aria-label="Menu"
             >
               {navOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -615,11 +615,11 @@ export default function Header({
 
         {/* MOBILE DRAWER */}
         {navOpen && (
-          <div className="border-t border-[#f1ede6] bg-[#faf8f5] px-5 pb-5 xl:hidden">
+          <div className="border-t border-[#e6dfd3] bg-[#F9F7F2] px-5 pb-5 xl:hidden">
             {/* Mobile Search Bar */}
             <div className="relative font-sans mt-4">
-              <div className="relative flex items-center bg-white border border-[#cb9f5a]/30 rounded-2xl px-3.5 py-2.5 shadow-3xs">
-                <Search className="h-4.5 w-4.5 text-[#cb9f5a] mr-2 shrink-0" />
+              <div className="relative flex items-center bg-white border border-[#C89B3C]/30 rounded-2xl px-3.5 py-2.5 shadow-3xs">
+                <Search className="h-4.5 w-4.5 text-[#C89B3C] mr-2 shrink-0" />
                 <input
                   type="text"
                   placeholder="Search services..."
@@ -629,7 +629,7 @@ export default function Header({
                     setDropdownOpen(true);
                   }}
                   onFocus={() => setDropdownOpen(true)}
-                  className="w-full bg-transparent border-0 outline-none text-xs font-semibold text-[#002a22] placeholder:text-slate-400 p-0"
+                  className="w-full bg-transparent border-0 outline-none text-xs font-semibold text-[#033B2E] placeholder:text-slate-400 p-0"
                 />
                 {searchQuery && (
                   <button
@@ -647,13 +647,13 @@ export default function Header({
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-205 rounded-2xl shadow-xl z-50 max-h-[250px] overflow-y-auto p-1.5">
                   {filteredServices.length > 0 ? (
                     <div className="space-y-1">
-                      <div className="text-[9px] font-black uppercase tracking-wider text-[#cb9f5a] px-2.5 py-1 select-none">
+                      <div className="text-[9px] font-black uppercase tracking-wider text-[#C89B3C] px-2.5 py-1 select-none">
                         Found {filteredServices.length} Matching Services
                       </div>
                       {filteredServices.map((s) => (
                         <div
                           key={s.id}
-                          className="flex items-center justify-between p-2 rounded-xl hover:bg-[#faf8f5] active:bg-slate-50 transition-all"
+                          className="flex items-center justify-between p-2 rounded-xl hover:bg-[#F9F7F2] active:bg-slate-50 transition-all"
                         >
                           <div className="flex items-center gap-2.5 min-w-0 pr-2">
                             {s.img && (
@@ -664,7 +664,7 @@ export default function Header({
                               />
                             )}
                             <div className="flex flex-col min-w-0">
-                              <span className="text-xs font-extrabold text-[#002a22] truncate">
+                              <span className="text-xs font-extrabold text-[#033B2E] truncate">
                                 {s.title}
                               </span>
                               <span className="text-[10px] text-slate-400 font-bold">
@@ -679,7 +679,7 @@ export default function Header({
                               setSearchQuery("");
                               navigate({ to: "/service-detail", search: { id: s.id } });
                             }}
-                            className="text-[9px] font-black uppercase tracking-wider bg-[#002a22] text-[#cb9f5a] border border-[#cb9f5a]/30 px-2.5 py-1.5 rounded-lg transition-all shrink-0 cursor-pointer shadow-3xs"
+                            className="text-[9px] font-black uppercase tracking-wider bg-[#033B2E] text-[#C89B3C] border border-[#C89B3C]/30 px-2.5 py-1.5 rounded-lg transition-all shrink-0 cursor-pointer shadow-3xs"
                           >
                             View
                           </button>
@@ -695,9 +695,9 @@ export default function Header({
               )}
             </div>
 
-            <div className="flex items-center justify-between border border-[#cb9f5a]/30 bg-white p-3 rounded-2xl text-xs font-bold text-[#002a22] shadow-3xs mt-4 mb-2">
+            <div className="flex items-center justify-between border border-[#C89B3C]/30 bg-white p-3 rounded-2xl text-xs font-bold text-[#033B2E] shadow-3xs mt-4 mb-2">
               <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-[#cb9f5a]" />
+                <MapPin className="h-4 w-4 text-[#C89B3C]" />
                 <span className="max-w-[150px] truncate">{userLocation || "Guntur, AP"}</span>
               </div>
               <button
@@ -705,7 +705,7 @@ export default function Header({
                   setNavOpen(false);
                   onOpenLocation();
                 }}
-                className="hover:text-[#cb9f5a] transition-colors underline cursor-pointer text-xs text-[#cb9f5a] font-bold"
+                className="hover:text-[#C89B3C] transition-colors underline cursor-pointer text-xs text-[#C89B3C] font-bold"
               >
                 Change
               </button>
@@ -715,7 +715,7 @@ export default function Header({
               {navLinks.map((l) => {
                 const isCurrentPath = typeof window !== "undefined" && window.location.pathname === l.href;
                 const isActive = activeHash === l.href || isCurrentPath;
-                const linkStyles = `font-sans text-xs font-bold uppercase tracking-wider transition-colors py-2.5 border-b border-[#002a22]/5 ${isActive ? "text-[#cb9f5a]" : "text-[#002a22]/85 hover:text-[#cb9f5a]"}`;
+                const linkStyles = `font-sans text-xs font-bold uppercase tracking-wider transition-colors py-2.5 border-b border-[#033B2E]/5 ${isActive ? "text-[#C89B3C]" : "text-[#033B2E]/85 hover:text-[#C89B3C]"}`;
                 return l.isRoute ? (
                   <Link
                     key={l.href}
@@ -743,7 +743,7 @@ export default function Header({
                     navigate({ to: "/admin" });
                     setNavOpen(false);
                   }}
-                  className="w-full text-center rounded-xl border border-[#cb9f5a]/40 bg-gold/5 py-2.5 text-xs font-bold text-[#cb9f5a] transition-colors hover:bg-[#cb9f5a]/10 cursor-pointer font-sans flex items-center justify-center gap-1 mt-2"
+                  className="w-full text-center rounded-xl border border-[#C89B3C]/40 bg-gold/5 py-2.5 text-xs font-bold text-[#C89B3C] transition-colors hover:bg-[#C89B3C]/10 cursor-pointer font-sans flex items-center justify-center gap-1 mt-2"
                 >
                   👑 Admin Panel
                 </button>
@@ -756,7 +756,7 @@ export default function Header({
                       setNavOpen(false);
                       setProfileMenuOpen(true);
                     }}
-                    className="w-full text-center rounded-xl border border-[#cb9f5a] bg-[#cb9f5a]/10 py-2.5 text-xs font-bold text-[#cb9f5a] transition-colors hover:bg-[#cb9f5a]/25 cursor-pointer font-sans"
+                    className="w-full text-center rounded-xl border border-[#C89B3C] bg-[#C89B3C]/10 py-2.5 text-xs font-bold text-[#C89B3C] transition-colors hover:bg-[#C89B3C]/25 cursor-pointer font-sans"
                   >
                     Edit Profile & Saved Addresses
                   </button>
@@ -765,7 +765,7 @@ export default function Header({
                       navigate({ to: "/my-bookings" });
                       setNavOpen(false);
                     }}
-                    className="w-full text-center rounded-xl border border-[#cb9f5a]/30 bg-gold/5 py-2.5 text-xs font-bold text-[#cb9f5a] transition-colors hover:bg-[#cb9f5a]/10 cursor-pointer font-sans"
+                    className="w-full text-center rounded-xl border border-[#C89B3C]/30 bg-gold/5 py-2.5 text-xs font-bold text-[#C89B3C] transition-colors hover:bg-[#C89B3C]/10 cursor-pointer font-sans"
                   >
                     My Bookings
                   </button>
@@ -780,7 +780,7 @@ export default function Header({
                 <Link
                   to="/login"
                   onClick={() => setNavOpen(false)}
-                  className="w-full text-center rounded-xl bg-[#002a22] border border-[#cb9f5a]/35 py-2.5 text-xs font-black uppercase tracking-wider text-[#cb9f5a] hover:bg-[#cb9f5a] hover:text-[#002a22] active:scale-[0.98] transition-all duration-200 block mt-2 shadow-sm"
+                  className="w-full text-center rounded-xl bg-[#C89B3C] border border-[#C89B3C]/35 py-2.5 text-xs font-black uppercase tracking-wider text-[#033B2E] hover:bg-[#A67C22] hover:text-[#033B2E] active:scale-[0.98] transition-all duration-200 block mt-2 shadow-sm"
                 >
                   Login / Register
                 </Link>
@@ -795,21 +795,21 @@ export default function Header({
         <>
           {/* Dark overlay backdrop */}
           <div 
-            className="fixed inset-0 z-50 bg-[#001712]/60 backdrop-blur-xs transition-opacity duration-300"
+            className="fixed inset-0 z-50 bg-[#033B2E]/60 backdrop-blur-xs transition-opacity duration-300"
             onClick={() => setProfileMenuOpen(false)} 
           />
           
           {/* Drawer Container */}
-          <div className="fixed right-0 top-0 bottom-0 w-full max-w-sm sm:max-w-md bg-[#faf8f5] border-l border-[#cb9f5a]/30 shadow-2xl z-55 flex flex-col animate-in slide-in-from-right duration-250 font-sans text-slate-700">
+          <div className="fixed right-0 top-0 bottom-0 w-full max-w-sm sm:max-w-md bg-[#F9F7F2] border-l border-[#C89B3C]/30 shadow-2xl z-55 flex flex-col animate-in slide-in-from-right duration-250 font-sans text-slate-700">
             {/* Drawer Header */}
-            <div className="p-5 border-b border-[#cb9f5a]/20 bg-white flex items-center justify-between">
+            <div className="p-5 border-b border-[#C89B3C]/20 bg-white flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#cb9f5a] block">Account Profile</span>
-                <h2 className="text-base font-display font-bold text-[#002a22] mt-0.5">My Details & Addresses</h2>
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#C89B3C] block">Account Profile</span>
+                <h2 className="text-base font-display font-bold text-[#033B2E] mt-0.5">My Details & Addresses</h2>
               </div>
               <button
                 onClick={() => setProfileMenuOpen(false)}
-                className="p-1.5 rounded-full bg-slate-100 hover:bg-[#cb9f5a] hover:text-[#001712] text-slate-500 transition-colors cursor-pointer"
+                className="p-1.5 rounded-full bg-slate-100 hover:bg-[#C89B3C] hover:text-[#033B2E] text-slate-500 transition-colors cursor-pointer"
               >
                 <X className="h-4.5 w-4.5" />
               </button>

@@ -529,10 +529,10 @@ function ServiceDetailPage() {
 
   if (loadingCatalog || !service) {
     return (
-      <div className="min-h-screen bg-[#faf8f5] flex items-center justify-center p-6">
+      <div className="min-h-screen bg-[#F9F7F2] flex items-center justify-center p-6">
         <div className="text-center space-y-4">
-          <div className="h-12 w-12 border-4 border-[#cb9f5a] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm font-bold text-[#002a22]">Loading Service Details...</p>
+          <div className="h-12 w-12 border-4 border-[#C89B3C] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm font-bold text-[#033B2E]">Loading Service Details...</p>
         </div>
       </div>
     );
@@ -541,7 +541,7 @@ function ServiceDetailPage() {
   const Icon = getServiceIcon(service.id);
   const cartItemCount = cart.reduce((acc, i) => acc + i.qty, 0);
 
-    const navLinks = [
+  const finalNavLinks = [
     { href: "/#home", label: "Home" },
     { href: "/services", label: "Services" },
     { href: "/customized", label: "Customized" },
@@ -549,7 +549,7 @@ function ServiceDetailPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px]">
+    <div className="min-h-screen bg-background text-foreground font-sans pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px] pb-20 md:pb-0">
       <Header
         cartCount={cart.reduce((acc, i) => acc + i.qty, 0)}
         favsCount={favs.length}
@@ -562,30 +562,323 @@ function ServiceDetailPage() {
 
       {/* BREADCRUMB NAVIGATION */}
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 pt-6">
-        <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#cb9f5a]/80 uppercase tracking-wider">
+        <div className="flex items-center gap-1.5 text-[9px] sm:text-[11px] font-bold text-[#C89B3C]/80 uppercase tracking-wider">
           <Link to="/" search={{ category: undefined, cart: undefined }} className="hover:underline">Home</Link>
           <span>&gt;</span>
           <Link to="/services" className="hover:underline">Services</Link>
           <span>&gt;</span>
-          <span className="text-[#cb9f5a] font-extrabold">{service.title}</span>
+          <span className="text-[#C89B3C] font-extrabold">{service.title}</span>
         </div>
       </div>
 
-      {/* MAIN DEDICATED PAGE CONTENT */}
-      <main className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* SECTION 1: HERO TOP BLOCK (Image 2 style) */}
-        <div className="bg-white rounded-3xl border border-[#cb9f5a]/30 p-6 sm:p-8 shadow-[0_10px_35px_-10px_rgba(0,42,34,0.08)] grid gap-8 lg:grid-cols-[1fr_420px] items-center">
+      {/* MOBILE LAYOUT (Compact, single-line plans, includes/excludes, rest off) */}
+      <main className="block md:hidden mx-auto max-w-[1400px] px-4 py-4 space-y-4">
+        {/* Service Title Card */}
+        <div className="bg-white border border-[#C89B3C]/20 rounded-2xl p-4 shadow-3xs">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#C89B3C]/10 border border-[#C89B3C]/30 px-2.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-[#C89B3C]">
+            ✨ Premium Service
+          </span>
+          <h1 className="font-display text-xl font-black text-[#033B2E] mt-1.5 leading-tight">
+            {service.title}
+          </h1>
+          <p className="text-[10px] text-slate-500 font-semibold leading-relaxed mt-1">
+            {service.description || service.desc || "Sparkling Clean. Fresh Air. Perfect Experience."}
+          </p>
+        </div>
+
+        {/* Plan Selector - Just Name & Price in a Single Line */}
+        {plans.length > 0 && (
+          <div className="bg-white border border-[#C89B3C]/20 rounded-2xl p-4 shadow-3xs space-y-2">
+            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-[#C89B3C] block">
+              {isSizeConfigPlans ? "Select Size Configuration" : "Select Package Option"}
+            </span>
+            <div className="flex flex-col gap-2">
+              {plans.map((p, idx) => {
+                const isSelected = selectedPlanIdx === idx;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedPlanIdx(idx)}
+                    className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all duration-205 cursor-pointer ${
+                      isSelected
+                        ? "border-[#C89B3C] bg-[#033B2E] text-white shadow-xs animate-none"
+                        : "border-slate-100 bg-[#F9F7F2] text-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`h-4 w-4 rounded-full border flex items-center justify-center ${isSelected ? "border-[#C89B3C] bg-[#C89B3C]" : "border-slate-300 bg-white"}`}>
+                        {isSelected && <span className="h-1.5 w-1.5 rounded-full bg-[#033B2E]" />}
+                      </span>
+                      <span className={`text-[11px] font-extrabold uppercase tracking-wide ${isSelected ? "text-white" : "text-[#033B2E]"}`}>
+                        {p.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[11px] font-black ${isSelected ? "text-[#C89B3C]" : "text-[#033B2E]"}`}>
+                        ₹{getServicePrice(p.price || service.price || 0)}
+                      </span>
+                      <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold ${isSelected ? "bg-white/10 text-cream" : "bg-slate-200 text-slate-500"}`}>
+                        {p.duration || "2h"}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Inclusions & Exclusions List (Directly Below Plan Selector) */}
+        <div className="grid gap-3">
+          {/* Includes Card */}
+          <div className="bg-white border border-emerald-200 rounded-2xl p-4 shadow-3xs space-y-3">
+            <div className="flex items-center gap-2 border-b border-emerald-100 pb-2">
+              <span className="text-xs">⭐</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
+                Plan Inclusions
+              </span>
+            </div>
+            <ul className="space-y-1.5">
+              {planInclusions.map((item, idx) => (
+                <li key={idx} className="flex items-start gap-2 text-[10px] font-semibold text-slate-600 leading-snug">
+                  <span className="h-3.5 w-3.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-[7px] font-bold shrink-0 mt-0.5">
+                    ✓
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Excludes Card */}
+          <div className="bg-white border border-rose-200 rounded-2xl p-4 shadow-3xs space-y-3">
+            <div className="flex items-center gap-2 border-b border-rose-100 pb-2">
+              <span className="text-xs">✕</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-rose-800">
+                Plan Exclusions
+              </span>
+            </div>
+            <ul className="space-y-1.5">
+              {planExclusions.map((item, idx) => (
+                <li key={idx} className="flex items-start gap-2 text-[10px] font-semibold text-slate-600 leading-snug">
+                  <span className="h-3.5 w-3.5 rounded-full bg-rose-100 text-rose-800 flex items-center justify-center text-[7px] font-bold shrink-0 mt-0.5">
+                    ✕
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Important Pre-service Notes */}
+          <div className="bg-[#033B2E] text-white rounded-2xl p-4 border border-[#C89B3C]/20 shadow-3xs space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">🔔</span>
+              <h3 className="font-display text-[10px] font-black uppercase tracking-widest text-[#C89B3C]">
+                Pre-Service Notes
+              </h3>
+            </div>
+            <div className="grid gap-2">
+              <div className="bg-white/5 border border-white/10 p-3 rounded-xl space-y-0.5">
+                <span className="text-[10px] font-bold text-[#C89B3C]">01. Utility Power</span>
+                <p className="text-[9px] text-cream/70 leading-normal">
+                  Ensure continuous water Water & 16A power socket.
+                </p>
+              </div>
+              <div className="bg-white/5 border border-white/10 p-3 rounded-xl space-y-0.5">
+                <span className="text-[10px] font-bold text-[#C89B3C]">02. Safe Storage</span>
+                <p className="text-[9px] text-cream/70 leading-normal">
+                  Keep all cash, jewelry, and delicate items secured.
+                </p>
+              </div>
+              <div className="bg-white/5 border border-white/10 p-3 rounded-xl space-y-0.5">
+                <span className="text-[10px] font-bold text-[#C89B3C]">03. Heavy Furniture</span>
+                <p className="text-[9px] text-cream/70 leading-normal">
+                  Furniture over 40kg will be cleaned without moving.
+                </p>
+              </div>
+              <div className="bg-white/5 border border-white/10 p-3 rounded-xl space-y-0.5">
+                <span className="text-[10px] font-bold text-[#C89B3C]">04. Quality Sign-off</span>
+                <p className="text-[9px] text-cream/70 leading-normal">
+                  Conduct room walkthrough inspection before sign-off.
+                </p>
+              </div>
+            </div>
+            {service.disclaimer && (
+              <div className="bg-white/5 border border-[#C89B3C]/20 p-2.5 rounded-xl text-[9px] text-[#C89B3C] font-semibold leading-relaxed">
+                ⚠️ Disclaimer: {service.disclaimer}
+              </div>
+            )}
+          </div>
+
+          {/* Core Service Inclusions */}
+          {service.sub && service.sub.length > 0 && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-3xs space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                <span className="text-sm">🧼</span>
+                <h3 className="font-display text-[10px] font-black uppercase tracking-wider text-[#033B2E]">
+                  Core Service Inclusions
+                </h3>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {service.sub.map((feat, idx) => (
+                  <span key={idx} className="bg-[#F9F7F2] border border-slate-100 px-2 py-1 rounded-lg text-[9px] font-semibold text-slate-600">
+                    {feat}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* After Cleaning Precautions */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-3xs space-y-3">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <span className="text-sm">🛡️</span>
+              <h3 className="font-display text-[10px] font-black uppercase tracking-wider text-[#033B2E]">
+                After Cleaning Precautions
+              </h3>
+            </div>
+            <div className="grid gap-2">
+              <div className="bg-sky-50/50 border border-sky-100 p-3 rounded-xl">
+                <span className="text-[10px] font-bold text-sky-855 block">Drying Time</span>
+                <p className="text-[9px] text-slate-600 mt-0.5 leading-normal">
+                  Allow floors and upholstery to air dry completely for 45-60 minutes.
+                </p>
+              </div>
+              <div className="bg-sky-50/50 border border-sky-100 p-3 rounded-xl">
+                <span className="text-[10px] font-bold text-sky-855 block">Ventilation</span>
+                <p className="text-[9px] text-slate-600 mt-0.5 leading-normal">
+                  Keep windows open or exhaust fans running for optimal fresh air.
+                </p>
+              </div>
+              <div className="bg-sky-50/50 border border-sky-100 p-3 rounded-xl">
+                <span className="text-[10px] font-bold text-sky-855 block">Stain Protection</span>
+                <p className="text-[9px] text-slate-600 mt-0.5 leading-normal">
+                  Avoid walking with muddy footwear on freshly scrubbed grout lines.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Specifications */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-3xs space-y-3">
+            <div className="space-y-1">
+              <h4 className="text-[10px] font-black text-[#033B2E] uppercase tracking-wider">Detailed Description</h4>
+              <p className="text-[9px] text-slate-500 font-semibold leading-relaxed">
+                {service.desc || "Hospital-grade disinfectants, single-use microfiber cloths, heavy-duty floor scrubbing machines, industrial wet/dry vacuums & eco-friendly cleaning agents."}
+              </p>
+            </div>
+            <div className="space-y-1 pt-2 border-t border-slate-100">
+              <h4 className="text-[10px] font-black text-[#033B2E] uppercase tracking-wider">What We Need From You</h4>
+              <p className="text-[9px] text-slate-500 font-semibold leading-relaxed">
+                {service.requirements || "Continuous water supply & a functioning 16A electrical socket for operating machine scrubbing equipment during service hours."}
+              </p>
+            </div>
+          </div>
+
+          {/* Customer Reviews */}
+          <div className="bg-white border border-[#C89B3C]/20 rounded-2xl p-4 shadow-3xs space-y-4">
+            <h3 className="font-display text-[10px] font-black uppercase tracking-wider text-[#033B2E]">
+              Verified Customer Reviews
+            </h3>
+            
+            <div className="flex items-center gap-4 bg-[#C89B3C]/10 border border-[#C89B3C]/20 p-3 rounded-xl">
+              <div className="text-3xl font-black text-[#C89B3C] font-display">{avgRating}</div>
+              <div>
+                <div className="flex gap-0.5 text-[#C89B3C]">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className={`h-3 w-3 ${i < Math.round(Number(avgRating)) ? "fill-current" : ""}`} />
+                  ))}
+                </div>
+                <div className="text-[8px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                  {reviewCount} Verified Ratings
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-1">
+              {reviews.map((r) => (
+                <div key={r.id} className="rounded-xl border border-slate-100 p-3 bg-[#F9F7F2]">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-full bg-[#033B2E] text-[#C89B3C] flex items-center justify-center font-bold text-[9px]">
+                        {r.userName.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="font-bold text-[#033B2E] text-[9px]">{r.userName}</div>
+                        <div className="text-[8px] text-slate-400 font-medium">
+                          {new Date(r.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-0.5 text-[#C89B3C]">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star key={i} className={`h-2.5 w-2.5 ${i < r.rating ? "fill-current" : ""}`} />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="mt-1.5 text-[9px] text-slate-600 font-medium italic">"{r.comment}"</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Review Login Gate or Form */}
+            {!isLoggedIn ? (
+              <div className="rounded-xl bg-[#033B2E] p-4 text-center text-white border border-[#C89B3C]/20">
+                <p className="text-[9px] text-cream/80 font-normal">
+                  Please log in to leave a review.
+                </p>
+                <Link
+                  to="/login"
+                  className="inline-block mt-2 rounded-lg bg-[#C89B3C] hover:bg-[#A67C22] px-4 py-1.5 text-[8px] font-bold uppercase tracking-wider text-[#033B2E] border-0 cursor-pointer"
+                >
+                  Login to Review
+                </Link>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitReview} className="space-y-2 pt-2 border-t border-slate-100">
+                <input
+                  value={newReviewName}
+                  onChange={(e) => setNewReviewName(e.target.value)}
+                  placeholder="Your Name"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] text-slate-800 outline-none focus:border-[#C89B3C] font-normal"
+                />
+                <textarea
+                  value={newReviewComment}
+                  onChange={(e) => setNewReviewComment(e.target.value)}
+                  rows={2}
+                  placeholder="Your Feedback..."
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] text-slate-800 outline-none focus:border-[#C89B3C] resize-none font-normal"
+                />
+                <button
+                  type="submit"
+                  disabled={isSubmittingReview}
+                  className="w-full rounded-lg bg-[#033B2E] hover:bg-[#C89B3C] text-white hover:text-[#033B2E] font-bold text-[9px] uppercase tracking-wider py-2 border-0 cursor-pointer"
+                >
+                  Submit
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* DESKTOP LAYOUT (Full featured columns, reviews, precautions, footer) */}
+      <main className="hidden md:block mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* SECTION 1: HERO TOP BLOCK */}
+        <div className="bg-white rounded-3xl border border-[#C89B3C]/30 p-6 sm:p-8 shadow-[0_10px_35px_-10px_rgba(0,42,34,0.08)] grid gap-8 lg:grid-cols-[1fr_420px] items-start">
           {/* Left Details */}
           <div className="space-y-5">
-            <div className="inline-flex items-center gap-2 rounded-full bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 px-3.5 py-1 text-xs font-semibold uppercase tracking-wider text-[#002a22]">
-              <Sparkles className="h-3.5 w-3.5 text-[#cb9f5a]" /> Premium Luxury Cleaning
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#C89B3C]/10 border border-[#C89B3C]/30 px-3.5 py-1 text-xs font-semibold uppercase tracking-wider text-[#033B2E]">
+              <Sparkles className="h-3.5 w-3.5 text-[#C89B3C]" /> Premium Luxury Cleaning
             </div>
 
             <div>
-              <h1 className="font-display text-3xl sm:text-5xl font-bold text-[#002a22] tracking-tight">
+              <h1 className="font-display text-2xl lg:text-3xl font-black text-[#033B2E] tracking-tight">
                 {service.title}
               </h1>
-              <p className="text-xs text-slate-500 font-medium tracking-wide mt-1.5">
+              <p className="text-xs text-slate-550 font-semibold tracking-wide mt-1.5 leading-relaxed">
                 {service.description || service.desc || "Sparkling Clean. Fresh Air. Perfect Experience."}
               </p>
             </div>
@@ -593,7 +886,7 @@ function ServiceDetailPage() {
             {/* Premium Plan Cards Selector */}
             {plans.length > 0 && (
               <div className="space-y-3.5 pt-2">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#cb9f5a] block">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#C89B3C] block">
                   {isSizeConfigPlans ? "Select Property Size / Configuration" : "Select Service Package Tier"}
                 </span>
                 <div className={isSizeConfigPlans ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" : "grid gap-3 sm:grid-cols-3"}>
@@ -609,18 +902,18 @@ function ServiceDetailPage() {
                           onClick={() => setSelectedPlanIdx(idx)}
                           className={`relative flex flex-col justify-between p-4 rounded-xl border text-center transition-all duration-300 cursor-pointer ${
                             isSelected
-                              ? "border-[#cb9f5a] bg-[#002a22] text-white shadow-lg scale-[1.03]"
-                              : "border-slate-200 bg-[#faf8f5] hover:border-[#cb9f5a]/60 hover:bg-white text-slate-800"
+                              ? "border-[#C89B3C] bg-[#033B2E] text-white shadow-lg scale-[1.03]"
+                              : "border-slate-200 bg-[#F9F7F2] hover:border-[#C89B3C]/60 hover:bg-white text-slate-800"
                           }`}
                         >
                           <div>
                             <span className="text-xl block mb-1">🏠</span>
-                            <h3 className={`font-display text-xs font-black uppercase tracking-wider ${isSelected ? "text-[#cb9f5a]" : "text-[#002a22]"}`}>
+                            <h3 className={`font-display text-xs font-black uppercase tracking-wider ${isSelected ? "text-[#C89B3C]" : "text-[#033B2E]"}`}>
                               {p.name}
                             </h3>
                           </div>
                           <div className="mt-3 pt-2 border-t border-slate-200/40 flex flex-col items-center">
-                            <span className={`font-display text-xs font-black ${isSelected ? "text-white" : "text-[#002a22]"}`}>
+                            <span className={`font-display text-xs font-black ${isSelected ? "text-white" : "text-[#033B2E]"}`}>
                               ₹{getServicePrice(p.price || service.price || 0)}
                             </span>
                             <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded mt-1.5 ${isSelected ? "bg-white/10 text-white" : "bg-slate-200/60 text-slate-500"}`}>
@@ -638,25 +931,25 @@ function ServiceDetailPage() {
                         onClick={() => setSelectedPlanIdx(idx)}
                         className={`relative flex flex-col justify-between p-4 rounded-2xl border text-left transition-all duration-300 cursor-pointer ${
                           isSelected
-                            ? "border-[#cb9f5a] bg-[#002a22] text-white shadow-xl scale-[1.02]"
-                            : "border-slate-200 bg-[#faf8f5] hover:border-[#cb9f5a]/60 hover:bg-white text-slate-800"
+                            ? "border-[#C89B3C] bg-[#033B2E] text-white shadow-xl scale-[1.02]"
+                            : "border-slate-200 bg-[#F9F7F2] hover:border-[#C89B3C]/60 hover:bg-white text-slate-800"
                         }`}
                       >
                         {isPro && (
-                          <div className="absolute -top-2.5 right-3 bg-gradient-to-r from-[#cb9f5a] to-[#a37937] text-[#002a22] text-[8px] font-extrabold uppercase px-2 py-0.5 rounded shadow-sm z-10">
+                          <div className="absolute -top-2.5 right-3 bg-[#C89B3C] text-[#033B2E] text-[8px] font-extrabold uppercase px-2 py-0.5 rounded shadow-sm z-10">
                             Most Popular
                           </div>
                         )}
                         <div>
-                          <h3 className={`font-display text-xs font-bold uppercase tracking-wider ${isSelected ? "text-[#cb9f5a]" : "text-[#002a22]"}`}>
+                          <h3 className={`font-display text-xs font-bold uppercase tracking-wider ${isSelected ? "text-[#C89B3C]" : "text-[#033B2E]"}`}>
                             {p.name}
                           </h3>
-                          <p className={`text-[10px] line-clamp-2 mt-1 leading-relaxed ${isSelected ? "text-cream/80" : "text-slate-500"}`}>
+                          <p className={`text-[10px] line-clamp-2 mt-1 leading-relaxed ${isSelected ? "text-cream/80" : "text-slate-505"}`}>
                             {p.description || service.desc}
                           </p>
                         </div>
                         <div className="mt-3 pt-2 border-t border-slate-200/40 flex items-center justify-between">
-                          <span className={`font-display text-sm font-bold ${isSelected ? "text-white" : "text-[#002a22]"}`}>
+                          <span className={`font-display text-sm font-bold ${isSelected ? "text-white" : "text-[#033B2E]"}`}>
                             ₹{getServicePrice(p.price || service.price || 0)}
                           </span>
                           <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1 ${isSelected ? "bg-white/10 text-white" : "bg-slate-200/60 text-slate-500"}`}>
@@ -672,53 +965,35 @@ function ServiceDetailPage() {
 
             {/* Quick Pills */}
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="inline-flex items-center gap-1.5 bg-[#cb9f5a]/5 border border-[#cb9f5a]/20 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#002a22]">
+              <span className="inline-flex items-center gap-1.5 bg-[#C89B3C]/5 border border-[#C89B3C]/20 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#033B2E]">
                 ✨ Hygienic & Safe
               </span>
-              <span className="inline-flex items-center gap-1.5 bg-[#cb9f5a]/5 border border-[#cb9f5a]/20 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#002a22]">
+              <span className="inline-flex items-center gap-1.5 bg-[#C89B3C]/5 border border-[#C89B3C]/20 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#033B2E]">
                 🌿 Eco-Friendly Products
               </span>
-              <span className="inline-flex items-center gap-1.5 bg-[#cb9f5a]/5 border border-[#cb9f5a]/20 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#002a22]">
+              <span className="inline-flex items-center gap-1.5 bg-[#C89B3C]/5 border border-[#C89B3C]/20 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#033B2E]">
                 🛡️ Verified Experts
               </span>
             </div>
-
-            {service.sub && service.sub.length > 0 && (
-              <div className="pt-2 space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#cb9f5a] block">
-                  ⭐ Service Inclusions
-                </span>
-                <div className="grid gap-2 sm:grid-cols-2 text-xs font-semibold text-[#002a22]">
-                  {service.sub.map((feat, idx) => (
-                    <div key={idx} className="flex items-center gap-2 bg-[#faf8f5] border border-slate-100 px-3 py-2 rounded-xl">
-                      <span className="h-4.5 w-4.5 rounded-full bg-[#cb9f5a]/10 text-[#cb9f5a] flex items-center justify-center text-[10px] font-bold shrink-0">
-                        ✓
-                      </span>
-                      <span className="leading-snug">{feat}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Price & Cart row */}
             <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-slate-100 pt-4">
               <div className="flex flex-wrap items-baseline">
                 {service.price && service.price > 0 ? (
                   <>
-                    <span className="text-4xl font-bold text-[#002a22] font-display">
+                    <span className="text-4xl font-bold text-[#033B2E] font-display">
                       ₹{getServicePrice(activePlan.price || service.price || 0)}
                     </span>
-                    <span className="text-[9px] font-bold uppercase text-[#cb9f5a]/90 tracking-wider ml-2">
+                    <span className="text-[9px] font-bold uppercase text-[#C89B3C]/90 tracking-wider ml-2">
                       (Exclusive of all taxes & professional equipment)
                     </span>
                   </>
                 ) : (
                   <>
-                    <span className="text-3xl font-bold text-[#002a22] font-display">
+                    <span className="text-3xl font-bold text-[#033B2E] font-display">
                       Customised Price
                     </span>
-                    <span className="text-[9px] font-bold uppercase text-[#cb9f5a]/90 tracking-wider ml-2">
+                    <span className="text-[9px] font-bold uppercase text-[#C89B3C]/90 tracking-wider ml-2">
                       (Free Consultation & Quote Estimate)
                     </span>
                   </>
@@ -729,7 +1004,7 @@ function ServiceDetailPage() {
                 <button
                   type="button"
                   onClick={() => handleAddToCart(activePlan)}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] px-6 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#033B2E] hover:bg-[#C89B3C] hover:text-[#033B2E] text-white px-6 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer border-0"
                 >
                   <ShoppingCart className="h-4 w-4" /> Add {activePlan.name} to Cart
                 </button>
@@ -737,7 +1012,7 @@ function ServiceDetailPage() {
                 <button
                   type="button"
                   onClick={() => setQuoteModalOpen(true)}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] px-6 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#033B2E] hover:bg-[#C89B3C] hover:text-[#033B2E] text-white px-6 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer border-0"
                 >
                   Get a Quote
                 </button>
@@ -745,15 +1020,15 @@ function ServiceDetailPage() {
             </div>
 
             {(!service.price || service.price === 0) && (
-              <div className="mt-3 p-3.5 bg-[#faf8f5] border border-slate-200/60 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-2xs font-semibold text-slate-500">
-                <span className="flex items-center gap-1.5 text-slate-600">
+              <div className="mt-3 p-3.5 bg-[#F9F7F2] border border-slate-200/60 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-2xs font-semibold text-slate-500">
+                <span className="flex items-center gap-1.5 text-slate-655 font-bold">
                   🛡️ Get a Free Online Quote or book a premium Site inspection:
                 </span>
                 <div className="flex gap-2 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setQuoteModalOpen(true)}
-                    className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-[#cb9f5a]/10 hover:bg-[#cb9f5a]/25 border border-[#cb9f5a]/30 text-[#cb9f5a] text-3xs font-extrabold uppercase tracking-wide cursor-pointer transition-colors"
+                    className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-[#C89B3C]/10 hover:bg-[#C89B3C]/25 border border-[#C89B3C]/30 text-[#C89B3C] text-3xs font-extrabold uppercase tracking-wide cursor-pointer transition-colors"
                   >
                     Get Free Estimate
                   </button>
@@ -769,7 +1044,7 @@ function ServiceDetailPage() {
                       setCartOpen(true);
                       toast.success("Site visit booking added to cart!", { icon: "📍" });
                     }}
-                    className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] border border-slate-200/20 text-3xs font-extrabold uppercase tracking-wide cursor-pointer transition-colors"
+                    className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-[#033B2E] hover:bg-[#C89B3C] text-white hover:text-[#033B2E] border border-slate-200/20 text-3xs font-extrabold uppercase tracking-wide cursor-pointer transition-colors"
                   >
                     Book Site Visit @ ₹500
                   </button>
@@ -820,35 +1095,35 @@ function ServiceDetailPage() {
         </div>
 
         {/* SECTION 3: IMPORTANT PRE-SERVICE NOTES */}
-        <div className="bg-[#002a22] text-white rounded-3xl border border-[#cb9f5a]/30 p-6 sm:p-8 shadow-md space-y-5">
+        <div className="bg-[#033B2E] text-white rounded-3xl border border-[#C89B3C]/30 p-6 sm:p-8 shadow-md space-y-5">
           <div className="flex items-center gap-3">
             <span className="text-lg">🔔</span>
-            <h3 className="font-display text-xs font-bold tracking-widest text-[#cb9f5a] uppercase">
+            <h3 className="font-display text-xs font-bold tracking-widest text-[#C89B3C] uppercase">
               Important Pre-Service Notes
             </h3>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-1">
-              <span className="text-xs font-bold text-[#cb9f5a] block">01. Utility Power</span>
+              <span className="text-xs font-bold text-[#C89B3C] block">01. Utility Power</span>
               <p className="text-[11px] text-cream/70 leading-relaxed font-normal">
                 Ensure continuous water connection & functioning 16A power socket for scrubbing equipment.
               </p>
             </div>
             <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-1">
-              <span className="text-xs font-bold text-[#cb9f5a] block">02. Safe Storage</span>
+              <span className="text-xs font-bold text-[#C89B3C] block">02. Safe Storage</span>
               <p className="text-[11px] text-cream/70 leading-relaxed font-normal">
                 Keep all cash, jewelry, and delicate items secured prior to team's arrival.
               </p>
             </div>
             <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-1">
-              <span className="text-xs font-bold text-[#cb9f5a] block">03. Heavy Furniture</span>
+              <span className="text-xs font-bold text-[#C89B3C] block">03. Heavy Furniture</span>
               <p className="text-[11px] text-cream/70 leading-relaxed font-normal">
                 Furniture over 40kg will be cleaned underneath without moving if unassisted.
               </p>
             </div>
             <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-1">
-              <span className="text-xs font-bold text-[#cb9f5a] block">04. Quality Sign-off</span>
+              <span className="text-xs font-bold text-[#C89B3C] block">04. Quality Sign-off</span>
               <p className="text-[11px] text-cream/70 leading-relaxed font-normal">
                 Conduct a room-by-room walkthrough inspection before issuing final sign-off.
               </p>
@@ -856,7 +1131,7 @@ function ServiceDetailPage() {
           </div>
 
           {service.disclaimer && (
-            <div className="bg-white/5 border border-[#cb9f5a]/25 p-4 rounded-xl text-xs text-[#cb9f5a] font-normal leading-relaxed">
+            <div className="bg-white/5 border border-[#C89B3C]/25 p-4 rounded-xl text-xs text-[#C89B3C] font-normal leading-relaxed">
               ⚠️ <strong>Disclaimer:</strong> {service.disclaimer}
             </div>
           )}
@@ -868,7 +1143,7 @@ function ServiceDetailPage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-lg">👤</span>
-                <h3 className="font-display text-sm font-bold text-[#002a22] uppercase tracking-wider">
+                <h3 className="font-display text-sm font-bold text-[#033B2E] uppercase tracking-wider">
                   Core Service Inclusions
                 </h3>
               </div>
@@ -887,7 +1162,7 @@ function ServiceDetailPage() {
                   return "✨";
                 };
                 return (
-                  <div key={idx} className="flex items-center gap-2 bg-[#faf8f5] border border-slate-100 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-700">
+                  <div key={idx} className="flex items-center gap-2 bg-[#F9F7F2] border border-slate-100 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-700">
                     <span className="text-base">{getFeatureIcon(feat)}</span>
                     <span>{feat}</span>
                   </div>
@@ -897,7 +1172,7 @@ function ServiceDetailPage() {
           </div>
         )}
 
-        {/* SECTION 4: PLAN-SPECIFIC INCLUSIONS & EXCLUSIONS GRID (Image 2 style) */}
+        {/* SECTION 4: PLAN-SPECIFIC INCLUSIONS & EXCLUSIONS GRID */}
         <div className="grid gap-6 md:grid-cols-2">
           {/* Left Card: Includes for Active Plan */}
           <div className="bg-white rounded-3xl border border-emerald-200 p-6 sm:p-8 shadow-sm space-y-5">
@@ -907,7 +1182,7 @@ function ServiceDetailPage() {
                   ⭐
                 </div>
                 <div>
-                  <h3 className="font-display text-lg font-bold text-[#002a22]">
+                  <h3 className="font-display text-lg font-bold text-[#033B2E]">
                     Package Inclusions
                   </h3>
                   <span className="text-[11px] font-semibold text-emerald-700">
@@ -940,7 +1215,7 @@ function ServiceDetailPage() {
                   ❌
                 </div>
                 <div>
-                  <h3 className="font-display text-lg font-bold text-[#002a22]">
+                  <h3 className="font-display text-lg font-bold text-[#033B2E]">
                     Package Exclusions
                   </h3>
                   <span className="text-[11px] font-semibold text-rose-700">
@@ -971,7 +1246,7 @@ function ServiceDetailPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-lg">👤</span>
-              <h3 className="font-display text-sm font-bold text-[#002a22] uppercase tracking-wider">
+              <h3 className="font-display text-sm font-bold text-[#033B2E] uppercase tracking-wider">
                 After Cleaning Precautions
               </h3>
             </div>
@@ -1012,14 +1287,14 @@ function ServiceDetailPage() {
           </div>
         </div>
 
-        {/* SECTION 5: WHAT WE BRING vs WHAT WE NEED (Specifications) */}
+        {/* SECTION 5: WHAT WE BRING vs WHAT WE NEED */}
         <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm grid gap-8 md:grid-cols-2">
           <div className="flex items-start gap-4">
-            <div className="h-10 w-10 rounded-xl bg-[#002a22] text-[#cb9f5a] flex items-center justify-center text-lg shrink-0 shadow-sm">
+            <div className="h-10 w-10 rounded-xl bg-[#033B2E] text-[#C89B3C] flex items-center justify-center text-lg shrink-0 shadow-sm">
               📝
             </div>
             <div className="flex-1">
-              <h4 className="font-display text-sm font-bold text-[#002a22]">Detailed Description</h4>
+              <h4 className="font-display text-sm font-bold text-[#033B2E]">Detailed Description</h4>
               <p className="text-xs text-slate-500 mt-1.5 font-normal leading-relaxed">
                 {service.desc || "Hospital-grade disinfectants, single-use microfiber cloths, heavy-duty floor scrubbing machines, industrial wet/dry vacuums & eco-friendly cleaning agents."}
               </p>
@@ -1027,11 +1302,11 @@ function ServiceDetailPage() {
           </div>
 
           <div className="flex items-start gap-4 md:border-l md:border-slate-100 md:pl-8">
-            <div className="h-10 w-10 rounded-xl bg-[#cb9f5a]/20 text-[#002a22] flex items-center justify-center text-lg shrink-0 shadow-sm">
+            <div className="h-10 w-10 rounded-xl bg-[#C89B3C]/20 text-[#033B2E] flex items-center justify-center text-lg shrink-0 shadow-sm">
               🔌
             </div>
             <div className="flex-1">
-              <h4 className="font-display text-sm font-bold text-[#002a22]">What We Need From You (Requirements)</h4>
+              <h4 className="font-display text-sm font-bold text-[#033B2E]">What We Need From You (Requirements)</h4>
               <p className="text-xs text-slate-500 mt-1.5 font-normal leading-relaxed">
                 {service.requirements || "Continuous water supply & a functioning 16A electrical socket for operating machine scrubbing equipment during service hours."}
               </p>
@@ -1040,7 +1315,7 @@ function ServiceDetailPage() {
         </div>
 
         {/* BRAND ASSURANCE BANNER */}
-        <div className="bg-[#002a22] text-white rounded-3xl border border-[#cb9f5a]/30 p-6 sm:p-8 shadow-md">
+        <div className="bg-[#033B2E] text-white rounded-3xl border border-[#C89B3C]/30 p-6 sm:p-8 shadow-md">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { label: "Verified Specialists", desc: "Background Checked Pros", icon: "🛡️" },
@@ -1060,15 +1335,15 @@ function ServiceDetailPage() {
         </div>
 
         {/* SECTION 8: CUSTOMER REVIEWS */}
-        <div className="bg-white rounded-3xl border border-[#cb9f5a]/30 p-6 sm:p-8 shadow-sm space-y-6">
-          <h3 className="font-display text-xl font-bold uppercase tracking-wider text-[#002a22]">
+        <div className="bg-white rounded-3xl border border-[#C89B3C]/30 p-6 sm:p-8 shadow-sm space-y-6">
+          <h3 className="font-display text-xl font-bold uppercase tracking-wider text-[#033B2E]">
             Verified Customer Reviews
           </h3>
 
           <div className="grid gap-6 sm:grid-cols-[200px_1fr]">
-            <div className="rounded-2xl bg-[#cb9f5a]/10 border border-[#cb9f5a]/25 p-6 text-center flex flex-col justify-center items-center">
-              <div className="font-display text-5xl font-bold text-[#cb9f5a]">{avgRating}</div>
-              <div className="flex justify-center gap-1 text-[#cb9f5a] mt-2">
+            <div className="rounded-2xl bg-[#C89B3C]/10 border border-[#C89B3C]/25 p-6 text-center flex flex-col justify-center items-center">
+              <div className="font-display text-5xl font-bold text-[#C89B3C]">{avgRating}</div>
+              <div className="flex justify-center gap-1 text-[#C89B3C] mt-2">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star
                     key={i}
@@ -1088,7 +1363,7 @@ function ServiceDetailPage() {
                   className="flex items-center gap-2 text-xs font-medium text-slate-500 uppercase"
                 >
                   <span className="w-4 text-right">{row.star}</span>
-                  <Star className="h-3.5 w-3.5 text-[#cb9f5a] fill-current" />
+                  <Star className="h-3.5 w-3.5 text-[#C89B3C] fill-current" />
                   <div className="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
                     <div
                       className="h-full bg-emerald-600 rounded-full"
@@ -1129,7 +1404,7 @@ function ServiceDetailPage() {
 
           {/* Write review form / Login Gate */}
           {!isLoggedIn ? (
-            <div className="rounded-2xl bg-gradient-to-r from-[#002a22] to-[#00382d] p-6 text-center text-white border border-[#cb9f5a]/40 shadow-md">
+            <div className="rounded-2xl bg-gradient-to-r from-[#033B2E] to-[#0d4a3c] p-6 text-center text-white border border-[#C89B3C]/40 shadow-md">
               <h5 className="font-display text-base font-bold text-white">
                 Want to leave a review?
               </h5>
@@ -1139,7 +1414,7 @@ function ServiceDetailPage() {
               <div className="mt-4">
                 <Link
                   to="/login"
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#cb9f5a] via-[#e5be7a] to-[#cb9f5a] px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-[#002a22] shadow-md hover:scale-105 transition-all"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#C89B3C] hover:bg-[#A67C22] px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-[#033B2E] shadow-md hover:scale-105 transition-all border-0 cursor-pointer"
                 >
                   🔐 Login / Register to Review
                 </Link>
@@ -1148,9 +1423,9 @@ function ServiceDetailPage() {
           ) : (
             <form
               onSubmit={handleSubmitReview}
-              className="bg-[#faf8f5] border border-[#cb9f5a]/20 rounded-2xl p-5 space-y-4"
+              className="bg-[#F9F7F2] border border-[#C89B3C]/20 rounded-2xl p-5 space-y-4"
             >
-              <div className="text-xs font-bold uppercase text-[#002a22] tracking-wider">
+              <div className="text-xs font-bold uppercase text-[#033B2E] tracking-wider">
                 Write a Review
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -1162,7 +1437,7 @@ function ServiceDetailPage() {
                     value={newReviewName}
                     onChange={(e) => setNewReviewName(e.target.value)}
                     placeholder="Name"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-normal"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-[#C89B3C] font-normal"
                   />
                 </div>
                 <div>
@@ -1175,10 +1450,10 @@ function ServiceDetailPage() {
                         key={star}
                         type="button"
                         onClick={() => setNewReviewRating(star)}
-                        className="transition-transform active:scale-125 cursor-pointer"
+                        className="transition-transform active:scale-125 cursor-pointer bg-transparent border-0"
                       >
                         <Star
-                          className={`h-5 w-5 ${star <= newReviewRating ? "text-[#cb9f5a] fill-current" : "text-slate-300"}`}
+                          className={`h-5 w-5 ${star <= newReviewRating ? "text-[#C89B3C] fill-current" : "text-slate-300"}`}
                         />
                       </button>
                     ))}
@@ -1194,13 +1469,13 @@ function ServiceDetailPage() {
                   onChange={(e) => setNewReviewComment(e.target.value)}
                   rows={3}
                   placeholder="Share your experience cleaning with us..."
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-normal resize-none"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-800 outline-none focus:border-[#C89B3C] font-normal resize-none"
                 />
               </div>
               <button
                 type="submit"
                 disabled={isSubmittingReview}
-                className="w-full rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] hover:text-[#002a22] text-white font-bold text-xs uppercase tracking-wider py-3 transition-all shadow-md cursor-pointer"
+                className="w-full rounded-xl bg-[#033B2E] hover:bg-[#C89B3C] hover:text-[#033B2E] text-white font-bold text-xs uppercase tracking-wider py-3 transition-all shadow-md cursor-pointer border-0"
               >
                 {isSubmittingReview ? "Submitting Review..." : "Submit My Review"}
               </button>
@@ -1210,25 +1485,25 @@ function ServiceDetailPage() {
       </main>
 
       {/* FOOTER */}
-      <footer className="bg-[#001712] text-cream/80 relative overflow-hidden border-t border-[#cb9f5a]/20 mt-16">
+      <footer className="bg-[#033B2E] text-cream/80 relative overflow-hidden border-t border-[#C89B3C]/20 mt-16">
         {/* Subtle background glow */}
-        <div className="absolute top-0 left-1/4 -translate-y-1/2 w-[500px] h-[250px] bg-[#cb9f5a]/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-0 left-1/4 -translate-y-1/2 w-[500px] h-[250px] bg-[#C89B3C]/5 blur-[120px] rounded-full pointer-events-none" />
 
         <div className="mx-auto max-w-[1400px] px-5 pt-16 pb-12 lg:px-8 relative z-10">
-          <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-4 pb-12 border-b border-[#cb9f5a]/10">
+          <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-4 pb-12 border-b border-[#C89B3C]/10">
             {/* Column 1: Brand Info */}
             <div className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#cb9f5a] to-[#a37937] p-[1px] shadow-lg shadow-[#cb9f5a]/10">
-                  <div className="h-full w-full rounded-[15px] bg-[#001712] flex items-center justify-center">
-                    <Sparkles className="h-5 w-5 text-[#cb9f5a]" />
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#C89B3C] to-[#A67C22] p-[1px] shadow-lg shadow-[#C89B3C]/10">
+                  <div className="h-full w-full rounded-[15px] bg-[#033B2E] flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-[#C89B3C]" />
                   </div>
                 </div>
                 <div>
                   <div className="font-display text-xl font-bold tracking-tight text-white">
                     TheDeep CleanerZ
                   </div>
-                  <div className="text-[10px] uppercase tracking-[0.25em] text-[#cb9f5a] font-extrabold mt-0.5">
+                  <div className="text-[10px] uppercase tracking-[0.25em] text-[#C89B3C] font-extrabold mt-0.5">
                     Luxury Care
                   </div>
                 </div>
@@ -1248,7 +1523,7 @@ function ServiceDetailPage() {
                     key={idx}
                     href="#"
                     aria-label={s.label}
-                    className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 border border-white/10 transition-all duration-300 text-cream/70 hover:bg-[#cb9f5a] hover:text-[#001712] hover:border-[#cb9f5a] hover:-translate-y-1 hover:shadow-md hover:shadow-[#cb9f5a]/10"
+                    className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 border border-white/10 transition-all duration-300 text-cream/70 hover:bg-[#C89B3C] hover:text-[#033B2E] hover:border-[#C89B3C] hover:-translate-y-1 hover:shadow-md hover:shadow-[#C89B3C]/10"
                   >
                     <s.Icon className="h-4 w-4" />
                   </a>
@@ -1258,17 +1533,17 @@ function ServiceDetailPage() {
 
             {/* Column 2: Quick Links */}
             <div>
-              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[#cb9f5a] border-b border-[#cb9f5a]/20 pb-3">
+              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[#C89B3C] border-b border-[#C89B3C]/20 pb-3">
                 Quick Navigation
               </h4>
               <ul className="mt-5 space-y-3 text-xs font-semibold">
-                {navLinks.map((l) => (
+                {finalNavLinks.map((l) => (
                   <li key={l.href}>
                     <a
                       href={l.href}
-                      className="group flex items-center gap-1 text-cream/75 hover:text-[#cb9f5a] transition-all duration-200"
+                      className="group flex items-center gap-1 text-cream/75 hover:text-[#C89B3C] transition-all duration-200"
                     >
-                      <span className="h-1 w-1 rounded-full bg-[#cb9f5a]/50 scale-0 group-hover:scale-100 transition-transform duration-200 mr-1" />
+                      <span className="h-1 w-1 rounded-full bg-[#C89B3C]/50 scale-0 group-hover:scale-100 transition-transform duration-200 mr-1" />
                       <span className="group-hover:translate-x-1.5 transition-transform duration-250">
                         {l.label}
                       </span>
@@ -1280,7 +1555,7 @@ function ServiceDetailPage() {
 
             {/* Column 3: Top Services */}
             <div>
-              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[#cb9f5a] border-b border-[#cb9f5a]/20 pb-3">
+              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[#C89B3C] border-b border-[#C89B3C]/20 pb-3">
                 Our Core Services
               </h4>
               <ul className="mt-5 space-y-3 text-xs font-semibold">
@@ -1299,9 +1574,9 @@ function ServiceDetailPage() {
                           ? "/services"
                           : `/?category=${s.id === "sofa" ? "sofa-carpet" : s.id}`
                       }
-                      className="group flex items-center gap-1 text-cream/75 hover:text-[#cb9f5a] transition-all duration-200"
+                      className="group flex items-center gap-1 text-cream/75 hover:text-[#C89B3C] transition-all duration-200"
                     >
-                      <span className="h-1 w-1 rounded-full bg-[#cb9f5a]/50 scale-0 group-hover:scale-100 transition-transform duration-200 mr-1" />
+                      <span className="h-1 w-1 rounded-full bg-[#C89B3C]/50 scale-0 group-hover:scale-100 transition-transform duration-200 mr-1" />
                       <span className="group-hover:translate-x-1.5 transition-transform duration-250">
                         {s.title}
                       </span>
@@ -1313,13 +1588,13 @@ function ServiceDetailPage() {
 
             {/* Column 4: Contact & Support */}
             <div className="space-y-5">
-              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[#cb9f5a] border-b border-[#cb9f5a]/20 pb-3">
+              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[#C89B3C] border-b border-[#C89B3C]/20 pb-3">
                 Reservations
               </h4>
 
               <div className="space-y-4 font-sans">
                 <div className="flex items-center gap-3 group">
-                  <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#cb9f5a] group-hover:bg-[#cb9f5a]/10 group-hover:border-[#cb9f5a]/30 transition-all">
+                  <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#C89B3C] group-hover:bg-[#C89B3C]/10 group-hover:border-[#C89B3C]/30 transition-all">
                     <Phone className="h-4 w-4" />
                   </div>
                   <div>
@@ -1328,7 +1603,7 @@ function ServiceDetailPage() {
                     </div>
                     <a
                       href="tel:+919876543210"
-                      className="text-xs font-bold text-white hover:text-[#cb9f5a] transition-colors"
+                      className="text-xs font-bold text-white hover:text-[#C89B3C] transition-colors"
                     >
                       +91 98765 43210
                     </a>
@@ -1336,7 +1611,7 @@ function ServiceDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-3 group">
-                  <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#cb9f5a] group-hover:bg-[#cb9f5a]/10 group-hover:border-[#cb9f5a]/30 transition-all">
+                  <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#C89B3C] group-hover:bg-[#C89B3C]/10 group-hover:border-[#C89B3C]/30 transition-all">
                     <Mail className="h-4 w-4" />
                   </div>
                   <div>
@@ -1345,7 +1620,7 @@ function ServiceDetailPage() {
                     </div>
                     <a
                       href="mailto:hello@thedeepcleanerz.com"
-                      className="text-xs font-bold text-white hover:text-[#cb9f5a] transition-colors"
+                      className="text-xs font-bold text-white hover:text-[#C89B3C] transition-colors"
                     >
                       hello@thedeepcleanerz.com
                     </a>
@@ -1353,7 +1628,7 @@ function ServiceDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-3 group">
-                  <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#cb9f5a] group-hover:bg-[#cb9f5a]/10 group-hover:border-[#cb9f5a]/30 transition-all">
+                  <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#C89B3C] group-hover:bg-[#C89B3C]/10 group-hover:border-[#C89B3C]/30 transition-all">
                     <MapPin className="h-4 w-4" />
                   </div>
                   <div>
@@ -1374,15 +1649,15 @@ function ServiceDetailPage() {
               pristine luxury living.
             </div>
             <div className="flex items-center gap-6">
-              <a href="#" className="hover:text-[#cb9f5a] transition-colors">
+              <a href="#" className="hover:text-[#C89B3C] transition-colors">
                 Privacy Policy
               </a>
-              <a href="#" className="hover:text-[#cb9f5a] transition-colors">
+              <a href="#" className="hover:text-[#C89B3C] transition-colors">
                 Terms of Service
               </a>
               <Link
                 to="/login"
-                className="text-[#cb9f5a]/70 hover:text-[#cb9f5a] hover:underline flex items-center gap-1 font-bold"
+                className="text-[#C89B3C]/70 hover:text-[#C89B3C] hover:underline flex items-center gap-1 font-bold"
               >
                 🛡️ Admin Area
               </Link>
@@ -1390,6 +1665,40 @@ function ServiceDetailPage() {
           </div>
         </div>
       </footer>
+
+      {/* Mobile Sticky Bottom Bar */}
+      {plans.length > 0 && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#C89B3C]/20 px-4 py-3 flex items-center justify-between shadow-[0_-5px_15px_rgba(0,0,0,0.08)]">
+          <div>
+            <div className="text-[8px] font-black uppercase text-slate-400 tracking-wider">
+              Selected Option
+            </div>
+            <div className="text-[10px] font-black uppercase text-[#033B2E] max-w-[150px] truncate">
+              {plans[selectedPlanIdx]?.name || service.title}
+            </div>
+            <div className="text-xs font-black text-[#C89B3C] mt-0.5">
+              ₹{getServicePrice(plans[selectedPlanIdx]?.price || service.price || 0)}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const activePlan = plans[selectedPlanIdx] || { name: service.title, price: service.price || 0 };
+              addRawItemToCart({
+                id: `${service.id}-${activePlan.name.toLowerCase().replace(/\s+/g, "-")}`,
+                title: `${service.title} - ${activePlan.name}`,
+                price: getServicePrice(activePlan.price || 0),
+                img: service.image || service.img || "",
+              });
+              setCartOpen(true);
+              toast.success(`${service.title} - ${activePlan.name} added to cart!`);
+            }}
+            className="bg-[#C89B3C] hover:bg-[#A67C22] text-[#033B2E] font-black text-[10px] uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer border-0 shadow-sm"
+          >
+            Add to Cart
+          </button>
+        </div>
+      )}
 
       {/* QUOTE REQUEST MODAL */}
       {quoteModalOpen && (
@@ -1402,7 +1711,7 @@ function ServiceDetailPage() {
               <X className="h-4 w-4" />
             </button>
 
-            <h3 className="font-display text-xl font-semibold text-[#002a22] mb-1">
+            <h3 className="font-display text-xl font-semibold text-[#033B2E] mb-1">
               Get a Customized Quote
             </h3>
             <p className="text-2xs text-[#4a5f5b] mb-4">
@@ -1417,7 +1726,7 @@ function ServiceDetailPage() {
                   placeholder="e.g. John Doe"
                   value={quoteName}
                   onChange={(e) => setQuoteName(e.target.value)}
-                  className="w-full bg-[#faf8f5] border border-slate-200 rounded-xl px-3 py-2 text-xs text-[#002a22] outline-none focus:border-[#cb9f5a] transition-all"
+                  className="w-full bg-[#F9F7F2] border border-slate-200 rounded-xl px-3 py-2 text-xs text-[#033B2E] outline-none focus:border-[#C89B3C] transition-all"
                 />
               </div>
 
@@ -1428,7 +1737,7 @@ function ServiceDetailPage() {
                   placeholder="e.g. +91 98765 43210"
                   value={quotePhone}
                   onChange={(e) => setQuotePhone(e.target.value)}
-                  className="w-full bg-[#faf8f5] border border-slate-200 rounded-xl px-3 py-2 text-xs text-[#002a22] outline-none focus:border-[#cb9f5a] transition-all"
+                  className="w-full bg-[#F9F7F2] border border-slate-200 rounded-xl px-3 py-2 text-xs text-[#033B2E] outline-none focus:border-[#C89B3C] transition-all"
                 />
               </div>
 
@@ -1439,7 +1748,7 @@ function ServiceDetailPage() {
                   placeholder="e.g. Need deep cleaning for a 20-room hotel lobby and common areas next Monday..."
                   value={quoteRequirements}
                   onChange={(e) => setQuoteRequirements(e.target.value)}
-                  className="w-full bg-[#faf8f5] border border-slate-200 rounded-xl px-3 py-2 text-xs text-[#002a22] outline-none focus:border-[#cb9f5a] transition-all resize-none"
+                  className="w-full bg-[#F9F7F2] border border-slate-200 rounded-xl px-3 py-2 text-xs text-[#033B2E] outline-none focus:border-[#C89B3C] transition-all resize-none"
                 />
               </div>
 
@@ -1448,7 +1757,7 @@ function ServiceDetailPage() {
                   type="button"
                   disabled={quoteSubmitting}
                   onClick={handleSubmitQuote}
-                  className="w-full py-3 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] border-0 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-50"
+                  className="w-full py-3 rounded-xl bg-[#033B2E] hover:bg-[#C89B3C] text-white hover:text-[#033B2E] border-0 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {quoteSubmitting ? "Submitting..." : "Get Free Estimate"}
                 </button>
@@ -1468,7 +1777,7 @@ function ServiceDetailPage() {
                     setCartOpen(true);
                     toast.success("Site visit booking added to cart!", { icon: "📍" });
                   }}
-                  className="w-full py-3 rounded-xl border border-[#cb9f5a] bg-transparent hover:bg-[#cb9f5a]/5 text-[#cb9f5a] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  className="w-full py-3 rounded-xl border border-[#C89B3C] bg-transparent hover:bg-[#C89B3C]/5 text-[#C89B3C] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
                 >
                   Book Site Visit @ ₹500
                 </button>
