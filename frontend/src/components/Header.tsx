@@ -388,10 +388,10 @@ export default function Header({
                 <Star className="h-5 w-5 text-[#cb9f5a] fill-[#cb9f5a]" />
               </div>
               <div className="leading-tight flex-shrink-0">
-                <div className="font-display text-[13px] xs:text-base sm:text-lg md:text-xl font-black tracking-tight text-[#002a22] whitespace-nowrap">
+                <div className="font-display text-[13px] xs:text-base sm:text-lg md:text-xl font-bold tracking-tight text-[#002a22] whitespace-nowrap">
                   TheDeep CleanerZ
                 </div>
-                <div className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.25em] text-[#cb9f5a] mt-0.5 whitespace-nowrap">
+                <div className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.25em] text-[#cb9f5a] mt-0.5 whitespace-nowrap">
                   PREMIUM SERVICES
                 </div>
               </div>
@@ -399,7 +399,7 @@ export default function Header({
             {/* Location Display Capsule */}
             <div
               onClick={onOpenLocation}
-              className="hidden lg:flex items-center gap-2 border border-[#cb9f5a]/30 bg-[#faf8f5] p-2 sm:px-3 sm:py-1 rounded-full text-xs font-bold text-[#002a22] transition-all cursor-pointer shadow-3xs hover:border-[#cb9f5a]/60 shrink-0"
+              className="hidden lg:flex items-center gap-2 border border-[#cb9f5a]/30 bg-[#faf8f5] p-2 sm:px-3 sm:py-1 rounded-full text-xs font-semibold text-[#002a22] transition-all cursor-pointer shadow-3xs hover:border-[#cb9f5a]/60 shrink-0"
             >
               <MapPin className="h-3.5 w-3.5 text-[#cb9f5a] shrink-0" />
               <span className="hidden sm:inline truncate max-w-[80px] lg:max-w-[120px] 2xl:max-w-[200px]" title={userLocation}>
@@ -412,7 +412,7 @@ export default function Header({
             {navLinks.map((l) => {
               const isCurrentPath = typeof window !== "undefined" && window.location.pathname === l.href;
               const isActive = activeHash === l.href || isCurrentPath;
-              const linkClasses = `relative px-4 py-2.5 font-display text-base sm:text-lg font-black tracking-wide transition-all duration-300 ${
+              const linkClasses = `relative px-4 py-2 font-sans text-sm sm:text-[15px] font-medium tracking-wide transition-all duration-300 ${
                 isActive
                   ? "text-[#cb9f5a]"
                   : "text-[#002a22]/80 hover:text-[#cb9f5a]"
