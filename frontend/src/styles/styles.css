@@ -122,26 +122,27 @@
     letter-spacing: -0.01em;
   }
 
-  /* Premium Linear Heading Color Gradients */
-  h1, h2, h3, h4 {
-    background: linear-gradient(135deg, #002a22 15%, #cb9f5a 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    font-weight: 600;
+    color: var(--color-foreground);
   }
 
-  /* Contrast color gradient adjustments for dark layout containers/footer/dark-mode */
-  .dark h1, .dark h2, .dark h3, .dark h4,
-  [class*="bg-navy"] h1, [class*="bg-navy"] h2, [class*="bg-navy"] h3, [class*="bg-navy"] h4,
-  [class*="bg-[#002a22]"] h1, [class*="bg-[#002a22]"] h2, [class*="bg-[#002a22]"] h3, [class*="bg-[#002a22]"] h4,
-  [class*="bg-[#001712]"] h1, [class*="bg-[#001712]"] h2, [class*="bg-[#001712]"] h3, [class*="bg-[#001712]"] h4,
-  footer h1, footer h2, footer h3, footer h4 {
-    background: linear-gradient(135deg, #faf8f5 10%, #cb9f5a 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
+  /* Soften bold text weights globally to make Inter look elegant, clean, and readable */
+  .font-extrabold {
+    font-weight: 700 !important;
+  }
+  .font-bold {
+    font-weight: 600 !important;
+  }
+  .font-semibold {
+    font-weight: 500 !important;
   }
 }
 
