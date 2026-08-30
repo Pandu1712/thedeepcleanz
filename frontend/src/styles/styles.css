@@ -38,8 +38,8 @@
   --color-gold-soft: var(--gold-soft);
   --color-cream: var(--cream);
 
-  --font-display: "Canela", "Cormorant Garamond", "Playfair Display", serif;
-  --font-sans: "Source Sans 3", "Urbanist", sans-serif;
+  --font-display: "Inter", sans-serif;
+  --font-sans: "Inter", sans-serif;
 
   --shadow-luxe: 0 30px 60px -20px color-mix(in oklab, var(--navy) 35%, transparent);
   --shadow-gold: 0 20px 50px -15px color-mix(in oklab, var(--gold) 45%, transparent);
