@@ -349,17 +349,48 @@ export default function Header({
       {/* ANNOUNCEMENT BAR */}
       <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#cb9f5a]/25 font-sans relative z-40 py-1.5">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 text-[11px] lg:px-8">
-          <div className="flex flex-1 items-center gap-3 truncate min-w-0">
+          {/* Mobile Marquee container (visible on mobile, hidden on desktop) */}
+          <div className="flex sm:hidden flex-1 overflow-hidden relative items-center gap-2">
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#cb9f5a] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#cb9f5a]"></span>
+            </span>
+            <div className="w-full overflow-hidden whitespace-nowrap relative flex items-center">
+              <div className="inline-flex gap-8 animate-marquee font-medium text-[10px] text-[#faf8f5]/90 select-none">
+                <span className="flex items-center gap-2">
+                  <span className="font-semibold text-[#cb9f5a] uppercase text-[8px] tracking-wider bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 px-1.5 py-0.5 rounded-full">
+                    PROMO
+                  </span>
+                  <span>{headerPromoText}</span>
+                  <span className="font-mono font-extrabold text-[#cb9f5a] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-[9px]">
+                    {headerPromoCode}
+                  </span>
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="font-semibold text-[#cb9f5a] uppercase text-[8px] tracking-wider bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 px-1.5 py-0.5 rounded-full">
+                    PROMO
+                  </span>
+                  <span>{headerPromoText}</span>
+                  <span className="font-mono font-extrabold text-[#cb9f5a] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-[9px]">
+                    {headerPromoCode}
+                  </span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop announcement display (hidden on mobile, visible on desktop) */}
+          <div className="hidden sm:flex flex-1 items-center gap-3 min-w-0">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#cb9f5a] opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[#cb9f5a]"></span>
             </span>
-            <span className="block truncate text-[#faf8f5]/90 font-medium tracking-wide">
+            <span className="block truncate text-[#faf8f5]/90 font-medium tracking-wide text-[11px]">
               <span className="font-semibold text-[#cb9f5a] uppercase text-[9px] tracking-wider bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 px-2 py-0.5 rounded-full mr-2">
                 PROMO
               </span>
               {headerPromoText}{" "}
-              <span className="inline-flex items-center gap-1 font-mono font-extrabold text-[#cb9f5a] bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full hover:bg-white/10 transition-colors">
+              <span className="inline-flex items-center gap-1 font-mono font-extrabold text-[#cb9f5a] bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full hover:bg-white/10 transition-colors text-[10px]">
                 {headerPromoCode}
               </span>
             </span>
@@ -383,18 +414,12 @@ export default function Header({
       <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-[#cb9f5a]/12 text-[#002a22] shadow-[0_2px_15px_-3px_rgba(0,42,34,0.04)] transition-all duration-300">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 py-3 lg:px-8">
           <div className="flex items-center gap-4 sm:gap-6">
-            <Link to="/" search={{ category: undefined, cart: undefined }} className="flex items-center gap-3 group">
-              <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-2xl bg-gradient-to-br from-[#002a22] to-[#001c17] flex items-center justify-center border border-[#cb9f5a]/40 shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Star className="h-5 w-5 text-[#cb9f5a] fill-[#cb9f5a]" />
-              </div>
-              <div className="leading-tight flex-shrink-0">
-                <div className="font-display text-[13px] xs:text-base sm:text-lg md:text-xl font-bold tracking-tight text-[#002a22] whitespace-nowrap">
-                  TheDeep CleanerZ
-                </div>
-                <div className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.25em] text-[#cb9f5a] mt-0.5 whitespace-nowrap">
-                  PREMIUM SERVICES
-                </div>
-              </div>
+            <Link to="/" search={{ category: undefined, cart: undefined }} className="flex items-center group shrink-0">
+              <img
+                src="/logos/logo.png"
+                className="h-12 sm:h-14 w-auto rounded-full transition-transform duration-300 group-hover:scale-[1.04] shrink-0"
+                alt="TheDeep CleanerZ Logo"
+              />
             </Link>
             {/* Location Display Capsule */}
             <div
@@ -686,16 +711,17 @@ export default function Header({
               </button>
             </div>
 
-            <div className="flex flex-col gap-3 pt-2">
+            <div className="flex flex-col gap-2 pt-2">
               {navLinks.map((l) => {
                 const isCurrentPath = typeof window !== "undefined" && window.location.pathname === l.href;
                 const isActive = activeHash === l.href || isCurrentPath;
+                const linkStyles = `font-sans text-xs font-bold uppercase tracking-wider transition-colors py-2.5 border-b border-[#002a22]/5 ${isActive ? "text-[#cb9f5a]" : "text-[#002a22]/85 hover:text-[#cb9f5a]"}`;
                 return l.isRoute ? (
                   <Link
                     key={l.href}
                     to={l.href}
                     onClick={() => setNavOpen(false)}
-                    className={`font-display text-lg font-black transition-colors ${isActive ? "text-[#cb9f5a]" : "text-[#002a22]/90 hover:text-[#cb9f5a]"}`}
+                    className={linkStyles}
                   >
                     {l.label}
                   </Link>
@@ -704,7 +730,7 @@ export default function Header({
                     key={l.href}
                     href={l.href}
                     onClick={() => setNavOpen(false)}
-                    className={`font-display text-lg font-black transition-colors ${isActive ? "text-[#cb9f5a]" : "text-[#002a22]/90 hover:text-[#cb9f5a]"}`}
+                    className={linkStyles}
                   >
                     {l.label}
                   </a>
@@ -717,7 +743,7 @@ export default function Header({
                     navigate({ to: "/admin" });
                     setNavOpen(false);
                   }}
-                  className="w-full text-center rounded-full border border-[#cb9f5a]/40 bg-gold/5 py-2.5 text-sm font-bold text-[#cb9f5a] transition-colors hover:bg-[#cb9f5a]/10 cursor-pointer font-sans flex items-center justify-center gap-1"
+                  className="w-full text-center rounded-xl border border-[#cb9f5a]/40 bg-gold/5 py-2.5 text-xs font-bold text-[#cb9f5a] transition-colors hover:bg-[#cb9f5a]/10 cursor-pointer font-sans flex items-center justify-center gap-1 mt-2"
                 >
                   👑 Admin Panel
                 </button>
@@ -730,7 +756,7 @@ export default function Header({
                       setNavOpen(false);
                       setProfileMenuOpen(true);
                     }}
-                    className="w-full text-center rounded-full border border-[#cb9f5a] bg-[#cb9f5a]/10 py-2.5 text-sm font-bold text-[#cb9f5a] transition-colors hover:bg-[#cb9f5a]/25 cursor-pointer font-sans"
+                    className="w-full text-center rounded-xl border border-[#cb9f5a] bg-[#cb9f5a]/10 py-2.5 text-xs font-bold text-[#cb9f5a] transition-colors hover:bg-[#cb9f5a]/25 cursor-pointer font-sans"
                   >
                     Edit Profile & Saved Addresses
                   </button>
@@ -739,13 +765,13 @@ export default function Header({
                       navigate({ to: "/my-bookings" });
                       setNavOpen(false);
                     }}
-                    className="w-full text-center rounded-full border border-[#cb9f5a]/30 bg-gold/5 py-2.5 text-sm font-bold text-[#cb9f5a] transition-colors hover:bg-[#cb9f5a]/10 cursor-pointer font-sans"
+                    className="w-full text-center rounded-xl border border-[#cb9f5a]/30 bg-gold/5 py-2.5 text-xs font-bold text-[#cb9f5a] transition-colors hover:bg-[#cb9f5a]/10 cursor-pointer font-sans"
                   >
                     My Bookings
                   </button>
                   <button
                     onClick={handleLogout}
-                    className="w-full text-center rounded-full border border-rose-500/30 bg-rose-500/5 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-500/10 cursor-pointer"
+                    className="w-full text-center rounded-xl border border-rose-500/30 bg-rose-500/5 py-2.5 text-xs font-bold text-rose-500 hover:bg-rose-500/10 cursor-pointer"
                   >
                     Logout Account
                   </button>
@@ -754,7 +780,7 @@ export default function Header({
                 <Link
                   to="/login"
                   onClick={() => setNavOpen(false)}
-                  className="w-full text-center rounded-full bg-[#002a22] border border-[#cb9f5a]/30 py-2.5 text-xs font-extrabold uppercase tracking-widest text-[#cb9f5a] active:bg-[#cb9f5a] active:text-[#002a22] transition-all duration-200 block"
+                  className="w-full text-center rounded-xl bg-[#002a22] border border-[#cb9f5a]/35 py-2.5 text-xs font-black uppercase tracking-wider text-[#cb9f5a] hover:bg-[#cb9f5a] hover:text-[#002a22] active:scale-[0.98] transition-all duration-200 block mt-2 shadow-sm"
                 >
                   Login / Register
                 </Link>

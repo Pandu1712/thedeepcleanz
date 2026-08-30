@@ -1,4 +1,4 @@
-const CACHE_NAME = "thedeepcleanz-static-v1";
+const CACHE_NAME = "thedeepcleanz-static-v3";
 const API_CACHE_NAME = "thedeepcleanz-api-v1";
 
 const STATIC_ASSETS = [
@@ -45,6 +45,26 @@ self.addEventListener("fetch", (event) => {
 
   // Ignore non-GET requests and internal schemes / extensions
   if (event.request.method !== "GET" || (!event.request.url.startsWith(self.location.origin) && !event.request.url.startsWith("https://fonts."))) {
+    return;
+  }
+
+  // Handle HTML document navigation requests (Network-First to ensure instant updates)
+  if (event.request.mode === "navigate" || STATIC_ASSETS.includes(requestUrl.pathname)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const cacheCopy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, cacheCopy);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(event.request);
+        })
+    );
     return;
   }
 

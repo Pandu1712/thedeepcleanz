@@ -2170,194 +2170,179 @@ function Index() {
 
 
       
-      {/* HERO SECTION - LIGHT CHAMPAGNE & GOLD LUXURY THEME */}
+      {/* HERO SECTION - BRIGHT & CLEAN PREMIUM WHITE THEME WITH LIGHT BACKGROUND IMAGE */}
       <section
         id="home"
-        className="relative overflow-hidden bg-gradient-to-b from-[#FAF8F5] via-[#F4EDE0] to-[#EBE2CF] text-[#002a22] py-10 sm:py-14 md:py-16 border-b border-[#cb9f5a]/30"
+        className="relative overflow-hidden bg-white text-[#002a22] py-4 sm:py-10 md:py-12 border-b border-[#cb9f5a]/20"
       >
-        {/* Ambient background radial glow effects */}
-        <div className="absolute top-1/4 -left-32 h-96 w-96 rounded-full bg-[#cb9f5a]/15 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-10 -right-32 h-96 w-96 rounded-full bg-[#cb9f5a]/10 blur-[130px] pointer-events-none" />
-        <div className="absolute top-10 right-1/4 h-64 w-64 rounded-full bg-[#cb9f5a]/10 blur-[100px] pointer-events-none" />
+        {/* Background Image with high brightness overlay */}
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-[0.08] pointer-events-none"
+          style={{ backgroundImage: `url(${heroImg})` }}
+        />
 
-        {/* Decorative Grid Mesh */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#cb9f5a0d_1px,transparent_1px),linear-gradient(to_bottom,#cb9f5a0d_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
+        {/* Subtle, clean gold ambient glow */}
+        <div className="absolute top-1/4 -left-32 h-72 w-72 rounded-full bg-[#cb9f5a]/5 blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-10 -right-32 h-72 w-72 rounded-full bg-[#cb9f5a]/5 blur-[100px] pointer-events-none" />
 
-        <div className="relative mx-auto max-w-[1400px] px-5 lg:px-8 z-10">
-          <div className="grid gap-10 lg:grid-cols-12 items-center">
-            {/* Left Column: Text & CTAs */}
-            <div className="lg:col-span-6 flex flex-col items-start text-left">
-              {/* Premium Pill Badge */}
-              <div
-                className="inline-flex items-center gap-2 rounded-full border border-[#cb9f5a]/40 bg-[#cb9f5a]/10 px-4 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#cb9f5a] backdrop-blur-md shadow-sm animate-fade-in-left"
-                style={{ animationDelay: "100ms" }}
-              >
-                <Sparkles className="h-3.5 w-3.5 text-[#cb9f5a] animate-pulse" />
-                <span className="hidden sm:inline">INDIA'S #1 RATED LUXURY CLEANING SERVICE</span>
-                <span className="sm:hidden">#1 Rated Luxury Clean</span>
-              </div>
-
-              {/* Main Headline */}
-              <h1
-                className="mt-4 font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.08] tracking-tight text-[#002a22] animate-fade-in-left"
-                style={{ animationDelay: "200ms" }}
-              >
-                Spotless Spaces,
-                <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#e5be7a] via-[#cb9f5a] to-[#f5d089] font-serif italic font-normal">
-                  Happier Places.
-                </span>
-              </h1>
-
-              {/* Subtitle */}
-              <p
-                className="mt-3 max-w-xl text-xs sm:text-sm text-[#3a4d49] font-medium leading-relaxed animate-fade-in-left"
-                style={{ animationDelay: "300ms" }}
-              >
-                Hospital-grade deep cleaning, hot-water extraction, and eco-friendly sanitization engineered by background-verified specialists for premium homes & corporate spaces.
-              </p>
-
-              {/* Trust Feature Badges */}
-              <div
-                className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-lg animate-fade-in-left"
-                style={{ animationDelay: "400ms" }}
-              >
-                <div className="flex items-center gap-2.5 rounded-2xl border border-[#cb9f5a]/30 bg-white/60 backdrop-blur-md p-2.5 shadow-sm transition-transform hover:scale-[1.02]">
-                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#cb9f5a]/10 text-[#cb9f5a] font-bold text-sm shrink-0 border border-[#cb9f5a]/30">
-                    <Shield className="h-4 w-4" />
+        <div className="relative mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 z-10">
+          <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:gap-6 lg:items-stretch">
+            {/* Left Column: Premium Intro Banner Card */}
+            <div className="lg:col-span-6 flex flex-col justify-between w-full">
+              <div className="relative overflow-hidden border-0 bg-transparent p-0 sm:rounded-3xl sm:border sm:border-[#cb9f5a]/30 sm:bg-white sm:p-6 lg:p-8 sm:shadow-[0_15px_45px_rgba(0,42,34,0.06)] h-full flex flex-col justify-between group">
+                <div>
+                  {/* Premium Pill Badge */}
+                  <div className="inline-flex items-center gap-1 rounded-full border border-[#cb9f5a]/40 bg-[#002a22] px-2.5 py-0.5 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-[#cb9f5a] shadow-sm">
+                    <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-[#cb9f5a] animate-pulse" />
+                    <span>Trusted Luxury Cleaning</span>
                   </div>
-                  <div className="leading-tight text-left">
-                    <div className="text-[11px] font-bold text-[#002a22]">Verified</div>
-                    <div className="text-[9px] text-[#cb9f5a] font-semibold">Professionals</div>
+
+                  {/* Main Headline */}
+                  <h1 className="mt-2.5 sm:mt-5 font-display text-xl sm:text-3xl md:text-4xl lg:text-[42px] lg:leading-[1.15] font-black tracking-tight text-[#002a22]">
+                    Premium App For All Your
+                    <br />
+                    <span className="text-[#cb9f5a] font-serif italic font-extrabold">
+                      Home & Deep Cleaning
+                    </span>
+                    <br />
+                    Services.
+                  </h1>
+
+                  {/* Subtitle */}
+                  <p className="mt-1.5 sm:mt-4 text-[10px] sm:text-xs md:text-sm text-[#002a22]/80 font-semibold leading-normal sm:leading-relaxed max-w-xl">
+                    Experience background-verified cleaning specialists, hotel-grade service, and eco-friendly sanitization for luxury homes & offices. Simplified. Booked. Relaxed.
+                  </p>
+
+                  {/* Action Button */}
+                  <div className="mt-2.5 sm:mt-5">
+                    <a
+                      href="#categories"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#cb9f5a] via-[#e5be7a] to-[#cb9f5a] px-4 py-2 sm:px-6 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-wider text-[#002a22] shadow-[0_6px_20px_-5px_rgba(203,159,90,0.3)] transition-all hover:scale-[1.02] active:scale-95 hover:shadow-[0_10px_25px_-5px_rgba(203,159,90,0.5)] cursor-pointer"
+                    >
+                      <span>Explore Services</span>
+                      <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#002a22]" />
+                    </a>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 rounded-2xl border border-[#cb9f5a]/30 bg-white/60 backdrop-blur-md p-2.5 shadow-sm transition-transform hover:scale-[1.02]">
-                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 font-bold text-sm shrink-0 border border-emerald-500/20">
-                    <Leaf className="h-4 w-4" />
+                {/* Stats row inside the card (hidden on mobile to save height) */}
+                <div className="hidden sm:grid mt-6 pt-5 border-t border-slate-100 grid-cols-4 gap-3 text-center">
+                  <div>
+                    <div className="text-base sm:text-lg font-black text-[#002a22]">10,000+</div>
+                    <div className="text-[9px] text-slate-600 font-extrabold uppercase tracking-wider mt-0.5">Trusted Homes</div>
                   </div>
-                  <div className="leading-tight text-left">
-                    <div className="text-[11px] font-bold text-[#002a22]">100% Eco</div>
-                    <div className="text-[9px] text-emerald-600 font-semibold">Biological</div>
+                  <div>
+                    <div className="text-base sm:text-lg font-black text-[#cb9f5a]">4.9 / 5.0</div>
+                    <div className="text-[9px] text-slate-600 font-extrabold uppercase tracking-wider mt-0.5">Avg Rating</div>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-2.5 rounded-2xl border border-[#cb9f5a]/30 bg-white/60 backdrop-blur-md p-2.5 shadow-sm transition-transform hover:scale-[1.02]">
-                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#cb9f5a]/10 text-[#cb9f5a] font-bold text-sm shrink-0 border border-[#cb9f5a]/30">
-                    <Clock className="h-4 w-4" />
+                  <div>
+                    <div className="text-base sm:text-lg font-black text-[#002a22]">100% Eco</div>
+                    <div className="text-[9px] text-slate-600 font-extrabold uppercase tracking-wider mt-0.5">Safe Products</div>
                   </div>
-                  <div className="leading-tight text-left">
-                    <div className="text-[11px] font-bold text-[#002a22]">On-Time</div>
-                    <div className="text-[9px] text-[#cb9f5a] font-semibold">Guaranteed</div>
+                  <div>
+                    <div className="text-base sm:text-lg font-black text-[#cb9f5a]">On-Time</div>
+                    <div className="text-[9px] text-slate-600 font-extrabold uppercase tracking-wider mt-0.5">Guaranteed</div>
                   </div>
-                </div>
-              </div>
-
-              {/* Action Buttons & Promo */}
-              <div
-                className="mt-6 flex flex-wrap gap-3.5 items-center w-full animate-fade-in-left"
-                style={{ animationDelay: "500ms" }}
-              >
-                <a
-                  href="#categories"
-                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#cb9f5a] via-[#e5be7a] to-[#cb9f5a] px-7 py-3.5 text-xs font-black uppercase tracking-wider text-[#002a22] shadow-[0_10px_30px_-5px_rgba(203,159,90,0.5)] transition-all hover:scale-105 active:scale-95 hover:shadow-[0_15px_40px_-5px_rgba(203,159,90,0.7)] cursor-pointer"
-                >
-                  <span>Book Your Service</span>
-                  <ArrowRight className="h-4 w-4 text-[#002a22]" />
-                </a>
-                <a
-                  href="#categories"
-                  className="inline-flex items-center gap-2 rounded-full border border-[#cb9f5a]/30 bg-white/80 hover:bg-[#002a22]/5 px-6 py-3.5 text-xs font-bold text-[#002a22] shadow-3xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                >
-                  <span>Explore Packages</span>
-                  <ArrowRight className="h-4 w-4 text-[#cb9f5a]" />
-                </a>
-              </div>
-
-              {/* Live Rating & Stats Footprint */}
-              <div
-                className="mt-6 pt-5 border-t border-[#cb9f5a]/25 flex items-center gap-6 text-xs text-[#3a4d49] font-semibold animate-fade-in-left"
-                style={{ animationDelay: "600ms" }}
-              >
-                <div className="flex items-center gap-1.5">
-                  <div className="flex text-[#cb9f5a]">
-                    {"★".repeat(5)}
-                  </div>
-                  <span className="font-bold text-[#002a22]">4.9/5.0</span>
-                  <span className="text-[10px] text-slate-500">(2,800+ Reviews)</span>
-                </div>
-                <div className="h-3 w-px bg-[#cb9f5a]/30" />
-                <div className="flex items-center gap-1">
-                  <span className="font-bold text-[#002a22]">Guntur & 25+</span>
-                  <span className="text-[10px] text-slate-500">AP Cities</span>
                 </div>
               </div>
             </div>
 
-            {/* Right Column: High-End Hero Showcase Card */}
-            <div className="lg:col-span-6 relative w-full flex items-center justify-center">
-              {/* Main Image Container */}
-              <div className="relative w-full h-[320px] sm:h-[380px] lg:h-[420px] rounded-none overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] border border-[#cb9f5a]/35 group">
-                <img
-                  src={heroImg}
-                  alt="Luxury home deep cleaning team working"
-                  className="h-full w-full object-cover object-center transition-transform duration-1000 group-hover:scale-105"
-                />
+            {/* Right Column: Service Select Grid */}
+            <div className="lg:col-span-6 flex flex-col justify-center border-0 bg-transparent p-0 sm:rounded-3xl sm:border sm:border-[#cb9f5a]/20 sm:bg-white sm:p-6 lg:p-8 sm:shadow-[0_10px_35px_rgba(0,0,0,0.03)] w-full">
+              <div className="text-left mt-2 lg:mt-0">
+                <span className="text-[8px] sm:text-[9px] uppercase tracking-[0.25em] text-[#cb9f5a] font-black block mb-0.5">
+                  Popular Services
+                </span>
+                <h2 className="font-display text-sm sm:text-xl lg:text-2xl font-black text-[#002a22] leading-tight">
+                  What do you need cleaned?
+                </h2>
+                <p className="text-[9px] sm:text-xs text-slate-400 mt-0.5">
+                  Choose from our professional deep cleaning categories.
+                </p>
+              </div>
 
-                {/* Subtle vignette gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#002a22]/80 via-transparent to-black/30" />
-
-                {/* Floating Glass Pill - Top Left */}
-                <div className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-[#002a22]/85 backdrop-blur-md border border-[#cb9f5a]/30 rounded-none py-1.5 px-3 sm:py-2 sm:px-3.5 text-white shadow-xl flex items-center gap-2 z-10 transition-transform duration-300 hover:scale-105">
-                  <div className="grid h-6 w-6 sm:h-7 sm:w-7 place-items-center rounded-xl bg-[#cb9f5a] text-[#002a22] font-black text-[10px] sm:text-xs shadow-sm rounded-none">
-                    ★
-                  </div>
-                  <div className="leading-tight text-left">
-                    <div className="text-[10px] sm:text-xs font-bold text-white">4.9 / 5.0 Rating</div>
-                    <div className="text-[8px] sm:text-[9px] text-[#cb9f5a] font-semibold">2,800+ Verified Reviews</div>
-                  </div>
-                </div>
-
-                {/* Floating Glass Pill - Top Right */}
-                <div className="absolute top-4 right-4 bg-[#002a22]/85 backdrop-blur-md border border-white/20 rounded-none py-2 px-3.5 text-white shadow-xl hidden sm:flex items-center gap-2 z-10 transition-transform duration-300 hover:scale-105">
-                  <div className="grid h-7 w-7 place-items-center rounded-none bg-emerald-500 text-white font-black text-xs shadow-sm">
-                    ✓
-                  </div>
-                  <div className="leading-tight text-left">
-                    <div className="text-xs font-bold text-white">100% Satisfaction</div>
-                    <div className="text-[9px] text-emerald-400 font-semibold">Money-Back Guarantee</div>
-                  </div>
-                </div>
-
-                {/* Floating Customer Proof Banner - Bottom Overlay */}
-                <div className="absolute bottom-3 left-3 right-3 sm:bottom-5 sm:left-5 sm:right-5 bg-[#002a22]/90 backdrop-blur-md border border-[#cb9f5a]/30 rounded-none p-2.5 sm:p-3.5 text-white shadow-2xl flex items-center justify-between z-10 transition-transform duration-300 hover:scale-[1.02]">
-                  <div className="flex items-center gap-3">
-                    <div className="flex -space-x-2">
-                      <img
-                        className="inline-block h-6.5 w-6.5 sm:h-8 sm:w-8 rounded-full border-2 border-[#cb9f5a] object-cover shadow-sm"
-                        src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&q=80"
-                        alt="Customer 1"
-                      />
-                      <img
-                        className="inline-block h-6.5 w-6.5 sm:h-8 sm:w-8 rounded-full border-2 border-[#cb9f5a] object-cover shadow-sm"
-                        src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=64&q=80"
-                        alt="Customer 2"
-                      />
-                      <img
-                        className="inline-block h-6.5 w-6.5 sm:h-8 sm:w-8 rounded-full border-2 border-[#cb9f5a] object-cover shadow-sm"
-                        src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&q=80"
-                        alt="Customer 3"
-                      />
-                    </div>
-                    <div className="leading-tight text-left">
-                      <div className="text-[10px] sm:text-xs font-extrabold text-white">Trusted by 10,000+ Homes</div>
-                      <div className="text-[8px] sm:text-[10px] text-[#cb9f5a] font-semibold">In Guntur & Andhra Pradesh</div>
-                    </div>
-                  </div>
-                  <div className="hidden sm:flex items-center gap-1 bg-[#cb9f5a]/20 border border-[#cb9f5a]/40 rounded-xl px-3 py-1.5 text-2xs font-extrabold text-[#cb9f5a]">
-                    <span>🎁 Code: CLEAN20</span>
-                  </div>
-                </div>
+              {/* Grid of 8 Service Cards - Horizontal Scroll on Mobile, Grid on Desktop */}
+              <div className="flex overflow-x-auto no-scrollbar gap-2 pb-1.5 mt-3 sm:grid sm:grid-cols-4 sm:gap-3 sm:pb-0 snap-x snap-mandatory">
+                {[
+                  {
+                    title: "Full House",
+                    subtext: "Deep Cleaning",
+                    image: imgHouse,
+                    action: () => navigate({ to: "/services", search: { category: "full-house" } }),
+                  },
+                  {
+                    title: "Kitchen Clean",
+                    subtext: "Grease & Shine",
+                    image: imgKitchen,
+                    action: () => navigate({ to: "/service-detail", search: { id: "kitchen" } }),
+                  },
+                  {
+                    title: "Bathroom",
+                    subtext: "Sanitization",
+                    image: imgBathroom,
+                    action: () => navigate({ to: "/service-detail", search: { id: "bath" } }),
+                  },
+                  {
+                    title: "Sofa & Carpet",
+                    subtext: "Stain Removal",
+                    image: imgSofa,
+                    action: () => navigate({ to: "/service-detail", search: { id: "sofa" } }),
+                  },
+                  {
+                    title: "Appliances",
+                    subtext: "Fridge & Tank",
+                    image: imgFridge,
+                    action: () => navigate({ to: "/service-detail", search: { id: "fridge" } }),
+                  },
+                  {
+                    title: "Customized",
+                    subtext: "Room Builder",
+                    image: imgInterior,
+                    action: () => navigate({ to: "/customized" }),
+                  },
+                  {
+                    title: "Commercial",
+                    subtext: "Office & Retail",
+                    image: imgOffice,
+                    action: () => navigate({ to: "/services", search: { category: "commercial" } }),
+                  },
+                  {
+                    title: "View All",
+                    subtext: "Explore Plans",
+                    image: null,
+                    isViewAll: true,
+                    action: () => {
+                      const el = document.getElementById("categories");
+                      if (el) el.scrollIntoView({ behavior: "smooth" });
+                    },
+                  },
+                ].map((item, idx) => (
+                  <button
+                    key={idx}
+                    onClick={item.action}
+                    className="group flex flex-col items-center text-center p-2 rounded-xl bg-white border border-[#cb9f5a]/10 hover:border-[#cb9f5a]/60 shadow-[0_4px_12px_rgba(0,42,34,0.02)] hover:shadow-[0_8px_20px_rgba(203,159,90,0.08)] transition-all duration-300 cursor-pointer w-[82px] shrink-0 snap-start sm:w-full"
+                  >
+                    {item.isViewAll ? (
+                      <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 flex items-center justify-center group-hover:bg-[#cb9f5a] group-hover:border-[#cb9f5a] transition-all duration-300 shrink-0">
+                        <ArrowRight className="h-4.5 w-4.5 text-[#cb9f5a] group-hover:text-[#002a22] transition-colors" />
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full overflow-hidden border border-slate-100 group-hover:border-[#cb9f5a]/50 transition-all duration-300 shrink-0">
+                        <img
+                          src={item.image || ""}
+                          alt={item.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                      </div>
+                    )}
+                    <span className="text-[9px] sm:text-xs font-extrabold text-[#002a22] mt-1.5 group-hover:text-[#cb9f5a] transition-colors line-clamp-1">
+                      {item.title}
+                    </span>
+                    <span className="text-[7.5px] sm:text-[9px] text-[#cb9f5a] font-bold tracking-wide mt-0.5 whitespace-nowrap">
+                      {item.subtext}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
           </div>

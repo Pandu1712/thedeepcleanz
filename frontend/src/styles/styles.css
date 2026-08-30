@@ -38,7 +38,7 @@
   --color-gold-soft: var(--gold-soft);
   --color-cream: var(--cream);
 
-  --font-display: "Inter", sans-serif;
+  --font-display: "Playfair Display", "Georgia", serif;
   --font-sans: "Inter", sans-serif;
 
   --shadow-luxe: 0 30px 60px -20px color-mix(in oklab, var(--navy) 35%, transparent);
@@ -130,11 +130,12 @@
   h6 {
     font-family: var(--font-display);
     letter-spacing: -0.01em;
-    font-weight: 500;
+    /* font-weight: 500; */
     color: var(--color-foreground);
   }
 
   /* Soften bold text weights globally to make Inter look elegant, clean, and readable */
+  /*
   .font-black {
     font-weight: 600 !important;
   }
@@ -147,6 +148,7 @@
   .font-semibold {
     font-weight: 500 !important;
   }
+  */
 }
 
 @utility glass {
@@ -423,6 +425,7 @@
 .text-5xl {
   font-size: 3.25rem !important;
 }
+/*
 .text-\[8px\] {
   font-size: 0.775rem !important;
 }
@@ -435,6 +438,7 @@
 .text-\[11px\] {
   font-size: 0.85rem !important;
 }
+*/
 
 /* Global overrides to hide default spinner arrows on type=number inputs */
 input::-webkit-outer-spin-button,
@@ -462,4 +466,18 @@ input[type="number"] {
   display: inline-flex !important;
   align-items: center !important;
   flex-shrink: 0 !important;
+}
+
+/* Horizontal scrolling announcement marquee keyframes and classes */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marquee 24s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
 }
