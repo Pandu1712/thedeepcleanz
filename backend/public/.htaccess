@@ -1,0 +1,12 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Proxy API calls to local Node Express server running on port 4000
+  RewriteRule ^api/(.*)$ http://127.0.0.1:4000/api/$1 [P,L]
+
+  # SPA Routing: Fallback all HTML requests to index.html
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.html [L]
+</IfModule>
