@@ -626,6 +626,27 @@ function ServiceDetailPage() {
                 );
               })}
             </div>
+
+            {/* Static Add to Cart Button for Mobile */}
+            <div className="pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  const activePlan = plans[selectedPlanIdx] || { name: service.title, price: service.price || 0 };
+                  addRawItemToCart({
+                    id: `${service.id}-${activePlan.name.toLowerCase().replace(/\s+/g, "-")}`,
+                    title: `${service.title} - ${activePlan.name}`,
+                    price: getServicePrice(activePlan.price || 0),
+                    img: service.image || service.img || "",
+                  });
+                  setCartOpen(true);
+                  toast.success(`${service.title} - ${activePlan.name} added to cart!`);
+                }}
+                className="w-full py-2.5 rounded-xl bg-[#C89B3C] hover:bg-[#A67C22] text-[#033B2E] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer border-0 shadow-sm"
+              >
+                Add {plans[selectedPlanIdx]?.name} To Cart
+              </button>
+            </div>
           </div>
         )}
 
