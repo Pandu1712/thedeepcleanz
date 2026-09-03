@@ -268,14 +268,11 @@ function CustomizedComponent() {
       <section className="relative overflow-hidden bg-slate-950 py-16 text-center text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(217,27,92,0.12),transparent_60%)]" />
         <div className="mx-auto max-w-4xl px-5 relative z-10">
-          <span className="text-2xs font-extrabold uppercase tracking-[0.25em] text-gold bg-gold/10 px-4 py-1.5 rounded-full border border-gold/25">
+          <span className="text-2xs font-extrabold uppercase tracking-[0.25em] text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/25">
             Pick Only What You Need
           </span>
-          <h1 className="mt-5 font-display text-3xl font-extrabold tracking-tight sm:text-5xl">
-            Customize{" "}
-            <span className="bg-gradient-to-r from-gold to-yellow-300 bg-clip-text text-transparent">
-              Your Clean
-            </span>
+          <h1 className="mt-5 font-display text-3xl font-extrabold tracking-tight sm:text-5xl text-white">
+            Customize <span className="text-emerald-400">Your Clean</span>
           </h1>
           <p className="mt-4 text-sm sm:text-base text-slate-350 leading-relaxed max-w-2xl mx-auto">
             Design your ideal service by selecting specific mini services or focused clean packages.

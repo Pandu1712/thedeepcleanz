@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import {
   DEFAULT_CATEGORIES,
+  SERVICES,
   Service,
   CartItem,
   CartDrawer,
@@ -122,7 +123,7 @@ function cleanServiceDescription(desc?: string): string {
  * Returns mobile-optimized inclusions and exclusions for each service plan
  * matching exact high-converting reference specifications.
  */
-export function getPlanInclusionsAndExclusions(
+function getPlanInclusionsAndExclusions(
   service: Service | any,
   plan?: ServicePlan | any
 ): {
@@ -365,9 +366,9 @@ function ServiceDetailPage() {
     }
   };
 
-  // Catalog state
+  // Catalog state (defaults to pre-bundled DEFAULT_CATEGORIES so data renders instantly with 0ms delay)
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
-  const [loadingCatalog, setLoadingCatalog] = useState(true);
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [customizedServices, setCustomizedServices] = useState<any[]>([]);
 
   // Cart & Booking State
@@ -395,9 +396,9 @@ function ServiceDetailPage() {
   // User & Location state
   const [userLocation, setUserLocation] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      return sessionStorage.getItem("user_location") || "Visakhapatnam, Andhra Pradesh";
+      return sessionStorage.getItem("user_location_address") || sessionStorage.getItem("user_location") || "Guntur, Andhra Pradesh";
     }
-    return "Visakhapatnam, Andhra Pradesh";
+    return "Guntur, Andhra Pradesh";
   });
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -440,38 +441,86 @@ function ServiceDetailPage() {
     } catch {}
   }, [cart]);
 
-  // Load Admin Catalog
+  // Load Admin Catalog seamlessly in background
   useEffect(() => {
     fetchAdminCatalog()
       .then((data) => {
-        if (data) {
+        if (data && Array.isArray(data.categories) && data.categories.length > 0) {
           setCategories(mergeAdminCatalog(data));
         }
       })
-      .catch((err) => console.error("Catalog load error:", err))
+      .catch((err) => console.warn("Catalog background sync note:", err))
       .finally(() => setLoadingCatalog(false));
 
     fetchCustomizedServices()
-      .then((data) => setCustomizedServices(data || []))
-      .catch((err) => console.error("Customized services load error:", err));
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCustomizedServices(data);
+        }
+      })
+      .catch((err) => console.warn("Customized services sync note:", err));
   }, []);
 
-  // Find target service
+  // Find target service with resilient matching across all aliases
   const service = useMemo(() => {
-    if (!Array.isArray(categories)) return null;
-    for (const cat of categories) {
-      if (cat && Array.isArray(cat.services)) {
-        const found = cat.services.find((s) => s && s.id === serviceId);
-        if (found) return found;
+    const rawId = (serviceId || "").toLowerCase().trim();
+
+    // 1. Exact ID or Title match in catalog categories
+    if (Array.isArray(categories)) {
+      for (const cat of categories) {
+        if (cat && Array.isArray(cat.services)) {
+          const found = cat.services.find(
+            (s) => s && (s.id?.toLowerCase() === rawId || s.title?.toLowerCase() === rawId)
+          );
+          if (found) return found;
+        }
       }
     }
-    // Also check customized services if available
+
+    // 2. Prefix / substring match in catalog categories (e.g. "house" matches "full-house-deep-cleaning" and vice versa)
+    if (rawId && Array.isArray(categories)) {
+      for (const cat of categories) {
+        if (cat && Array.isArray(cat.services)) {
+          const found = cat.services.find(
+            (s) =>
+              s &&
+              (s.id?.toLowerCase().includes(rawId) ||
+                rawId.includes(s.id?.toLowerCase()) ||
+                s.title?.toLowerCase().includes(rawId))
+          );
+          if (found) return found;
+        }
+      }
+    }
+
+    // 3. Check customized services
     if (Array.isArray(customizedServices)) {
-      const foundCustom = customizedServices.find((s) => s && s.id === serviceId);
+      const foundCustom = customizedServices.find(
+        (s) =>
+          s &&
+          (s.id?.toLowerCase() === rawId ||
+            s.id?.toLowerCase().includes(rawId) ||
+            rawId.includes(s.id?.toLowerCase()) ||
+            s.title?.toLowerCase().includes(rawId))
+      );
       if (foundCustom) return foundCustom;
     }
-    // Fallback safely
-    return categories[0]?.services?.[0] || null;
+
+    // 4. Direct match from static SERVICES definition
+    if (Array.isArray(SERVICES)) {
+      const directFound = SERVICES.find(
+        (s) =>
+          s &&
+          (s.id?.toLowerCase() === rawId ||
+            s.id?.toLowerCase().includes(rawId) ||
+            rawId.includes(s.id?.toLowerCase()) ||
+            s.title?.toLowerCase().includes(rawId))
+      );
+      if (directFound) return directFound;
+    }
+
+    // 5. Safe ultimate fallback
+    return categories[0]?.services?.[0] || SERVICES[0] || null;
   }, [categories, customizedServices, serviceId]);
 
   // Load verified reviews
@@ -693,7 +742,7 @@ function ServiceDetailPage() {
     }
   };
 
-  if (loadingCatalog || !service) {
+  if (!service) {
     return (
       <div className="min-h-screen bg-[#FBFBF9] flex items-center justify-center p-6">
         <div className="text-center space-y-4">

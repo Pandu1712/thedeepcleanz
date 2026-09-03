@@ -391,7 +391,7 @@ export default function Header({
             >
               <MapPin className="h-3 w-3 text-emerald-300 shrink-0" />
               <span className="truncate max-w-[160px] sm:max-w-[220px]">
-                {userLocation || "Visakhapatnam, Andhra Pradesh"}
+                {userLocation || "Guntur, Andhra Pradesh"}
               </span>
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
             </button>
@@ -418,42 +418,56 @@ export default function Header({
       {/* HEADER - CLEAN MODERN WHITE REDESIGN MATCHING REFERENCE DESIGN */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] transition-all duration-300">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-8 py-3.5">
-          {/* Left: Brand Logo & Location Capsule */}
-          <div className="flex items-center gap-3 sm:gap-5">
-            <Link
-              to="/"
-              search={{ category: undefined, cart: undefined }}
-              className="flex flex-col group shrink-0 select-none"
-            >
-              <div className="flex items-center text-lg sm:text-2xl font-black tracking-tight leading-none">
+          {/* Left: Brand Logo & Dynamic Location Selector */}
+          <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+            <div className="flex flex-col select-none min-w-0">
+              <Link
+                to="/"
+                search={{ category: undefined, cart: undefined }}
+                className="flex items-center text-base sm:text-2xl font-black tracking-tight leading-none"
+              >
                 <span className="text-slate-900">The</span>
-                <span className="text-[#007A48] mx-1 sm:mx-1.5">Deep</span>
+                <span className="text-[#007A48] mx-0.5 sm:mx-1.5">Deep</span>
                 <span className="text-slate-900">Cleanerz</span>
-              </div>
-              <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1">
+              </Link>
+
+              {/* Mobile Location Selector (Stacked cleanly below brand on Mobile) */}
+              <button
+                type="button"
+                onClick={onOpenLocation}
+                className="flex lg:hidden items-center gap-1 mt-1 text-[11px] font-bold text-[#007A48] hover:text-[#005B36] cursor-pointer text-left transition-colors max-w-[150px] xs:max-w-[180px] group border-0 bg-transparent p-0"
+                title="Click to change location"
+              >
+                <MapPin className="h-3 w-3 text-[#007A48] shrink-0 group-hover:scale-110 transition-transform" />
+                <span className="truncate text-slate-700 font-bold group-hover:text-[#007A48]">
+                  {userLocation || "Guntur, AP"}
+                </span>
+                <ChevronDown className="h-2.5 w-2.5 text-slate-400 shrink-0 group-hover:translate-y-0.5 transition-transform" />
+              </button>
+
+              {/* Desktop Subtitle Tag */}
+              <div className="hidden lg:flex items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1">
                 <span className="h-[2px] w-3 sm:w-4 bg-[#007A48] rounded-full" />
                 <span className="text-[8px] sm:text-[10px] font-bold text-slate-800 tracking-wider uppercase">
                   Your Cleaning Experts
                 </span>
                 <span className="h-[2px] w-3 sm:w-4 bg-[#007A48] rounded-full" />
               </div>
-            </Link>
+            </div>
 
-            {/* Location Display Capsule (Hidden if top banner is enabled to prevent duplication) */}
-            {!showTopBanner && (
-              <button
-                type="button"
-                onClick={onOpenLocation}
-                className="hidden lg:flex items-center gap-2 bg-[#FCFBF8] border border-[#E6DEC8] hover:border-[#007A48] px-3.5 py-1.5 rounded-full text-xs font-semibold text-slate-800 transition-all cursor-pointer shadow-3xs shrink-0"
-                title="Click to change location"
-              >
-                <MapPin className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                <span className="truncate max-w-[130px] xl:max-w-[170px]" title={userLocation || "Visakhapatnam, Andhra Pradesh"}>
-                  {userLocation || "Visakhapatnam, Andhra Pradesh"}
-                </span>
-                <span className={`h-2 w-2 rounded-full ${isOnline ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" : "bg-rose-500 animate-pulse"} shrink-0`} />
-              </button>
-            )}
+            {/* Desktop Interactive Location Capsule (lg+) */}
+            <button
+              type="button"
+              onClick={onOpenLocation}
+              className="hidden lg:flex items-center gap-2 bg-[#F4FAF6] hover:bg-[#E8F5EE] border border-[#CDE5D9] hover:border-[#007A48] px-3.5 py-1.5 rounded-full text-xs font-bold text-[#002A22] transition-all cursor-pointer shadow-3xs shrink-0 max-w-[220px] active:scale-95 group"
+              title="Click to change location"
+            >
+              <MapPin className="h-3.5 w-3.5 text-[#007A48] shrink-0 group-hover:scale-110 transition-transform" />
+              <span className="truncate text-left font-bold" title={userLocation || "Guntur, Andhra Pradesh"}>
+                {userLocation || "Guntur, AP"}
+              </span>
+              <ChevronDown className="h-3 w-3 text-slate-500 shrink-0 group-hover:translate-y-0.5 transition-transform" />
+            </button>
           </div>
 
           {/* Center Navigation Links */}

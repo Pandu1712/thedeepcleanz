@@ -56,9 +56,17 @@ export type AdminService = {
 export type AdminCatalog = { categories: AdminCategory[]; services: AdminService[] };
 
 export async function fetchAdminCatalog(signal?: AbortSignal): Promise<AdminCatalog> {
-  const res = await fetch(`${ADMIN_API_URL}/api/catalog`, { signal });
-  if (!res.ok) throw new Error(`Catalog request failed: ${res.status}`);
-  return (await res.json()) as AdminCatalog;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    const res = await fetch(`${ADMIN_API_URL}/api/catalog`, { signal: signal || ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`Catalog request failed: ${res.status}`);
+    return (await res.json()) as AdminCatalog;
+  } catch (err) {
+    console.warn("Catalog fetch failed or timed out, using fallback:", err);
+    return { categories: [], services: [] };
+  }
 }
 
 export async function postAdminBooking(
@@ -234,9 +242,17 @@ export type AdminCustomizedService = {
 export async function fetchCustomizedServices(
   signal?: AbortSignal,
 ): Promise<AdminCustomizedService[]> {
-  const res = await fetch(`${ADMIN_API_URL}/api/customized-services`, { signal });
-  if (!res.ok) throw new Error(`Customized services request failed: ${res.status}`);
-  return (await res.json()) as AdminCustomizedService[];
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    const res = await fetch(`${ADMIN_API_URL}/api/customized-services`, { signal: signal || ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`Customized services request failed: ${res.status}`);
+    return (await res.json()) as AdminCustomizedService[];
+  } catch (err) {
+    console.warn("Customized services fetch failed or timed out, using fallback:", err);
+    return [];
+  }
 }
 
 export async function createCustomizedService(

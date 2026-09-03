@@ -2660,7 +2660,7 @@ function Index() {
       {/* WHY CHOOSE US */}
       <section
         id="about"
-        className="bg-[#faf8f5] py-6 md:py-8 border-b border-[#cb9f5a]/10 relative"
+        className="bg-[#F8FAF9] py-8 md:py-12 border-b border-slate-200 relative"
       >
         <div className="mx-auto max-w-7xl px-5 lg:px-8">
           <SectionHeader
@@ -2675,43 +2675,48 @@ function Index() {
                 t: "Verified Staff",
                 d: "Background-checked, certified professionals in full uniform.",
                 bg: "bg-white",
-                border: "border-[#cb9f5a]/15",
+                border: "border-slate-200",
+                iconBg: "bg-[#EBF5EE] text-[#007A48]",
               },
               {
                 i: Leaf,
                 t: "Eco-Safe Care",
                 d: "Plant-based, 100% biodegradable, pet & child-safe cleaning agents.",
-                bg: "bg-[#002a22] text-white",
+                bg: "bg-[#002A22] text-white",
                 border: "border-transparent",
-                iconBg: "bg-white/10 text-[#cb9f5a]",
+                iconBg: "bg-white/10 text-emerald-400",
               },
               {
                 i: Wallet,
                 t: "Upfront Pricing",
                 d: "Honest, direct pricing. No hidden rates, no surprise additions.",
                 bg: "bg-white",
-                border: "border-[#cb9f5a]/15",
+                border: "border-slate-200",
+                iconBg: "bg-[#EBF5EE] text-[#007A48]",
               },
               {
                 i: Clock,
                 t: "Same Day Booking",
                 d: "Need urgent cleaning? Book a same-day slot in under 60 seconds.",
                 bg: "bg-white",
-                border: "border-[#cb9f5a]/15",
+                border: "border-slate-200",
+                iconBg: "bg-[#EBF5EE] text-[#007A48]",
               },
               {
                 i: Wrench,
                 t: "Advanced Gear",
                 d: "Equipped with specialized HEPA-filter vacuums & high-pressure steam washers.",
                 bg: "bg-white",
-                border: "border-[#cb9f5a]/15",
+                border: "border-slate-200",
+                iconBg: "bg-[#EBF5EE] text-[#007A48]",
               },
               {
                 i: Users,
                 t: "Elite Customer Trust",
                 d: "Join 10,000+ happy clients enjoying premium luxury standards.",
                 bg: "bg-white",
-                border: "border-[#cb9f5a]/15",
+                border: "border-slate-200",
+                iconBg: "bg-[#EBF5EE] text-[#007A48]",
               },
             ].map((f) => (
               <div
@@ -2719,7 +2724,7 @@ function Index() {
                 className={`group hover-lift rounded-2xl p-5 border ${f.border} ${f.bg} shadow-sm transition-all hover:shadow-md`}
               >
                 <div
-                  className={`grid h-10 w-10 place-items-center rounded-xl ${f.iconBg || "bg-[#cb9f5a]/15 text-[#002a22]"} transition-transform group-hover:scale-105`}
+                  className={`grid h-10 w-10 place-items-center rounded-xl ${f.iconBg} transition-transform group-hover:scale-105`}
                 >
                   <f.i className="h-5 w-5" />
                 </div>
@@ -2732,10 +2737,10 @@ function Index() {
       </section>
 
       {/* PROCESS */}
-      <section className="mx-auto max-w-[1400px] px-5 py-6 md:py-8 lg:px-8">
+      <section className="mx-auto max-w-[1400px] px-5 py-8 md:py-12 lg:px-8">
         <SectionHeader eyebrow="How It Works" title="Four Simple Steps to a Spotless Space" />
         <div className="relative mt-5 grid gap-4 md:grid-cols-4">
-          <div className="absolute left-0 right-0 top-6 hidden h-[1px] bg-gradient-to-r from-transparent via-[#cb9f5a]/30 to-transparent md:block" />
+          <div className="absolute left-0 right-0 top-6 hidden h-[1px] bg-gradient-to-r from-transparent via-[#007A48]/20 to-transparent md:block" />
           {[
             {
               n: "01",
@@ -2764,21 +2769,21 @@ function Index() {
           ].map((s) => (
             <div
               key={s.n}
-              className="relative rounded-none bg-white border border-[#cb9f5a]/10 p-5 text-center transition-all hover:border-[#cb9f5a]/30 shadow-sm"
+              className="relative rounded-2xl bg-white border border-slate-200 p-5 text-center transition-all hover:border-[#007A48]/40 hover:shadow-md shadow-xs"
             >
-              <div className="mx-auto grid h-10 w-10 place-items-center rounded-none bg-gradient-to-br from-[#002a22] to-[#001712] text-[#cb9f5a] shadow-md relative z-10">
+              <div className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-[#002A22] text-emerald-400 shadow-sm relative z-10">
                 <s.i className="h-5 w-5" />
               </div>
-              <div className="mt-2.5 font-display text-2xl font-black text-[#cb9f5a]/20">{s.n}</div>
-              <h3 className="mt-0.5 font-display text-sm font-bold text-navy">{s.t}</h3>
-              <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">{s.d}</p>
+              <div className="mt-2.5 font-display text-2xl font-black text-[#007A48]/25">{s.n}</div>
+              <h3 className="mt-0.5 font-display text-sm font-bold text-[#002A22]">{s.t}</h3>
+              <p className="mt-1 text-[11px] text-slate-500 leading-relaxed font-medium">{s.d}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* RECENT WORKS */}
-      <section className="bg-white py-6 md:py-8 border-b border-[#cb9f5a]/10">
+      <section className="bg-white py-8 md:py-12 border-b border-slate-200">
         <div className="mx-auto max-w-[1400px] px-5 lg:px-8">
           <SectionHeader eyebrow="Recent Services" title="Recently Completed Transformations" />
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -2792,7 +2797,7 @@ function Index() {
                   location={w.location}
                 />
               ) : (
-                <div key={w.id} className="relative overflow-hidden rounded-none shadow-sm aspect-[4/3] w-full border border-[#cb9f5a]/10 bg-slate-900">
+                <div key={w.id} className="relative overflow-hidden rounded-2xl shadow-sm aspect-[4/3] w-full border border-slate-200 bg-slate-900">
                   <img
                     src={w.afterImage}
                     alt={w.title}
@@ -2800,7 +2805,7 @@ function Index() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent z-10 pointer-events-none text-white p-4 flex flex-col justify-end">
                     <h3 className="font-display text-xs font-bold text-white leading-tight">{w.title}</h3>
-                    <p className="text-[9px] text-[#cb9f5a] font-extrabold mt-0.5">{w.location}</p>
+                    <p className="text-[9px] text-emerald-300 font-extrabold mt-0.5">{w.location}</p>
                   </div>
                 </div>
               )
@@ -2810,9 +2815,9 @@ function Index() {
       </section>
 
       {/* STATS */}
-      <section className="gradient-premium relative overflow-hidden py-6 md:py-8 text-cream noise-overlay">
-        <div className="absolute -left-32 top-0 h-72 w-72 rounded-full bg-[#cb9f5a]/15 blur-3xl" />
-        <div className="absolute -right-32 bottom-0 h-72 w-72 rounded-full bg-[#cb9f5a]/10 blur-3xl" />
+      <section className="gradient-premium relative overflow-hidden py-8 md:py-12 text-cream noise-overlay">
+        <div className="absolute -left-32 top-0 h-72 w-72 rounded-full bg-emerald-600/10 blur-3xl" />
+        <div className="absolute -right-32 bottom-0 h-72 w-72 rounded-full bg-emerald-600/10 blur-3xl" />
         <div className="relative mx-auto grid max-w-[1400px] gap-6 px-5 sm:grid-cols-2 lg:grid-cols-4 lg:px-8">
           {[
             { n: 10000, suffix: "+", l: "Happy Customers" },
@@ -2824,7 +2829,7 @@ function Index() {
               <div className="font-display text-4xl font-extrabold text-white md:text-5xl">
                 <Counter to={s.n} decimals={s.decimals ?? 0} suffix={s.suffix} />
               </div>
-              <div className="mt-1 text-[10px] uppercase tracking-[0.15em] text-[#cb9f5a] font-bold">
+              <div className="mt-1 text-[10px] uppercase tracking-[0.15em] text-emerald-300 font-bold">
                 {s.l}
               </div>
             </div>
@@ -2833,12 +2838,12 @@ function Index() {
       </section>
 
       {/* REVIEWS */}
-      <section id="reviews" className="mx-auto max-w-[1400px] px-5 py-6 md:py-8 lg:px-8">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b border-[#cb9f5a]/10 pb-4">
+      <section id="reviews" className="mx-auto max-w-[1400px] px-5 py-8 md:py-12 lg:px-8">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b border-slate-200 pb-4">
           <SectionHeader eyebrow="Customer Reviews" title="Loved by Homes & Businesses" />
 
           {/* Sorting tabs */}
-          <div className="flex items-center gap-1 bg-[#002a22]/5 p-1 rounded-xl self-start md:self-auto border border-[#cb9f5a]/20 font-sans">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl self-start md:self-auto border border-slate-200 font-sans">
             {[
               { id: "recent", label: "Most Recent" },
               { id: "highest", label: "Highest Rated" },
@@ -2849,8 +2854,8 @@ function Index() {
                 onClick={() => setReviewSortMode(mode.id as any)}
                 className={`px-3 py-1.5 rounded-lg text-[10px] font-extrabold tracking-wider uppercase transition-all cursor-pointer ${
                   reviewSortMode === mode.id
-                    ? "bg-[#002a22] text-white shadow-md"
-                    : "text-[#002a22]/70 hover:text-[#002a22] hover:bg-[#002a22]/10"
+                    ? "bg-[#002A22] text-white shadow-xs"
+                    : "text-[#002A22]/70 hover:text-[#002A22] hover:bg-white"
                 }`}
               >
                 {mode.label}
@@ -3644,15 +3649,15 @@ function SectionHeader({
   subtitle?: string;
 }) {
   return (
-    <div className="w-full text-left font-sans mb-8">
-      <span className="text-[10px] uppercase tracking-[0.2em] text-[#cb9f5a] font-black block mb-1">
-        {eyebrow}
+    <div className="w-full text-left font-sans mb-6 sm:mb-8">
+      <span className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-[#007A48] font-black block mb-1">
+        — {eyebrow} —
       </span>
-      <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-black leading-tight tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#002a22] via-[#00382d] to-[#cb9f5a] w-fit">
+      <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-black leading-tight tracking-tight text-[#002A22]">
         {title}
       </h2>
       {subtitle && (
-        <p className="mt-2.5 text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed font-medium">
+        <p className="mt-2 text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed font-medium">
           {subtitle}
         </p>
       )}
