@@ -530,12 +530,12 @@ const toCatService = (id: string): CatService => {
 
 export const DEFAULT_CATEGORIES: Category[] = [
   {
-    id: "commercial",
-    title: "Commercial Post Interior Cleaning",
-    tagline: "Elite clinical-grade sanitation for corporate offices, hotels, and post-construction spaces.",
-    emoji: "🏢",
-    image: "/images/commercial.jpg",
-    services: ["office", "hotel"].map(toCatService),
+    id: "full-house",
+    title: "Full House Deep Cleaning",
+    tagline: "Top-to-bottom ultra-premium sanitation and deep cleaning engineered for luxury homes.",
+    emoji: "🏠",
+    image: "/images/full_house.jpg",
+    services: ["house", "kitchen", "bath", "interior", "floor", "tank"].map(toCatService),
   },
   {
     id: "customized",
@@ -548,12 +548,12 @@ export const DEFAULT_CATEGORIES: Category[] = [
     ),
   },
   {
-    id: "full-house",
-    title: "Full House Deep Cleaning",
-    tagline: "Top-to-bottom ultra-premium sanitation and deep cleaning engineered for luxury homes.",
-    emoji: "🏠",
-    image: "/images/full_house.jpg",
-    services: ["house", "kitchen", "bath", "interior", "floor", "tank"].map(toCatService),
+    id: "commercial",
+    title: "Commercial Post Interior Cleaning",
+    tagline: "Elite clinical-grade sanitation for corporate offices, hotels, and post-construction spaces.",
+    emoji: "🏢",
+    image: "/images/commercial.jpg",
+    services: ["office", "hotel"].map(toCatService),
   },
 ];
 
@@ -1392,6 +1392,15 @@ export function mergeAdminCatalog(catalog: AdminCatalog): Category[] {
       includes: c.includes || [],
       services,
     };
+  }).sort((a, b) => {
+    const order: Record<string, number> = {
+      "full-house": 1,
+      "customized": 2,
+      "commercial": 3,
+    };
+    const orderA = order[a.id] ?? 99;
+    const orderB = order[b.id] ?? 99;
+    return orderA - orderB;
   });
 }
 
@@ -1480,21 +1489,7 @@ function Index() {
         .trim();
     };
 
-    // 1. Built-in services
-    SERVICES.forEach((s) => {
-      if (!seen.has(s.id)) {
-        seen.add(s.id);
-        list.push({
-          id: s.id,
-          title: cleanTitle(s.title),
-          subtext: `Starts ₹${s.price}`,
-          image: s.img || getFallbackImage(s.title, s.id),
-          action: () => navigate({ to: "/service-detail", search: { id: s.id } }),
-        });
-      }
-    });
-
-    // 2. Add dynamic services from categories (admin/DB catalog)
+    // 1. Follow exact category order: 1st Full House, 2nd Customized, 3rd Commercial
     categories.forEach((cat) => {
       if (Array.isArray(cat.services)) {
         cat.services.forEach((s) => {
@@ -1502,7 +1497,7 @@ function Index() {
             seen.add(s.id);
             const img = (s.img && s.img.startsWith("http")) || (s.image && s.image.startsWith("http"))
               ? (s.img || s.image)
-              : getFallbackImage(s.title, s.id);
+              : (s.img || getFallbackImage(s.title, s.id));
             list.push({
               id: s.id,
               title: cleanTitle(s.title),
@@ -1515,17 +1510,19 @@ function Index() {
       }
     });
 
-    // 3. Add Customized package
-    if (!seen.has("customized")) {
-      seen.add("customized");
-      list.push({
-        id: "customized",
-        title: "Customized Package",
-        subtext: "Room Builder",
-        image: imgInterior,
-        action: () => navigate({ to: "/customized" }),
-      });
-    }
+    // 2. Add any remaining built-in services if not already added
+    SERVICES.forEach((s) => {
+      if (!seen.has(s.id)) {
+        seen.add(s.id);
+        list.push({
+          id: s.id,
+          title: cleanTitle(s.title),
+          subtext: `Starts ₹${s.price}`,
+          image: s.img || getFallbackImage(s.title, s.id),
+          action: () => navigate({ to: "/service-detail", search: { id: s.id } }),
+        });
+      }
+    });
 
     return list;
   }, [categories, navigate]);
