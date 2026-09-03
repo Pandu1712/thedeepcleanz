@@ -676,7 +676,7 @@ function LoginComponent() {
                         required
                         value={phone}
                         onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                        placeholder="e.g. 98765 43210"
+                        placeholder="e.g. 99663 46347"
                         className="w-full rounded-xl border border-[#cb9f5a]/20 bg-black/40 px-4 py-3.5 text-xs text-white placeholder:text-slate-650 outline-none focus:border-[#cb9f5a] focus:ring-1 focus:ring-[#cb9f5a] transition-all font-semibold"
                       />
                     </div>
@@ -695,7 +695,7 @@ function LoginComponent() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={
-                      isRegister ? "e.g. user@example.com" : "e.g. user@example.com or 9876543210"
+                      isRegister ? "e.g. user@example.com" : "e.g. user@example.com or 9966346347"
                     }
                     className="w-full rounded-xl border border-[#cb9f5a]/20 bg-black/40 px-4 py-3.5 text-xs text-white placeholder:text-slate-650 outline-none focus:border-[#cb9f5a] focus:ring-1 focus:ring-[#cb9f5a] transition-all font-semibold"
                   />

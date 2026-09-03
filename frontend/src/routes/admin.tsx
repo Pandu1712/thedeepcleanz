@@ -5088,7 +5088,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                       required
                       value={techPhone}
                       onChange={(e) => setTechPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      placeholder="e.g. 9876543211"
+                      placeholder="e.g. 9966346347"
                       className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a]"
                     />
                   </div>
@@ -5452,7 +5452,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                         onChange={(e) =>
                           setAdminPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
                         }
-                        placeholder="e.g. 9876543210"
+                        placeholder="e.g. 9966346347"
                         className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a]"
                       />
                     </div>

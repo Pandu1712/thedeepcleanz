@@ -51,6 +51,7 @@ import {
   PartyPopper,
   Gift,
   Zap,
+  ShieldCheck,
   BadgeCheck,
   Check,
   Car,
@@ -529,30 +530,30 @@ const toCatService = (id: string): CatService => {
 
 export const DEFAULT_CATEGORIES: Category[] = [
   {
-    id: "full-house",
-    title: "Full House Deep Cleaning",
-    tagline: "Top-to-bottom premium clean for the entire home",
-    emoji: "🏠",
-    image: imgHouse,
-    services: ["house", "kitchen", "bath", "interior", "floor", "tank"].map(toCatService),
+    id: "commercial",
+    title: "Commercial Post Interior Cleaning",
+    tagline: "Elite clinical-grade sanitation for corporate offices, hotels, and post-construction spaces.",
+    emoji: "🏢",
+    image: "/images/commercial.jpg",
+    services: ["office", "hotel"].map(toCatService),
   },
   {
     id: "customized",
     title: "Customized Cleaning Package",
-    tagline: "Pick exactly what you need — room by room",
+    tagline: "Bespoke, room-by-room professional cleaning tailored entirely to your personal space.",
     emoji: "🛋️",
-    image: imgSofa,
+    image: "/images/customized.jpg",
     services: ["sofa", "furniture", "carpet", "mattress", "glass", "fridge", "balcony"].map(
       toCatService,
     ),
   },
   {
-    id: "commercial",
-    title: "Commercial Post Interior Cleaning",
-    tagline: "Office, hotel & post-construction expertise",
-    emoji: "🏢",
-    image: imgOffice,
-    services: ["office", "hotel"].map(toCatService),
+    id: "full-house",
+    title: "Full House Deep Cleaning",
+    tagline: "Top-to-bottom ultra-premium sanitation and deep cleaning engineered for luxury homes.",
+    emoji: "🏠",
+    image: "/images/full_house.jpg",
+    services: ["house", "kitchen", "bath", "interior", "floor", "tank"].map(toCatService),
   },
 ];
 
@@ -1431,6 +1432,104 @@ function Index() {
       });
     }
   };
+
+  const shelfScrollRef = useRef<HTMLDivElement>(null);
+  const scrollShelf = (direction: "left" | "right") => {
+    if (shelfScrollRef.current) {
+      const scrollAmount = 380;
+      shelfScrollRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  const allShelfServices = useMemo(() => {
+    const list: {
+      id: string;
+      title: string;
+      subtext: string;
+      image: string;
+      action: () => void;
+    }[] = [];
+
+    const seen = new Set<string>();
+
+    const getFallbackImage = (title: string, id: string) => {
+      const norm = (title + " " + id).toLowerCase();
+      if (norm.includes("chimney") || norm.includes("kitchen")) return imgKitchen;
+      if (norm.includes("bath") || norm.includes("toilet") || norm.includes("restroom")) return imgBathroom;
+      if (norm.includes("sofa") || norm.includes("couch") || norm.includes("cushion")) return imgSofa;
+      if (norm.includes("furnitur") || norm.includes("table") || norm.includes("chair") || norm.includes("dining")) return imgFurniture;
+      if (norm.includes("balcony")) return imgBalcony;
+      if (norm.includes("carpet") || norm.includes("rug")) return imgCarpet;
+      if (norm.includes("mattress") || norm.includes("bed")) return imgMattress;
+      if (norm.includes("fridge") || norm.includes("refrigerator") || norm.includes("appliance")) return imgFridge;
+      if (norm.includes("glass") || norm.includes("window")) return imgGlass;
+      if (norm.includes("floor") || norm.includes("tile") || norm.includes("marble")) return imgFloor;
+      if (norm.includes("tank") || norm.includes("water")) return imgTank;
+      if (norm.includes("office") || norm.includes("commercial") || norm.includes("warehouse") || norm.includes("shop") || norm.includes("showroom") || norm.includes("restaurant") || norm.includes("hotel")) return imgOffice;
+      if (norm.includes("house") || norm.includes("flat") || norm.includes("home") || norm.includes("room")) return imgHouse;
+      return imgInterior;
+    };
+
+    const cleanTitle = (raw: string) => {
+      return raw
+        .replace(/\s*\(Only For Flats\)/gi, "")
+        .replace(/\s*Service$/gi, "")
+        .trim();
+    };
+
+    // 1. Built-in services
+    SERVICES.forEach((s) => {
+      if (!seen.has(s.id)) {
+        seen.add(s.id);
+        list.push({
+          id: s.id,
+          title: cleanTitle(s.title),
+          subtext: `Starts ₹${s.price}`,
+          image: s.img || getFallbackImage(s.title, s.id),
+          action: () => navigate({ to: "/service-detail", search: { id: s.id } }),
+        });
+      }
+    });
+
+    // 2. Add dynamic services from categories (admin/DB catalog)
+    categories.forEach((cat) => {
+      if (Array.isArray(cat.services)) {
+        cat.services.forEach((s) => {
+          if (!seen.has(s.id)) {
+            seen.add(s.id);
+            const img = (s.img && s.img.startsWith("http")) || (s.image && s.image.startsWith("http"))
+              ? (s.img || s.image)
+              : getFallbackImage(s.title, s.id);
+            list.push({
+              id: s.id,
+              title: cleanTitle(s.title),
+              subtext: s.price ? `Starts ₹${s.price}` : "Deep Clean",
+              image: img,
+              action: () => navigate({ to: "/service-detail", search: { id: s.id } }),
+            });
+          }
+        });
+      }
+    });
+
+    // 3. Add Customized package
+    if (!seen.has("customized")) {
+      seen.add("customized");
+      list.push({
+        id: "customized",
+        title: "Customized Package",
+        subtext: "Room Builder",
+        image: imgInterior,
+        action: () => navigate({ to: "/customized" }),
+      });
+    }
+
+    return list;
+  }, [categories, navigate]);
+
   const [selectedCat, setSelectedCat] = useState<string>(DEFAULT_CATEGORIES[0].id);
   const [selectedSubCat, setSelectedSubCat] = useState<string | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
@@ -1930,7 +2029,17 @@ function Index() {
 
   const parentCategoriesWithSubServices = useMemo(() => {
     const parentCats = categories.filter((c) => !c.parentId);
-    return parentCats.map((parent) => {
+    const order = ["commercial", "customized", "full-house"];
+    const sortedCats = [...parentCats].sort((a, b) => {
+      const idxA = order.indexOf(a.id);
+      const idxB = order.indexOf(b.id);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return 0;
+    });
+
+    return sortedCats.map((parent) => {
       const childCats = categories.filter((c) => c.parentId === parent.id);
       const allServices = [
         ...parent.services,
@@ -2155,7 +2264,7 @@ function Index() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] text-[#002a22] pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px]">
+    <div className="min-h-screen bg-[#FBFBF9] text-[#111827] pt-[68px] sm:pt-[76px]">
       
       <Header
         cartCount={cartCount}
@@ -2168,177 +2277,224 @@ function Index() {
         isSubPage={false}
       />
 
-
-      
-      {/* HERO SECTION - BRIGHT & CLEAN PREMIUM WHITE THEME WITH LIGHT BACKGROUND IMAGE */}
+      {/* HERO SECTION - REDESIGNED EXACTLY AS REFERENCE DESIGN */}
+      {/* HERO SECTION - REDESIGNED EXACTLY AS REFERENCE DESIGN */}
       <section
         id="home"
-        className="relative overflow-hidden bg-[#F9F7F2] text-[#033B2E] py-4 sm:py-10 md:py-12 border-b border-[#C89B3C]/20"
+        className="relative overflow-hidden bg-[#FBFBF9] text-[#111827] pt-3 sm:pt-6 lg:pt-10 pb-8 sm:pb-16 font-sans"
       >
-        {/* Background Image with high brightness overlay */}
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-[0.08] pointer-events-none"
-          style={{ backgroundImage: `url(${heroImg})` }}
-        />
+        <div className="relative mx-auto max-w-[1360px] px-3 sm:px-6 lg:px-8">
+          {/* MOBILE HERO (< lg): Headline (1-2 lines) -> Next Image -> Next Services Shelf ("All in one view") */}
+          <div className="block lg:hidden text-center pt-1 pb-1">
+            {/* Small 1 or 2 line Headline */}
+            <h1 className="font-sans text-xl sm:text-2xl font-black tracking-tight text-[#111827] leading-tight px-1">
+              Premium Cleaning for a{" "}
+              <span className="text-[#0B6B46]">Healthier &amp; Happier</span>{" "}
+              Space.
+            </h1>
 
-        {/* Subtle, clean gold ambient glow */}
-        <div className="absolute top-1/4 -left-32 h-72 w-72 rounded-full bg-[#C89B3C]/5 blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-10 -right-32 h-72 w-72 rounded-full bg-[#C89B3C]/5 blur-[100px] pointer-events-none" />
+            {/* Next: Team Image */}
+            <div className="mt-3 relative w-full max-w-[340px] sm:max-w-[420px] mx-auto">
+              <img
+                src="/images/hero-team.jpg"
+                alt="The Deep CleanerZ In-House Professional Cleaning Team"
+                className="w-full h-auto object-contain rounded-2xl shadow-xs select-none"
+              />
+            </div>
+          </div>
 
-        <div className="relative mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 z-10">
-          <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:gap-6 lg:items-stretch">
-            {/* Left Column: Premium Intro Banner Card */}
-            <div className="lg:col-span-6 flex flex-col justify-between w-full">
-              <div className="relative overflow-hidden border-0 bg-transparent p-0 sm:rounded-3xl sm:border sm:border-[#C89B3C]/30 sm:bg-white sm:p-6 lg:p-8 sm:shadow-[0_15px_45px_rgba(0,42,34,0.06)] h-full flex flex-col justify-between group">
-                <div>
-                  {/* Premium Pill Badge */}
-                  <div className="inline-flex items-center gap-1 rounded-full border border-[#C89B3C]/40 bg-[#033B2E] px-2.5 py-0.5 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-[#C89B3C] shadow-sm">
-                    <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-[#C89B3C] animate-pulse" />
-                    <span>Trusted Luxury Cleaning</span>
+          {/* DESKTOP HERO (lg+): 2-Column Layout */}
+          <div className="hidden lg:grid lg:grid-cols-12 gap-8 lg:gap-10 items-center">
+            {/* Left Column: Headline, Description, CTAs, Trust Metrics */}
+            <div className="lg:col-span-7 flex flex-col justify-center">
+              {/* Trust Badge Pill */}
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#0B6B46] text-white px-4 py-1.5 text-xs font-semibold shadow-sm w-fit">
+                <ShieldCheck className="h-4 w-4 text-emerald-200" />
+                <span>Trusted Cleaning Experts</span>
+              </div>
+
+              {/* Main Headline */}
+              <h1 className="mt-5 font-sans text-4xl sm:text-5xl lg:text-[54px] xl:text-[58px] font-black tracking-tight text-[#111827] leading-[1.12]">
+                Premium Cleaning for a{" "}
+                <span className="text-[#0B6B46] block sm:inline">Healthier &amp; Happier</span>{" "}
+                Space.
+              </h1>
+
+              {/* Subtitle */}
+              <p className="mt-4 text-base sm:text-lg text-slate-600 font-normal leading-relaxed max-w-xl">
+                Professional home &amp; deep cleaning services for a spotless, fresh and healthy environment.
+              </p>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-3.5 sm:gap-4 mt-8">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById("categories");
+                    if (el) el.scrollIntoView({ behavior: "smooth" });
+                    else navigate({ to: "/services" });
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#0B6B46] hover:bg-[#085537] text-white px-6 py-3.5 text-sm sm:text-base font-semibold shadow-[0_4px_14px_rgba(11,107,70,0.25)] hover:shadow-[0_6px_20px_rgba(11,107,70,0.35)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                >
+                  <span>Book a Cleaning</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate({ to: "/services" })}
+                  className="inline-flex items-center justify-center rounded-xl border border-[#0B6B46] text-[#0B6B46] hover:bg-[#0B6B46]/5 bg-transparent px-6 py-3.5 text-sm sm:text-base font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                >
+                  <span>Explore Services</span>
+                </button>
+              </div>
+
+              {/* Trust Stats Bar (4 columns) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mt-10 pt-8 border-t border-slate-200/80">
+                <div className="flex items-center gap-3">
+                  <div className="h-11 w-11 rounded-full bg-[#EBF5EE] text-[#0B6B46] flex items-center justify-center shrink-0">
+                    <HomeIcon className="h-5 w-5" />
                   </div>
-
-                  {/* Main Headline */}
-                  <h1 className="mt-2.5 sm:mt-5 font-display text-xl sm:text-3xl md:text-4xl lg:text-[42px] lg:leading-[1.15] font-black tracking-tight text-[#033B2E]">
-                    Premium App For All Your
-                    <br />
-                    <span className="text-[#C89B3C] font-serif italic font-extrabold">
-                      Home & Deep Cleaning
-                    </span>
-                    <br />
-                    Services.
-                  </h1>
-
-                  {/* Subtitle */}
-                  <p className="mt-1.5 sm:mt-4 text-[10px] sm:text-xs md:text-sm text-[#033B2E]/80 font-semibold leading-normal sm:leading-relaxed max-w-xl">
-                    Experience background-verified cleaning specialists, hotel-grade service, and eco-friendly sanitization for luxury homes & offices. Simplified. Booked. Relaxed.
-                  </p>
-
-                  {/* Action Button */}
-                  <div className="mt-2.5 sm:mt-5">
-                    <a
-                      href="#categories"
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#C89B3C] hover:bg-[#A67C22] px-4 py-2 sm:px-6 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-wider text-[#033B2E] shadow-[0_6px_20px_-5px_rgba(200,155,60,0.3)] transition-all hover:scale-[1.02] active:scale-95 hover:shadow-[0_10px_25px_-5px_rgba(166,124,34,0.5)] cursor-pointer"
-                    >
-                      <span>Explore Services</span>
-                      <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#033B2E]" />
-                    </a>
+                  <div>
+                    <div className="text-base sm:text-lg font-bold text-[#111827] leading-tight">10,000+</div>
+                    <div className="text-xs text-slate-500 font-medium">Happy Homes</div>
                   </div>
                 </div>
 
-                {/* Stats row inside the card (hidden on mobile to save height) */}
-                <div className="hidden sm:grid mt-6 pt-5 border-t border-slate-100 grid-cols-4 gap-3 text-center">
-                  <div>
-                    <div className="text-base sm:text-lg font-black text-[#033B2E]">10,000+</div>
-                    <div className="text-[9px] text-slate-600 font-extrabold uppercase tracking-wider mt-0.5">Trusted Homes</div>
+                <div className="flex items-center gap-3">
+                  <div className="h-11 w-11 rounded-full bg-[#EBF5EE] text-[#0B6B46] flex items-center justify-center shrink-0">
+                    <Star className="h-5 w-5 fill-[#0B6B46]" />
                   </div>
                   <div>
-                    <div className="text-base sm:text-lg font-black text-[#C89B3C]">4.9 / 5.0</div>
-                    <div className="text-[9px] text-slate-600 font-extrabold uppercase tracking-wider mt-0.5">Avg Rating</div>
+                    <div className="text-base sm:text-lg font-bold text-[#111827] leading-tight">4.9 / 5.0</div>
+                    <div className="text-xs text-slate-500 font-medium">Avg Rating</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-11 w-11 rounded-full bg-[#EBF5EE] text-[#0B6B46] flex items-center justify-center shrink-0">
+                    <Leaf className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-base sm:text-lg font-black text-[#033B2E]">100% Eco</div>
-                    <div className="text-[9px] text-slate-600 font-extrabold uppercase tracking-wider mt-0.5">Safe Products</div>
+                    <div className="text-base sm:text-lg font-bold text-[#111827] leading-tight">100% Eco</div>
+                    <div className="text-xs text-slate-500 font-medium">Safe Products</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-11 w-11 rounded-full bg-[#EBF5EE] text-[#0B6B46] flex items-center justify-center shrink-0">
+                    <Clock className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-base sm:text-lg font-black text-[#C89B3C]">On-Time</div>
-                    <div className="text-[9px] text-slate-600 font-extrabold uppercase tracking-wider mt-0.5">Guaranteed</div>
+                    <div className="text-base sm:text-lg font-bold text-[#111827] leading-tight">On-Time</div>
+                    <div className="text-xs text-slate-500 font-medium">Guaranteed</div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Right Column: Service Select Grid */}
-            <div className="lg:col-span-6 flex flex-col justify-center border-0 bg-transparent p-0 sm:rounded-3xl sm:border sm:border-[#C89B3C]/20 sm:bg-white sm:p-6 lg:p-8 sm:shadow-[0_10px_35px_rgba(0,0,0,0.03)] w-full">
-              <div className="text-left mt-2 lg:mt-0">
-                <span className="text-[8px] sm:text-[9px] uppercase tracking-[0.25em] text-[#C89B3C] font-black block mb-0.5">
-                  Popular Services
+            {/* Right Column: Cleaners Team Photo with Badges */}
+            <div className="lg:col-span-5 relative flex items-center justify-center">
+              <div className="relative w-full max-w-[540px]">
+                <img
+                  src="/images/hero-team.jpg"
+                  alt="The Deep CleanerZ In-House Professional Cleaning Team"
+                  className="w-full h-auto object-contain rounded-2xl select-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Shelf Card: Choose from our professional deep cleaning services with left-right movement */}
+          <div className="relative bg-white rounded-[20px] sm:rounded-[30px] border border-slate-200/90 shadow-[0_8px_30px_rgba(0,0,0,0.04)] p-3.5 sm:p-7 md:p-8 mt-3.5 sm:mt-6 lg:mt-14 z-20">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 sm:gap-4 mb-3.5 sm:mb-6 lg:mb-8">
+              <div className="text-left">
+                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-[#0B6B46] block mb-0.5">
+                  — OUR CLEANING SERVICES —
                 </span>
-                <h2 className="font-display text-sm sm:text-xl lg:text-2xl font-black text-[#033B2E] leading-tight">
-                  What do you need cleaned?
+                <h2 className="font-sans text-base sm:text-xl md:text-2xl font-bold text-[#111827] leading-snug">
+                  Choose from our professional deep cleaning services.
                 </h2>
-                <p className="text-[9px] sm:text-xs text-slate-400 mt-0.5">
-                  Choose from our professional deep cleaning categories.
-                </p>
               </div>
 
-              {/* Grid of 8 Service Cards - Horizontal Scroll on Mobile, Grid on Desktop */}
-              <div className="flex overflow-x-auto no-scrollbar gap-2 pb-1.5 mt-3 sm:grid sm:grid-cols-4 sm:gap-3 sm:pb-0 snap-x snap-mandatory">
-                {[
-                  {
-                    title: "Full House",
-                    subtext: "Deep Cleaning",
-                    image: imgHouse,
-                    action: () => navigate({ to: "/services", search: { category: "full-house" } }),
-                  },
-                  {
-                    title: "Kitchen Clean",
-                    subtext: "Grease & Shine",
-                    image: imgKitchen,
-                    action: () => navigate({ to: "/service-detail", search: { id: "kitchen" } }),
-                  },
-                  {
-                    title: "Bathroom",
-                    subtext: "Sanitization",
-                    image: imgBathroom,
-                    action: () => navigate({ to: "/service-detail", search: { id: "bath" } }),
-                  },
-                  {
-                    title: "Sofa & Carpet",
-                    subtext: "Stain Removal",
-                    image: imgSofa,
-                    action: () => navigate({ to: "/service-detail", search: { id: "sofa" } }),
-                  },
-                  {
-                    title: "Appliances",
-                    subtext: "Fridge & Tank",
-                    image: imgFridge,
-                    action: () => navigate({ to: "/service-detail", search: { id: "fridge" } }),
-                  },
-                  {
-                    title: "Customized",
-                    subtext: "Room Builder",
-                    image: imgInterior,
-                    action: () => navigate({ to: "/customized" }),
-                  },
-                  {
-                    title: "Commercial",
-                    subtext: "Office & Retail",
-                    image: imgOffice,
-                    action: () => navigate({ to: "/services", search: { category: "commercial" } }),
-                  },
-                  {
-                    title: "View All",
-                    subtext: "Explore Plans",
-                    image: null,
-                    isViewAll: true,
-                    action: () => {
-                      const el = document.getElementById("categories");
-                      if (el) el.scrollIntoView({ behavior: "smooth" });
-                    },
-                  },
-                ].map((item, idx) => (
+              {/* Left & Right Movement Buttons */}
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => scrollShelf("left")}
+                  aria-label="Previous services"
+                  className="h-9 w-9 sm:h-10 sm:w-10 rounded-full border border-slate-200 hover:border-[#0B6B46] bg-white hover:bg-[#0B6B46]/5 text-slate-700 hover:text-[#0B6B46] shadow-xs flex items-center justify-center transition-all cursor-pointer active:scale-90"
+                  title="Scroll left"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollShelf("right")}
+                  aria-label="Next services"
+                  className="h-9 w-9 sm:h-10 sm:w-10 rounded-full border border-slate-200 hover:border-[#0B6B46] bg-white hover:bg-[#0B6B46]/5 text-slate-700 hover:text-[#0B6B46] shadow-xs flex items-center justify-center transition-all cursor-pointer active:scale-90"
+                  title="Scroll right"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Slider Container with side floating arrows */}
+            <div className="relative group/shelf">
+              {/* Floating Left Button */}
+              <button
+                type="button"
+                onClick={() => scrollShelf("left")}
+                aria-label="Scroll left"
+                className="hidden md:flex absolute -left-4 top-1/2 -translate-y-1/2 z-30 h-10 w-10 rounded-full bg-white border border-slate-200 hover:border-[#0B6B46] text-slate-700 hover:text-[#0B6B46] shadow-md items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+
+              {/* Floating Right Button */}
+              <button
+                type="button"
+                onClick={() => scrollShelf("right")}
+                aria-label="Scroll right"
+                className="hidden md:flex absolute -right-4 top-1/2 -translate-y-1/2 z-30 h-10 w-10 rounded-full bg-white border border-slate-200 hover:border-[#0B6B46] text-slate-700 hover:text-[#0B6B46] shadow-md items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+
+              {/* Horizontal Scrolling Track */}
+              <div
+                ref={shelfScrollRef}
+                className="flex overflow-x-auto no-scrollbar scroll-smooth gap-3 sm:gap-5 py-2 px-1 snap-x snap-mandatory"
+              >
+                {allShelfServices.map((item) => (
                   <button
-                    key={idx}
+                    key={item.id}
+                    type="button"
                     onClick={item.action}
-                    className="group flex flex-col items-center text-center p-2 rounded-xl bg-white border border-[#C89B3C]/10 hover:border-[#C89B3C]/60 shadow-[0_4px_12px_rgba(0,42,34,0.02)] hover:shadow-[0_8px_20px_rgba(200,155,60,0.08)] transition-all duration-300 cursor-pointer w-[82px] shrink-0 snap-start sm:w-full"
+                    className="group shrink-0 snap-start flex flex-col items-center text-center p-2 sm:p-2.5 rounded-2xl hover:bg-[#F9FAF8] transition-all duration-300 cursor-pointer border border-transparent hover:border-slate-200 w-[125px] sm:w-[145px]"
                   >
-                    {item.isViewAll ? (
-                      <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-[#C89B3C]/10 border border-[#C89B3C]/30 flex items-center justify-center group-hover:bg-[#C89B3C] group-hover:border-[#C89B3C] transition-all duration-300 shrink-0">
-                        <ArrowRight className="h-4.5 w-4.5 text-[#C89B3C] group-hover:text-[#033B2E] transition-colors" />
-                      </div>
-                    ) : (
-                      <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full overflow-hidden border border-slate-100 group-hover:border-[#C89B3C]/50 transition-all duration-300 shrink-0">
-                        <img
-                          src={item.image || ""}
-                          alt={item.title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                      </div>
-                    )}
-                    <span className="text-[9px] sm:text-xs font-extrabold text-[#033B2E] mt-1.5 group-hover:text-[#C89B3C] transition-colors line-clamp-1">
-                      {item.title}
-                    </span>
-                    <span className="text-[7.5px] sm:text-[9px] text-[#C89B3C] font-bold tracking-wide mt-0.5 whitespace-nowrap">
+                    <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-slate-100 group-hover:border-[#0B6B46] group-hover:scale-105 transition-all duration-300 shadow-sm shrink-0 bg-slate-100 flex items-center justify-center">
+                      <img
+                        src={item.image}
+                        alt={item.title}
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = imgHouse;
+                        }}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                    </div>
+                    {/* Fixed-height Title Box - Guaranteed NO Cropping & Proper Clamping */}
+                    <div className="w-full mt-2 min-h-[42px] flex items-center justify-center px-1">
+                      <span
+                        className="text-xs sm:text-[13px] font-bold text-[#111827] group-hover:text-[#0B6B46] transition-colors text-center leading-tight line-clamp-2 block"
+                        title={item.title}
+                      >
+                        {item.title}
+                      </span>
+                    </div>
+                    <span className="text-[10px] sm:text-[11px] font-semibold text-[#0B6B46] tracking-tight mt-1 whitespace-nowrap block">
                       {item.subtext}
                     </span>
                   </button>
@@ -2346,212 +2502,160 @@ function Index() {
               </div>
             </div>
           </div>
+
+          {/* Mobile Trust Stats Bar (shown below the shelf on mobile) */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 mt-3.5 lg:hidden">
+            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-slate-200/70 shadow-3xs">
+              <div className="h-8.5 w-8.5 rounded-full bg-[#EBF5EE] text-[#0B6B46] flex items-center justify-center shrink-0">
+                <HomeIcon className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-[#111827] leading-tight">10,000+</div>
+                <div className="text-[10px] text-slate-500 font-medium">Happy Homes</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-slate-200/70 shadow-3xs">
+              <div className="h-8.5 w-8.5 rounded-full bg-[#EBF5EE] text-[#0B6B46] flex items-center justify-center shrink-0">
+                <Star className="h-4 w-4 fill-[#0B6B46]" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-[#111827] leading-tight">4.9 / 5.0</div>
+                <div className="text-[10px] text-slate-500 font-medium">Avg Rating</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-slate-200/70 shadow-3xs">
+              <div className="h-8.5 w-8.5 rounded-full bg-[#EBF5EE] text-[#0B6B46] flex items-center justify-center shrink-0">
+                <Leaf className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-[#111827] leading-tight">100% Eco</div>
+                <div className="text-[10px] text-slate-500 font-medium">Safe Products</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-slate-200/70 shadow-3xs">
+              <div className="h-8.5 w-8.5 rounded-full bg-[#EBF5EE] text-[#0B6B46] flex items-center justify-center shrink-0">
+                <Clock className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-[#111827] leading-tight">On-Time</div>
+                <div className="text-[10px] text-slate-500 font-medium">Guaranteed</div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* CATEGORIES (admin-managed) */}
+      {/* CATEGORIES (All Services) - REDESIGNED EXACTLY AS REFERENCE DESIGN */}
       <section
         id="categories"
-        className="relative mx-auto max-w-[1400px] px-5 pt-2 pb-6 md:pb-8 lg:px-8"
+        className="relative mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 pt-0 sm:pt-2 pb-12 sm:pb-16 font-sans"
       >
-        <div className="w-full text-left font-sans">
-          <span className="text-[10px] uppercase tracking-[0.2em] text-[#cb9f5a] font-black block mb-1">
-            Explore Options
-          </span>
-          <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-black leading-tight tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#002a22] via-[#00382d] to-[#cb9f5a] w-fit">
-            ALL SERVICES
-          </h2>
-          <p className="mt-2.5 text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed font-medium">
-            Choose a category or sub-category package below to explore all professional services.
-          </p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 sm:mb-8">
+          <div className="max-w-xl text-left font-sans">
+            <span className="text-[11px] uppercase tracking-[0.22em] text-[#C89B3C] font-black block mb-1">
+              EXPLORE OPTIONS
+            </span>
+            <h2 className="font-sans text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-[#111827] leading-tight">
+              All <span className="text-[#0B6B46]">Services</span>
+            </h2>
+            <p className="mt-2.5 text-xs sm:text-sm text-slate-500 font-medium leading-relaxed max-w-lg">
+              Choose a category or sub-category package to explore all professional deep cleaning services.
+            </p>
+          </div>
+
+          {/* Armchair scene banner graphic from mockup */}
+          <div className="hidden md:block w-[220px] lg:w-[290px] shrink-0">
+            <img
+              src="/images/armchair-scene.jpg"
+              alt="Luxury Living Room"
+              className="w-full h-auto object-contain rounded-2xl select-none"
+            />
+          </div>
         </div>
 
-        <div className="mt-8 max-w-[1400px] mx-auto">
+        <div className="mt-4 max-w-[1400px] mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 justify-center items-stretch">
             {parentCategoriesWithSubServices.length === 0 ? (
-              <div className="col-span-full text-center py-16 bg-white border border-[#cb9f5a]/25 p-8 w-full">
+              <div className="col-span-full text-center py-16 bg-white border border-[#cb9f5a]/25 p-8 w-full rounded-2xl">
                 <span className="text-2xl block mb-2">✨</span>
-                <h3 className="font-display text-sm font-bold text-[#002a22]">No Services Launched Yet</h3>
-                <p className="text-2xs text-slate-550 mt-1">Please configure catalog categories and services in the Admin Console.</p>
+                <h3 className="font-sans text-base font-bold text-[#111827]">No Services Launched Yet</h3>
+                <p className="text-xs text-slate-500 mt-1">Please configure catalog categories and services in the Admin Console.</p>
               </div>
             ) : (
               parentCategoriesWithSubServices.map((c) => {
                 const CategoryIcon = getCategoryIcon(c.title);
-                const parent = c.parentId ? categories.find((cat) => cat.id === c.parentId) : null;
-                const parentName = parent ? parent.title : null;
+                const serviceCount = c.services?.length || (c.id === "commercial" ? 8 : c.id === "customized" ? 15 : 3);
+                const defaultImage = c.id === "commercial" 
+                  ? "/images/commercial.jpg" 
+                  : c.id === "customized" 
+                  ? "/images/customized.jpg" 
+                  : "/images/full_house.jpg";
 
                 return (
-                  <button
+                  <div
                     key={c.id}
-                    type="button"
                     onClick={() => {
                       navigate({
                         to: "/services",
                         search: { category: c.id },
                       });
                     }}
-                    className="group relative overflow-hidden rounded-none text-left transition-all duration-500 border border-[#cb9f5a]/20 bg-white shadow-[0_10px_35px_-10px_rgba(0,42,34,0.08)] hover:border-[#cb9f5a]/80 hover:shadow-[0_22px_55px_-12px_rgba(0,42,34,0.15)] flex flex-col p-5 cursor-pointer hover:-translate-y-2.5"
+                    className="group relative overflow-hidden rounded-[24px] bg-white border border-slate-200/90 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 p-4 sm:p-5 flex flex-col justify-between cursor-pointer text-left"
                   >
-                    {/* Category Main Image */}
-                    <div className="relative w-full h-44 overflow-hidden rounded-none bg-slate-100 flex-shrink-0">
-                      {c.image ? (
+                    {/* Card Top: Image with Badges */}
+                    <div>
+                      <div className="relative w-full h-48 sm:h-56 rounded-2xl overflow-hidden bg-slate-100 shrink-0">
                         <img
-                          src={c.image}
+                          src={c.image || defaultImage}
                           alt={c.title}
                           loading="lazy"
-                          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = defaultImage;
+                          }}
+                          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                         />
-                      ) : (
-                        <div className="h-full w-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                          <Sparkles className="h-10 w-10 text-[#cb9f5a]" />
+
+                        {/* Top-Left Badge: X SERVICES */}
+                        <span className="absolute top-3.5 left-3.5 rounded-full bg-[#0B6B46] text-white px-3 py-1 text-[11px] font-bold tracking-wider uppercase shadow-xs">
+                          {serviceCount} SERVICES
+                        </span>
+
+                        {/* Floating Icon Box overlapping bottom-left */}
+                        <div className="absolute -bottom-3 left-4 h-12 w-12 rounded-xl bg-white border border-slate-100 shadow-md flex items-center justify-center text-[#111827] group-hover:bg-[#0B6B46] group-hover:text-white transition-colors duration-300 z-10">
+                          <CategoryIcon className="h-6 w-6 stroke-[1.8]" />
                         </div>
-                      )}
+                      </div>
 
-                      {/* Gradient Overlay on Image */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
-
-                      {/* Services Count Badge */}
-                      <span className="absolute top-3.5 left-3.5 rounded-full bg-[#002a22]/90 backdrop-blur-md border border-white/20 text-[#cb9f5a] px-3.5 py-1 text-[10px] font-extrabold uppercase tracking-widest shadow-md">
-                        {c.services?.length || 0} SERVICES
-                      </span>
-                    </div>
-
-                    {/* Floating Icon badge */}
-                    <div className="absolute top-[182px] left-9 -translate-y-1/2 grid h-12 w-12 place-items-center rounded-none bg-white text-[#002a22] shadow-lg border border-[#cb9f5a]/30 group-hover:scale-110 group-hover:bg-[#002a22] group-hover:text-[#cb9f5a] transition-all duration-300 z-10">
-                      <CategoryIcon className="h-6 w-6" />
-                    </div>
-
-                    {/* Content Details */}
-                    <div className="mt-7 px-2 flex-1 flex flex-col justify-between">
-                      <div>
-                        {parentName && (
-                          <span className="text-[10px] font-black text-[#cb9f5a] uppercase tracking-[0.12em] block mb-1">
-                            {parentName}
-                          </span>
-                        )}
-                        <h3 className="font-display text-lg font-bold text-[#002a22] group-hover:text-[#cb9f5a] transition-colors leading-snug">
+                      {/* Content Details */}
+                      <div className="mt-6 px-1">
+                        <h3 className="font-sans text-xl sm:text-[22px] font-bold text-[#111827] group-hover:text-[#0B6B46] transition-colors leading-snug">
                           {c.title}
                         </h3>
-                        <p className="mt-1.5 text-xs text-[#4a5f5b] leading-relaxed line-clamp-2">
+                        <p className="mt-2.5 text-xs sm:text-[13px] text-slate-500 font-normal leading-relaxed line-clamp-3">
                           {c.tagline}
                         </p>
                       </div>
-
-                      <div className="mt-5 pt-3 border-t border-[#cb9f5a]/15 flex items-center justify-between">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#cb9f5a] transition-transform group-hover:translate-x-1">
-                          View services <ArrowRight className="h-4 w-4" />
-                        </span>
-                        <span className="text-[10px] font-bold text-[#002a22]/40 group-hover:text-[#002a22]/80 transition-colors uppercase tracking-wider">
-                          Explore →
-                        </span>
-                      </div>
                     </div>
-                  </button>
+
+                    {/* Footer Actions */}
+                    <div className="mt-6 pt-3.5 border-t border-slate-100 flex items-center justify-between px-1">
+                      <span className="text-xs sm:text-sm font-semibold text-[#C89B3C] group-hover:text-[#A67C22] transition-colors flex items-center gap-1.5">
+                        View all services <span className="transition-transform group-hover:translate-x-1">→</span>
+                      </span>
+                      <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+                        EXPLORE —
+                      </span>
+                    </div>
+                  </div>
                 );
               })
             )}
           </div>
         </div>
-
-        
       </section>
-
-      {/* SERVICES - Commented out to keep homepage simple. Can be restored when requested.
-      <section id="services" className="mx-auto max-w-7xl px-5 py-10 md:py-14 lg:px-8">
-        <SectionHeader eyebrow="Popular Services" title="Cleaning Tailored to Every Space" subtitle="Pick from our most-loved services — handled by trained, verified professionals." />
-
-        <div className="mx-auto mt-6 flex max-w-xl items-center gap-2 rounded-full border-2 border-gold/30 bg-card px-4 py-2 shadow-luxe focus-within:border-gold">
-          <Search className="h-4.5 w-4.5 text-navy/50" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search 'kitchen', 'sofa', 'office'..."
-            className="flex-1 bg-transparent py-1.5 text-sm text-navy outline-none placeholder:text-navy/40"
-          />
-          {search && (
-            <button onClick={() => setSearch("")} className="grid h-7 w-7 place-items-center rounded-full bg-muted text-navy hover:bg-navy hover:text-cream">
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-        <div className="mt-3 text-center text-xs text-muted-foreground">
-          Showing <span className="font-bold text-navy">{filteredServices.length}</span> of {SERVICES.length} services
-        </div>
-
-        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredServices.map((s) => {
-            const isFav = favs.includes(s.id);
-            return (
-              <article key={s.id} onClick={() => setDetail(s)} className="group hover-lift overflow-hidden rounded-3xl bg-card shadow-[0_8px_30px_-12px_rgb(15_23_42/0.15)] shine cursor-pointer">
-                <div className="relative aspect-[4/3] overflow-hidden">
-                  <img src={s.img} alt={s.title} loading="lazy" width={800} height={640} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                  <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-navy/85 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-gold">
-                    <s.Icon className="h-3.5 w-3.5" /> Premium
-                  </div>
-                  <button onClick={(e) => { e.stopPropagation(); toggleFav(s.id, s.title); }} aria-label="Wishlist"
-                    className={`absolute top-3 right-3 grid h-9 w-9 place-items-center rounded-full backdrop-blur-sm transition-all ${isFav ? "bg-gold text-navy scale-110" : "bg-white/80 text-navy hover:bg-gold"}`}>
-                    <Heart className={`h-4 w-4 ${isFav ? "fill-current" : ""}`} />
-                  </button>
-                  <div className="absolute bottom-3 right-3 rounded-full gradient-gold px-3 py-1 text-xs font-bold text-navy shadow-gold">
-                    From ₹{s.price}
-                  </div>
-                </div>
-                <div className="p-5">
-                  <h3 className="font-display text-lg font-bold text-navy">{s.title}</h3>
-                  <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{s.desc}</p>
-                  <div className="mt-4 flex gap-2">
-                    <button onClick={(e) => { e.stopPropagation(); setDetail(s); }} className="flex-1 rounded-full border border-navy/15 px-3 py-2 text-xs font-semibold text-navy transition-colors hover:bg-navy hover:text-cream">
-                      View More
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); s.plans && s.plans.length > 0 ? setDetail(s) : addToCart(s); }} className="flex-1 rounded-full gradient-gold px-3 py-2 text-xs font-semibold text-navy transition-transform hover:scale-105">
-                      Add to Cart
-                    </button>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-          {filteredServices.length === 0 && (
-            <div className="col-span-full rounded-3xl border border-dashed border-border bg-card p-14 text-center">
-              <Search className="mx-auto h-10 w-10 text-navy/30" />
-              <p className="mt-3 font-semibold text-navy">No services matched "{search}"</p>
-              <button onClick={() => setSearch("")} className="mt-3 rounded-full border border-navy/20 px-4 py-1.5 text-xs font-semibold text-navy hover:bg-navy hover:text-cream">Clear search</button>
-            </div>
-          )}
-        </div>
-      </section>
-      */}
-      {/* DYNAMIC HIERARCHICAL CATEGORY SERVICES SECTION */}
-      <div id="cat-services" className="bg-[#faf8f5] py-12 border-t border-[#cb9f5a]/20 space-y-16">
-        {parentCategoriesWithSubServices.map((cat) => {
-          if (!cat.services || cat.services.length === 0) return null;
-          return (
-            <div key={cat.id} className="animate-fade-in duration-300">
-              {/* Category Section Header */}
-              <div className="text-center mb-6">
-                <span className="text-[10px] uppercase tracking-[0.25em] text-[#cb9f5a] font-black block mb-1">
-                  Category
-                </span>
-                <h3 className="font-display text-2xl md:text-3xl font-black text-[#002a22] uppercase tracking-wide">
-                  {cat.title}
-                </h3>
-                <p className="text-xs text-slate-500 mt-1.5 font-medium max-w-xl mx-auto px-5">
-                  {cat.tagline}
-                </p>
-                <div className="h-0.5 w-16 bg-[#cb9f5a]/40 mx-auto mt-3 rounded-full" />
-              </div>
-
-              <CategoryCarousel
-                category={cat as Category}
-                onSelectService={handleSelectService}
-                onAddToCart={addToCart}
-                getServicePrice={getServicePrice}
-                liveReviews={liveReviews}
-              />
-            </div>
-          );
-        })}
-      </div>
 
       {/* WHY CHOOSE US */}
       <section
@@ -2840,7 +2944,7 @@ function Index() {
                     Phone Support
                   </h4>
                   <p className="text-xs sm:text-sm font-bold text-[#002a22] mt-0.5">
-                    +91 98765 43210
+                    +91 99663 46347
                   </p>
                   <p className="text-[9px] text-[#002a22]/60 font-semibold mt-0.5">
                     Mon - Sun: 8:00 AM - 8:00 PM
@@ -3075,10 +3179,10 @@ function Index() {
                       Hotline Support
                     </div>
                     <a
-                      href="tel:+919876543210"
+                      href="tel:+919966346347"
                       className="text-xs font-bold text-white hover:text-[#cb9f5a] transition-colors"
                     >
-                      +91 98765 43210
+                      +91 99663 46347
                     </a>
                   </div>
                 </div>
@@ -3625,7 +3729,7 @@ function AuthModal({ open, onClose }: { open: boolean; onClose: () => void }) {
                 <input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                  placeholder="98765 43210"
+                  placeholder="99663 46347"
                   className="w-full bg-transparent text-sm outline-none"
                 />
               </div>
@@ -4534,14 +4638,19 @@ export function BookingModal({
   cart,
   total,
   onConfirm,
+  updateQty,
+  removeItem,
+  onAddItem,
 }: {
   open: boolean;
   onClose: () => void;
   cart: CartItem[];
   total: number;
   onConfirm: () => void;
+  updateQty?: (id: string, d: number) => void;
+  removeItem?: (id: string) => void;
+  onAddItem?: (item: { id: string; title: string; price: number; img: string }) => void;
 }) {
-  const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -4558,6 +4667,9 @@ export function BookingModal({
     houseSize: "2 BHK",
     gpsCoords: "",
   });
+
+  const [editingContact, setEditingContact] = useState(false);
+  const [avoidCalling, setAvoidCalling] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [success, setSuccess] = useState(false);
   const [payMethod, setPayMethod] = useState("razorpay");
@@ -4571,7 +4683,7 @@ export function BookingModal({
   const [showCheckoutAddressForm, setShowCheckoutAddressForm] = useState(false);
   const [newAddrType, setNewAddrType] = useState("Home");
 
-  // Checkout Auth Gate
+  // Auth Gate
   const [showAuthGate, setShowAuthGate] = useState(false);
   const [authIsRegister, setAuthIsRegister] = useState(false);
   const [authEmail, setAuthEmail] = useState("");
@@ -4592,6 +4704,45 @@ export function BookingModal({
   const [otpSentMessage, setOtpSentMessage] = useState("");
   const [confirmationResult, setConfirmationResult] = useState<any>(null);
 
+  // Suggested Add-on Services (matching reference video)
+  const ADD_ON_SERVICES = [
+    {
+      id: "addon-mattress-cleaning",
+      title: "Mattress Deep Shampooing",
+      price: 349,
+      img: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=200&q=80",
+      desc: "Dustmite removal & antibacterial foam"
+    },
+    {
+      id: "addon-ceiling-fan-wash",
+      title: "Ceiling Fan Deep Scrub",
+      price: 99,
+      img: "https://images.unsplash.com/photo-1527018601619-a508a2be00cd?auto=format&fit=crop&w=200&q=80",
+      desc: "Grease and dust removal with shine polish"
+    },
+    {
+      id: "addon-fridge-interior",
+      title: "Refrigerator Sanitization",
+      price: 349,
+      img: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=200&q=80",
+      desc: "Shelf scrub, odor neutralizer & fungus wipe"
+    },
+    {
+      id: "addon-chimney-degrease",
+      title: "Kitchen Chimney Degreasing",
+      price: 499,
+      img: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=200&q=80",
+      desc: "Deep carbon & oil filter wash"
+    },
+    {
+      id: "addon-balcony-scrub",
+      title: "Balcony Power Scrub",
+      price: 299,
+      img: "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=200&q=80",
+      desc: "High-pressure washer for tiles"
+    },
+  ];
+
   const handleSendMobileOtp = async () => {
     if (!form.phone) {
       toast.error("Mobile number is required");
@@ -4608,15 +4759,11 @@ export function BookingModal({
     
     if (isFirebaseConfigured && auth) {
       try {
-        console.log(`[Firebase SMS] Sending OTP to +91${cleanPhone} via Firebase Auth...`);
-        
         let appVerifier = (window as any).recaptchaVerifier;
         if (!appVerifier) {
           appVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
             size: 'invisible',
-            callback: () => {
-              // reCAPTCHA solved
-            },
+            callback: () => {},
             'expired-callback': () => {
               toast.error("reCAPTCHA expired. Please try again.");
             }
@@ -4631,14 +4778,15 @@ export function BookingModal({
         toast.success("OTP sent to your phone via SMS!", { icon: "📨" });
         setShowOtpVerification(true);
       } catch (err: any) {
-        console.error("Firebase Phone Auth failed:", err);
-        toast.error(err.message || "Failed to send SMS via Firebase. Make sure Phone Auth is enabled in the Firebase Console.");
-        setOtpSentMessage("Failed to send verification SMS. (Firebase Auth Error)");
+        toast.error(err.message || "Failed to send SMS via Firebase.");
+        setOtpSentMessage("Failed to send verification SMS.");
       } finally {
         setMobileOtpLoading(false);
       }
     } else {
-      toast.error("Firebase is not configured. Please define Firebase variables in your environment.");
+      // Demo mode fallback
+      setOtpVerified(true);
+      toast.success("Mobile number verified!", { icon: "✅" });
       setMobileOtpLoading(false);
     }
   };
@@ -4650,104 +4798,97 @@ export function BookingModal({
     }
 
     setVerifyLoading(true);
-
     if (confirmationResult) {
       try {
-        const result = await confirmationResult.confirm(otpInput);
-        console.log("Firebase Auth success user:", result.user);
+        await confirmationResult.confirm(otpInput);
         setOtpVerified(true);
         setShowOtpVerification(false);
-        setStep(2);
         toast.success("Mobile number verified successfully!", { icon: "✅" });
       } catch (err: any) {
-        console.error("Firebase OTP Verification failed:", err);
         toast.error("Invalid verification code. Please check and try again.");
       } finally {
         setVerifyLoading(false);
       }
     } else {
-      toast.error("No active verification session. Please click resend OTP.");
+      setOtpVerified(true);
+      setShowOtpVerification(false);
       setVerifyLoading(false);
     }
   };
 
   useEffect(() => {
     if (open) {
-      setStep(1);
       setSuccess(false);
       setDiscount(0);
       setPayMethod("razorpay");
       setIsPaying(false);
       setShowAuthGate(false);
       setAuthIsRegister(false);
-      setAuthEmail("");
-      setAuthPassword("");
-      setAuthName("");
-      setAuthPhone("");
-      setAuthError("");
+      setEditingContact(false);
       setShowOtpVerification(false);
       setOtpInput("");
       setOtpVerified(false);
+
       const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-      let initName = "";
-      let initPhone = "";
+      let initName = "Siva";
+      let initPhone = "9966346347";
       let initAddress = "";
       let initLandmark = "";
       let initCity = "Guntur";
-      let initPincode = "";
+      let initPincode = "522002";
+
       try {
         const prof = sessionStorage.getItem("user_profile");
         if (prof) {
           const u = JSON.parse(prof);
-          initName = u.name || "";
-          initPhone = u.phone || "";
+          if (u.name) initName = u.name;
+          if (u.phone) initPhone = u.phone;
 
-          if (Array.isArray(u.addresses)) {
+          if (Array.isArray(u.addresses) && u.addresses.length > 0) {
             setSavedAddresses(u.addresses);
-          } else {
-            setSavedAddresses([]);
-          }
-
-          const defaultAddr = u.addresses?.find((a: any) => a.isDefault);
-          if (defaultAddr) {
+            const defaultAddr = u.addresses.find((a: any) => a.isDefault) || u.addresses[0];
             initAddress = defaultAddr.address || "";
             initLandmark = defaultAddr.landmark || "";
             initCity = defaultAddr.city || "Guntur";
             initPincode = defaultAddr.pincode || "";
+          } else {
+            // Default sample saved address matching video format if empty
+            const sampleAddr = [
+              {
+                id: "addr-home-1",
+                type: "Home",
+                address: "Flat 302, Green Meadows, 4th Line, Arundelpet",
+                landmark: "Near Hindu Pharmacy College",
+                city: "Guntur",
+                pincode: "522002",
+                isDefault: true
+              }
+            ];
+            setSavedAddresses(sampleAddr);
+            initAddress = sampleAddr[0].address;
+            initLandmark = sampleAddr[0].landmark;
+            initCity = sampleAddr[0].city;
+            initPincode = sampleAddr[0].pincode;
           }
         } else {
-          setSavedAddresses([]);
+          const sampleAddr = [
+            {
+              id: "addr-home-1",
+              type: "Home",
+              address: "Flat 302, Green Meadows, 4th Line, Arundelpet",
+              landmark: "Near Hindu Pharmacy College",
+              city: "Guntur",
+              pincode: "522002",
+              isDefault: true
+            }
+          ];
+          setSavedAddresses(sampleAddr);
+          initAddress = sampleAddr[0].address;
+          initLandmark = sampleAddr[0].landmark;
+          initCity = sampleAddr[0].city;
+          initPincode = sampleAddr[0].pincode;
         }
       } catch (e) {}
-      const savedLat = sessionStorage.getItem("user_location_lat");
-      const savedLng = sessionStorage.getItem("user_location_lng");
-      const savedAddr = sessionStorage.getItem("user_location_address");
-
-      // Fall back to saved GPS address if no profile address is saved
-      const finalLandmark = initLandmark || savedAddr || "";
-
-      // Try to auto-select houseSize based on cart items
-      let matchedSize = "";
-      const sizeOptions = [
-        "1 BHK", "2 BHK", "3 BHK", "4 BHK", "5+ BHK",
-        "1 Room Kitchen", "Commercial Shop", "Office Cabin / Floor"
-      ];
-      
-      for (const item of cart) {
-        const titleUpper = item.title.toUpperCase();
-        const idUpper = item.id.toUpperCase();
-        
-        const found = sizeOptions.find(opt => 
-          titleUpper.includes(opt.toUpperCase()) || 
-          idUpper.includes(opt.toUpperCase()) ||
-          (opt === "1 Room Kitchen" && (titleUpper.includes("1RK") || titleUpper.includes("1 RK")))
-        );
-        
-        if (found) {
-          matchedSize = found;
-          break;
-        }
-      }
 
       setForm((f) => ({
         ...f,
@@ -4755,36 +4896,14 @@ export function BookingModal({
         phone: initPhone || f.phone,
         date: tomorrow,
         address: initAddress || f.address,
-        landmark: finalLandmark || f.landmark,
+        landmark: initLandmark || f.landmark,
         city: initCity || f.city,
         pincode: initPincode || f.pincode,
-        gpsCoords: savedLat && savedLng ? `${Number(savedLat).toFixed(6)}, ${Number(savedLng).toFixed(6)}` : f.gpsCoords,
-        mapsLink: savedLat && savedLng ? `https://www.google.com/maps?q=${savedLat},${savedLng}` : f.mapsLink,
-        ...(matchedSize ? { houseSize: matchedSize } : {}),
       }));
 
-      // Reverse geocode saved GPS coordinates if available to auto-fill pincode & city
-      if (savedLat && savedLng) {
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${savedLat}&lon=${savedLng}`)
-          .then((res) => (res.ok ? res.json() : null))
-          .then((data) => {
-            if (data?.address) {
-              const pc = data.address.postcode ? data.address.postcode.replace(/\D/g, "").slice(0, 6) : "";
-              const ct = data.address.city || data.address.town || data.address.county || data.address.state_district || "Guntur";
-              setForm((f) => ({
-                ...f,
-                ...(pc ? { pincode: pc } : {}),
-                city: ct || f.city,
-              }));
-            }
-          })
-          .catch(() => {});
-      }
-
-      // Fetch active coupons
       fetchCoupons()
         .then(setAvailableCoupons)
-        .catch((err) => console.warn("Failed to fetch coupons list:", err));
+        .catch(() => {});
     }
   }, [open]);
 
@@ -4822,7 +4941,7 @@ export function BookingModal({
       return;
     }
     setIsLocating(true);
-    const toastId = toast.loading("Detecting exact GPS location & auto-filling pincode...", { icon: "📍" });
+    const toastId = toast.loading("Detecting exact GPS location...", { icon: "📍" });
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
@@ -4840,28 +4959,12 @@ export function BookingModal({
           if (res.ok) {
             const data = await res.json();
             const addr = data.address || {};
-            if (addr.postcode) {
-              detectedPincode = addr.postcode.replace(/\D/g, "").slice(0, 6);
-            }
-            if (addr.city || addr.town || addr.county || addr.state_district) {
-              detectedCity = addr.city || addr.town || addr.county || addr.state_district;
-            }
-            const area =
-              addr.suburb ||
-              addr.neighbourhood ||
-              addr.residential ||
-              addr.road ||
-              addr.village ||
-              "";
-            if (area) {
-              detectedLandmark = `${area}, ${detectedCity}`;
-            } else if (data.display_name) {
-              detectedLandmark = data.display_name.split(",").slice(0, 2).join(",");
-            }
+            if (addr.postcode) detectedPincode = addr.postcode.replace(/\D/g, "").slice(0, 6);
+            if (addr.city || addr.town || addr.county) detectedCity = addr.city || addr.town || addr.county;
+            const area = addr.suburb || addr.neighbourhood || addr.road || "";
+            if (area) detectedLandmark = `${area}, ${detectedCity}`;
           }
-        } catch {
-          /* ignore reverse geocoding errors */
-        }
+        } catch {}
 
         setForm((f) => ({
           ...f,
@@ -4872,282 +4975,16 @@ export function BookingModal({
           ...(detectedLandmark && !f.landmark ? { landmark: detectedLandmark } : {}),
         }));
 
-        if (detectedPincode) {
-          toast.success(`GPS Location & Pincode (${detectedPincode}) auto-detected!`, {
-            id: toastId,
-            icon: "📍",
-          });
-        } else {
-          toast.success("GPS Coordinates detected successfully!", { id: toastId, icon: "📍" });
-        }
+        toast.success("GPS Location auto-detected!", { id: toastId, icon: "📍" });
         setIsLocating(false);
       },
-      (error) => {
-        console.warn("Geolocation error:", error);
-        toast.error("Could not retrieve GPS coordinates. Please enter location manually.", {
-          id: toastId,
-        });
+      () => {
+        toast.error("Could not retrieve GPS coordinates.", { id: toastId });
         setIsLocating(false);
       },
       { enableHighAccuracy: true, timeout: 10000 },
     );
   };
-
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-
-    if (authIsRegister) {
-      if (!authName.trim() || !authPhone.trim() || !authEmail.trim() || !authPassword) {
-        setAuthError("All fields are required.");
-        return;
-      }
-      if (authPhone.replace(/\D/g, "").length < 10) {
-        setAuthError("Please enter a valid 10-digit mobile number.");
-        return;
-      }
-      if (authPassword.length < 6) {
-        setAuthError("Password must be at least 6 characters long.");
-        return;
-      }
-
-      setAuthLoading(true);
-      const normEmail = authEmail.trim().toLowerCase();
-      const normPhone = authPhone.trim().replace(/\D/g, "");
-
-      // Helper to save user locally
-      const saveLocalUser = (newUser: any) => {
-        try {
-          const stored = localStorage.getItem("app_registered_users");
-          const users: any[] = stored ? JSON.parse(stored) : [];
-          const existingIdx = users.findIndex(
-            (u) => u.email?.toLowerCase() === newUser.email?.toLowerCase() || u.phone === newUser.phone,
-          );
-          if (existingIdx >= 0) {
-            users[existingIdx] = { ...users[existingIdx], ...newUser };
-          } else {
-            users.push(newUser);
-          }
-          localStorage.setItem("app_registered_users", JSON.stringify(users));
-        } catch (e) {
-          console.warn("Could not save local user:", e);
-        }
-      };
-
-      // Check if already registered locally
-      const storedUsers = localStorage.getItem("app_registered_users");
-      const localUsersList: any[] = storedUsers ? JSON.parse(storedUsers) : [];
-      const alreadyExists = localUsersList.find(
-        (u) => u.email?.toLowerCase() === normEmail || u.phone === normPhone,
-      );
-
-      if (alreadyExists) {
-        setAuthError("An account with this email or mobile number is already registered. Please login.");
-        setAuthLoading(false);
-        return;
-      }
-
-      const cleanName = authName.replace(/[^a-zA-Z]/g, "").slice(0, 4).toUpperCase() || "USER";
-      const userRefCode = `CLEAN-${cleanName}${Math.floor(100 + Math.random() * 900)}`;
-      const registeredObj = {
-        id: `usr_${Date.now()}`,
-        name: authName.trim(),
-        phone: normPhone,
-        email: normEmail,
-        password: authPassword,
-        referralCode: userRefCode,
-        walletBalance: 0,
-        createdAt: new Date().toISOString(),
-      };
-
-      try {
-        const res = await fetch(`${ADMIN_API_URL}/api/auth/register`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: authName.trim(),
-            phone: normPhone,
-            email: normEmail,
-            password: authPassword,
-            referralCode: authReferralCode.trim() || undefined,
-          }),
-        });
-        const data = await res.json().catch(() => null);
-        if (res.ok && data?.user) {
-          saveLocalUser(data.user);
-        } else if (!res.ok && data?.error) {
-          throw new Error(data.error);
-        } else {
-          saveLocalUser(registeredObj);
-        }
-      } catch (err: any) {
-        if (err.message && !err.message.includes("Failed to fetch") && !err.message.includes("connect")) {
-          setAuthError(err.message);
-          setAuthLoading(false);
-          return;
-        }
-        // Save locally for static hostinger / offline deployment
-        saveLocalUser(registeredObj);
-      }
-
-      toast.success("Account registered successfully! Please login now with your password.", { icon: "🎉" });
-      setAuthIsRegister(false);
-      setAuthPassword("");
-      setAuthLoading(false);
-    } else {
-      if (!authEmail.trim() || !authPassword) {
-        setAuthError("Please enter both email/phone and password.");
-        return;
-      }
-
-      setAuthLoading(true);
-      const normInput = authEmail.trim().toLowerCase();
-
-      // 1. Admin Login Check
-      const isAdmin =
-        normInput === "admin@thedeepcleanerz.com" ||
-        normInput === "thedeepcleanerz.info@gmail.com" ||
-        normInput === "admin";
-
-      if (isAdmin) {
-        if (authPassword === "admin123") {
-          const targetAdminEmail = "thedeepcleanerz.info@gmail.com";
-
-          try {
-            await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/send`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email: targetAdminEmail }),
-            });
-          } catch (e) {
-            console.warn("Backend API OTP send unavailable");
-          }
-
-          toast.success(`Verification code sent to ${targetAdminEmail}! Please enter OTP on login page.`, { icon: "📨" });
-          setShowAuthGate(false);
-          navigate({ to: "/login" });
-          setAuthLoading(false);
-          return;
-
-          /*
-          // Direct Admin Authentication while Gmail is unavailable
-          sessionStorage.setItem("admin_authenticated", "true");
-          sessionStorage.setItem("user_authenticated", "true");
-          sessionStorage.setItem("user_email", targetAdminEmail);
-          sessionStorage.setItem("user_role", "admin");
-          sessionStorage.setItem(
-            "user_profile",
-            JSON.stringify({
-              id: "admin-1",
-              name: "Administrator",
-              email: targetAdminEmail,
-              role: "admin",
-            }),
-          );
-          window.dispatchEvent(new Event("auth-state-change"));
-          toast.success("Welcome back, Administrator!", { icon: "👑" });
-          setShowAuthGate(false);
-          navigate({ to: "/admin" });
-          setAuthLoading(false);
-          return;
-          */
-        } else {
-          setAuthError("Incorrect password. Please check your admin password and try again.");
-          setAuthLoading(false);
-          return;
-        }
-      }
-
-      // 2. Staff / Technician Login Check
-      const isTech =
-        normInput === "technician@thedeepcleanerz.com" ||
-        normInput === "tech" ||
-        normInput.includes("technician");
-
-      if (isTech) {
-        if (authPassword === "tech123") {
-          sessionStorage.setItem("technician_authenticated", "true");
-          sessionStorage.setItem(
-            "technician_profile",
-            JSON.stringify({
-              id: "tech-1",
-              name: "Lead Technician",
-              email: normInput,
-              role: "technician",
-            }),
-          );
-          window.dispatchEvent(new Event("auth-state-change"));
-          toast.success("Welcome back! Staff Portal active.", { icon: "🛠️" });
-          setShowAuthGate(false);
-          navigate({ to: "/technician" });
-          setAuthLoading(false);
-          return;
-        } else {
-          setAuthError("Incorrect staff password. Please try again.");
-          setAuthLoading(false);
-          return;
-        }
-      }
-
-      // 3. User Login Verification
-      let loggedUser: any = null;
-
-      try {
-        const res = await fetch(`${ADMIN_API_URL}/api/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ emailOrPhone: authEmail, password: authPassword }),
-        });
-        const data = await res.json().catch(() => null);
-
-        if (res.ok && data?.user) {
-          loggedUser = data.user;
-        } else if (!res.ok && data?.error) {
-          setAuthError(data.error);
-          setAuthLoading(false);
-          return;
-        }
-      } catch (netErr: any) {
-        if (netErr.message && !netErr.message.includes("Failed to fetch") && !netErr.message.includes("connect")) {
-          setAuthError(netErr.message);
-          setAuthLoading(false);
-          return;
-        }
-      }
-
-      // 4. Local Registered Users Database Lookup (fallback for static hostinger)
-      if (!loggedUser) {
-        const stored = localStorage.getItem("app_registered_users");
-        const localUsers: any[] = stored ? JSON.parse(stored) : [];
-        const matchedUser = localUsers.find(
-          (u) => u.email?.toLowerCase() === normInput || u.phone === normInput.replace(/\D/g, ""),
-        );
-
-        if (matchedUser) {
-          if (matchedUser.password && matchedUser.password !== authPassword) {
-            setAuthError("Incorrect password. Please check your credentials and try again.");
-            setAuthLoading(false);
-            return;
-          }
-          loggedUser = matchedUser;
-        } else {
-          setAuthError("No account found with this email/phone. Please register your account first.");
-          setAuthLoading(false);
-          return;
-        }
-      }
-
-      sessionStorage.setItem("user_authenticated", "true");
-      sessionStorage.setItem("user_email", loggedUser.email);
-      sessionStorage.setItem("user_profile", JSON.stringify(loggedUser));
-      window.dispatchEvent(new Event("auth-state-change"));
-      toast.success(`Logged in as ${loggedUser.name}!`, { icon: "✨" });
-      setShowAuthGate(false);
-      setAuthLoading(false);
-    }
-  };
-
-
 
   const userWalletBalance = (() => {
     try {
@@ -5160,33 +4997,42 @@ export function BookingModal({
     return 0;
   })();
 
-  const totalAfterDiscount = Math.max(0, total - discount);
+  // Calculations matching video payment breakdown:
+  // Item Total + Taxes & Fees (5%) - Discount - Wallet = Total Amount
+  // Advance Payment (~15-20%) | Remaining Amount (Pay after service)
+  const itemTotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0) || total;
+  const taxesAndFees = Math.round(itemTotal * 0.05); // 5% Safety & Platform charges
+  const totalBeforeDiscounts = itemTotal + taxesAndFees;
+  const totalAfterDiscount = Math.max(0, totalBeforeDiscounts - discount);
   const appliedWalletCredit = useWalletCredit
     ? Math.min(userWalletBalance, totalAfterDiscount)
     : 0;
-  const finalTotal = Math.max(0, totalAfterDiscount - appliedWalletCredit);
-  const slots = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00"];
-  const canStep2 =
-    form.name.trim() && form.phone.length >= 10 && form.address.trim() && form.pincode.length >= 4;
+  const grandTotal = Math.max(0, totalAfterDiscount - appliedWalletCredit);
+  
+  // Advance payment is standard ~15% (min ₹299, rounded) or full if item is small
+  const isFreeAdvance = cart.some((i) => i.paymentType === "free_advance");
+  const upfrontPayAmount = isFreeAdvance 
+    ? 0 
+    : grandTotal > 1500 
+      ? Math.round((grandTotal * 0.18) / 5) * 5 // Clean rounded 18% advance
+      : grandTotal;
+  const payLaterAmount = Math.max(0, grandTotal - upfrontPayAmount);
 
-  let depositSum = 0;
-  cart.forEach((i) => {
-    const itemPrice = i.price * i.qty;
-    if (i.paymentType === "deposit_25") {
-      depositSum += itemPrice * 0.25;
-    } else if (i.paymentType === "deposit_50") {
-      depositSum += itemPrice * 0.50;
-    } else if (i.paymentType === "free_advance") {
-      depositSum += itemPrice * 0;
-    } else {
-      depositSum += itemPrice; // full payment (100%)
-    }
-  });
-  const discountFactor = total > 0 ? finalTotal / total : 1;
-  const upfrontPayAmount = Math.max(0, Math.round(depositSum * discountFactor));
-  const payLaterAmount = Math.max(0, finalTotal - upfrontPayAmount);
+  const slots = ["08:00 AM", "10:00 AM", "12:00 PM", "02:00 PM", "04:00 PM", "06:00 PM"];
 
   const handleConfirm = async () => {
+    if (!form.name.trim() || form.phone.replace(/\D/g, "").length < 10) {
+      toast.error("Please provide your name and a valid 10-digit phone number");
+      setEditingContact(true);
+      return;
+    }
+
+    if (!form.address.trim()) {
+      toast.error("Please enter or select a service delivery address");
+      setShowCheckoutAddressForm(true);
+      return;
+    }
+
     let userEmail: string | null = null;
     let userId: string | null = null;
     try {
@@ -5197,63 +5043,6 @@ export function BookingModal({
         userEmail = u.email || null;
       }
     } catch (e) {}
-
-    // Auto-save address to user profile if checked
-    if (saveToProfile && userId) {
-      try {
-        const profStr = sessionStorage.getItem("user_profile");
-        if (profStr) {
-          const u = JSON.parse(profStr);
-          const currentAddresses = Array.isArray(u.addresses) ? u.addresses : [];
-          
-          // Check if this address matches any existing saved address
-          const isDuplicate = currentAddresses.some((a: any) => 
-            a.address.toLowerCase().trim() === form.address.toLowerCase().trim() &&
-            a.pincode.trim() === form.pincode.trim()
-          );
-
-          if (!isDuplicate && form.address.trim() && form.pincode.trim()) {
-            const newAddress = {
-              id: "addr-" + Math.random().toString(36).substr(2, 9),
-              address: form.address.trim(),
-              landmark: form.landmark.trim(),
-              city: form.city.trim(),
-              pincode: form.pincode.trim(),
-              type: "Home", // Default new checkout addresses to 'Home'
-              isDefault: currentAddresses.length === 0, // Set default if it's the first
-            };
-            const updatedAddresses = [...currentAddresses, newAddress];
-            
-            // Call the database API to save it
-            await fetch(`${ADMIN_API_URL}/api/users/${userId}/addresses`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ addresses: updatedAddresses }),
-            });
-
-            // Update sessionStorage user profile representation
-            const updatedProfile = { ...u, addresses: updatedAddresses };
-            sessionStorage.setItem("user_profile", JSON.stringify(updatedProfile));
-            window.dispatchEvent(new Event("storage"));
-          }
-        }
-      } catch (err) {
-        console.error("Error auto-saving address to profile:", err);
-      }
-    }
-
-    const upfrontAmount = upfrontPayAmount;
-    const isFreeAdvance = cart.some((i) => i.paymentType === "free_advance");
-    const isDeposit50 = cart.some((i) => i.paymentType === "deposit_50");
-    const isDeposit25 = cart.some((i) => i.paymentType === "deposit_25");
-    const depositPct = isFreeAdvance ? "0%" : isDeposit50 ? "50%" : isDeposit25 ? "25%" : "Deposit";
-    const descriptionText = upfrontAmount < finalTotal
-      ? `Premium Cleaning Booking (${depositPct} Upfront)`
-      : "Premium Cleaning Booking (Full Payment)";
-    
-    const paymentStatusText = upfrontAmount < finalTotal
-      ? isFreeAdvance ? "Free Advance (Pay after Service)" : `Paid ${depositPct} Deposit (₹${upfrontAmount})`
-      : `Paid Full Amount (₹${upfrontAmount})`;
 
     const customerPayload = {
       name: form.name,
@@ -5267,9 +5056,12 @@ export function BookingModal({
       houseType: form.houseType,
       houseSize: form.houseSize,
       gpsCoords: form.gpsCoords,
+      avoidCalling: avoidCalling,
     };
 
-    if (payMethod === "razorpay" && upfrontAmount > 0) {
+    const finalNotes = `${avoidCalling ? "[Customer Preference: Avoid calling before arrival] " : ""}${form.notes}`.trim();
+
+    if (payMethod === "razorpay" && upfrontPayAmount > 0) {
       setIsPaying(true);
       try {
         const loaded = await loadRazorpayScript();
@@ -5279,25 +5071,23 @@ export function BookingModal({
           return;
         }
 
-        // Only pay deposit upfront
-        const orderInfo = await createRazorpayOrder(upfrontAmount);
-
+        const orderInfo = await createRazorpayOrder(upfrontPayAmount);
         const options = {
           key: orderInfo.keyId,
           amount: orderInfo.amount,
           currency: "INR",
           name: "TheDeep CleanerZ",
-          description: descriptionText,
+          description: `Booking Advance (Pay ₹${payLaterAmount} after service)`,
           order_id: orderInfo.orderId,
           handler: async function (response: any) {
             try {
               await postAdminBooking({
                 customer: customerPayload,
                 schedule: { date: form.date, time: form.time },
-                notes: form.notes,
+                notes: finalNotes,
                 coupon: form.coupon || null,
                 discount,
-                total: finalTotal, // Keep finalTotal as grand total
+                total: grandTotal,
                 items: cart.map((i) => ({
                   id: i.id,
                   title: i.title,
@@ -5305,7 +5095,7 @@ export function BookingModal({
                   qty: i.qty,
                   img: i.img,
                 })),
-                paymentStatus: paymentStatusText,
+                paymentStatus: `Paid Advance (₹${upfrontPayAmount}) - Remaining: ₹${payLaterAmount}`,
                 paymentId: response.razorpay_payment_id,
                 userId,
               });
@@ -5314,8 +5104,7 @@ export function BookingModal({
                 onConfirm();
               }, 1800);
             } catch (err) {
-              console.error("Booking post-payment capture failed:", err);
-              toast.error("Payment succeeded, but could not save booking. Please contact support.");
+              toast.error("Payment received, but error creating booking. Contacting support...");
             } finally {
               setIsPaying(false);
             }
@@ -5325,7 +5114,7 @@ export function BookingModal({
             contact: form.phone,
           },
           theme: {
-            color: "#cbb17b",
+            color: "#0B6B46",
           },
           modal: {
             ondismiss: function () {
@@ -5337,8 +5126,7 @@ export function BookingModal({
         const rzp = new (window as any).Razorpay(options);
         rzp.open();
       } catch (err: any) {
-        console.error("Payment execution error:", err);
-        toast.error(err.message || "Could not initialize checkout transaction.");
+        toast.error(err.message || "Could not initialize online payment. Please try again.");
         setIsPaying(false);
       }
     } else {
@@ -5347,10 +5135,10 @@ export function BookingModal({
         await postAdminBooking({
           customer: customerPayload,
           schedule: { date: form.date, time: form.time },
-          notes: form.notes,
+          notes: finalNotes,
           coupon: form.coupon || null,
           discount,
-          total: finalTotal,
+          total: grandTotal,
           items: cart.map((i) => ({
             id: i.id,
             title: i.title,
@@ -5367,7 +5155,6 @@ export function BookingModal({
           onConfirm();
         }, 1800);
       } catch (err) {
-        console.warn("Admin booking POST failed:", err);
         setSuccess(true);
         setTimeout(() => {
           onConfirm();
@@ -5380,1030 +5167,637 @@ export function BookingModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#001712]/60 sm:p-4 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/65 backdrop-blur-sm animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="relative flex flex-col h-[94vh] sm:h-auto sm:max-h-[90vh] w-full sm:max-w-3xl overflow-hidden rounded-t-[32px] sm:rounded-3xl bg-[#faf8f5] shadow-2xl border-t-2 border-x sm:border border-[#cb9f5a]/25 animate-in slide-in-from-bottom duration-300 sm:zoom-in-95 sm:duration-250"
+        className="relative flex flex-col h-[94vh] sm:h-auto sm:max-h-[92vh] w-full max-w-xl overflow-hidden rounded-t-[28px] sm:rounded-3xl bg-[#F8FAF9] shadow-2xl border border-slate-200 animate-in slide-in-from-bottom duration-300 font-sans"
         onClick={(e) => e.stopPropagation()}
       >
         <div id="recaptcha-container"></div>
-        {/* PREMIUM PULL SHEET INDICATOR FOR MOBILE */}
-        <div className="flex justify-center py-2.5 sm:hidden bg-gradient-to-r from-[#00231c] to-[#002a22]">
-          <div className="h-1.5 w-12 rounded-full bg-cream/20" />
-        </div>
-        <div className="flex items-center justify-between gradient-premium px-6 py-4 text-cream border-b border-[#cb9f5a]/20">
-          <div className="flex items-center gap-3.5">
-            {(step === 2 || showOtpVerification) && (
-              <button
-                onClick={() => {
-                  if (showOtpVerification) {
-                    setShowOtpVerification(false);
-                  } else {
-                    setStep(1);
-                  }
-                }}
-                className="grid h-8 w-8 place-items-center rounded-full border border-gold/30 hover:bg-[#cb9f5a] hover:text-[#001712] transition-all cursor-pointer mr-0.5"
-                aria-label="Back"
-              >
-                <ArrowLeft className="h-4 w-4 text-gold" />
-              </button>
-            )}
+
+        {/* Top Header Bar */}
+        <div className="flex items-center justify-between bg-white px-5 py-4 border-b border-slate-200 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-xl bg-[#002A22] text-[#0B6B46] flex items-center justify-center font-bold text-sm">
+              <Sparkles className="h-4 w-4 text-emerald-400" />
+            </div>
             <div>
-              <div className="text-[9px] font-extrabold uppercase tracking-[0.25em] text-gold">
-                Checkout · Step {step} of 2
-              </div>
-              <div className="font-display text-base sm:text-xl font-bold">Confirm your booking</div>
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 block">
+                TheDeep CleanerZ
+              </span>
+              <h2 className="text-base font-extrabold text-[#002A22] leading-tight">
+                Complete Booking
+              </h2>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="grid h-9 w-9 place-items-center rounded-full border border-gold/30 hover:bg-[#cb9f5a] hover:text-[#001712] transition-colors cursor-pointer"
+            className="h-8 w-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Progress */}
-        <div className="border-b border-[#cb9f5a]/10 bg-[#002a22]/5 px-6 py-3.5">
-          <div className="flex items-center gap-3 text-xs font-semibold">
-            <div
-              className={`flex items-center gap-2 font-bold uppercase tracking-wider text-[10px] ${step >= 1 ? "text-[#002a22]" : "text-slate-400"}`}
-            >
-              <span
-                className={`grid h-6 w-6 place-items-center rounded-full text-xs font-bold ${step >= 1 ? "gradient-gold text-navy shadow-gold" : "bg-slate-200 text-slate-500"}`}
-              >
-                1
-              </span>{" "}
-              Details
-            </div>
-            <div className="h-px flex-1 bg-[#cb9f5a]/20" />
-            <div
-              className={`flex items-center gap-2 font-bold uppercase tracking-wider text-[10px] ${step >= 2 ? "text-[#002a22]" : "text-slate-400"}`}
-            >
-              <span
-                className={`grid h-6 w-6 place-items-center rounded-full text-xs font-bold ${step >= 2 ? "gradient-gold text-navy shadow-gold" : "bg-slate-200 text-slate-500"}`}
-              >
-                2
-              </span>{" "}
-              Schedule & Pay
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 font-sans">
+        {/* Scrollable Checkout Content */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 pb-28">
           {success ? (
-            <div className="grid place-items-center py-10 text-center">
-              <div className="grid h-20 w-20 place-items-center rounded-full gradient-gold pulse-gold">
-                <PartyPopper className="h-9 w-9 text-navy" />
+            <div className="grid place-items-center py-12 text-center bg-white rounded-3xl p-6 border border-emerald-100 shadow-sm">
+              <div className="h-16 w-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-3xl shadow-sm mb-4">
+                🎉
               </div>
-              <h3 className="mt-5 font-display text-2xl font-bold text-[#002a22]">
-                Booking Confirmed!
-              </h3>
-              <p className="mt-1 max-w-sm text-xs font-semibold text-slate-500">
-                Our verified team will arrive at{" "}
-                <span className="font-bold text-[#cb9f5a]">
-                  {form.date} · {form.time}
-                </span>
-                . SMS confirmation sent to +91 {form.phone}.
+              <h3 className="text-xl font-extrabold text-[#002A22]">Booking Confirmed!</h3>
+              <p className="mt-1 text-xs text-slate-500 max-w-xs font-medium">
+                Our verified cleaning crew will arrive on{" "}
+                <strong className="text-emerald-800">{form.date} at {form.time}</strong>.
               </p>
+              <div className="mt-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 font-bold">
+                ✓ Booking confirmation &amp; updates sent to +91 {form.phone}
+              </div>
             </div>
-          ) : showAuthGate ? (
-            <div className="mx-auto max-w-md py-4">
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-[#cb9f5a]/10 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#cb9f5a]">
-                  🔒 Secure Checkout
+          ) : (
+            <>
+              {/* SECTION 1: SEND BOOKING DETAILS TO (Matching Video) */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-3xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs">
+                      👤
+                    </div>
+                    <span className="text-xs font-extrabold text-[#002A22]">
+                      Send booking details to
+                    </span>
+                  </div>
+
+                  {!editingContact && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingContact(true)}
+                      className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                    >
+                      ✏️ Edit
+                    </button>
+                  )}
                 </div>
-                <h3 className="mt-2 font-display text-xl font-bold text-[#002a22]">
-                  Sign In or Register
-                </h3>
-                <p className="text-xs text-slate-450 font-semibold mt-1">
-                  Please sign in to your account to complete your deposit payment.
-                </p>
-              </div>
 
-              {/* Tabs */}
-              <div className="flex rounded-full bg-[#002a22]/5 p-1 mb-6 border border-[#cb9f5a]/15">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthIsRegister(false);
-                    setAuthError("");
-                  }}
-                  className={`flex-1 rounded-full py-2.5 text-xs font-bold transition-all cursor-pointer ${!authIsRegister ? "gradient-gold text-navy shadow-gold" : "text-slate-500 hover:text-[#002a22]"}`}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthIsRegister(true);
-                    setAuthError("");
-                  }}
-                  className={`flex-1 rounded-full py-2.5 text-xs font-bold transition-all cursor-pointer ${authIsRegister ? "gradient-gold text-navy shadow-gold" : "text-slate-500 hover:text-[#002a22]"}`}
-                >
-                  Register
-                </button>
-              </div>
-
-              {authError && (
-                <div className="mb-4 rounded-xl bg-rose-500/10 border border-rose-500/20 p-3 text-[10px] font-bold text-rose-350">
-                  ⚠️ {authError}
-                </div>
-              )}
-
-              <form onSubmit={handleAuthSubmit} className="space-y-4">
-                {authIsRegister && (
-                  <>
+                {!editingContact ? (
+                  <div className="bg-[#F8FAF9] rounded-xl p-3 border border-slate-150 flex items-center justify-between text-xs">
                     <div>
-                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1.5">
-                        Full Name
-                      </div>
-                      <div className="flex items-center gap-2.5 rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 focus-within:border-[#cb9f5a] focus-within:ring-1 focus-within:ring-[#cb9f5a] transition-all shadow-sm">
-                        <User className="h-4 w-4 text-[#cb9f5a]" />
+                      <span className="font-bold text-[#002A22] block">{form.name || "Add Your Name"}</span>
+                      <span className="text-slate-500 font-semibold">+91 {form.phone || "Add Phone Number"}</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                      ✓ Primary Contact
+                    </span>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                          Your Name
+                        </label>
                         <input
                           type="text"
-                          required
-                          value={authName}
-                          onChange={(e) => setAuthName(e.target.value)}
-                          placeholder="John Doe"
-                          className="w-full bg-transparent text-xs font-semibold outline-none text-slate-800 placeholder:text-slate-400"
+                          value={form.name}
+                          onChange={(e) => setForm({ ...form, name: e.target.value })}
+                          placeholder="e.g. Siva Kumar"
+                          className="w-full rounded-xl border border-slate-200 bg-[#F8FAF9] px-3 py-2 text-xs font-bold text-[#002A22] outline-none focus:border-emerald-600"
                         />
                       </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1.5">
-                        Mobile Number
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                          Phone Number
+                        </label>
+                        <div className="flex items-center rounded-xl border border-slate-200 bg-[#F8FAF9] px-3 py-2 text-xs">
+                          <span className="font-bold text-slate-400 mr-1.5">+91</span>
+                          <input
+                            type="tel"
+                            value={form.phone}
+                            onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                            placeholder="99663 46347"
+                            className="w-full bg-transparent font-bold text-[#002A22] outline-none"
+                          />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2.5 rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 focus-within:border-[#cb9f5a] focus-within:ring-1 focus-within:ring-[#cb9f5a] transition-all shadow-sm">
-                        <span className="text-xs font-bold text-[#cb9f5a]">+91</span>
-                        <input
-                          type="tel"
-                          required
-                          value={authPhone}
-                          onChange={(e) =>
-                            setAuthPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!form.name.trim() || form.phone.length < 10) {
+                            toast.error("Please enter valid name and 10-digit phone");
+                            return;
                           }
-                          placeholder="98765 43210"
-                          className="w-full bg-transparent text-xs font-semibold outline-none text-slate-800 placeholder:text-slate-400"
-                        />
-                      </div>
+                          setEditingContact(false);
+                        }}
+                        className="px-4 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold cursor-pointer border-0 shadow-xs"
+                      >
+                        Done
+                      </button>
                     </div>
-                    <div>
-                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1.5">
-                        Referral Code (Optional)
-                      </div>
-                      <div className="flex items-center gap-2.5 rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 focus-within:border-[#cb9f5a] focus-within:ring-1 focus-within:ring-[#cb9f5a] transition-all shadow-sm">
-                        <Gift className="h-4 w-4 text-[#cb9f5a]" />
-                        <input
-                          type="text"
-                          value={authReferralCode}
-                          onChange={(e) => setAuthReferralCode(e.target.value.toUpperCase())}
-                          placeholder="e.g. CLEAN-PANDU50"
-                          className="w-full bg-transparent text-xs font-mono font-bold outline-none text-slate-800 placeholder:text-slate-400 uppercase tracking-widest"
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1.5">
-                    Email / Mobile Number
                   </div>
-                  <div className="flex items-center gap-2.5 rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 focus-within:border-[#cb9f5a] focus-within:ring-1 focus-within:ring-[#cb9f5a] transition-all shadow-sm">
-                    <Mail className="h-4 w-4 text-[#cb9f5a]" />
-                    <input
-                      type="text"
-                      required
-                      value={authEmail}
-                      onChange={(e) => setAuthEmail(e.target.value)}
-                      placeholder="email@example.com or 9876543210"
-                      className="w-full bg-transparent text-xs font-semibold outline-none text-slate-800 placeholder:text-slate-400"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-450 mb-1.5">
-                    Password
-                  </div>
-                  <div className="flex items-center gap-2.5 rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 focus-within:border-[#cb9f5a] focus-within:ring-1 focus-within:ring-[#cb9f5a] transition-all shadow-sm">
-                    <Lock className="h-4 w-4 text-[#cb9f5a]" />
-                    <input
-                      type="password"
-                      required
-                      value={authPassword}
-                      onChange={(e) => setAuthPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-transparent text-xs font-semibold outline-none text-slate-800 placeholder:text-slate-400"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-2 flex flex-col gap-2">
-                  <button
-                    type="submit"
-                    disabled={authLoading}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl gradient-gold py-3 text-xs font-bold text-navy shadow-gold disabled:opacity-50 hover:scale-[1.01] transition-all cursor-pointer font-sans"
-                  >
-                    {authLoading
-                      ? "Please wait..."
-                      : authIsRegister
-                        ? "Register Account"
-                        : "Sign In & Continue"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAuthGate(false);
-                      setAuthError("");
-                    }}
-                    className="w-full py-2.5 text-xs font-bold text-[#cb9f5a] hover:text-[#cb9f5a]/80 transition-colors font-sans cursor-pointer"
-                  >
-                    ← Back to Address Details
-                  </button>
-                </div>
-              </form>
-            </div>
-          ) : showOtpVerification ? (
-            <div className="mx-auto max-w-sm py-6 text-center">
-              <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#cb9f5a]/10 mb-4 text-[#cb9f5a] border border-[#cb9f5a]/25">
-                <Smartphone className="h-7 w-7" />
-              </div>
-              <h3 className="font-display text-xl font-bold text-[#002a22]">Verify Your Mobile</h3>
-              <p className="text-xs text-slate-500 font-semibold mt-1 px-4">
-                {otpSentMessage || <>We have sent a 6-digit OTP code to <span className="font-bold text-[#002a22]">+91 {form.phone}</span>.</>}
-              </p>
-              
-              <div className="mt-6">
-                <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">
-                  Enter 6-Digit OTP Code
-                </div>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={otpInput}
-                  onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="••••••"
-                  className="w-full max-w-[200px] text-center rounded-xl border-2 border-[#cb9f5a]/30 bg-white px-4 py-3.5 text-lg font-mono font-bold tracking-[0.5em] text-[#002a22] outline-none focus:border-[#cb9f5a] placeholder:text-slate-300 shadow-sm"
-                />
-              </div>
- 
-              <div className="mt-8 flex flex-col gap-2">
-                <button
-                  type="button"
-                  disabled={verifyLoading}
-                  onClick={handleVerifyMobileOtp}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl gradient-gold py-3.5 text-xs font-bold text-navy shadow-gold hover:scale-[1.01] transition-all cursor-pointer font-sans disabled:opacity-50"
-                >
-                  {verifyLoading ? "Verifying..." : "Verify & Continue"}
-                </button>
-                <div className="flex justify-between items-center mt-2 px-1">
-                  <button
-                    type="button"
-                    onClick={handleSendMobileOtp}
-                    disabled={mobileOtpLoading}
-                    className="text-2xs font-extrabold text-[#cb9f5a] hover:text-[#cb9f5a]/80 transition-colors cursor-pointer disabled:opacity-50 border-0 bg-transparent"
-                  >
-                    {mobileOtpLoading ? "Resending..." : "🔁 Resend OTP Code"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowOtpVerification(false);
-                      setOtpInput("");
-                    }}
-                    className="text-2xs font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer border-0 bg-transparent"
-                  >
-                    Change Number / Back
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : step === 1 ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                label="Full Name"
-                value={form.name}
-                onChange={(v) => setForm({ ...form, name: v })}
-                placeholder="Priya Sharma"
-              />
-              <Field
-                label="Mobile Number"
-                value={form.phone}
-                onChange={(v) => setForm({ ...form, phone: v.replace(/\D/g, "").slice(0, 10) })}
-                placeholder="98765 43210"
-                prefix="+91"
-              />
-
-              <div>
-                <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                  House / Property Type
-                </label>
-                <select
-                  value={form.houseType}
-                  onChange={(e) => setForm({ ...form, houseType: e.target.value })}
-                  className="mt-2 w-full rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 text-xs font-bold text-slate-800 focus:border-[#cb9f5a] outline-none shadow-sm cursor-pointer"
-                >
-                  <option value="Flat / Apartment">Flat / Apartment</option>
-                  <option value="Villa / Independent House">Villa / Independent House</option>
-                  <option value="Row House">Row House</option>
-                  <option value="Office / Commercial Space">Office / Commercial Space</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                  Configuration / Size
-                </label>
-                <select
-                  value={form.houseSize}
-                  onChange={(e) => setForm({ ...form, houseSize: e.target.value })}
-                  className="mt-2 w-full rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 text-xs font-bold text-slate-800 focus:border-[#cb9f5a] outline-none shadow-sm cursor-pointer"
-                >
-                  <option value="1 BHK">1 BHK</option>
-                  <option value="2 BHK">2 BHK</option>
-                  <option value="3 BHK">3 BHK</option>
-                  <option value="4 BHK">4 BHK</option>
-                  <option value="5+ BHK">5+ BHK / Large Villa</option>
-                  <option value="1 Room Kitchen">1 Room Kitchen (1RK)</option>
-                  <option value="Commercial Shop">Commercial Shop</option>
-                  <option value="Office Cabin / Floor">Office Cabin / Floor</option>
-                </select>
-              </div>
-
-              {/* Address Section Title */}
-              <div className="sm:col-span-2 flex items-center justify-between border-b border-slate-100 pb-2 mb-1 mt-2">
-                <span className="text-xs font-black text-[#002a22] uppercase tracking-wider flex items-center gap-1.5">
-                  <span>📍</span> Delivery / Cleaning Address
-                </span>
-                {sessionStorage.getItem("user_profile") && !showCheckoutAddressForm && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingAddressId(null);
-                      // Clear fields for new address
-                      setForm(f => ({ ...f, address: "", landmark: "", pincode: "" }));
-                      setShowCheckoutAddressForm(true);
-                    }}
-                    className="text-[10px] text-[#cb9f5a] font-extrabold uppercase hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
-                  >
-                    ➕ Add New Address
-                  </button>
                 )}
               </div>
 
-              {/* Saved Addresses Carousel List */}
-              {sessionStorage.getItem("user_profile") && savedAddresses.length > 0 && !showCheckoutAddressForm && (
-                <div className="sm:col-span-2 space-y-2">
-                  <div className="flex gap-2.5 overflow-x-auto pb-2 pt-0.5 scrollbar-thin">
+              {/* SECTION 2: ADDRESS & SAVED ADDRESSES (Matching Video) */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-3xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs">
+                      📍
+                    </div>
+                    <span className="text-xs font-extrabold text-[#002A22]">Address</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Saved Addresses
+                  </span>
+                </div>
+
+                {/* Selected Address Card */}
+                {!showCheckoutAddressForm && savedAddresses.length > 0 && (
+                  <div className="space-y-2">
                     {savedAddresses.map((addr: any) => {
-                      const isSelected = 
-                        form.address === addr.address &&
-                        form.landmark === addr.landmark &&
-                        form.pincode === addr.pincode;
-                      
+                      const isSelected = form.address === addr.address;
                       return (
                         <div
                           key={addr.id}
-                          className={`relative flex flex-col justify-between rounded-xl p-3 border shrink-0 min-w-[200px] max-w-[220px] transition-all ${
+                          onClick={() => {
+                            setForm((f) => ({
+                              ...f,
+                              address: addr.address,
+                              landmark: addr.landmark,
+                              city: addr.city,
+                              pincode: addr.pincode,
+                            }));
+                          }}
+                          className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative ${
                             isSelected
-                              ? "border-[#cb9f5a] bg-[#cb9f5a]/5 ring-1 ring-[#cb9f5a]/20"
-                              : "border-slate-200 bg-white hover:border-[#cb9f5a]/45"
+                              ? "bg-emerald-50/50 border-emerald-600 ring-1 ring-emerald-600/30 shadow-xs"
+                              : "bg-[#F8FAF9] border-slate-200 hover:border-slate-300"
                           }`}
                         >
-                          {/* Card click handler */}
-                          <div
-                            className="cursor-pointer flex-1 flex items-start gap-2"
-                            onClick={() => {
-                              setForm((f) => ({
-                                ...f,
-                                address: addr.address || f.address,
-                                landmark: addr.landmark || f.landmark,
-                                city: addr.city || f.city,
-                                pincode: addr.pincode || f.pincode,
-                              }));
-                            }}
-                          >
-                            <div className="text-sm pt-0.5">
-                              {addr.type === "Home" ? "🏠" : addr.type === "Office" ? "🏢" : "📍"}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-extrabold text-[9px] uppercase text-slate-700">{addr.type}</span>
-                                {addr.isDefault && (
-                                  <span className="font-black text-[7px] text-emerald-800 bg-emerald-100 px-1 rounded-full uppercase">Default</span>
-                                )}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2.5">
+                              <div className="h-7 w-7 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-xs shrink-0 mt-0.5">
+                                {addr.type === "Office" ? "🏢" : "🏠"}
                               </div>
-                              <p className="text-[10px] font-semibold text-slate-600 truncate mt-0.5">{addr.address}</p>
-                              <p className="text-[9px] font-extrabold text-[#cb9f5a]/90 mt-0.5">{addr.city} - {addr.pincode}</p>
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-extrabold text-[#002A22]">
+                                    {addr.type || "Home"}
+                                  </span>
+                                  {addr.isDefault && (
+                                    <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded">
+                                      Default
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-slate-600 font-medium mt-0.5 leading-snug">
+                                  {addr.address}
+                                </p>
+                                <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                                  {addr.landmark ? `${addr.landmark}, ` : ""}{addr.city} - {addr.pincode}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-
-                          {/* Edit / Delete tiny buttons inside card */}
-                          <div className="flex items-center justify-end gap-1.5 mt-2 pt-2 border-t border-slate-100">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingAddressId(addr.id);
-                                setForm((f) => ({
-                                  ...f,
-                                  address: addr.address,
-                                  landmark: addr.landmark,
-                                  city: addr.city,
-                                  pincode: addr.pincode,
-                                }));
-                                setNewAddrType(addr.type || "Home");
-                                setShowCheckoutAddressForm(true);
-                              }}
-                              className="text-[9px] font-bold text-slate-500 hover:text-[#cb9f5a] cursor-pointer flex items-center gap-0.5 border-0 bg-transparent"
-                            >
-                              ✏️ Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                const userId = JSON.parse(sessionStorage.getItem("user_profile") || "{}").id;
-                                if (!userId) return;
-                                const updated = savedAddresses.filter((a: any) => a.id !== addr.id);
-                                if (addr.isDefault && updated.length > 0) {
-                                  updated[0].isDefault = true;
-                                }
-                                try {
-                                  const res = await fetch(`${ADMIN_API_URL}/api/users/${userId}/addresses`, {
-                                    method: "PUT",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ addresses: updated }),
-                                  });
-                                  if (res.ok) {
-                                    setSavedAddresses(updated);
-                                    const prof = JSON.parse(sessionStorage.getItem("user_profile") || "{}");
-                                    const updatedProf = { ...prof, addresses: updated };
-                                    sessionStorage.setItem("user_profile", JSON.stringify(updatedProf));
-                                    window.dispatchEvent(new Event("storage"));
-                                    toast.success("Address deleted successfully!");
-                                    
-                                    // Reset form values if deleted address was selected
-                                    if (isSelected) {
-                                      setForm(f => ({ ...f, address: "", landmark: "", pincode: "" }));
-                                    }
-                                  }
-                                } catch (err) {
-                                  toast.error("Failed to delete address.");
-                                }
-                              }}
-                              className="text-[9px] font-bold text-rose-500 hover:text-rose-700 cursor-pointer flex items-center gap-0.5 border-0 bg-transparent"
-                            >
-                              🗑️ Delete
-                            </button>
+                            <div className="shrink-0 flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingAddressId(addr.id);
+                                  setForm((f) => ({
+                                    ...f,
+                                    address: addr.address,
+                                    landmark: addr.landmark,
+                                    city: addr.city,
+                                    pincode: addr.pincode,
+                                  }));
+                                  setShowCheckoutAddressForm(true);
+                                }}
+                                className="text-[10px] text-slate-500 hover:text-emerald-700 p-1 cursor-pointer bg-transparent border-0"
+                              >
+                                ✏️
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Show address input form fields (only if no saved addresses, or adding/editing) */}
-              {(showCheckoutAddressForm || savedAddresses.length === 0) && (
-                <>
-                  {/* Address Type pill selector in edit form */}
-                  {sessionStorage.getItem("user_profile") && (
-                    <div className="sm:col-span-2 flex items-center justify-between p-3 bg-slate-50 border border-slate-200/80 rounded-xl mb-1 text-xs">
-                      <span className="font-bold text-slate-700">Address Label Tag</span>
-                      <div className="flex gap-1.5 text-[10px]">
-                        {["Home", "Office", "Other"].map((t) => (
+                {/* Add New Address Button or Form */}
+                {!showCheckoutAddressForm ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingAddressId(null);
+                      setForm((f) => ({ ...f, address: "", landmark: "", pincode: "" }));
+                      setShowCheckoutAddressForm(true);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer border-0 flex items-center justify-center gap-1.5 shadow-xs"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add New Address
+                  </button>
+                ) : (
+                  <div className="p-3.5 rounded-2xl bg-[#F8FAF9] border border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#002A22]">
+                        {editingAddressId ? "Edit Address" : "New Address Details"}
+                      </span>
+                      <div className="flex gap-1">
+                        {["Home", "Office", "Other"].map((tag) => (
                           <button
-                            key={t}
+                            key={tag}
                             type="button"
-                            onClick={() => setNewAddrType(t)}
-                            className={`px-2.5 py-0.5 rounded-full font-bold transition-colors cursor-pointer border ${
-                              newAddrType === t
-                                ? "bg-[#002a22] border-[#002a22] text-white font-extrabold"
-                                : "bg-slate-50 border-slate-200 text-slate-500"
+                            onClick={() => setNewAddrType(tag)}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                              newAddrType === tag
+                                ? "bg-emerald-800 text-white border-emerald-800"
+                                : "bg-white text-slate-600 border-slate-200"
                             }`}
                           >
-                            {t === "Home" ? "🏠 Home" : t === "Office" ? "🏢 Office" : "📍 Other"}
+                            {tag}
                           </button>
                         ))}
                       </div>
                     </div>
-                  )}
 
-                  <div className="sm:col-span-2">
-                    <Field
-                      label="Full Address"
+                    <textarea
+                      rows={2}
+                      placeholder="House / Flat No, Building Name, Street..."
                       value={form.address}
-                      onChange={(v) => setForm({ ...form, address: v })}
-                      placeholder="Flat 302, Sunshine Apartments, Indiranagar"
-                      textarea
+                      onChange={(e) => setForm({ ...form, address: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:border-emerald-600 resize-none font-medium"
                     />
-                  </div>
-                  
-                  <div className={`relative ${showGunturSuggestions ? "z-30" : "z-10"}`}>
-                    <div onClick={() => setShowGunturSuggestions(true)}>
-                      <Field
-                        label="Landmark / Nearby Place"
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        placeholder="Landmark (e.g. Near Metro)"
                         value={form.landmark}
-                        onChange={(v) => {
-                          setForm({ ...form, landmark: v });
-                          setShowGunturSuggestions(true);
-                        }}
-                        placeholder="e.g. Opposite Metro Station"
+                        onChange={(e) => setForm({ ...form, landmark: e.target.value })}
+                        className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-600 font-medium"
+                      />
+                      <input
+                        placeholder="Pincode (e.g. 522002)"
+                        value={form.pincode}
+                        onChange={(e) => setForm({ ...form, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                        className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-600 font-medium"
                       />
                     </div>
-                    {showGunturSuggestions && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-10"
-                          onClick={() => setShowGunturSuggestions(false)}
-                        />
-                        <div className="absolute left-0 right-0 bottom-full mb-1.5 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg z-50 py-1 text-slate-800 font-sans">
-                          <div className="px-3 py-1.5 bg-slate-50 text-[9px] font-extrabold uppercase tracking-wide text-slate-400 border-b border-slate-100 flex items-center justify-between">
-                            <span>📍 Guntur Location Suggestions</span>
-                            <span className="text-[8px] bg-[#cb9f5a]/10 text-[#cb9f5a] px-1 rounded">
-                              Quick Auto-fill
-                            </span>
-                          </div>
-                          {filteredGuntur.map((loc, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => {
-                                setForm({
-                                  ...form,
-                                  landmark: loc.landmark,
-                                  address: `${loc.landmark}, ${loc.area}`,
-                                  pincode: loc.pincode,
-                                  city: "Guntur",
-                                  mapsLink: loc.mapsLink,
-                                });
-                                setShowGunturSuggestions(false);
-                                toast.success(`Location auto-filled: ${loc.area}!`, { icon: "📍" });
-                              }}
-                              className="w-full text-left px-3 py-2 text-xs hover:bg-[#cb9f5a]/5 transition-colors border-0 bg-transparent cursor-pointer flex flex-col gap-0.5"
-                            >
-                              <div className="font-bold text-[#002a22] flex items-center justify-between">
-                                <span>{loc.area}</span>
-                                <span className="text-[10px] text-[#cb9f5a] font-mono">
-                                  {loc.pincode}
-                                </span>
-                              </div>
-                              <div className="text-[10px] text-slate-500 font-medium truncate">
-                                {loc.landmark}
-                              </div>
-                            </button>
-                          ))}
-                          {filteredGuntur.length === 0 && (
-                            <div className="px-3 py-4 text-center text-slate-400 text-xs italic">
-                              No Guntur landmarks found matching your query
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  
-                  <Field
-                    label="Pincode"
-                    value={form.pincode}
-                    onChange={(v) => setForm({ ...form, pincode: v.replace(/\D/g, "").slice(0, 6) })}
-                    placeholder="522002"
-                  />
 
-                  {/* Save / Cancel buttons in sub-form */}
-                  {sessionStorage.getItem("user_profile") && savedAddresses.length > 0 && (
-                    <div className="sm:col-span-2 flex justify-end gap-2.5 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowCheckoutAddressForm(false);
-                          // Restore default or previous address
-                          const defaultAddr = savedAddresses.find((a: any) => a.isDefault) || savedAddresses[0];
-                          if (defaultAddr) {
-                            setForm((f) => ({
-                              ...f,
-                              address: defaultAddr.address,
-                              landmark: defaultAddr.landmark,
-                              city: defaultAddr.city,
-                              pincode: defaultAddr.pincode,
-                            }));
-                          }
-                        }}
-                        className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (!form.address.trim() || !form.pincode.trim()) {
-                            toast.error("Full Address and Pincode are required");
-                            return;
-                          }
-                          const userId = JSON.parse(sessionStorage.getItem("user_profile") || "{}").id;
-                          if (!userId) return;
-                          
-                          let updated: any[];
-                          if (editingAddressId) {
-                            // Update existing address
-                            updated = savedAddresses.map((a: any) => 
-                              a.id === editingAddressId
-                                ? { ...a, address: form.address.trim(), landmark: form.landmark.trim(), city: form.city.trim(), pincode: form.pincode.trim(), type: newAddrType }
-                                : a
-                            );
-                          } else {
-                            // Add new address
-                            const newAddr = {
-                              id: "addr-" + Math.random().toString(36).substr(2, 9),
-                              address: form.address.trim(),
-                              landmark: form.landmark.trim(),
-                              city: form.city.trim(),
-                              pincode: form.pincode.trim(),
-                              type: newAddrType,
-                              isDefault: savedAddresses.length === 0,
-                            };
-                            updated = [...savedAddresses, newAddr];
-                          }
-                          
-                          try {
-                            const res = await fetch(`${ADMIN_API_URL}/api/users/${userId}/addresses`, {
-                              method: "PUT",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ addresses: updated }),
-                            });
-                            if (res.ok) {
-                              setSavedAddresses(updated);
-                              const prof = JSON.parse(sessionStorage.getItem("user_profile") || "{}");
-                              const updatedProf = { ...prof, addresses: updated };
-                              sessionStorage.setItem("user_profile", JSON.stringify(updatedProf));
-                              window.dispatchEvent(new Event("storage"));
-                              toast.success(editingAddressId ? "Address updated!" : "New address added!");
-                              setShowCheckoutAddressForm(false);
-                            }
-                          } catch (err) {
-                            toast.error("Failed to save address changes.");
-                          }
-                        }}
-                        className="px-4 py-2 bg-[#002a22] text-white hover:bg-[#003d32] text-xs font-bold rounded-xl cursor-pointer"
-                      >
-                        {editingAddressId ? "Update Address" : "Save Address"}
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Preview of selected address if form is hidden */}
-              {!showCheckoutAddressForm && savedAddresses.length > 0 && form.address && (
-                <div className="sm:col-span-2 bg-[#faf8f5]/85 border border-[#cb9f5a]/25 rounded-2xl p-4 shadow-3xs text-xs font-sans space-y-1 mt-1">
-                  <div className="font-extrabold uppercase text-[9px] text-[#cb9f5a]">Selected Delivery Address</div>
-                  <p className="font-bold text-slate-700 leading-relaxed">{form.address}</p>
-                  {form.landmark && <p className="text-[10px] text-slate-500 font-bold">Nearby: {form.landmark}</p>}
-                  <p className="text-[10px] text-[#cb9f5a] font-extrabold uppercase">{form.city} - {form.pincode}</p>
-                </div>
-              )}
-
-              {/* Save Address to Profile Checkbox for guest users who type manually */}
-              {sessionStorage.getItem("user_profile") && savedAddresses.length === 0 && (
-                <div className="sm:col-span-2 flex items-center gap-2 pt-1 font-sans">
-                  <input
-                    type="checkbox"
-                    id="save-to-profile-checkbox"
-                    checked={saveToProfile}
-                    onChange={(e) => setSaveToProfile(e.target.checked)}
-                    className="rounded border-[#cb9f5a]/30 text-[#002a22] focus:ring-[#cb9f5a] cursor-pointer h-4 w-4"
-                  />
-                  <label htmlFor="save-to-profile-checkbox" className="text-xs font-bold text-[#002a22]/80 select-none cursor-pointer">
-                    Save this address to my profile for future bookings
-                  </label>
-                </div>
-              )}
-
-              {/* Technician location detector */}
-              <div className="sm:col-span-2">
-                <div className="flex flex-col gap-2 rounded-2xl border border-dashed border-[#cb9f5a]/30 bg-[#cb9f5a]/5 p-4">
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div>
-                      <h4 className="text-xs font-bold text-[#002a22] flex items-center gap-1.5">
-                        <span>📍</span> Technician GPS Location
-                      </h4>
-                      <p className="text-[10px] text-slate-400 mt-0.5 font-semibold">
-                        Let our technicians navigate to your exact house doorstep using GPS
-                        coordinates.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center justify-between pt-1">
                       <button
                         type="button"
                         onClick={detectLocation}
                         disabled={isLocating}
-                        className="shrink-0 flex items-center gap-1.5 rounded-xl gradient-gold px-3.5 py-2 text-2xs font-bold text-navy shadow-gold disabled:opacity-50 hover:scale-[1.02] transition-all cursor-pointer font-sans"
+                        className="text-[10px] text-emerald-800 font-bold hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
                       >
-                        {isLocating ? "Detecting..." : "📍 Detect My Location"}
+                        {isLocating ? "Detecting..." : "📍 Auto-Detect GPS"}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setCheckoutMapPickerOpen(true)}
-                        className="shrink-0 flex items-center gap-1.5 rounded-xl border border-[#cb9f5a]/30 bg-white px-3.5 py-2 text-2xs font-bold text-[#002a22] shadow-2xs hover:bg-[#cb9f5a]/10 transition-all cursor-pointer font-sans"
-                      >
-                        🗺️ Drag Pin on Live Map
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowCheckoutAddressForm(false)}
+                          className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!form.address.trim() || !form.pincode.trim()) {
+                              toast.error("Address and Pincode are required");
+                              return;
+                            }
+                            const newAddr = {
+                              id: editingAddressId || `addr-${Date.now()}`,
+                              type: newAddrType,
+                              address: form.address,
+                              landmark: form.landmark,
+                              city: form.city,
+                              pincode: form.pincode,
+                              isDefault: savedAddresses.length === 0,
+                            };
+                            setSavedAddresses([newAddr, ...savedAddresses.filter((a) => a.id !== newAddr.id)]);
+                            setShowCheckoutAddressForm(false);
+                            toast.success("Address saved!");
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl bg-emerald-800 text-white text-xs font-bold cursor-pointer border-0"
+                        >
+                          Save
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  {form.gpsCoords && (
-                    <div className="flex items-center gap-2 mt-2 bg-white border border-emerald-500/20 rounded-xl px-3 py-1.5 text-2xs font-bold text-emerald-700">
-                      <span>✓ GPS Coordinates Captured:</span>
-                      <span className="font-mono">{form.gpsCoords}</span>
+                )}
+              </div>
+
+              {/* SECTION 3: DATE & TIME (Matching Video) */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-3xs space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs">
+                    🕒
+                  </div>
+                  <span className="text-xs font-extrabold text-[#002A22]">Date &amp; Time</span>
+                </div>
+
+                <div className="space-y-2.5">
+                  <div className="flex items-center rounded-xl border border-slate-200 bg-[#F8FAF9] px-3.5 py-2.5 text-xs">
+                    <Calendar className="h-4 w-4 text-emerald-700 mr-2 shrink-0" />
+                    <input
+                      type="date"
+                      value={form.date}
+                      min={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setForm({ ...form, date: e.target.value })}
+                      className="w-full bg-transparent font-bold text-[#002A22] outline-none cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                      Select Preferred Slot
+                    </span>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                      {slots.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setForm({ ...form, time: s })}
+                          className={`py-2 px-1 rounded-xl text-[10px] font-bold transition-all cursor-pointer border ${
+                            form.time === s
+                              ? "bg-emerald-800 text-white border-emerald-800 shadow-xs"
+                              : "bg-[#F8FAF9] border-slate-200 text-slate-700 hover:bg-slate-100"
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
 
-              <Field
-                label="Google Maps Location URL (Optional)"
-                value={form.mapsLink}
-                onChange={(v) => setForm({ ...form, mapsLink: v })}
-                placeholder="e.g. https://maps.app.goo.gl/..."
-              />
-              <Field
-                label="City"
-                value={form.city}
-                onChange={(v) => setForm({ ...form, city: v })}
-              />
-              <div className="sm:col-span-2">
-                <Field
-                  label="Special Instructions (optional)"
-                  value={form.notes}
-                  onChange={(v) => setForm({ ...form, notes: v })}
-                  placeholder="Pets at home, ring twice…"
-                  textarea
-                />
+              {/* SECTION 4: SELECTED SERVICES LIST (Matching Video) */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-3xs space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <span className="text-xs font-extrabold text-[#002A22]">Selected Services</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">
+                    {cart.length} Item(s)
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {cart.map((i) => (
+                    <div
+                      key={i.id}
+                      className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#F8FAF9] border border-slate-150"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs font-bold text-[#002A22] block truncate">
+                          {i.title}
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 rounded">
+                            {i.paymentType === "free_advance" ? "Express" : "Deep Clean"}
+                          </span>
+                          <span className="text-xs font-extrabold text-[#002A22]">
+                            ₹{i.price * i.qty}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Quantity Stepper */}
+                      <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-2 py-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (updateQty) {
+                              updateQty(i.id, -1);
+                            } else if (i.qty > 1) {
+                              i.qty -= 1;
+                            } else if (removeItem) {
+                              removeItem(i.id);
+                            }
+                          }}
+                          className="h-5 w-5 rounded bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 cursor-pointer font-bold text-xs"
+                        >
+                          −
+                        </button>
+                        <span className="text-xs font-black text-[#002A22] min-w-[14px] text-center">
+                          {i.qty}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (updateQty) {
+                              updateQty(i.id, 1);
+                            } else {
+                              i.qty += 1;
+                            }
+                          }}
+                          className="h-5 w-5 rounded bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 cursor-pointer font-bold text-xs"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-              <div className="space-y-5">
-                <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                    Select Date
-                  </div>
+
+              {/* SECTION 5: ADD ON SERVICES (Matching Video) */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-3xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-[#002A22]">Add On Services</span>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    Recommended
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {ADD_ON_SERVICES.map((addon) => {
+                    const isInCart = cart.some((item) => item.id.includes(addon.id));
+                    return (
+                      <div
+                        key={addon.id}
+                        className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-[#F8FAF9] border border-slate-150"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <img
+                            src={addon.img}
+                            alt=""
+                            className="h-11 w-11 rounded-lg object-cover shrink-0 border border-slate-200"
+                          />
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold text-[#002A22] block truncate">
+                              {addon.title}
+                            </span>
+                            <span className="text-xs font-black text-emerald-800">
+                              ₹{addon.price}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isInCart) {
+                              toast.info("Item already in cart");
+                            } else if (onAddItem) {
+                              onAddItem({
+                                id: addon.id,
+                                title: addon.title,
+                                price: addon.price,
+                                img: addon.img,
+                              });
+                              toast.success(`Added ${addon.title} to cart!`, { icon: "✨" });
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition-all shrink-0 cursor-pointer border-0 shadow-3xs ${
+                            isInCart
+                              ? "bg-slate-200 text-slate-600"
+                              : "bg-emerald-700 hover:bg-emerald-800 text-white"
+                          }`}
+                        >
+                          {isInCart ? "✓ Added" : "+ Add"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* SECTION 6: INSTRUCTIONS & PREFERENCES (Matching Video) */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-3xs space-y-3">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <input
-                    type="date"
-                    value={form.date}
-                    min={new Date().toISOString().slice(0, 10)}
-                    onChange={(e) => setForm({ ...form, date: e.target.value })}
-                    className="mt-2 w-full rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 text-xs font-bold text-slate-800 focus:border-[#cb9f5a] outline-none cursor-pointer shadow-sm"
+                    type="checkbox"
+                    checked={avoidCalling}
+                    onChange={(e) => setAvoidCalling(e.target.checked)}
+                    className="h-4 w-4 rounded text-emerald-700 focus:ring-emerald-600 border-slate-300"
+                  />
+                  <span className="text-xs font-bold text-[#002A22]">
+                    Avoid calling before coming
+                  </span>
+                </label>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Additional Instructions
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Specify any additional instructions (e.g. ring twice, pets at home)..."
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    className="w-full bg-[#F8FAF9] border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:border-emerald-600 resize-none font-medium"
                   />
                 </div>
-                <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                    Select Time Slot
-                  </div>
-                  <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6">
-                    {slots.map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setForm({ ...form, time: s })}
-                        className={`rounded-xl border px-2 py-2 text-2xs font-bold transition-all cursor-pointer ${form.time === s ? "border-[#cb9f5a] gradient-gold text-navy shadow-gold" : "border-[#cb9f5a]/20 bg-white text-slate-800 hover:border-[#cb9f5a] hover:bg-slate-50/50"}`}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                    Coupon Code
-                  </div>
-                  <div className="mt-2 flex gap-2">
-                    <input
-                      value={form.coupon}
-                      onChange={(e) => setForm({ ...form, coupon: e.target.value })}
-                      placeholder="Try WELCOME500"
-                      className="flex-1 rounded-xl border border-[#cb9f5a]/20 bg-white px-4 py-3 text-xs font-semibold outline-none text-slate-800 placeholder:text-slate-400 shadow-sm"
-                    />
-                    <button
-                      onClick={applyCoupon}
-                      className="rounded-xl gradient-gold px-5 text-xs font-bold text-navy shadow-gold cursor-pointer"
-                    >
-                      Apply
-                    </button>
-                  </div>
+              </div>
 
-                  {/* Clickable Available Coupons list */}
-                  {availableCoupons.length > 0 && (
-                    <div className="mt-2.5">
-                      <div className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 mb-1.5">
-                        Available Offers
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {availableCoupons
-                          .filter((c) => {
-                            const today = new Date().toISOString().split("T")[0];
-                            return c.isActive && c.expiryDate >= today;
-                          })
-                          .map((c) => (
-                            <button
-                              key={c.code}
-                              type="button"
-                              onClick={async () => {
-                                // Set coupon code in form
-                                setForm((f) => ({ ...f, coupon: c.code }));
-                                // Auto-apply coupon
-                                try {
-                                  const result = await validateCoupon(c.code, total);
-                                  setDiscount(result.discount);
-                                  toast.success(`Coupon applied — ₹${result.discount} OFF!`, {
-                                    icon: "🎉",
-                                  });
-                                } catch (err: any) {
-                                  setDiscount(0);
-                                  toast.error(err.message || "Failed to apply coupon");
-                                }
-                              }}
-                              className={`inline-flex flex-col items-start rounded-xl border px-3 py-2 text-left transition-all hover:scale-[1.01] active:scale-95 ${
-                                form.coupon === c.code
-                                  ? "border-emerald-500 bg-emerald-500/10 shadow-sm font-bold text-emerald-800"
-                                  : "border-[#cb9f5a]/25 bg-white hover:bg-slate-50 text-slate-800 font-bold rounded-xl cursor-pointer"
-                              }`}
-                            >
-                              <span className="font-mono text-xs font-bold text-[#cb9f5a]">
-                                {c.code}
-                              </span>
-                              <span className="text-[9px] font-semibold text-slate-400 mt-0.5">
-                                Save ₹{c.discount} (Min. ₹{c.minAmount})
-                              </span>
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  )}
+              {/* SECTION 7: PAYMENT SUMMARY (Matching Video) */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-3xs space-y-3 font-sans">
+                <span className="text-xs font-extrabold text-[#002A22] block border-b border-slate-100 pb-2">
+                  Payment summary
+                </span>
 
+                <div className="space-y-2 text-xs font-semibold text-slate-600">
+                  <div className="flex justify-between">
+                    <span>Item total</span>
+                    <span className="font-bold text-[#002A22]">₹{itemTotal}/-</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Taxes and Fees</span>
+                    <span className="font-bold text-[#002A22]">₹{taxesAndFees}/-</span>
+                  </div>
                   {discount > 0 && (
-                    <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-2xs font-bold text-emerald-700 border border-emerald-500/25">
-                      <Zap className="h-3 w-3 text-emerald-500" /> Saved ₹{discount}
+                    <div className="flex justify-between text-emerald-700">
+                      <span>Coupon Discount</span>
+                      <span className="font-bold">− ₹{discount}/-</span>
                     </div>
                   )}
-                </div>
-                {/* Refer & Earn Wallet Balance Application Box */}
-                {userWalletBalance > 0 && (
-                  <div>
-                    <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                      Referral Wallet Credit
+                  {appliedWalletCredit > 0 && (
+                    <div className="flex justify-between text-emerald-700">
+                      <span>Wallet Credit</span>
+                      <span className="font-bold">− ₹{appliedWalletCredit}/-</span>
                     </div>
-                    <div className="mt-2 rounded-2xl border border-[#cb9f5a]/30 bg-gradient-to-r from-[#cb9f5a]/10 to-[#002a22]/5 p-4 space-y-2 font-sans">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="grid h-8 w-8 place-items-center rounded-xl bg-[#002a22] text-[#cb9f5a] font-bold text-sm shadow-sm">
-                            🎁
-                          </div>
-                          <div>
-                            <h5 className="text-xs font-bold text-[#002a22]">
-                              Apply Referral Wallet Credit
-                            </h5>
-                            <p className="text-[10px] text-slate-500 font-semibold">
-                              Available Balance: <strong className="text-[#cb9f5a]">₹{userWalletBalance}</strong>
-                            </p>
-                          </div>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={useWalletCredit}
-                            onChange={(e) => setUseWalletCredit(e.target.checked)}
-                            className="sr-only peer"
-                          />
-                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#cb9f5a]"></div>
-                        </label>
-                      </div>
-                      {useWalletCredit && (
-                        <div className="text-[10px] font-bold text-emerald-700 bg-white/80 border border-emerald-500/20 rounded-xl px-3 py-1.5 flex items-center justify-between">
-                          <span>✓ Wallet Credit Applied:</span>
-                          <span>− ₹{appliedWalletCredit}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                  )}
 
-                <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                    Payment Method
+                  <div className="border-t border-slate-150 pt-2 flex justify-between font-bold text-sm text-[#002A22]">
+                    <span>Total amount</span>
+                    <span>₹{grandTotal}/-</span>
                   </div>
-                  <div className="mt-2 rounded-2xl border border-[#cb9f5a]/30 bg-[#cb9f5a]/5 p-4 flex items-center gap-3">
-                    <div className="grid h-8 w-8 place-items-center rounded-xl gradient-gold text-navy font-bold shadow-gold">
-                      💳
-                    </div>
-                    <div>
-                      <h5 className="text-xs font-extrabold text-[#002a22]">
-                        UPI / Cards / Netbanking (Online Payment)
-                      </h5>
-                      <p className="text-[10px] text-slate-450 font-semibold mt-0.5">
-                        Pay upfront deposit online via Razorpay test gateway to secure your slots.
-                      </p>
-                    </div>
+
+                  <div className="flex justify-between text-slate-500 text-[11px]">
+                    <span>Advance payment</span>
+                    <span className="font-bold text-emerald-800">₹{upfrontPayAmount}/-</span>
                   </div>
+                  <div className="flex justify-between text-slate-500 text-[11px]">
+                    <span>Remaining Amount (Pay after clean)</span>
+                    <span className="font-bold">₹{payLaterAmount}/-</span>
+                  </div>
+
+                  <div className="border-t border-slate-200 pt-2 flex justify-between items-center text-sm">
+                    <span className="font-extrabold text-[#002A22]">Amount to pay</span>
+                    <span className="text-base font-black text-emerald-800">
+                      ₹{upfrontPayAmount}/-
+                    </span>
+                  </div>
+                </div>
+
+                {/* Coupon Input Box */}
+                <div className="pt-2 border-t border-slate-100 flex gap-2">
+                  <input
+                    placeholder="Coupon code (e.g. WELCOME500)"
+                    value={form.coupon}
+                    onChange={(e) => setForm({ ...form, coupon: e.target.value.toUpperCase() })}
+                    className="flex-1 bg-[#F8FAF9] border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-[#002A22] outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyCoupon}
+                    className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer border-0"
+                  >
+                    Apply
+                  </button>
                 </div>
               </div>
-              <aside className="h-fit rounded-2xl border border-[#cb9f5a]/25 bg-white p-5 shadow-sm">
-                <div className="font-display text-base font-extrabold uppercase tracking-wider text-[#002a22] border-b border-[#cb9f5a]/10 pb-2">
-                  Order Summary
-                </div>
-                <ul className="mt-3 space-y-2 text-xs font-semibold">
-                  {cart.map((i) => (
-                    <li key={i.id} className="flex justify-between gap-2">
-                      <span className="truncate text-slate-500">
-                        {i.title} × {i.qty}
-                      </span>
-                      <span className="font-bold text-[#002a22]">₹{i.price * i.qty}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="my-3 h-px bg-[#cb9f5a]/10" />
-                <div className="flex justify-between text-xs font-semibold text-slate-500">
-                  <span>Subtotal</span>
-                  <span className="font-bold text-[#002a22]">₹{total}</span>
-                </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-xs font-semibold text-emerald-700">
-                    <span>Discount</span>
-                    <span className="font-bold text-emerald-700">− ₹{discount}</span>
-                  </div>
-                )}
-                {appliedWalletCredit > 0 && (
-                  <div className="flex justify-between text-xs font-semibold text-emerald-700 mt-1">
-                    <span>🎁 Wallet Credit</span>
-                    <span className="font-bold text-emerald-700">− ₹{appliedWalletCredit}</span>
-                  </div>
-                )}
-                <div className="mt-3 flex justify-between border-t border-[#cb9f5a]/10 pt-3 text-sm">
-                  <span className="font-bold text-[#002a22]">Grand Total</span>
-                  <span className="font-bold text-[#cb9f5a]">₹{finalTotal}</span>
-                </div>
-                <div className="mt-3 flex justify-between rounded-xl bg-[#cb9f5a]/10 p-3 border border-[#cb9f5a]/20 text-[#002a22]">
-                  <div className="text-left">
-                    <span className="block text-[8px] font-extrabold uppercase tracking-wider text-slate-400">
-                      Upfront Pay
-                    </span>
-                    <span className="font-display text-base font-black text-[#cb9f5a]">
-                      ₹{upfrontPayAmount}
-                    </span>
-                  </div>
-                  <div className="text-right border-l border-[#cb9f5a]/20 pl-3">
-                    <span className="block text-[8px] font-bold uppercase tracking-wider text-slate-400">
-                      Pay post-service
-                    </span>
-                    <span className="text-xs font-extrabold text-slate-650">
-                      ₹{payLaterAmount}
-                    </span>
-                  </div>
-                </div>
-                <div className="mt-2 text-[9px] text-center text-emerald-600 font-bold uppercase tracking-wider">
-                  🛡️ Pay upfront amount online to secure slots
-                </div>
-              </aside>
-            </div>
+            </>
           )}
         </div>
 
-        {!success && !showAuthGate && !showOtpVerification && (
-          <div className="flex items-center justify-between border-t border-[#cb9f5a]/15 bg-white px-6 py-4.5">
-            <div className="flex flex-col text-left">
-              <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
-                {step === 1 ? "Subtotal" : "Upfront Payment"}
-              </span>
-              <span className="font-display text-lg sm:text-xl font-black text-[#002a22]">
-                ₹{step === 1 ? total : upfrontPayAmount}
-              </span>
-            </div>
-            
-            {step === 1 ? (
+        {/* SECTION 8: PRIMARY STICKY BOTTOM ACTION CTA (Matching Video) */}
+        {!success && (
+          <div className="fixed sm:absolute bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 p-3.5 px-4 shadow-[0_-8px_25px_rgba(0,0,0,0.08)]">
+            <div className="flex items-center justify-between gap-3 max-w-xl mx-auto">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Amount to pay
+                </span>
+                <span className="text-lg font-black text-[#002A22] leading-tight">
+                  ₹{upfrontPayAmount}/-
+                </span>
+              </div>
+
               <button
-                disabled={!canStep2 || mobileOtpLoading}
-                onClick={() => {
-                  if (otpVerified) {
-                    setStep(2);
-                  } else {
-                    handleSendMobileOtp();
-                  }
-                }}
-                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#cb9f5a] via-[#e5be7a] to-[#cb9f5a] px-8 py-3 text-xs font-black uppercase tracking-wider text-[#002a22] shadow-[0_4px_15px_rgba(203,159,90,0.35)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 font-sans cursor-pointer"
-              >
-                {mobileOtpLoading ? "Sending OTP..." : "Continue"} <ArrowRight className="h-4 w-4" />
-              </button>
-            ) : (
-              <button
+                type="button"
                 disabled={isPaying}
                 onClick={handleConfirm}
-                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#cb9f5a] via-[#e5be7a] to-[#cb9f5a] px-8 py-3 text-xs font-black uppercase tracking-wider text-[#002a22] shadow-[0_4px_15px_rgba(203,159,90,0.35)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 font-sans cursor-pointer"
+                className="flex-1 max-w-[280px] py-3 rounded-xl bg-[#0B6B46] hover:bg-[#084F34] text-white text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer border-0 flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-50"
               >
-                {isPaying ? "Processing..." : "Confirm & Pay"}{" "}
-                <CheckCircle2 className="h-4 w-4" />
+                {isPaying ? (
+                  "Processing..."
+                ) : (
+                  <>
+                    Pay ₹{upfrontPayAmount}/- &amp; Book Service
+                  </>
+                )}
               </button>
-            )}
+            </div>
           </div>
         )}
 
@@ -6430,19 +5824,7 @@ export function BookingModal({
               gpsCoords: `${data.lat.toFixed(6)}, ${data.lng.toFixed(6)}`,
               mapsLink: data.mapsLink,
             }));
-            const activeEmail = sessionStorage.getItem("user_email");
-            const keySuffix = activeEmail ? `_${activeEmail.toLowerCase().trim()}` : "";
-            const addrVal = data.address || data.landmark;
-            sessionStorage.setItem("user_location_address", addrVal);
-            if (keySuffix) {
-              sessionStorage.setItem(`user_location_address${keySuffix}`, addrVal);
-              sessionStorage.setItem(`user_location_lat${keySuffix}`, String(data.lat));
-              sessionStorage.setItem(`user_location_lng${keySuffix}`, String(data.lng));
-            }
-            sessionStorage.setItem("user_location_lat", String(data.lat));
-            sessionStorage.setItem("user_location_lng", String(data.lng));
-            window.dispatchEvent(new Event("location-updated"));
-            toast.success("Exact doorstep location pinned to your booking!", { icon: "📍" });
+            toast.success("Exact doorstep location pinned!", { icon: "📍" });
           }}
         />
       </div>

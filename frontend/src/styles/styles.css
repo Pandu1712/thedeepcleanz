@@ -38,8 +38,9 @@
   --color-gold-soft: var(--gold-soft);
   --color-cream: var(--cream);
 
-  --font-display: "Playfair Display", "Georgia", serif;
-  --font-sans: "Inter", sans-serif;
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
   --shadow-luxe: 0 30px 60px -20px color-mix(in oklab, var(--navy) 35%, transparent);
   --shadow-gold: 0 20px 50px -15px color-mix(in oklab, var(--gold) 45%, transparent);
@@ -102,10 +103,12 @@
     border-color: var(--color-border);
     font-variant-numeric: lining-nums;
     font-feature-settings: "lnum" 1;
+    font-family: var(--font-sans);
   }
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 105px;
+    font-family: var(--font-sans);
   }
   body {
     background-color: var(--color-background);
@@ -117,20 +120,11 @@
   h1,
   h2,
   h3,
-  h4 {
-    font-family: var(--font-display);
-    letter-spacing: -0.01em;
-  }
-
-  h1,
-  h2,
-  h3,
   h4,
   h5,
   h6 {
-    font-family: var(--font-display);
+    font-family: var(--font-sans);
     letter-spacing: -0.01em;
-    /* font-weight: 500; */
     color: var(--color-foreground);
   }
 

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
 import { ADMIN_API_URL } from "../api/admin-api";
 import {
@@ -12,6 +12,14 @@ import {
   X,
   Trash2,
   Search,
+  User,
+  ArrowRight,
+  ShieldCheck,
+  Leaf,
+  Check,
+  Home,
+  Sparkles,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SERVICES, type Category } from "../routes/index";
@@ -25,6 +33,8 @@ interface HeaderProps {
   onOpenReferral?: () => void;
   activeHash?: string;
   isSubPage?: boolean;
+  showTopBanner?: boolean;
+  hideMobileNav?: boolean;
 }
 
 export default function Header({
@@ -36,8 +46,13 @@ export default function Header({
   onOpenReferral,
   activeHash = "",
   isSubPage = false,
+  showTopBanner = false,
+  hideMobileNav = false,
 }: HeaderProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = location?.pathname || (typeof window !== "undefined" ? window.location.pathname : "/");
+  const isHomePage = currentPath === "/";
   const [navOpen, setNavOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -337,281 +352,321 @@ export default function Header({
     }
   };
 
+  const [searchExpanded, setSearchExpanded] = useState(false);
+
   const navLinks = [
     { href: isSubPage ? "/#home" : "#home", label: "Home" },
     { href: "/services", label: "Services", isRoute: true },
-    { href: "/customized", label: "Customized", isRoute: true },
-    { href: isSubPage ? "/#reviews" : "#reviews", label: "Reviews" },
+    { href: isSubPage ? "/#about" : "#about", label: "About Us" },
+    { href: isSubPage ? "/#contact" : "#contact", label: "Contact" },
   ];
 
-  return (
-    <div className="fixed top-0 left-0 right-0 z-45">
-      {/* ANNOUNCEMENT BAR */}
-      <div className="gradient-premium text-[#faf8f5] noise-overlay overflow-hidden border-b border-[#C89B3C]/25 font-sans relative z-40 py-1.5">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 text-[11px] lg:px-8">
-          {/* Mobile Marquee container (visible on mobile, hidden on desktop) */}
-          <div className="flex sm:hidden flex-1 overflow-hidden relative items-center gap-2">
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C89B3C] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#C89B3C]"></span>
-            </span>
-            <div className="w-full overflow-hidden whitespace-nowrap relative flex items-center">
-              <div className="inline-flex gap-8 animate-marquee font-medium text-[10px] text-[#faf8f5]/90 select-none">
-                <span className="flex items-center gap-2">
-                  <span className="font-semibold text-[#C89B3C] uppercase text-[8px] tracking-wider bg-[#C89B3C]/10 border border-[#C89B3C]/30 px-1.5 py-0.5 rounded-full">
-                    PROMO
-                  </span>
-                  <span>{headerPromoText}</span>
-                  <span className="font-mono font-extrabold text-[#C89B3C] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-[9px]">
-                    {headerPromoCode}
-                  </span>
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="font-semibold text-[#C89B3C] uppercase text-[8px] tracking-wider bg-[#C89B3C]/10 border border-[#C89B3C]/30 px-1.5 py-0.5 rounded-full">
-                    PROMO
-                  </span>
-                  <span>{headerPromoText}</span>
-                  <span className="font-mono font-extrabold text-[#C89B3C] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-[9px]">
-                    {headerPromoCode}
-                  </span>
-                </span>
-              </div>
-            </div>
-          </div>
+  const getIsActive = (l: { label: string; href: string }) => {
+    if (l.label === "Home") {
+      return isHomePage && (!activeHash || activeHash === "#home" || activeHash === "/#home");
+    }
+    if (l.label === "Services") {
+      return currentPath.startsWith("/services") || (isHomePage && activeHash === "#services");
+    }
+    if (l.label === "About Us") {
+      return isHomePage && (activeHash === "#about" || activeHash === "/#about");
+    }
+    if (l.label === "Contact") {
+      return isHomePage && (activeHash === "#contact" || activeHash === "/#contact");
+    }
+    return (activeHash === l.href) || (currentPath === l.href);
+  };
 
-          {/* Desktop announcement display (hidden on mobile, visible on desktop) */}
-          <div className="hidden sm:flex flex-1 items-center gap-3 min-w-0">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C89B3C] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#C89B3C]"></span>
-            </span>
-            <span className="block truncate text-[#faf8f5]/90 font-medium tracking-wide text-[11px]">
-              <span className="font-semibold text-[#C89B3C] uppercase text-[9px] tracking-wider bg-[#C89B3C]/10 border border-[#C89B3C]/30 px-2 py-0.5 rounded-full mr-2">
-                PROMO
-              </span>
-              {headerPromoText}{" "}
-              <span className="inline-flex items-center gap-1 font-mono font-extrabold text-[#C89B3C] bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full hover:bg-white/10 transition-colors text-[10px]">
-                {headerPromoCode}
-              </span>
-            </span>
-          </div>
-          <div className="hidden items-center gap-5 md:flex font-semibold tracking-wide text-[#faf8f5]/85">
-            <a
-              href="tel:+919876543210"
-              className="inline-flex items-center gap-1.5 hover:text-[#C89B3C] transition-colors duration-250"
+  return (
+    <div className="fixed top-0 left-0 right-0 z-45 font-sans">
+      {/* TOP TRUST & LOCATION BANNER (WHEN ENABLED) */}
+      {showTopBanner && (
+        <div className="bg-[#002A22] text-white text-[11px] font-medium py-1.5 px-4 sm:px-6 lg:px-8 border-b border-[#003B2B]/60 select-none">
+          <div className="mx-auto flex max-w-[1400px] items-center justify-between">
+            {/* Left: Location pill */}
+            <button
+              type="button"
+              onClick={onOpenLocation}
+              className="flex items-center gap-1.5 bg-[#0B4D36] hover:bg-[#0E5B40] text-white px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer shadow-3xs"
             >
-              <Phone className="h-3.5 w-3.5 text-[#C89B3C]" /> +91 98765 43210
-            </a>
-            <span className="h-3 w-px bg-white/15" />
-            <span className="inline-flex items-center gap-1.5 text-cream/75">
-              <MapPin className="h-3.5 w-3.5 text-[#C89B3C]" /> Guntur & 25+ Premium Cities
-            </span>
+              <MapPin className="h-3 w-3 text-emerald-300 shrink-0" />
+              <span className="truncate max-w-[160px] sm:max-w-[220px]">
+                {userLocation || "Visakhapatnam, Andhra Pradesh"}
+              </span>
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            </button>
+
+            {/* Right: Trust badges */}
+            <div className="hidden md:flex items-center gap-6 text-slate-200 text-xs">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                Trained &amp; Verified Professionals
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Leaf className="h-3.5 w-3.5 text-emerald-400" />
+                Eco-Friendly Cleaning Solutions
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check className="h-3.5 w-3.5 text-emerald-400 stroke-[2.5]" />
+                100% Satisfaction Guarantee
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* HEADER - ULTRA-PREMIUM GLASS DESIGN */}
-      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-[#C89B3C]/12 text-[#033B2E] shadow-[0_2px_15px_-3px_rgba(0,42,34,0.04)] transition-all duration-300">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 py-3 lg:px-8">
-          <div className="flex items-center gap-4 sm:gap-6">
-            <Link to="/" search={{ category: undefined, cart: undefined }} className="flex items-center group shrink-0">
-              <img
-                src="/logos/logo.png"
-                className="h-12 sm:h-14 w-auto rounded-full transition-transform duration-300 group-hover:scale-[1.04] shrink-0"
-                alt="TheDeep CleanerZ Logo"
-              />
-            </Link>
-            {/* Location Display Capsule */}
-            <div
-              onClick={onOpenLocation}
-              className="hidden lg:flex items-center gap-2 border border-[#C89B3C]/30 bg-[#F9F7F2] p-2 sm:px-3 sm:py-1 rounded-full text-xs font-semibold text-[#033B2E] transition-all cursor-pointer shadow-3xs hover:border-[#C89B3C]/60 shrink-0"
+      {/* HEADER - CLEAN MODERN WHITE REDESIGN MATCHING REFERENCE DESIGN */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] transition-all duration-300">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-8 py-3.5">
+          {/* Left: Brand Logo & Location Capsule */}
+          <div className="flex items-center gap-3 sm:gap-5">
+            <Link
+              to="/"
+              search={{ category: undefined, cart: undefined }}
+              className="flex flex-col group shrink-0 select-none"
             >
-              <MapPin className="h-3.5 w-3.5 text-[#C89B3C] shrink-0" />
-              <span className="hidden sm:inline truncate max-w-[80px] lg:max-w-[120px] 2xl:max-w-[200px]" title={userLocation}>
-                {userLocation}
-              </span>
-              <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-rose-500 animate-pulse"} shrink-0`} />
-            </div>
+              <div className="flex items-center text-lg sm:text-2xl font-black tracking-tight leading-none">
+                <span className="text-slate-900">The</span>
+                <span className="text-[#007A48] mx-1 sm:mx-1.5">Deep</span>
+                <span className="text-slate-900">Cleanerz</span>
+              </div>
+              <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1">
+                <span className="h-[2px] w-3 sm:w-4 bg-[#007A48] rounded-full" />
+                <span className="text-[8px] sm:text-[10px] font-bold text-slate-800 tracking-wider uppercase">
+                  Your Cleaning Experts
+                </span>
+                <span className="h-[2px] w-3 sm:w-4 bg-[#007A48] rounded-full" />
+              </div>
+            </Link>
+
+            {/* Location Display Capsule (Hidden if top banner is enabled to prevent duplication) */}
+            {!showTopBanner && (
+              <button
+                type="button"
+                onClick={onOpenLocation}
+                className="hidden lg:flex items-center gap-2 bg-[#FCFBF8] border border-[#E6DEC8] hover:border-[#007A48] px-3.5 py-1.5 rounded-full text-xs font-semibold text-slate-800 transition-all cursor-pointer shadow-3xs shrink-0"
+                title="Click to change location"
+              >
+                <MapPin className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                <span className="truncate max-w-[130px] xl:max-w-[170px]" title={userLocation || "Visakhapatnam, Andhra Pradesh"}>
+                  {userLocation || "Visakhapatnam, Andhra Pradesh"}
+                </span>
+                <span className={`h-2 w-2 rounded-full ${isOnline ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" : "bg-rose-500 animate-pulse"} shrink-0`} />
+              </button>
+            )}
           </div>
-          <nav className="hidden items-center gap-1.5 xl:flex">
+
+          {/* Center Navigation Links */}
+          <nav className="hidden items-center gap-5 xl:gap-8 lg:flex">
             {navLinks.map((l) => {
-              const isCurrentPath = typeof window !== "undefined" && window.location.pathname === l.href;
-              const isActive = activeHash === l.href || isCurrentPath;
-              const linkClasses = `relative px-4 py-2 font-sans text-sm sm:text-[15px] font-medium tracking-wide transition-all duration-300 ${
+              const isActive = getIsActive(l);
+              const linkClasses = `relative py-1 text-[15px] font-medium tracking-normal transition-colors duration-200 cursor-pointer select-none ${
                 isActive
-                  ? "text-[#C89B3C]"
-                  : "text-[#033B2E]/80 hover:text-[#C89B3C]"
+                  ? "text-[#007A48] font-semibold"
+                  : "text-slate-700 hover:text-[#007A48]"
               }`;
               const innerContent = (
                 <>
                   <span>{l.label}</span>
                   {isActive && (
-                    <span className="absolute bottom-0.5 left-4 right-4 h-[2px] bg-[#C89B3C] rounded-full shadow-[0_1px_5px_rgba(200,155,60,0.4)] animate-in fade-in zoom-in-50 duration-200" />
+                    <span className="absolute -bottom-1 left-0 right-0 h-[2.5px] bg-[#007A48] rounded-full animate-in fade-in duration-200" />
                   )}
                 </>
               );
               return l.isRoute ? (
-                <Link
-                  key={l.href}
-                  to={l.href}
-                  className={linkClasses}
-                >
+                <Link key={l.href} to={l.href} className={linkClasses}>
                   {innerContent}
                 </Link>
               ) : (
-                <a
-                  key={l.href}
-                  href={l.href}
-                  className={linkClasses}
-                >
+                <a key={l.href} href={l.href} className={linkClasses}>
                   {innerContent}
                 </a>
               );
             })}
           </nav>
 
-          <div className="flex items-center gap-2.5">
-            {/* Elegant Search Bar */}
-            <div className="relative hidden lg:block w-36 lg:w-44 xl:w-48 2xl:w-56 font-sans shrink-0">
-              <div className="relative flex items-center bg-[#F9F7F2] border border-[#033B2E]/15 focus-within:border-[#C89B3C] focus-within:bg-white rounded-full transition-all px-2.5 py-1.5 shadow-3xs">
-                <Search className="h-4 w-4 text-[#C89B3C]/75 mr-2 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="Search services..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                     setSearchQuery(e.target.value);
-                     setDropdownOpen(true);
-                  }}
-                  onFocus={() => setDropdownOpen(true)}
-                  className="w-full bg-transparent border-0 outline-none text-xs font-semibold text-[#033B2E] placeholder:text-slate-400 p-0"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => {
-                      setSearchQuery("");
-                    }}
-                    className="p-0.5 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-0 cursor-pointer flex items-center justify-center shrink-0"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-
-              {/* Dynamic search dropdown results */}
-              {dropdownOpen && searchQuery.trim().length >= 1 && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40 bg-transparent"
-                    onClick={() => setDropdownOpen(false)}
-                  />
-                  <div className="absolute top-full right-0 left-0 mt-2 bg-white border border-slate-150 rounded-2xl shadow-xl z-50 max-h-[300px] overflow-y-auto font-sans p-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-                    {filteredServices.length > 0 ? (
-                      <div className="space-y-0.5">
-                        <div className="text-[9px] font-black uppercase tracking-wider text-[#C89B3C] px-2.5 py-1 select-none">
-                          Found {filteredServices.length} Matching Services
-                        </div>
-                        {filteredServices.map((s) => (
-                          <div
-                            key={s.id}
-                            className="flex items-center justify-between p-2 rounded-xl hover:bg-[#F9F7F2] group transition-all"
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                              {s.img && (
-                                <img
-                                  src={s.img}
-                                  alt=""
-                                  className="h-8 w-8 rounded-lg object-cover border border-slate-100 flex-shrink-0"
-                                />
-                              )}
-                              <div className="flex flex-col min-w-0">
-                                <span className="text-xs font-extrabold text-[#033B2E] truncate group-hover:text-[#C89B3C] transition-colors">
-                                  {s.title}
-                                </span>
-                                <span className="text-[10px] text-slate-400 font-bold">
-                                  Starts at ₹{s.price}
-                                </span>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => {
-                                setDropdownOpen(false);
-                                setSearchQuery("");
-                                navigate({ to: "/service-detail", search: { id: s.id } });
-                              }}
-                              className="text-[9px] font-black uppercase tracking-wider bg-[#033B2E] text-[#C89B3C] border border-[#C89B3C]/30 hover:bg-[#C89B3C] hover:text-[#033B2E] px-2.5 py-1.5 rounded-lg transition-all shrink-0 cursor-pointer shadow-3xs"
-                            >
-                              View
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-6 px-4 text-xs italic text-slate-400 select-none">
-                        No matching services found for "{searchQuery}"
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            {/* Search Icon Button */}
             <button
+              type="button"
+              onClick={() => setSearchExpanded((v) => !v)}
+              aria-label="Search services"
+              className={`h-9 w-9 sm:h-10 sm:w-10 rounded-full border transition-all flex items-center justify-center cursor-pointer shrink-0 ${
+                searchExpanded
+                  ? "border-[#007A48] bg-[#007A48]/10 text-[#007A48]"
+                  : "border-slate-200 hover:border-[#007A48] text-slate-700 hover:text-[#007A48] bg-white"
+              }`}
+            >
+              <Search className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+            </button>
+
+            {/* Cart Icon Button (preserves cart drawer functionality!) */}
+            <button
+              type="button"
               onClick={onOpenCart}
               aria-label="Open cart"
-              className="relative grid h-10 w-10 place-items-center rounded-full border border-[#033B2E]/15 text-[#033B2E] transition-colors hover:border-[#C89B3C] hover:bg-[#C89B3C]/10"
+              className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-full border border-slate-200 hover:border-[#007A48] text-slate-700 hover:text-[#007A48] bg-white transition-all flex items-center justify-center cursor-pointer shrink-0"
             >
-              <ShoppingCart className="h-4.5 w-4.5" />
+              <ShoppingCart className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#C89B3C] px-1 text-[10px] font-bold text-white shadow">
+                <span className="absolute -top-1 -right-1 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-[#007A48] px-1 text-[9px] font-bold text-white shadow">
                   {cartCount}
                 </span>
               )}
             </button>
 
+            {/* User Profile / Login Button (hidden on tiny mobile, visible sm+) */}
             {userEmail || isAdmin ? (
-              <div className="hidden items-center gap-3.5 lg:flex relative">
-                <div className="relative">
-                  <button
-                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                    className="flex items-center gap-2 rounded-full bg-[#F9F7F2] border border-[#C89B3C]/30 pl-2.5 pr-4 py-1.5 text-xs font-bold text-[#033B2E] transition-all hover:bg-white hover:border-[#C89B3C] shadow-sm cursor-pointer select-none active:scale-[0.98] font-sans"
-                  >
-                    <div className="h-6 w-6 rounded-full bg-[#C89B3C] text-white flex items-center justify-center font-black text-[10px] uppercase shadow-sm">
-                      {userProfile?.name
-                        ? userProfile.name.substring(0, 2)
-                        : userEmail
-                          ? userEmail.substring(0, 2)
-                          : "AD"}
-                    </div>
-                    <span className="max-w-[90px] truncate">
-                      Hi, {userProfile?.name?.split(" ")[0] || (userEmail ? userEmail.split("@")[0] : "Admin")}
-                    </span>
-                    <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${profileMenuOpen ? "rotate-180" : ""}`} />
-                  </button>
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setProfileMenuOpen(true)}
+                className="hidden sm:flex h-9 w-9 sm:h-10 sm:w-10 rounded-full border border-[#007A48]/30 hover:border-[#007A48] bg-[#007A48]/10 text-[#007A48] items-center justify-center font-bold text-xs shadow-xs transition-all cursor-pointer relative shrink-0"
+                title={`Logged in as ${userProfile?.name || userEmail}`}
+              >
+                <span>
+                  {userProfile?.name
+                    ? userProfile.name.substring(0, 2).toUpperCase()
+                    : userEmail
+                      ? userEmail.substring(0, 2).toUpperCase()
+                      : "AD"}
+                </span>
+                <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+              </button>
             ) : (
-              <div className="hidden items-center gap-3 lg:flex">
-                <Link
-                  to="/login"
-                  className="rounded-full bg-[#C89B3C] hover:bg-[#A67C22] text-[#033B2E] hover:text-[#033B2E] border border-[#C89B3C]/35 hover:border-[#C89B3C] px-4 py-2 xl:px-6 xl:py-2.5 text-[11px] font-black uppercase tracking-wider xl:tracking-widest transition-all duration-350 active:scale-[0.98] shadow-md hover:shadow-[0_4px_20px_rgba(200,155,60,0.25)] whitespace-nowrap shrink-0"
-                >
-                  Login
-                </Link>
-              </div>
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/login" })}
+                className="hidden sm:flex h-9 w-9 sm:h-10 sm:w-10 rounded-full border border-slate-200 hover:border-[#007A48] text-slate-700 hover:text-[#007A48] bg-white transition-all items-center justify-center cursor-pointer shrink-0"
+                title="Login / Register"
+              >
+                <User className="h-4.5 w-4.5" />
+              </button>
             )}
 
+            {/* Book Now Button (Solid Green Pill with Arrow) (visible sm+) */}
             <button
+              type="button"
+              onClick={() => {
+                if (isSubPage) {
+                  navigate({ to: "/services" });
+                } else {
+                  const el = document.getElementById("categories");
+                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                  else navigate({ to: "/services" });
+                }
+              }}
+              className="hidden sm:flex bg-[#007A48] hover:bg-[#00633B] text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-full font-semibold text-xs sm:text-sm items-center gap-1.5 shadow-sm hover:shadow transition-all duration-200 cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
+            >
+              <span>Book Now</span>
+              <ArrowRight className="h-4 w-4" />
+            </button>
+
+            {/* Mobile Hamburger Toggle (Always prominently visible on mobile!) */}
+            <button
+              type="button"
               onClick={() => setNavOpen((v) => !v)}
-              className="grid h-10 w-10 place-items-center rounded-full border border-[#033B2E]/15 text-[#033B2E] xl:hidden relative"
+              className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 hover:text-[#007A48] hover:border-[#007A48] lg:hidden cursor-pointer shrink-0 shadow-3xs"
               aria-label="Menu"
             >
               {navOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              {!isOnline && (
-                <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-rose-500 border border-white animate-ping" />
-              )}
             </button>
           </div>
         </div>
+
+        {/* EXPANDABLE SEARCH OVERLAY (When search icon is clicked) */}
+        {searchExpanded && (
+          <div className="border-t border-slate-100 bg-white/98 px-4 sm:px-6 lg:px-8 py-3 shadow-md animate-in slide-in-from-top-2 duration-200">
+            <div className="mx-auto max-w-[1400px] flex items-center gap-3">
+              <div className="relative flex-1 flex items-center bg-[#F9FAF8] border border-slate-200 focus-within:border-[#007A48] focus-within:bg-white rounded-full px-4 py-2 transition-all">
+                <Search className="h-4 w-4 text-[#007A48] mr-2.5 shrink-0" />
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Search for deep cleaning, kitchen, bathroom, sofa..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setDropdownOpen(true);
+                  }}
+                  onFocus={() => setDropdownOpen(true)}
+                  className="w-full bg-transparent border-0 outline-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="p-1 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchExpanded(false);
+                  setDropdownOpen(false);
+                  setSearchQuery("");
+                }}
+                className="text-xs font-semibold text-slate-500 hover:text-slate-800 px-3 py-2 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Dynamic search dropdown results */}
+            {dropdownOpen && searchQuery.trim().length >= 1 && (
+              <div className="mx-auto max-w-[1400px] mt-2 bg-white border border-slate-150 rounded-2xl shadow-xl z-50 max-h-[300px] overflow-y-auto p-2">
+                {filteredServices.length > 0 ? (
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-[#007A48] px-3 py-1 select-none">
+                      Found {filteredServices.length} Matching Services
+                    </div>
+                    {filteredServices.map((s) => (
+                      <div
+                        key={s.id}
+                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-[#F9FAF8] group transition-all"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 pr-2">
+                          {s.img && (
+                            <img
+                              src={s.img}
+                              alt=""
+                              className="h-10 w-10 rounded-lg object-cover border border-slate-100 flex-shrink-0"
+                            />
+                          )}
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs sm:text-sm font-bold text-slate-900 truncate group-hover:text-[#007A48] transition-colors">
+                              {s.title}
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-semibold">
+                              Starts at ₹{s.price}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setDropdownOpen(false);
+                            setSearchExpanded(false);
+                            setSearchQuery("");
+                            navigate({ to: "/service-detail", search: { id: s.id } });
+                          }}
+                          className="text-[10px] font-bold uppercase tracking-wider bg-[#007A48] text-white hover:bg-[#00633B] px-3 py-1.5 rounded-lg transition-all shrink-0 cursor-pointer shadow-xs"
+                        >
+                          View Service
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 px-4 text-xs italic text-slate-400 select-none">
+                    No matching services found for "{searchQuery}"
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* MOBILE DRAWER */}
         {navOpen && (
@@ -713,9 +768,8 @@ export default function Header({
 
             <div className="flex flex-col gap-2 pt-2">
               {navLinks.map((l) => {
-                const isCurrentPath = typeof window !== "undefined" && window.location.pathname === l.href;
-                const isActive = activeHash === l.href || isCurrentPath;
-                const linkStyles = `font-sans text-xs font-bold uppercase tracking-wider transition-colors py-2.5 border-b border-[#033B2E]/5 ${isActive ? "text-[#C89B3C]" : "text-[#033B2E]/85 hover:text-[#C89B3C]"}`;
+                const isActive = getIsActive(l);
+                const linkStyles = `font-sans text-xs font-bold uppercase tracking-wider transition-colors py-2.5 border-b border-[#033B2E]/5 ${isActive ? "text-[#007A48]" : "text-slate-700 hover:text-[#007A48]"}`;
                 return l.isRoute ? (
                   <Link
                     key={l.href}
@@ -1092,6 +1146,84 @@ export default function Header({
             </div>
           </div>
         </>
+      )}
+
+      {/* ============================================================
+          MOBILE BOTTOM NAVIGATION BAR (Visible on screens < md)
+         ============================================================ */}
+      {!hideMobileNav && (
+        <nav
+          aria-label="Mobile Bottom Navigation"
+          className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1.5"
+        >
+          <div className="flex items-center justify-around max-w-md mx-auto">
+            {/* 1. Home */}
+            <Link
+              to="/"
+              search={{ category: undefined, cart: undefined }}
+              className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-colors ${
+                isHomePage && (!activeHash || activeHash === "#home" || activeHash === "/#home")
+                  ? "text-[#007A48] font-bold"
+                  : "text-slate-500 hover:text-slate-800 font-medium"
+              }`}
+            >
+              <Home className="h-5 w-5 mb-0.5" />
+              <span className="text-[10px] leading-none">Home</span>
+            </Link>
+
+            {/* 2. Services */}
+            <Link
+              to="/services"
+              className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-colors ${
+                currentPath.startsWith("/services") || activeHash === "#services"
+                  ? "text-[#007A48] font-bold"
+                  : "text-slate-500 hover:text-slate-800 font-medium"
+              }`}
+            >
+              <Sparkles className="h-5 w-5 mb-0.5" />
+              <span className="text-[10px] leading-none">Services</span>
+            </Link>
+
+            {/* 3. Customized */}
+            <Link
+              to="/customized"
+              className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-colors ${
+                currentPath.startsWith("/customized")
+                  ? "text-[#007A48] font-bold"
+                  : "text-slate-500 hover:text-slate-800 font-medium"
+              }`}
+            >
+              <Layers className="h-5 w-5 mb-0.5" />
+              <span className="text-[10px] leading-none">Custom</span>
+            </Link>
+
+            {/* 4. Cart */}
+            <button
+              type="button"
+              onClick={onOpenCart}
+              className="relative flex flex-col items-center justify-center py-1 px-3 rounded-xl text-slate-500 hover:text-slate-800 font-medium transition-colors cursor-pointer"
+            >
+              <div className="relative">
+                <ShoppingCart className="h-5 w-5 mb-0.5" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-2 bg-[#007A48] text-white text-[9px] font-black h-4 min-w-4 px-1 rounded-full flex items-center justify-center shadow-xs">
+                    {cartCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] leading-none">Cart</span>
+            </button>
+
+            {/* 5. Direct Call */}
+            <a
+              href="tel:+919966346347"
+              className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-[#007A48] hover:text-[#005B36] font-bold transition-colors"
+            >
+              <Phone className="h-5 w-5 mb-0.5" />
+              <span className="text-[10px] leading-none">Call</span>
+            </a>
+          </div>
+        </nav>
       )}
     </div>
   );

@@ -480,10 +480,10 @@ function CustomizedComponent() {
                       Hotline Support
                     </div>
                     <a
-                      href="tel:+919876543210"
+                      href="tel:+919966346347"
                       className="text-xs font-bold text-white hover:text-[#cb9f5a] transition-colors"
                     >
-                      +91 98765 43210
+                      +91 99663 46347
                     </a>
                   </div>
                 </div>

@@ -1536,8 +1536,8 @@ async function initDb() {
           categoryId: "customized",
           title: "Sofa Shampooing & Upholstery Cleaning",
           price: 469,
-          description: "Your sofa collects dust, stains, food spills, and allergens over time. Safsafaiwala’s Sofa Shampooing Service provides using professional shampooing machines and safe chemicals to restore freshness, hygiene, and comfort.",
-          image: "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&w=800&q=80",
+          description: "Your sofa collects dust, stains, food spills, and allergens over time. The Deep CleanerZ Sofa Shampooing Service uses professional injection-extraction shampooing machines and safe eco-friendly chemicals to restore freshness, hygiene, and comfort.",
+          image: "/images/service-sofa.jpg",
           includes: [
             "Pre-vacuuming to remove loose dust",
             "Shampoo & foam application",
@@ -1618,8 +1618,8 @@ async function initDb() {
           categoryId: "customized",
           title: "Fridge Cleaning Service",
           price: 349,
-          description: "Fridge Cleaning Service by Safsafaiwala ensures your refrigerator is deep cleaned, hygienic, and odour-free.",
-          image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80",
+          description: "Fridge Cleaning Service by The Deep CleanerZ ensures your refrigerator is thoroughly deep cleaned, food-grade sanitized, and odour-free.",
+          image: "/images/service-fridge.jpg",
           includes: [
             "Complete inside cleaning of fridge",
             "Shelves, trays & drawers removal and washing",
