@@ -2026,7 +2026,7 @@ function Index() {
 
   const parentCategoriesWithSubServices = useMemo(() => {
     const parentCats = categories.filter((c) => !c.parentId);
-    const order = ["commercial", "customized", "full-house"];
+    const order = ["full-house", "customized", "commercial"];
     const sortedCats = [...parentCats].sort((a, b) => {
       const idxA = order.indexOf(a.id);
       const idxB = order.indexOf(b.id);
