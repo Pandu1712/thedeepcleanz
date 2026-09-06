@@ -379,9 +379,9 @@ export default function Header({
 
   return (
     <div className="fixed top-0 left-0 right-0 z-45 font-sans">
-      {/* TOP TRUST & LOCATION BANNER (WHEN ENABLED) */}
+      {/* TOP TRUST & LOCATION BANNER (WHEN ENABLED - TABLET & DESKTOP ONLY) */}
       {showTopBanner && (
-        <div className="bg-[#002A22] text-white text-[11px] font-medium py-1.5 px-4 sm:px-6 lg:px-8 border-b border-[#003B2B]/60 select-none">
+        <div className="hidden md:block bg-[#002A22] text-white text-[11px] font-medium py-1.5 px-4 sm:px-6 lg:px-8 border-b border-[#003B2B]/60 select-none">
           <div className="mx-auto flex max-w-[1400px] items-center justify-between">
             {/* Left: Location pill */}
             <button
@@ -417,14 +417,14 @@ export default function Header({
 
       {/* HEADER - CLEAN MODERN WHITE REDESIGN MATCHING REFERENCE DESIGN */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] transition-all duration-300">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-8 py-3.5">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5">
           {/* Left: Brand Logo & Dynamic Location Selector */}
-          <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-5 min-w-0">
             <div className="flex flex-col select-none min-w-0">
               <Link
                 to="/"
                 search={{ category: undefined, cart: undefined }}
-                className="flex items-center text-base sm:text-2xl font-black tracking-tight leading-none"
+                className="flex items-center text-sm xs:text-base sm:text-2xl font-black tracking-tight leading-normal py-0.5"
               >
                 <span className="text-slate-900">The</span>
                 <span className="text-[#007A48] mx-0.5 sm:mx-1.5">Deep</span>
@@ -435,14 +435,14 @@ export default function Header({
               <button
                 type="button"
                 onClick={onOpenLocation}
-                className="flex lg:hidden items-center gap-1 mt-1 text-[11px] font-bold text-[#007A48] hover:text-[#005B36] cursor-pointer text-left transition-colors max-w-[150px] xs:max-w-[180px] group border-0 bg-transparent p-0"
+                className="flex lg:hidden items-center gap-1 mt-0.5 text-[10px] sm:text-[11px] font-bold text-[#007A48] hover:text-[#005B36] cursor-pointer text-left transition-colors max-w-[130px] xs:max-w-[170px] group border-0 bg-transparent p-0"
                 title="Click to change location"
               >
-                <MapPin className="h-3 w-3 text-[#007A48] shrink-0 group-hover:scale-110 transition-transform" />
+                <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-[#007A48] shrink-0 group-hover:scale-110 transition-transform" />
                 <span className="truncate text-slate-700 font-bold group-hover:text-[#007A48]">
                   {userLocation || "Guntur, AP"}
                 </span>
-                <ChevronDown className="h-2.5 w-2.5 text-slate-400 shrink-0 group-hover:translate-y-0.5 transition-transform" />
+                <ChevronDown className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-slate-400 shrink-0 group-hover:translate-y-0.5 transition-transform" />
               </button>
 
               {/* Desktop Subtitle Tag */}
@@ -500,19 +500,19 @@ export default function Header({
           </nav>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* Search Icon Button */}
             <button
               type="button"
               onClick={() => setSearchExpanded((v) => !v)}
               aria-label="Search services"
-              className={`h-9 w-9 sm:h-10 sm:w-10 rounded-full border transition-all flex items-center justify-center cursor-pointer shrink-0 ${
+              className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full border transition-all flex items-center justify-center cursor-pointer shrink-0 ${
                 searchExpanded
                   ? "border-[#007A48] bg-[#007A48]/10 text-[#007A48]"
                   : "border-slate-200 hover:border-[#007A48] text-slate-700 hover:text-[#007A48] bg-white"
               }`}
             >
-              <Search className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+              <Search className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5" />
             </button>
 
             {/* Cart Icon Button (preserves cart drawer functionality!) */}
@@ -520,11 +520,11 @@ export default function Header({
               type="button"
               onClick={onOpenCart}
               aria-label="Open cart"
-              className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-full border border-slate-200 hover:border-[#007A48] text-slate-700 hover:text-[#007A48] bg-white transition-all flex items-center justify-center cursor-pointer shrink-0"
+              className="relative h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-slate-200 hover:border-[#007A48] text-slate-700 hover:text-[#007A48] bg-white transition-all flex items-center justify-center cursor-pointer shrink-0"
             >
-              <ShoppingCart className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+              <ShoppingCart className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5" />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-[#007A48] px-1 text-[9px] font-bold text-white shadow">
+                <span className="absolute -top-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#007A48] px-1 text-[8px] sm:text-[9px] font-bold text-white shadow">
                   {cartCount}
                 </span>
               )}
@@ -535,7 +535,7 @@ export default function Header({
               <button
                 type="button"
                 onClick={() => setProfileMenuOpen(true)}
-                className="hidden sm:flex h-9 w-9 sm:h-10 sm:w-10 rounded-full border border-[#007A48]/30 hover:border-[#007A48] bg-[#007A48]/10 text-[#007A48] items-center justify-center font-bold text-xs shadow-xs transition-all cursor-pointer relative shrink-0"
+                className="hidden sm:flex h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-[#007A48]/30 hover:border-[#007A48] bg-[#007A48]/10 text-[#007A48] items-center justify-center font-bold text-xs shadow-xs transition-all cursor-pointer relative shrink-0"
                 title={`Logged in as ${userProfile?.name || userEmail}`}
               >
                 <span>
@@ -551,10 +551,10 @@ export default function Header({
               <button
                 type="button"
                 onClick={() => navigate({ to: "/login" })}
-                className="hidden sm:flex h-9 w-9 sm:h-10 sm:w-10 rounded-full border border-slate-200 hover:border-[#007A48] text-slate-700 hover:text-[#007A48] bg-white transition-all items-center justify-center cursor-pointer shrink-0"
+                className="hidden sm:flex h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-slate-200 hover:border-[#007A48] text-slate-700 hover:text-[#007A48] bg-white transition-all items-center justify-center cursor-pointer shrink-0"
                 title="Login / Register"
               >
-                <User className="h-4.5 w-4.5" />
+                <User className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
               </button>
             )}
 
@@ -580,10 +580,10 @@ export default function Header({
             <button
               type="button"
               onClick={() => setNavOpen((v) => !v)}
-              className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 hover:text-[#007A48] hover:border-[#007A48] lg:hidden cursor-pointer shrink-0 shadow-3xs"
+              className="grid h-8 w-8 sm:h-10 sm:w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 hover:text-[#007A48] hover:border-[#007A48] lg:hidden cursor-pointer shrink-0 shadow-3xs"
               aria-label="Menu"
             >
-              {navOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {navOpen ? <X className="h-4 w-4 sm:h-5 sm:w-5" /> : <Menu className="h-4 w-4 sm:h-5 sm:w-5" />}
             </button>
           </div>
         </div>

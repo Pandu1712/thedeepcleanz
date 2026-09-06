@@ -34,6 +34,9 @@ import {
 import {
   DEFAULT_CATEGORIES,
   SERVICES,
+  FURNISHED_SERVICES,
+  VACANT_SERVICES,
+  VILLA_SERVICES,
   Service,
   CartItem,
   CartDrawer,
@@ -47,6 +50,7 @@ import {
   fetchReviews,
   postReview,
   type ServiceReview,
+  type ServicePlan,
   fetchCustomizedServices,
 } from "@/api/admin-api";
 
@@ -372,17 +376,7 @@ function ServiceDetailPage() {
   const [customizedServices, setCustomizedServices] = useState<any[]>([]);
 
   // Cart & Booking State
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("thedeepcleanerz_cart_v1");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {}
-      }
-    }
-    return [];
-  });
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [bookingOpen, setBookingOpen] = useState(false);
 
@@ -394,12 +388,7 @@ function ServiceDetailPage() {
   const [quoteSubmitting, setQuoteSubmitting] = useState(false);
 
   // User & Location state
-  const [userLocation, setUserLocation] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return sessionStorage.getItem("user_location_address") || sessionStorage.getItem("user_location") || "Guntur, Andhra Pradesh";
-    }
-    return "Guntur, Andhra Pradesh";
-  });
+  const [userLocation, setUserLocation] = useState<string>("Guntur, Andhra Pradesh");
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [favs, setFavs] = useState<string[]>([]);
@@ -417,6 +406,11 @@ function ServiceDetailPage() {
       const em = sessionStorage.getItem("user_email");
       setUserEmail(em);
       setIsLoggedIn(!!em);
+
+      try {
+        const savedCart = localStorage.getItem("thedeepcleanerz_cart_v1");
+        if (savedCart) setCart(JSON.parse(savedCart));
+      } catch (e) {}
 
       try {
         const f = localStorage.getItem("thedeepcleanerz_favs_v1");
@@ -477,7 +471,18 @@ function ServiceDetailPage() {
       }
     }
 
-    // 2. Prefix / substring match in catalog categories (e.g. "house" matches "full-house-deep-cleaning" and vice versa)
+    // 2. Search direct subcategory lists
+    const allKnownSubServices = [
+      ...FURNISHED_SERVICES,
+      ...VACANT_SERVICES,
+      ...VILLA_SERVICES,
+    ];
+    const foundInSubs = allKnownSubServices.find(
+      (s) => s && (s.id.toLowerCase() === rawId || s.title.toLowerCase() === rawId)
+    );
+    if (foundInSubs) return foundInSubs;
+
+    // 3. Prefix / substring match in catalog categories (e.g. "house" matches "full-house-deep-cleaning" and vice versa)
     if (rawId && Array.isArray(categories)) {
       for (const cat of categories) {
         if (cat && Array.isArray(cat.services)) {
@@ -493,7 +498,7 @@ function ServiceDetailPage() {
       }
     }
 
-    // 3. Check customized services
+    // 4. Check customized services
     if (Array.isArray(customizedServices)) {
       const foundCustom = customizedServices.find(
         (s) =>
@@ -506,7 +511,7 @@ function ServiceDetailPage() {
       if (foundCustom) return foundCustom;
     }
 
-    // 4. Direct match from static SERVICES definition
+    // 5. Direct match from static SERVICES definition
     if (Array.isArray(SERVICES)) {
       const directFound = SERVICES.find(
         (s) =>
@@ -519,8 +524,8 @@ function ServiceDetailPage() {
       if (directFound) return directFound;
     }
 
-    // 5. Safe ultimate fallback
-    return categories[0]?.services?.[0] || SERVICES[0] || null;
+    // 6. Safe ultimate fallback
+    return categories[0]?.services?.[0] || FURNISHED_SERVICES[0] || SERVICES[0] || null;
   }, [categories, customizedServices, serviceId]);
 
   // Load verified reviews
@@ -549,7 +554,7 @@ function ServiceDetailPage() {
     if (plansList.length > 0) {
       return plansList.map((p: any) => ({
         name: p?.name || service.title || "Standard Plan",
-        price: p?.price || service.price || 0,
+        price: typeof p?.price === "number" ? p.price : service.price || 0,
         duration: p?.duration || "40 - 60 min",
         description: p?.description || p?.desc || service.desc || "",
         includes: Array.isArray(p?.includes)
@@ -586,7 +591,23 @@ function ServiceDetailPage() {
     setSelectedPlanIdx(0);
   }, [serviceId]);
 
-  const activePlan = plans[selectedPlanIdx] || plans[0];
+  const activePlan: ServicePlan = useMemo(() => {
+    if (plans && plans.length > 0) {
+      return plans[selectedPlanIdx] || plans[0];
+    }
+    return {
+      name: service?.title || "Standard Plan",
+      price: service?.price || 0,
+      duration: "40 - 60 min",
+      description: service?.desc || "Complete deep sanitization and scrubbing of surfaces.",
+      includes: Array.isArray(service?.sub) ? service.sub : [],
+      excludes: [
+        "Appliance electrical wiring or motor repairs",
+        "Permanent acid/paint scraping without prior notice",
+        "Moving heavy furniture exceeding 40kg without assistance",
+      ],
+    };
+  }, [plans, selectedPlanIdx, service]);
 
   const { inclusions: planInclusions, exclusions: planExclusions } = useMemo(() => {
     return getPlanInclusionsAndExclusions(service, activePlan);

@@ -511,6 +511,7 @@ export type Category = {
   emoji: string;
   image?: string;
   parentId?: string | null;
+  includes?: string[];
   services: CatService[];
 };
 export type Service = CatService;
@@ -528,6 +529,29 @@ const toCatService = (id: string): CatService => {
   };
 };
 
+export const FURNISHED_SERVICES: CatService[] = [
+  { id: "1bhk-furnished", title: "1 BHK Furnished Deep Cleaning", price: 1499, desc: "Complete top-to-bottom deep sanitization and cleaning for a 1 BHK furnished apartment including bedroom, living hall, kitchen, bathroom, furniture and appliances.", img: "/images/service-house.jpg", sub: ["Full bedroom dusting, cobweb removal & dry vacuuming", "Living room sofa & furniture surface wipe down", "Kitchen countertop, sink, tiles & outer cabinet degreasing", "Bathroom deep descaling, WC & mirror scrub"], paymentType: "full" },
+  { id: "2bhk-furnished", title: "2 BHK Furnished Deep Cleaning", price: 2199, desc: "Comprehensive hotel-grade deep cleaning for 2 BHK furnished apartments including 2 bedrooms, hall, kitchen, 2 bathrooms, balconies and furniture.", img: "/images/service-house.jpg", sub: ["2 Bedrooms complete dusting & vacuuming", "Living & dining furniture wipe down", "Modular kitchen degreasing & sink scrub", "2 Bathrooms limescale removal & disinfection"], paymentType: "full" },
+  { id: "3bhk-furnished", title: "3 BHK Furnished Deep Cleaning", price: 2999, desc: "Full deep sanitization for a spacious 3 BHK furnished home with dedicated specialists for intensive scrubbing, degreasing and dusting.", img: "/images/service-house.jpg", sub: ["3 Bedrooms deep dusting & cobweb clearing", "Living area, sofa & dining deep clean", "Kitchen tiles, countertop & chimney exterior wipe", "All bathrooms descaling & sanitization"], paymentType: "full" },
+  { id: "4bhk-furnished", title: "4 BHK Furnished Deep Cleaning", price: 3799, desc: "Large luxury home deep cleaning package for 4 BHK furnished apartments with multi-technician squad.", img: "/images/service-house.jpg", sub: ["4 Bedrooms intensive dusting & vacuuming", "Living room & lobby deep scrubbing", "Complete kitchen & utility degreasing", "All bathrooms descaling & mirror polishing"], paymentType: "full" },
+  { id: "5bhk-furnished", title: "5 BHK Furnished Deep Cleaning", price: 4499, desc: "Executive cleaning package for 5 BHK luxury residences and penthouses.", img: "/images/service-house.jpg", sub: ["5 Bedrooms complete sanitation", "Large living, dining & lounge areas scrub", "Kitchen, pantry & utility deep clean", "All bathrooms clinical-grade disinfection"], paymentType: "full" },
+];
+
+export const VACANT_SERVICES: CatService[] = [
+  { id: "1bhk-empty", title: "1 BHK Empty Flat Deep Cleaning", price: 1199, desc: "Pre/post move-in deep cleaning for empty 1 BHK flats. Inside-out cabinet wipe down, floor scrubbing and bathroom descaling.", img: "/images/service-interior.jpg", sub: ["Empty bedroom floor scrub & window wipe", "Empty kitchen cabinet inside-out wipe down", "Bathroom descaling & tiles scrubbing", "Balcony & utility pressure wash"], paymentType: "full" },
+  { id: "2bhk-empty", title: "2 BHK Empty Flat Deep Cleaning", price: 1799, desc: "Move-in / Move-out deep sanitization for empty 2 BHK flats with intense floor machine scrubbing.", img: "/images/service-interior.jpg", sub: ["2 Empty bedrooms floor & window clean", "Kitchen modular cabinets inside-out wash", "2 Bathrooms deep scrub & descaling", "Flooring machine scrubbing throughout"], paymentType: "full" },
+  { id: "3bhk-empty", title: "3 BHK Empty Flat Deep Cleaning", price: 2399, desc: "Complete move-in readiness for 3 BHK unfurnished flats.", img: "/images/service-interior.jpg", sub: ["3 Empty bedrooms floor, fans & switchboards", "Kitchen inside-out cabinet clean & degrease", "All bathrooms intensive limescale removal", "Entire flat rotary floor scrubbing"], paymentType: "full" },
+  { id: "4bhk-empty", title: "4 BHK Empty Flat Deep Cleaning", price: 2999, desc: "Thorough handover cleaning for empty 4 BHK apartments.", img: "/images/service-interior.jpg", sub: ["4 Empty bedrooms comprehensive wash", "Kitchen & utility inside-out wipedown", "All bathrooms descaling & sanitization", "Balconies, windows & tracks deep clean"], paymentType: "full" },
+  { id: "5bhk-empty", title: "5 BHK Empty Flat Deep Cleaning", price: 3599, desc: "Grand handover and move-in deep cleaning for large empty penthouses.", img: "/images/service-interior.jpg", sub: ["5 Bedrooms & large halls floor scrub", "Kitchen, storage & utility inside-out clean", "All bathrooms deep sanitization", "Glass facades, sliding tracks & terrace scrub"], paymentType: "full" },
+];
+
+export const VILLA_SERVICES: CatService[] = [
+  { id: "villa-2000", title: "Bungalow / Villa (Up to 2000 sq.ft)", price: 4499, desc: "Multi-floor deep cleaning for independent houses, duplexes and villas up to 2000 sq.ft.", img: "/images/service-card-1.jpg", sub: ["Ground & First floor deep scrubbing", "Staircase, railings & terrace wash", "Kitchen & bathrooms deep sanitization", "Exterior portico & glass facade clean"], paymentType: "full" },
+  { id: "villa-3500", title: "Bungalow / Villa (2000 - 3500 sq.ft)", price: 6499, desc: "Comprehensive villa cleaning package for 2000 to 3500 sq.ft duplexes and triplexes.", img: "/images/service-card-1.jpg", sub: ["Multi-floor machine floor scrubbing", "Complete glass facade & railing wipe", "All bathrooms, kitchen & pantry clean", "Porch, garage & terrace pressure wash"], paymentType: "full" },
+  { id: "villa-5000", title: "Bungalow / Villa (3500 - 5000+ sq.ft)", price: 8999, desc: "Executive estate deep cleaning squad for massive villas exceeding 3500 sq.ft.", img: "/images/service-card-1.jpg", sub: ["Full estate intensive sanitization", "Heavy floor rotary machine scrub", "High ceiling, chandelier & glass clean", "Outer pathways, terrace & facade wash"], paymentType: "full" },
+  { id: "villa-duplex", title: "Duplex Villa Deep Cleaning", price: 5999, desc: "Specialized duplex residential deep cleaning covering both levels with high-grade machinery.", img: "/images/service-card-1.jpg", sub: ["Upper & Lower levels complete deep scrub", "Staircase, balustrades & glass wipe", "Kitchen, utility & all bathrooms clean", "Balconies & entrance lobby sanitization"], paymentType: "full" },
+];
+
 export const DEFAULT_CATEGORIES: Category[] = [
   {
     id: "full-house",
@@ -535,7 +559,39 @@ export const DEFAULT_CATEGORIES: Category[] = [
     tagline: "Top-to-bottom ultra-premium sanitation and deep cleaning engineered for luxury homes.",
     emoji: "🏠",
     image: "/images/full_house.jpg",
-    services: ["house", "kitchen", "bath", "interior", "floor", "tank"].map(toCatService),
+    parentId: null,
+    includes: ["Furnished", "Vacant", "Bungalow / Villa"],
+    services: [...FURNISHED_SERVICES, ...VACANT_SERVICES, ...VILLA_SERVICES],
+  },
+  {
+    id: "furnished",
+    title: "Furnished",
+    tagline: "Deep cleaning for fully furnished apartments with furniture, wardrobes & appliances.",
+    emoji: "🛋️",
+    image: "/images/full_house.jpg",
+    parentId: "full-house",
+    includes: ["1 BHK", "2 BHK", "3 BHK", "4 BHK", "5 BHK+"],
+    services: FURNISHED_SERVICES,
+  },
+  {
+    id: "vacant",
+    title: "Vacant",
+    tagline: "Thorough deep cleaning for empty / unfurnished flats before shifting or post handover.",
+    emoji: "📦",
+    image: "/images/full_house.jpg",
+    parentId: "full-house",
+    includes: ["1 BHK Empty", "2 BHK Empty", "3 BHK Empty", "4 BHK Empty", "5 BHK Empty"],
+    services: VACANT_SERVICES,
+  },
+  {
+    id: "bungalow-villa",
+    title: "Bungalow / Villa",
+    tagline: "Comprehensive multi-floor deep sanitation for duplexes, bungalows & independent villas.",
+    emoji: "🏡",
+    image: "/images/full_house.jpg",
+    parentId: "full-house",
+    includes: ["Up to 2000 sq.ft", "2000 - 3500 sq.ft", "3500 - 5000+ sq.ft", "Duplex Villa"],
+    services: VILLA_SERVICES,
   },
   {
     id: "customized",
@@ -543,6 +599,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     tagline: "Bespoke, room-by-room professional cleaning tailored entirely to your personal space.",
     emoji: "🛋️",
     image: "/images/customized.jpg",
+    parentId: null,
     services: ["sofa", "furniture", "carpet", "mattress", "glass", "fridge", "balcony"].map(
       toCatService,
     ),
@@ -553,6 +610,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     tagline: "Elite clinical-grade sanitation for corporate offices, hotels, and post-construction spaces.",
     emoji: "🏢",
     image: "/images/commercial.jpg",
+    parentId: null,
     services: ["office", "hotel"].map(toCatService),
   },
 ];
@@ -2573,7 +2631,8 @@ function Index() {
           </div>
         </div>
 
-        <div className="mt-4 max-w-[1400px] mx-auto">
+        {/* DESKTOP CATEGORY CARDS (hidden on mobile) */}
+        <div className="mt-4 max-w-[1400px] mx-auto hidden md:block">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 justify-center items-stretch">
             {parentCategoriesWithSubServices.length === 0 ? (
               <div className="col-span-full text-center py-16 bg-white border border-[#cb9f5a]/25 p-8 w-full rounded-2xl">
@@ -2600,11 +2659,11 @@ function Index() {
                         search: { category: c.id },
                       });
                     }}
-                    className="group relative overflow-hidden rounded-[24px] bg-white border border-slate-200/90 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 p-4 sm:p-5 flex flex-col justify-between cursor-pointer text-left"
+                    className="group relative overflow-hidden rounded-[22px] bg-white border border-slate-200/90 shadow-[0_4px_20px_rgba(0,0,0,0.04)] hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 p-3.5 sm:p-4 flex flex-col justify-between cursor-pointer text-left"
                   >
                     {/* Card Top: Image with Badges */}
                     <div>
-                      <div className="relative w-full h-48 sm:h-56 rounded-2xl overflow-hidden bg-slate-100 shrink-0">
+                      <div className="relative w-full h-44 sm:h-52 rounded-xl sm:rounded-2xl overflow-hidden bg-slate-100 shrink-0">
                         <img
                           src={c.image || defaultImage}
                           alt={c.title}
@@ -2616,33 +2675,30 @@ function Index() {
                         />
 
                         {/* Top-Left Badge: X SERVICES */}
-                        <span className="absolute top-3.5 left-3.5 rounded-full bg-[#0B6B46] text-white px-3 py-1 text-[11px] font-bold tracking-wider uppercase shadow-xs">
+                        <span className="absolute top-3 left-3 rounded-full bg-[#0B6B46] text-white px-2.5 py-0.5 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase shadow-xs">
                           {serviceCount} SERVICES
                         </span>
 
                         {/* Floating Icon Box overlapping bottom-left */}
-                        <div className="absolute -bottom-3 left-4 h-12 w-12 rounded-xl bg-white border border-slate-100 shadow-md flex items-center justify-center text-[#111827] group-hover:bg-[#0B6B46] group-hover:text-white transition-colors duration-300 z-10">
-                          <CategoryIcon className="h-6 w-6 stroke-[1.8]" />
+                        <div className="absolute -bottom-2.5 left-3.5 h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-white border border-slate-100 shadow-md flex items-center justify-center text-[#111827] group-hover:bg-[#0B6B46] group-hover:text-white transition-colors duration-300 z-10">
+                          <CategoryIcon className="h-5 w-5 stroke-[1.8]" />
                         </div>
                       </div>
 
-                      {/* Content Details */}
-                      <div className="mt-6 px-1">
-                        <h3 className="font-sans text-xl sm:text-[22px] font-bold text-[#111827] group-hover:text-[#0B6B46] transition-colors leading-snug">
+                      {/* Content Details - ONLY Title/Name, No Description */}
+                      <div className="mt-5 px-1">
+                        <h3 className="font-sans text-lg sm:text-xl font-bold text-[#111827] group-hover:text-[#0B6B46] transition-colors leading-snug">
                           {c.title}
                         </h3>
-                        <p className="mt-2.5 text-xs sm:text-[13px] text-slate-500 font-normal leading-relaxed line-clamp-3">
-                          {c.tagline}
-                        </p>
                       </div>
                     </div>
 
                     {/* Footer Actions */}
-                    <div className="mt-6 pt-3.5 border-t border-slate-100 flex items-center justify-between px-1">
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between px-1">
                       <span className="text-xs sm:text-sm font-semibold text-[#C89B3C] group-hover:text-[#A67C22] transition-colors flex items-center gap-1.5">
-                        View all services <span className="transition-transform group-hover:translate-x-1">→</span>
+                        View services <span className="transition-transform group-hover:translate-x-1">→</span>
                       </span>
-                      <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+                      <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
                         EXPLORE —
                       </span>
                     </div>
@@ -2650,6 +2706,79 @@ function Index() {
                 );
               })
             )}
+          </div>
+        </div>
+
+        {/* MOBILE 3D CATEGORY TILES (Exact Match to User's Reference Screenshot) */}
+        <div className="block md:hidden max-w-[360px] mx-auto px-4 pt-2 pb-2">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-6 items-start">
+            {/* 1. Full House Deep Cleaning */}
+            <div
+              onClick={() => {
+                navigate({
+                  to: "/services",
+                  search: { category: "full-house" },
+                });
+              }}
+              className="flex flex-col items-center text-center cursor-pointer group active:scale-95 transition-transform"
+            >
+              <div className="w-full aspect-square bg-[#FAF7EE] rounded-3xl p-2.5 border border-[#EBE5D3] shadow-xs flex items-center justify-center overflow-hidden">
+                <img
+                  src="/images/cat-3d-house.jpg"
+                  alt="Full House Deep Cleaning"
+                  className="w-full h-full object-contain rounded-2xl group-hover:scale-105 transition-transform"
+                />
+              </div>
+              <h3 className="mt-2 text-[13px] font-bold text-slate-900 leading-snug">
+                Full House Deep Cleaning
+              </h3>
+            </div>
+
+            {/* 2. Customized Cleaning Package */}
+            <div
+              onClick={() => {
+                navigate({
+                  to: "/services",
+                  search: { category: "customized" },
+                });
+              }}
+              className="flex flex-col items-center text-center cursor-pointer group active:scale-95 transition-transform"
+            >
+              <div className="w-full aspect-square bg-[#FAF7EE] rounded-3xl p-2.5 border border-[#EBE5D3] shadow-xs flex items-center justify-center overflow-hidden">
+                <img
+                  src="/images/cat-3d-sofa.jpg"
+                  alt="Customized Cleaning Package"
+                  className="w-full h-full object-contain rounded-2xl group-hover:scale-105 transition-transform"
+                />
+              </div>
+              <h3 className="mt-2 text-[13px] font-bold text-slate-900 leading-snug">
+                Customized Cleaning Package
+              </h3>
+            </div>
+          </div>
+
+          {/* 3. Commercial Post Interior Cleaning (Centered below) */}
+          <div className="mt-5 flex justify-center">
+            <div
+              onClick={() => {
+                navigate({
+                  to: "/services",
+                  search: { category: "commercial" },
+                });
+              }}
+              className="w-[155px] flex flex-col items-center text-center cursor-pointer group active:scale-95 transition-transform"
+            >
+              <div className="w-full aspect-square bg-[#FAF7EE] rounded-3xl p-2.5 border border-[#EBE5D3] shadow-xs flex items-center justify-center overflow-hidden">
+                <img
+                  src="/images/cat-3d-commercial.jpg"
+                  alt="Commercial Post Interior Cleaning Services"
+                  className="w-full h-full object-contain rounded-2xl group-hover:scale-105 transition-transform"
+                />
+              </div>
+              <h3 className="mt-2 text-[13px] font-bold text-slate-900 leading-snug">
+                Commercial Post Interior Cleaning Services
+              </h3>
+            </div>
           </div>
         </div>
       </section>

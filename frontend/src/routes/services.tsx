@@ -18,6 +18,7 @@ import {
   Youtube,
   Send,
   ArrowRight,
+  ArrowLeft,
   Mail,
   ChevronDown,
   Building2,
@@ -51,6 +52,7 @@ import Header from "@/components/Header";
 
 type ServicesSearch = {
   category?: string;
+  sub?: string;
   service?: string;
 };
 
@@ -58,6 +60,7 @@ export const Route = createFileRoute("/services")({
   validateSearch: (search: Record<string, unknown>): ServicesSearch => {
     return {
       category: typeof search.category === "string" ? search.category : undefined,
+      sub: typeof search.sub === "string" ? search.sub : undefined,
       service: typeof search.service === "string" ? search.service : undefined,
     };
   },
@@ -80,8 +83,24 @@ const getServiceCardImage = (s: Service) => {
   if (id.includes("hotel")) return "/images/service-hotel.jpg";
   if (id.includes("office")) return "/images/service-office.jpg";
   if (id.includes("interior")) return "/images/service-interior.jpg";
-  if (id.includes("house")) return "/images/service-house.jpg";
+  if (id.includes("house") || id.includes("villa") || id.includes("furnished") || id.includes("vacant")) return "/images/service-house.jpg";
   return s.image || s.img || "/images/service-card-1.jpg";
+};
+
+const SUB_CATEGORY_ORDER = ["furnished", "vacant", "bungalow-villa"];
+
+const getSubCategoryImage = (subId: string) => {
+  if (subId === "furnished") return "/images/service-house.jpg";
+  if (subId === "vacant") return "/images/service-interior.jpg";
+  if (subId === "bungalow-villa") return "/images/service-card-1.jpg";
+  return "/images/service-card-3.jpg";
+};
+
+const getSubCategoryStartingPrice = (sub: Category) => {
+  if (!sub.services || sub.services.length === 0) return null;
+  const prices = sub.services.map((s) => s.price).filter((p) => p > 0);
+  if (prices.length === 0) return null;
+  return Math.min(...prices);
 };
 
 function ServicesComponent() {
@@ -90,14 +109,7 @@ function ServicesComponent() {
   const [navOpen, setNavOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [selectedCatId, setSelectedCatId] = useState<string>(() => searchParams.category || "full-house");
-
-  useEffect(() => {
-    if (searchParams.category) {
-      setSelectedCatId(searchParams.category);
-    } else {
-      setSelectedCatId("full-house");
-    }
-  }, [searchParams.category]);
+  const [activeSubId, setActiveSubId] = useState<string | null>(() => searchParams.sub || null);
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [favs, setFavs] = useState<string[]>([]);
@@ -112,7 +124,6 @@ function ServicesComponent() {
   const [userLocation, setUserLocation] = useState("Guntur, Andhra Pradesh");
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [referralModalOpen, setReferralModalOpen] = useState(false);
-  const [activeSubId, setActiveSubId] = useState<string | null>(null);
 
   const parentCategoriesWithSubServices = useMemo(() => {
     const parents = categories.filter((c) => !c.parentId);
@@ -147,12 +158,32 @@ function ServicesComponent() {
   }, [parentCategoriesWithSubServices]);
 
   const subCategories = useMemo(() => {
-    return categories.filter((c) => c.parentId === selectedCatId);
+    const subs = categories.filter((c) => c.parentId === selectedCatId);
+    return [...subs].sort((a, b) => {
+      const idxA = SUB_CATEGORY_ORDER.indexOf(a.id);
+      const idxB = SUB_CATEGORY_ORDER.indexOf(b.id);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.title.localeCompare(b.title);
+    });
   }, [categories, selectedCatId]);
 
   useEffect(() => {
-    setActiveSubId(null);
-  }, [selectedCatId]);
+    const cat = searchParams.category || "full-house";
+    setSelectedCatId(cat);
+
+    const subs = categories.filter((c) => c.parentId === cat);
+    if (subs.length > 0 && searchParams.sub) {
+      if (subs.some((s) => s.id === searchParams.sub)) {
+        setActiveSubId(searchParams.sub);
+      } else {
+        setActiveSubId(null);
+      }
+    } else {
+      setActiveSubId(null);
+    }
+  }, [searchParams.category, searchParams.sub, categories]);
 
   const isAdmin = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -247,14 +278,16 @@ function ServicesComponent() {
   }, [cart]);
 
   const activeCategory = useMemo(() => {
-    const targetId = activeSubId || selectedCatId;
+    if (activeSubId) {
+      const targetSub = categories.find((c) => c.id === activeSubId);
+      if (targetSub) return targetSub;
+    }
     return (
-      parentCategoriesWithSubServices.find((c) => c.id === targetId) ||
-      categories.find((c) => c.id === targetId) ||
+      categories.find((c) => c.id === selectedCatId) ||
       categories.find((c) => !c.parentId) ||
       categories[0]
     );
-  }, [parentCategoriesWithSubServices, categories, selectedCatId, activeSubId]);
+  }, [activeSubId, categories, selectedCatId]);
 
   const allServices = useMemo(() => {
     return categories.flatMap((c) => c.services || []);
@@ -469,11 +502,23 @@ function ServicesComponent() {
   const handleCategoryClick = (catId: string) => {
     setSelectedCatId(catId);
     setActiveSubId(null);
+    navigate({
+      to: "/services",
+      search: (prev) => ({ ...prev, category: catId, sub: undefined }),
+    });
     window.scrollTo({ top: 320, behavior: "smooth" });
   };
 
+  const handleSubCategoryClick = (subId: string) => {
+    setActiveSubId(subId);
+    navigate({
+      to: "/services",
+      search: (prev) => ({ ...prev, category: selectedCatId, sub: subId }),
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-[#FBFBF9] text-[#111827] font-sans pt-[105px] sm:pt-[110px] md:pt-[115px]">
+    <div className="min-h-screen bg-[#FBFBF9] text-[#111827] font-sans pt-20 sm:pt-24 lg:pt-28">
       <Header
         cartCount={cart.reduce((acc, i) => acc + i.qty, 0)}
         favsCount={favs.length}
@@ -482,11 +527,11 @@ function ServicesComponent() {
         onOpenLocation={() => setLocationModalOpen(true)}
         activeHash=""
         isSubPage={true}
-        showTopBanner={true}
+        showTopBanner={false}
       />
 
-      {/* SERVICES HERO HEADER - EXACT MATCH TO REFERENCE DESIGN */}
-      <section className="relative overflow-hidden bg-[#FBFBF9] text-[#111827] pt-8 sm:pt-12 pb-6 sm:pb-8 font-sans">
+      {/* SERVICES HERO HEADER - Hidden on mobile to save vertical screen space */}
+      <section className="hidden lg:block relative overflow-hidden bg-[#FBFBF9] text-[#111827] pt-8 sm:pt-12 pb-6 sm:pb-8 font-sans">
         <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
             {/* Left Side: Eyebrow, Title & Subtitle */}
@@ -507,7 +552,6 @@ function ServicesComponent() {
 
             {/* Right Side: Circular Trust Badge & Green Armchair Scene */}
             <div className="flex items-center justify-end gap-5 shrink-0">
-              {/* Circular Orbiting Trust Badge */}
               <div className="hidden md:flex items-center justify-center">
                 <div className="h-24 w-24 lg:h-28 lg:w-28 rounded-full border-2 border-dashed border-emerald-300 flex items-center justify-center p-1">
                   <div className="h-full w-full rounded-full bg-white shadow-xs border border-emerald-100 flex flex-col items-center justify-center text-center p-2">
@@ -519,7 +563,6 @@ function ServicesComponent() {
                 </div>
               </div>
 
-              {/* Green Armchair Scene Illustration (Hidden on mobile to save screen space) */}
               <div className="hidden lg:block w-[220px] sm:w-[250px] lg:w-[290px] shrink-0">
                 <img
                   src="/images/services-hero-chair.jpg"
@@ -533,58 +576,93 @@ function ServicesComponent() {
       </section>
 
       {/* SPLIT SCREEN SIDEBAR & SERVICES LAYOUT */}
-      <section className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 pb-12">
-        {/* MOBILE 3-CATEGORY SWITCHER (House Deep Clean, Customized, Commercial) */}
-        <div className="block lg:hidden mb-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-black uppercase tracking-wider text-[#007A48]">
-              Choose Category
-            </span>
-            <span className="text-[10px] text-slate-400 font-semibold">
-              Tap to view services
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-2 bg-[#F2F5F3] p-1.5 rounded-2xl border border-slate-200">
-            {parentCategories.map((cat) => {
-              const isActive = selectedCatId === cat.id;
-              const CategoryIcon =
-                cat.id === "full-house"
-                  ? HomeIcon
-                  : cat.id === "customized"
-                  ? Sofa
-                  : Building2;
-              const shortTitle =
-                cat.id === "full-house"
-                  ? "House Deep Clean"
-                  : cat.id === "customized"
-                  ? "Customized"
-                  : "Commercial";
-
-              const serviceCount = cat.services?.length || 0;
-
-              return (
+      <section className="mx-auto max-w-[1400px] px-3 sm:px-6 lg:px-8 pt-3 lg:pt-0 pb-12">
+        {/* COMPACT MOBILE NAVIGATION */}
+        <div className="block lg:hidden mb-3">
+          {activeSubId ? (
+            /* Level 2 Sub-category Header on Mobile: clean, zero fluff */
+            <div className="space-y-2">
+              <div className="flex items-center justify-between bg-white p-2.5 rounded-2xl border border-slate-200 shadow-3xs">
                 <button
-                  key={cat.id}
                   type="button"
-                  onClick={() => {
-                    setSelectedCatId(cat.id);
-                    setActiveSubId(null);
-                  }}
-                  className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-xl transition-all duration-200 text-center cursor-pointer ${
-                    isActive
-                      ? "bg-[#007A48] text-white shadow-md font-bold scale-[1.02]"
-                      : "bg-white text-slate-700 hover:text-slate-900 border border-slate-200/80 font-semibold"
-                  }`}
+                  onClick={() => handleCategoryClick(selectedCatId)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#EBF5EE] text-[#007A48] text-xs font-bold active:scale-95 transition-all cursor-pointer"
                 >
-                  <CategoryIcon className={`h-5 w-5 mb-1 ${isActive ? "text-white" : "text-[#007A48]"}`} />
-                  <span className="text-[11px] leading-tight font-bold">{shortTitle}</span>
-                  <span className={`text-[9px] mt-0.5 font-bold ${isActive ? "text-emerald-100" : "text-slate-400"}`}>
-                    {serviceCount} services
-                  </span>
+                  <ArrowLeft className="h-3.5 w-3.5 text-[#007A48]" />
+                  <span>All Sub-categories</span>
                 </button>
-              );
-            })}
-          </div>
+                <div className="flex items-center gap-1.5 text-right">
+                  <span className="text-xs font-extrabold text-slate-900">
+                    {activeCategory?.emoji} {activeCategory?.title}
+                  </span>
+                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    {activeCategory?.services?.length || 0}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick switch tabs for other subcategories */}
+              {subCategories.length > 0 && (
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                  {subCategories.map((sub) => {
+                    const isSubActive = activeSubId === sub.id;
+                    return (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        onClick={() => handleSubCategoryClick(sub.id)}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-bold shrink-0 transition-all cursor-pointer whitespace-nowrap ${
+                          isSubActive
+                            ? "bg-[#007A48] text-white shadow-xs"
+                            : "bg-white text-slate-700 border border-slate-200"
+                        }`}
+                      >
+                        <span>{sub.emoji || "✨"}</span>
+                        <span>{sub.title}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Level 1 Category Tabs on Mobile: elegant horizontally scrolling pills */
+            <div className="bg-[#F2F5F3] p-1.5 rounded-2xl border border-slate-200 overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-1.5 min-w-max">
+                {parentCategories.map((cat) => {
+                  const isActive = selectedCatId === cat.id;
+                  const CategoryIcon =
+                    cat.id === "full-house"
+                      ? HomeIcon
+                      : cat.id === "customized"
+                      ? Sofa
+                      : Building2;
+                  const shortTitle =
+                    cat.id === "full-house"
+                      ? "Full House"
+                      : cat.id === "customized"
+                      ? "Customized"
+                      : "Commercial";
+
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => handleCategoryClick(cat.id)}
+                      className={`flex items-center justify-center gap-1.5 py-2 px-3.5 rounded-xl transition-all duration-200 text-center cursor-pointer shrink-0 whitespace-nowrap active:scale-95 ${
+                        isActive
+                          ? "bg-[#007A48] text-white shadow-xs font-bold"
+                          : "bg-white text-slate-700 hover:text-slate-900 border border-slate-200/80 font-semibold"
+                      }`}
+                    >
+                      <CategoryIcon className={`h-4 w-4 shrink-0 ${isActive ? "text-white" : "text-[#007A48]"}`} />
+                      <span className="text-xs leading-tight font-bold">{shortTitle}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8 items-start">
@@ -600,6 +678,7 @@ function ServicesComponent() {
               <div className="p-3 space-y-2">
                 {parentCategories.map((cat) => {
                   const isActive = selectedCatId === cat.id;
+                  const childCats = categories.filter((c) => c.parentId === cat.id);
                   const CategoryIcon =
                     cat.id === "commercial"
                       ? Building2
@@ -608,35 +687,66 @@ function ServicesComponent() {
                       : HomeIcon;
 
                   return (
-                    <button
-                      key={cat.id}
-                      onClick={() => handleCategoryClick(cat.id)}
-                      className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
-                        isActive
-                          ? "bg-[#EBF5EE] border-[#007A48]/30 shadow-3xs"
-                          : "bg-white border-transparent hover:bg-slate-50 hover:border-slate-100"
-                      }`}
-                    >
-                      <div
-                        className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                          isActive ? "bg-[#007A48] text-white" : "bg-slate-100 text-slate-600"
+                    <div key={cat.id} className="space-y-1">
+                      <button
+                        onClick={() => handleCategoryClick(cat.id)}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                          isActive
+                            ? "bg-[#EBF5EE] border-[#007A48]/30 shadow-3xs"
+                            : "bg-white border-transparent hover:bg-slate-50 hover:border-slate-100"
                         }`}
                       >
-                        <CategoryIcon className="h-4.5 w-4.5" />
-                      </div>
-                      <span
-                        className={`text-xs flex-1 leading-snug font-bold transition-colors ${
-                          isActive ? "text-[#003B2B]" : "text-slate-700"
-                        }`}
-                      >
-                        {cat.title}
-                      </span>
-                      <ChevronRight
-                        className={`h-4 w-4 shrink-0 transition-transform ${
-                          isActive ? "text-[#007A48] translate-x-0.5" : "text-slate-400"
-                        }`}
-                      />
-                    </button>
+                        <div
+                          className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                            isActive ? "bg-[#007A48] text-white" : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          <CategoryIcon className="h-4.5 w-4.5" />
+                        </div>
+                        <span
+                          className={`text-xs flex-1 leading-snug font-bold transition-colors ${
+                            isActive ? "text-[#003B2B]" : "text-slate-700"
+                          }`}
+                        >
+                          {cat.title}
+                        </span>
+                        <ChevronRight
+                          className={`h-4 w-4 shrink-0 transition-transform ${
+                            isActive ? "text-[#007A48] translate-x-0.5" : "text-slate-400"
+                          }`}
+                        />
+                      </button>
+
+                      {/* Nested Sub-categories inside Sidebar */}
+                      {isActive && childCats.length > 0 && (
+                        <div className="pl-4 pr-1 py-1.5 space-y-1 border-l-2 border-dashed border-[#007A48]/30 ml-4 my-1">
+                          {subCategories.map((sub) => {
+                            const isSubActive = activeSubId === sub.id;
+                            return (
+                              <button
+                                key={sub.id}
+                                type="button"
+                                onClick={() => handleSubCategoryClick(sub.id)}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                  isSubActive
+                                    ? "bg-[#007A48] text-white shadow-xs"
+                                    : "text-slate-600 hover:text-[#007A48] hover:bg-emerald-50/50"
+                                }`}
+                              >
+                                <span className="flex items-center gap-1.5 truncate">
+                                  <span className="text-[10px]">↳</span>
+                                  <span>{sub.emoji || "✨"}</span>
+                                  <span className="truncate">{sub.title}</span>
+                                </span>
+                                <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-extrabold shrink-0 ml-1 ${isSubActive ? "bg-emerald-800 text-white" : "bg-slate-100 text-slate-500"}`}>
+                                  {sub.services?.length || 0}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -676,27 +786,141 @@ function ServicesComponent() {
             </div>
           </aside>
 
-          {/* Right Column: Services Cards List */}
+          {/* Right Column: Services Cards List or Sub-Category Hub Cards */}
           <div className="w-full lg:w-[calc(100%-312px)] flex-1 space-y-5">
-            {/* Show category services if a specific category is selected and not 'all' */}
-            {selectedCatId && selectedCatId !== "all" && activeCategory?.services && activeCategory.services.length > 0 ? (
-              <div className="space-y-4">
-                {/* Header for selected category's services */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-[#007A48] uppercase tracking-wider">
-                        {activeCategory.title}
-                      </span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-[#EBF5EE] text-[#007A48] text-[10px] font-extrabold border border-emerald-100">
-                        {activeCategory.services.length} Services
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1 font-normal max-w-xl">
-                      {activeCategory.tagline}
-                    </p>
+            {/* 1. SUB-CATEGORY HUB VIEW: Render only the 3 sub-category cards when clicking Full House */}
+            {subCategories.length > 0 && !activeSubId ? (
+              <div className="space-y-4 sm:space-y-6">
+                <div className="hidden md:block bg-gradient-to-r from-[#EBF5EE] to-[#F4F8F5] border border-emerald-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#007A48] mb-1">
+                    <Sparkles className="h-4 w-4" />
+                    <span>SELECT YOUR FLAT OR PROPERTY TYPE</span>
                   </div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                    Full House Deep Cleaning Categories
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl leading-relaxed">
+                    Select your layout below to view customized BHK packages, detailed inclusions, and transparent pricing.
+                  </p>
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-5">
+                  {subCategories.map((sub) => {
+                    const startPrice = getSubCategoryStartingPrice(sub);
+                    const subImage = getSubCategoryImage(sub.id);
+                    const includesList = sub.includes || [
+                      "Complete Dusting & Wipedown",
+                      "Bathroom & Kitchen Degreasing",
+                      "Floor Deep Scrubbing",
+                    ];
+
+                    return (
+                      <div
+                        key={sub.id}
+                        onClick={() => handleSubCategoryClick(sub.id)}
+                        className="group bg-white border border-slate-200/90 hover:border-[#007A48] rounded-2xl overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between cursor-pointer hover:-translate-y-1"
+                      >
+                        <div>
+                          {/* Card Image */}
+                          <div className="relative h-[160px] sm:h-[180px] w-full overflow-hidden bg-slate-100">
+                            <img
+                              src={subImage}
+                              alt={sub.title}
+                              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            />
+                            <div className="absolute top-2.5 left-2.5 bg-white/95 backdrop-blur-md px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold text-[#007A48] shadow-xs border border-emerald-100 flex items-center gap-1.5">
+                              <span>{sub.emoji || "✨"}</span>
+                              <span>{sub.services?.length || 0} Packages</span>
+                            </div>
+                          </div>
+
+                          {/* Card Body with ONLY Title Below Image */}
+                          <div className="p-3.5 sm:p-4">
+                            <h3 className="text-base sm:text-lg font-extrabold text-slate-900 group-hover:text-[#007A48] transition-colors leading-snug">
+                              {sub.title}
+                            </h3>
+                          </div>
+                        </div>
+
+                        {/* Card Footer */}
+                        <div className="p-3.5 sm:p-4 pt-0 border-t border-slate-100 mt-1">
+                          <div className="flex items-center justify-between pt-2.5">
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider block">
+                                Starting from
+                              </span>
+                              <span className="text-sm sm:text-base font-black text-slate-900">
+                                {startPrice ? `₹${startPrice.toLocaleString("en-IN")}` : "Custom Price"}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#007A48] hover:bg-[#005f38] text-white text-xs font-bold transition-all shadow-xs group-hover:shadow-md cursor-pointer"
+                            >
+                              <span>View Services</span>
+                              <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : selectedCatId && selectedCatId !== "all" && activeCategory?.services && activeCategory.services.length > 0 ? (
+                <div className="space-y-4">
+                  {/* Header for selected category/sub-category services (Desktop only, mobile has compact top bar) */}
+                  <div className="hidden lg:flex bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-4 shadow-xs flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      {subCategories.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => handleCategoryClick(selectedCatId)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-[#EBF5EE] hover:text-[#007A48] text-slate-700 text-xs font-bold transition-all cursor-pointer border border-slate-200"
+                        >
+                          <ArrowLeft className="h-3.5 w-3.5 text-[#007A48]" />
+                          <span>All Sub-Categories</span>
+                        </button>
+                      )}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm sm:text-base font-extrabold text-[#007A48]">
+                            {activeCategory.emoji} {activeCategory.title}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-[#EBF5EE] text-[#007A48] text-[10px] font-extrabold border border-emerald-100">
+                            {activeCategory.services.length} Services
+                          </span>
+                        </div>
+                        <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
+                          {activeCategory.tagline}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Quick Subcategory Switcher (if in subcategory mode) */}
+                    {subCategories.length > 0 && (
+                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1 sm:pt-0">
+                        {subCategories.map((sub) => {
+                          const isSubActive = activeSubId === sub.id;
+                          return (
+                            <button
+                              key={sub.id}
+                              type="button"
+                              onClick={() => handleSubCategoryClick(sub.id)}
+                              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap border ${
+                                isSubActive
+                                  ? "bg-[#007A48] text-white border-[#007A48] shadow-xs"
+                                  : "bg-white text-slate-700 hover:text-slate-900 border-slate-200"
+                              }`}
+                            >
+                              <span>{sub.emoji || "✨"}</span>
+                              <span>{sub.title}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
 
                 {activeCategory.services.map((s) => {
                   const rating = s.id.includes("hotel") ? "4.8"

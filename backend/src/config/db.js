@@ -514,7 +514,7 @@ async function initDb() {
 
     // Dynamic Seeding from data/db.json has been removed to prevent database overrides and preserve admin modifications.
 
-    // Ensure default categories exist in database
+    // Ensure default categories exist in database (including Full House sub-categories)
     const defaultCategories = [
       {
         id: "full-house",
@@ -522,7 +522,35 @@ async function initDb() {
         tagline: "Top-to-bottom premium clean for the entire home",
         emoji: "🏠",
         image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80",
-        includes: ["House Deep Clean", "Kitchen Deep Clean", "Bathroom Deep Clean"]
+        parentId: null,
+        includes: ["Furnished", "Vacant", "Bungalow / Villa"]
+      },
+      {
+        id: "furnished",
+        title: "Furnished",
+        tagline: "Deep cleaning for fully furnished apartments with furniture, wardrobes & appliances",
+        emoji: "🛋️",
+        image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+        parentId: "full-house",
+        includes: ["1 BHK", "2 BHK", "3 BHK", "4 BHK", "5 BHK+"]
+      },
+      {
+        id: "vacant",
+        title: "Vacant",
+        tagline: "Thorough deep cleaning for empty / unfurnished flats before shifting or post handover",
+        emoji: "📦",
+        image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80",
+        parentId: "full-house",
+        includes: ["1 BHK Empty", "2 BHK Empty", "3 BHK Empty", "4 BHK Empty", "5 BHK Empty"]
+      },
+      {
+        id: "bungalow-villa",
+        title: "Bungalow / Villa",
+        tagline: "Comprehensive multi-floor deep sanitation for duplexes, bungalows & independent villas",
+        emoji: "🏡",
+        image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+        parentId: "full-house",
+        includes: ["Up to 2000 sq.ft", "2000 - 3500 sq.ft", "3500 - 5000+ sq.ft", "Duplex Villa"]
       },
       {
         id: "customized",
@@ -530,6 +558,7 @@ async function initDb() {
         tagline: "Pick exactly what you need — room by room",
         emoji: "🛋️",
         image: "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&w=800&q=80",
+        parentId: null,
         includes: ["Living Room", "Kitchen", "Bathroom", "Sofa", "Carpet"]
       },
       {
@@ -538,15 +567,16 @@ async function initDb() {
         tagline: "Office, hotel & post-construction expertise",
         emoji: "🏢",
         image: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80",
+        parentId: null,
         includes: ["Office Cleaning", "Hotel Cleaning", "Post-Construction"]
       }
     ];
 
     for (const cat of defaultCategories) {
       try {
-        const existing = await query("SELECT id FROM categories WHERE id = ?", [cat.id]);
+        const existing = await query("SELECT id, parentId FROM categories WHERE id = ?", [cat.id]);
         if (existing.length === 0) {
-          console.log(`Seeding default category: ${cat.title}`);
+          console.log(`Seeding default category: ${cat.title} (${cat.id})`);
           await query(
             "INSERT INTO categories (id, title, tagline, emoji, image, parentId, includes) VALUES (?, ?, ?, ?, ?, ?, ?)",
             [
@@ -555,17 +585,651 @@ async function initDb() {
               cat.tagline,
               cat.emoji,
               cat.image,
-              null,
-              JSON.stringify(cat.includes)
+              cat.parentId || null,
+              JSON.stringify(cat.includes || [])
             ]
           );
+        } else {
+          // Keep parentId accurate
+          if (cat.parentId && existing[0].parentId !== cat.parentId) {
+            await query("UPDATE categories SET parentId = ? WHERE id = ?", [cat.parentId, cat.id]);
+          }
         }
       } catch (e) {
         console.warn(`Failed to seed default category ${cat.id}:`, e.message);
       }
     }
 
-    // Automatic cleanup of user-created categories is disabled to allow dynamic admin-created catalog categories to persist.
+    // Seed Full House Sub-Category Services
+    const fullHouseServices = [
+      // === FURNISHED APARTMENT SERVICES ===
+      {
+        id: "1bhk-furnished",
+        categoryId: "furnished",
+        title: "1 BHK Furnished Deep Cleaning",
+        price: 1499,
+        description: "Complete top-to-bottom deep sanitization and cleaning for a 1 BHK furnished apartment including bedroom, living hall, kitchen, bathroom, balcony, furniture dusting and exterior appliance wipedown.",
+        image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+        includes: [
+          "Full bedroom dusting, cobweb removal & dry vacuuming",
+          "Living room sofa & furniture surface wipe down",
+          "Kitchen countertop, sink, tiles & outer cabinet degreasing",
+          "Bathroom descaling, sanitization & floor scrubbing",
+          "Balcony wash & window glass wipe down"
+        ],
+        plans: [
+          {
+            name: "Express",
+            price: 1499,
+            duration: "2 - 3 hours",
+            description: "Standard deep dusting, manual floor scrub, bathroom & kitchen sanitize for 1 BHK furnished home.",
+            includes: ["Deep dusting of all rooms", "Floor scrubbing & wet mopping", "Bathroom deep cleaning (WC, tiles, basin)", "Kitchen slab, tiles, sink & stove wipe down"],
+            excludes: ["Interior cabinet/wardrobe cleaning", "Appliance interior cleaning", "Sofa or carpet shampooing"]
+          },
+          {
+            name: "Classic",
+            price: 2199,
+            duration: "3 - 4 hours",
+            description: "Comprehensive deep clean with single-disc machine floor scrubbing, window channels & appliance exteriors.",
+            includes: ["All Express features", "Single disc machine floor scrubbing", "Window tracks & grill cleaning", "Kitchen chimney exterior degreasing", "Balcony power wash"],
+            excludes: ["Appliance interior cleaning", "Sofa shampooing"]
+          },
+          {
+            name: "Premium",
+            price: 2999,
+            duration: "4 - 5 hours",
+            description: "Elite clinical-grade deep clean with inside cabinet sanitization (if empty) and steam disinfections.",
+            includes: ["All Classic features", "Steam disinfection of bathrooms & kitchen", "Inside empty wardrobe & cabinet wiping", "Furniture polish & surface protection"],
+            excludes: ["Moving excessively heavy structural fixtures"]
+          }
+        ],
+        disclaimer: "Please ensure all valuables are removed or securely stored before our professionals arrive.",
+        requirements: "Customers are requested to provide a bucket with water, a power point connection, and a ladder or stool for height reach."
+      },
+      {
+        id: "2bhk-furnished",
+        categoryId: "furnished",
+        title: "2 BHK Furnished Deep Cleaning",
+        price: 2199,
+        description: "Comprehensive hotel-grade deep clean for a 2 BHK furnished flat covering 2 bedrooms, hall, kitchen, 2 bathrooms, balconies, furniture and fixtures.",
+        image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80",
+        includes: [
+          "Deep dusting of 2 bedrooms, living room & dining area",
+          "Complete sanitization of up to 2 bathrooms",
+          "Kitchen countertops, stove, tiles & sink scrub",
+          "Floor scrubbing and mopping across all rooms",
+          "Balconies, doors, windows & switchboards detailing"
+        ],
+        plans: [
+          {
+            name: "Express",
+            price: 2199,
+            duration: "3 - 4 hours",
+            description: "Standard deep dusting, floor scrub, bathroom & kitchen sanitize for 2 BHK furnished flat.",
+            includes: ["Deep dusting of 2 bedrooms & hall", "2 Bathrooms intensive sanitization", "Kitchen countertop & tiles degreasing", "Balcony & window cleaning"],
+            excludes: ["Interior cabinet cleaning", "Sofa shampooing"]
+          },
+          {
+            name: "Classic",
+            price: 3199,
+            duration: "4 - 5 hours",
+            description: "Detailed 2 BHK deep clean with machine floor buffing, window tracks & appliances exterior.",
+            includes: ["All Express features", "Single disc floor scrubbing", "Window channels & glass deep clean", "Kitchen chimney exterior & tile steam wipe"],
+            excludes: ["Sofa shampooing"]
+          },
+          {
+            name: "Premium",
+            price: 4299,
+            duration: "5 - 6 hours",
+            description: "Ultra-luxury deep clean with complete steam sterilization, empty wardrobe interiors & finish polish.",
+            includes: ["All Classic features", "Steam sanitization across all rooms", "Inside wardrobe & cabinet wipedown", "Furniture protection coat"],
+            excludes: []
+          }
+        ],
+        disclaimer: "Please ensure all valuables are removed or securely stored before our professionals arrive.",
+        requirements: "Customers are requested to provide a bucket with water, a power point connection, and a ladder or stool for height reach."
+      },
+      {
+        id: "3bhk-furnished",
+        categoryId: "furnished",
+        title: "3 BHK Furnished Deep Cleaning",
+        price: 2899,
+        description: "All-inclusive deep cleaning and sanitization for 3 BHK furnished apartments including 3 bedrooms, large living hall, kitchen, up to 3 bathrooms & balconies.",
+        image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+        includes: [
+          "3 Bedrooms + Living room deep dusting & vacuuming",
+          "Up to 3 Bathrooms intensive sanitization & descaling",
+          "Kitchen slab, sink, tiles & cabinets outer degreasing",
+          "Full floor scrubbing, balconies & window tracks detailing"
+        ],
+        plans: [
+          {
+            name: "Express",
+            price: 2899,
+            duration: "4 - 5 hours",
+            description: "Deep cleaning of 3 bedrooms, hall, kitchen and up to 3 bathrooms.",
+            includes: ["3 Bedrooms + Living room deep dusting", "Up to 3 Bathrooms intensive clean", "Kitchen slab, sink, tiles degreasing", "Floors scrubbing & mopping"],
+            excludes: ["Interior cabinet cleaning"]
+          },
+          {
+            name: "Classic",
+            price: 4199,
+            duration: "5 - 6 hours",
+            description: "Intensive 3 BHK deep clean with machine floor scrubbing and detailed window tracks.",
+            includes: ["All Express features", "Machine floor scrubbing", "Detailed window tracks & glass wipe", "Balcony deep washing"],
+            excludes: ["Sofa shampooing"]
+          },
+          {
+            name: "Premium",
+            price: 5499,
+            duration: "6 - 7 hours",
+            description: "Hospitality-grade sterilization for entire 3 BHK with steam treatment & wardrobe wipedowns.",
+            includes: ["All Classic features", "Steam treatment for kitchen & washrooms", "Empty wardrobe & kitchen cabinet interiors", "Eco-safe germicidal polish"],
+            excludes: []
+          }
+        ],
+        disclaimer: "Please ensure all valuables are removed or securely stored before our professionals arrive.",
+        requirements: "Customers are requested to provide a bucket with water, a power point connection, and a ladder or stool for height reach."
+      },
+      {
+        id: "4bhk-furnished",
+        categoryId: "furnished",
+        title: "4 BHK / Duplex Furnished Deep Cleaning",
+        price: 3799,
+        description: "Large-scale deep cleaning tailored for expansive 4 BHK flats and duplex apartments with multi-bathroom sanitation and high-reach cleaning.",
+        image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80",
+        includes: [
+          "4 Bedrooms & grand hall complete dusting",
+          "Up to 4 Bathrooms intensive clinical scrub",
+          "Heavy kitchen degreasing & tile steam wash",
+          "Floor machine scrubbing and multi-balcony cleaning"
+        ],
+        plans: [
+          {
+            name: "Express",
+            price: 3799,
+            duration: "5 - 6 hours",
+            description: "Complete deep cleaning for 4 BHK flats & duplex living spaces.",
+            includes: ["4 Bedrooms + spacious hall deep dusting", "Up to 4 Bathrooms deep sanitized", "Kitchen counters, tiles & sink scrub", "Floor cleaning & mopping"],
+            excludes: ["Interior cabinet cleaning"]
+          },
+          {
+            name: "Classic",
+            price: 5399,
+            duration: "6 - 7 hours",
+            description: "High-power machine scrub and comprehensive 4 BHK detailing.",
+            includes: ["All Express features", "Machine floor scrubbing", "All window rails & balcony washing", "Appliance exterior polish"],
+            excludes: []
+          },
+          {
+            name: "Premium",
+            price: 6999,
+            duration: "7 - 8 hours",
+            description: "Full luxury overhaul with steam disinfection and modular cabinet detailing.",
+            includes: ["All Classic features", "Steam disinfection throughout", "Inside empty wardrobe & cabinet clean", "Full surface sealant & protection"],
+            excludes: []
+          }
+        ],
+        disclaimer: "Please ensure all valuables are removed or securely stored before our professionals arrive.",
+        requirements: "Customers are requested to provide a bucket with water, a power point connection, and a ladder or stool for height reach."
+      },
+      {
+        id: "5bhk-furnished",
+        categoryId: "furnished",
+        title: "5 BHK+ Luxury Furnished Deep Cleaning",
+        price: 4899,
+        description: "Comprehensive deep cleaning engineered for grand 5 BHK+ homes, penthouses and sprawling apartments with dedicated specialist crews.",
+        image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80",
+        includes: [
+          "5+ Bedrooms and sprawling hall detailing",
+          "All bathrooms clinical sanitization & descaling",
+          "Full modular kitchen deep degreasing",
+          "Machine floor polishing & terrace/balcony power wash"
+        ],
+        plans: [
+          {
+            name: "Express",
+            price: 4899,
+            duration: "6 - 7 hours",
+            description: "Deep cleaning across 5 bedrooms, living rooms and multiple bathrooms.",
+            includes: ["5+ Bedrooms and living areas dusted", "All bathrooms deep sanitized", "Kitchen counters, sink and tiles scrubbed", "Floor mopping & balcony wash"],
+            excludes: []
+          },
+          {
+            name: "Classic",
+            price: 6899,
+            duration: "7 - 8 hours",
+            description: "Heavy-duty machine scrub and complete architectural detailing.",
+            includes: ["All Express features", "Single disc machine floor scrub", "All windows, sliders and balcony wash"],
+            excludes: []
+          },
+          {
+            name: "Premium",
+            price: 8899,
+            duration: "8 - 10 hours",
+            description: "Ultimate penthouse & luxury flat overhaul with steam treatment and premium protective finishes.",
+            includes: ["All Classic features", "Full steam disinfection", "Inside modular cabinet detailing", "High-reach fixtures & chandeliers dusting"],
+            excludes: []
+          }
+        ],
+        disclaimer: "Please ensure all valuables are removed or securely stored before our professionals arrive.",
+        requirements: "Customers are requested to provide a bucket with water, a power point connection, and a ladder or stool for height reach."
+      },
+
+      // === VACANT / MOVE-IN MOVE-OUT APARTMENT SERVICES ===
+      {
+        id: "1bhk-vacant",
+        categoryId: "vacant",
+        title: "1 BHK Vacant / Empty Flat Deep Cleaning",
+        price: 1199,
+        description: "Specialized deep cleaning for empty 1 BHK flats before shifting or post-tenant move-out. Includes inside-out wardrobe & cabinet cleaning, tile scrubbing and window track detailing.",
+        image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80",
+        includes: [
+          "Inside & outside cleaning of all empty wardrobes & kitchen cabinets",
+          "Intensive bathroom descaling & tile stain removal",
+          "Kitchen platform, sink, chimney & exhaust deep clean",
+          "Window tracks, glass & balcony deep wash",
+          "Floor scrubbing to remove paint specks & stubborn grime"
+        ],
+        plans: [
+          {
+            name: "Express",
+            price: 1199,
+            duration: "2 - 3 hours",
+            description: "Basic move-in wipe down, floor mopping and bathroom sanitization for empty 1 BHK flat.",
+            includes: ["Dry & wet floor scrubbing", "1 Bathroom descaling & sanitation", "Kitchen platform & sink wash", "Inside empty wardrobe dust wipedown"],
+            excludes: ["Heavy paint stain removal", "Steam sterilization"]
+          },
+          {
+            name: "Classic",
+            price: 1799,
+            duration: "3 - 4 hours",
+            description: "Complete move-in deep cleaning with machine floor scrub and inside-out cabinet detailing.",
+            includes: ["Machine floor scrubbing", "All empty cabinets washed inside-out", "Window tracks & balcony power wash", "Bathroom deep descaling"],
+            excludes: []
+          },
+          {
+            name: "Premium",
+            price: 2499,
+            duration: "4 - 5 hours",
+            description: "Sanitized handover deep clean with steam sterilization and germicidal treatment.",
+            includes: ["All Classic features", "Steam disinfection in bathroom & kitchen", "Paint & cement speck removal", "Protective sealant application"],
+            excludes: []
+          }
+        ],
+        disclaimer: "Please ensure water and electricity connections are active in the vacant flat before service.",
+        requirements: "Customers are requested to provide a bucket with water, a power point connection, and a ladder or stool."
+      },
+      {
+        id: "2bhk-vacant",
+        categoryId: "vacant",
+        title: "2 BHK Vacant / Empty Flat Deep Cleaning",
+        price: 1699,
+        description: "Move-in / move-out deep clean for empty 2 BHK flats. Detailed cleaning of empty modular cabinets, wardrobes, kitchen, 2 bathrooms and windows.",
+        image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+        includes: [
+          "Inside-out wipedown of all empty wardrobes, lofts & kitchen cabinets",
+          "2 Bathrooms intensive descaling & fixtures polish",
+          "Window glass, tracks, grills & balconies power wash",
+          "Floor machine scrub to eliminate dust, grime & minor paint marks"
+        ],
+        plans: [
+          {
+            name: "Express",
+            price: 1699,
+            duration: "3 - 4 hours",
+            description: "Standard vacant flat cleaning for 2 BHK covering all empty rooms and 2 bathrooms.",
+            includes: ["Dry & wet floor scrubbing", "2 Bathrooms descaling", "Kitchen counters & sink wash", "Inside wardrobe wipe"],
+            excludes: ["Machine floor scrub"]
+          },
+          {
+            name: "Classic",
+            price: 2599,
+            duration: "4 - 5 hours",
+            description: "Thorough move-in preparation with machine floor scrub and cabinet inside-out wash.",
+            includes: ["Machine floor scrub across all rooms", "Inside-out empty cabinet washing", "Window channels & balcony deep clean"],
+            excludes: []
+          },
+          {
+            name: "Premium",
+            price: 3499,
+            duration: "5 - 6 hours",
+            description: "Hospitality-grade sanitized handover with full steam disinfection.",
+            includes: ["All Classic features", "Steam disinfection in kitchen & washrooms", "Cement/paint mark removal", "High-gloss surface finish"],
+            excludes: []
+          }
+        ],
+        disclaimer: "Please ensure water and electricity connections are active in the vacant flat before service.",
+        requirements: "Customers are requested to provide a bucket with water, a power point connection, and a ladder or stool."
+      },
+      {
+        id: "3bhk-vacant",
+        categoryId: "vacant",
+        title: "3 BHK Vacant / Empty Flat Deep Cleaning",
+        price: 2299,
+        description: "Complete move-in / move-out deep cleaning for unfurnished 3 BHK flats. Full sanitation of 3 bedrooms, hall, kitchen, up to 3 bathrooms & balconies.",
+        image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+        includes: [
+          "All empty bedroom wardrobes, lofts & cabinets cleaned inside & out",
+          "Up to 3 Bathrooms deep descaling, wall tiles & fixtures scrubbing",
+          "Kitchen modular units, sink, tiles & exhaust deep clean",
+          "Machine floor scrub & balcony wash across entire 3 BHK"
+        ],
+        plans: [
+          {
+            name: "Express",
+            price: 2299,
+            duration: "4 - 5 hours",
+            description: "Move-in clean for empty 3 BHK including all rooms, cabinets and up to 3 bathrooms.",
+            includes: ["Manual floor scrub & mopping", "Up to 3 Bathrooms descaling", "Kitchen tiles & sink wash", "Empty wardrobe dust wipe"],
+            excludes: ["Machine scrub"]
+          },
+          {
+            name: "Classic",
+            price: 3399,
+            duration: "5 - 6 hours",
+            description: "Intensive vacant 3 BHK deep clean with machine floor scrub and complete cabinet wash.",
+            includes: ["Single disc machine floor scrub", "All empty cabinets washed inside-out", "Detailed window rails & balconies power wash"],
+            excludes: []
+          },
+          {
+            name: "Premium",
+            price: 4599,
+            duration: "6 - 7 hours",
+            description: "Elite move-in sanitation package with steam sterilization throughout.",
+            includes: ["All Classic features", "Steam disinfection in all bathrooms & kitchen", "Paint & glue residue removal", "Germicidal air and surface treatment"],
+            excludes: []
+          }
+        ],
+        disclaimer: "Please ensure water and electricity connections are active in the vacant flat before service.",
+        requirements: "Customers are requested to provide a bucket with water, a power point connection, and a ladder or stool."
+      },
+      {
+        id: "4bhk-vacant",
+        categoryId: "vacant",
+        title: "4 BHK Vacant / Empty Flat Deep Cleaning",
+        price: 2999,
+        description: "Heavy-duty move-in / move-out deep cleaning for spacious 4 BHK empty flats and duplexes.",
+        image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80",
+        includes: [
+          "Inside-out sanitization of all empty wardrobes, modular drawers & cabinets",
+          "Up to 4 Bathrooms clinical descaling & tile grout brightening",
+          "High-power machine floor scrubbing across all rooms",
+          "Balconies, sliding glass windows & high fixtures detailing"
+        ],
+        plans: [
+          {
+            name: "Express",
+            price: 2999,
+            duration: "5 - 6 hours",
+            description: "Standard vacant cleaning for large 4 BHK flats & duplexes.",
+            includes: ["Floor scrubbing & mopping", "Up to 4 Bathrooms descaling", "Kitchen modular units wiped", "Empty wardrobes dusted"],
+            excludes: ["Machine scrub"]
+          },
+          {
+            name: "Classic",
+            price: 4399,
+            duration: "6 - 7 hours",
+            description: "Intensive machine scrub and complete inside-out empty modular detailing.",
+            includes: ["Machine floor scrub", "Inside-out washing of all cabinets & wardrobes", "Window frames & balconies power wash"],
+            excludes: []
+          },
+          {
+            name: "Premium",
+            price: 5799,
+            duration: "7 - 8 hours",
+            description: "Ultimate move-in handover with full steam treatment and deep sanitization.",
+            includes: ["All Classic features", "Full steam disinfection", "Paint & cement speck cleanup", "Protective tile & glass sealant"],
+            excludes: []
+          }
+        ],
+        disclaimer: "Please ensure water and electricity connections are active in the vacant flat before service.",
+        requirements: "Customers are requested to provide a bucket with water, a power point connection, and a ladder or stool."
+      },
+      {
+        id: "5bhk-vacant",
+        categoryId: "vacant",
+        title: "5 BHK Vacant / Empty Flat Deep Cleaning",
+        price: 3799,
+        description: "Large-scale empty penthouse and 5 BHK+ apartment deep cleaning with dedicated specialist crew.",
+        image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80",
+        includes: [
+          "Complete inside-out wash of all 5+ room wardrobes, lofts & cabinets",
+          "Clinical sanitization of all washrooms & kitchen spaces",
+          "Machine floor buffing, terrace, utility & balcony power wash"
+        ],
+        plans: [
+          {
+            name: "Express",
+            price: 3799,
+            duration: "6 - 7 hours",
+            description: "Standard vacant clean for 5 BHK+ expansive homes.",
+            includes: ["Floor scrub & mopping", "All bathrooms descaling", "Kitchen wash & wardrobe dusting"],
+            excludes: ["Machine scrub"]
+          },
+          {
+            name: "Classic",
+            price: 5499,
+            duration: "7 - 8 hours",
+            description: "Heavy-duty machine scrub and complete architectural detailing.",
+            includes: ["Machine floor scrub", "All empty units washed inside-out", "Sliders, windows & balconies wash"],
+            excludes: []
+          },
+          {
+            name: "Premium",
+            price: 7299,
+            duration: "8 - 10 hours",
+            description: "Full steam sterilization and luxury handover overhaul.",
+            includes: ["All Classic features", "Full steam sterilization", "Paint/cement stain elimination", "Complete germicidal seal"],
+            excludes: []
+          }
+        ],
+        disclaimer: "Please ensure water and electricity connections are active in the vacant flat before service.",
+        requirements: "Customers are requested to provide a bucket with water, a power point connection, and a ladder or stool."
+      },
+
+      // === BUNGALOW / VILLA SERVICES ===
+      {
+        id: "villa-small",
+        categoryId: "bungalow-villa",
+        title: "Villa / Row House Deep Cleaning (Up to 2000 sq ft)",
+        price: 4499,
+        description: "Comprehensive multi-floor deep cleaning for independent houses, row houses, and small villas up to 2,000 sq.ft. Includes staircase, portico, balconies, kitchen, bathrooms & living areas.",
+        image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+        includes: [
+          "Complete multi-floor deep dusting & floor scrubbing",
+          "All bathrooms clinical descaling & sanitization",
+          "Modular kitchen deep degreasing & tile scrub",
+          "Internal staircase, railings, portico & terrace sweep",
+          "Windows, glass sliders & balconies power washing"
+        ],
+        plans: [
+          {
+            name: "Express",
+            price: 4499,
+            duration: "5 - 6 hours",
+            description: "Essential deep cleaning for independent villa/row house up to 2000 sq ft.",
+            includes: ["All rooms deep dusted & mopped", "Bathrooms sanitized", "Kitchen counters & sink cleaned", "Staircase and portico sweep"],
+            excludes: ["Machine floor scrub", "Terrace wash"]
+          },
+          {
+            name: "Classic",
+            price: 6499,
+            duration: "6 - 8 hours",
+            description: "Intensive villa clean with single-disc machine floor scrub, terrace wash and window detailing.",
+            includes: ["Machine floor scrub across all floors", "Terrace & portico power wash", "Window channels & sliders clean", "Kitchen & bathroom deep descaling"],
+            excludes: []
+          },
+          {
+            name: "Premium",
+            price: 8499,
+            duration: "8 - 10 hours",
+            description: "Luxury villa overhaul with full steam sterilization, facade glass wipedown and protective polish.",
+            includes: ["All Classic features", "Steam sterilization across all bathrooms & kitchen", "Inside empty wardrobe detailing", "High-reach facade and railing polish"],
+            excludes: []
+          }
+        ],
+        disclaimer: "Please ensure adequate water supply and access to electrical points on each floor.",
+        requirements: "Customers are requested to provide buckets with water, power points, and a ladder or stool for height reach."
+      },
+      {
+        id: "villa-medium",
+        categoryId: "bungalow-villa",
+        title: "Medium Villa / Independent House (2000 - 3500 sq ft)",
+        price: 6499,
+        description: "Full-scale deep cleaning engineered for large independent villas and bungalows between 2,000 to 3,500 sq.ft with dedicated team and professional machinery.",
+        image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80",
+        includes: [
+          "Multi-floor deep cleaning across 3-4 bedrooms, living halls & dining",
+          "All washrooms descaled, sanitized and polished",
+          "Full modular kitchen degreased and steam scrubbed",
+          "Staircases, multiple balconies, terrace & garage/portico wash",
+          "Facade glass, windows and high ceilings dusting"
+        ],
+        plans: [
+          {
+            name: "Express",
+            price: 6499,
+            duration: "6 - 8 hours",
+            description: "Standard multi-floor deep clean for 2000-3500 sq ft villas.",
+            includes: ["Deep dusting & mopping on all floors", "All bathrooms sanitized", "Kitchen deep cleaned", "Balconies & staircase swept"],
+            excludes: ["Machine scrub"]
+          },
+          {
+            name: "Classic",
+            price: 9499,
+            duration: "8 - 10 hours",
+            description: "Heavy-duty machine floor scrub, terrace washing and high-reach detailing for medium villas.",
+            includes: ["Machine floor scrubbing across all levels", "Terrace, portico & driveway wash", "Window tracks, sliders & grills power cleaned"],
+            excludes: []
+          },
+          {
+            name: "Premium",
+            price: 12499,
+            duration: "10 - 12 hours",
+            description: "Hospitality-grade sterilization with steam treatments and architectural detailing.",
+            includes: ["All Classic features", "Steam disinfection throughout", "Inside empty wardrobe & cabinet detailing", "Full surface sealant & chandelier dusting"],
+            excludes: []
+          }
+        ],
+        disclaimer: "Please ensure adequate water supply and access to electrical points on each floor.",
+        requirements: "Customers are requested to provide buckets with water, power points, and a ladder or stool for height reach."
+      },
+      {
+        id: "villa-large",
+        categoryId: "bungalow-villa",
+        title: "Large Luxury Villa / Bungalow (3500 - 5000+ sq ft)",
+        price: 9499,
+        description: "Ultra-luxury deep sanitization and cleaning for expansive bungalows, sprawling estates and grand luxury villas (3,500 to 5,000+ sq.ft) with specialist supervisor & crew.",
+        image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80",
+        includes: [
+          "Complete estate deep cleaning across all floors and annexes",
+          "Clinical-grade sanitization for 5+ washrooms",
+          "Heavy kitchen & pantry degreasing",
+          "Terrace, external balconies, portico, driveway & boundary wash",
+          "Chandelier, glass railings & high-reach architectural detailing"
+        ],
+        plans: [
+          {
+            name: "Express",
+            price: 9499,
+            duration: "8 - 10 hours",
+            description: "Standard large estate deep cleaning covering all primary living spaces.",
+            includes: ["All rooms dusted & mopped", "All bathrooms descaled & sanitized", "Kitchen counters & sink scrubbed", "Staircases & balconies washed"],
+            excludes: ["Machine floor scrub"]
+          },
+          {
+            name: "Classic",
+            price: 13999,
+            duration: "10 - 12 hours",
+            description: "Industrial machine floor scrubbing, terrace power wash and complete architectural cleaning.",
+            includes: ["Machine floor scrubbing on all floors", "Terrace, driveway & portico power washing", "High glass facades & window tracks cleaned"],
+            excludes: []
+          },
+          {
+            name: "Premium",
+            price: 18999,
+            duration: "12 - 14 hours (or 2-day pass)",
+            description: "Ultimate luxury estate overhaul with complete steam sterilization, germicidal treatment & surface sealants.",
+            includes: ["All Classic features", "Steam sanitization across all bathrooms, kitchens & bedrooms", "Modular cabinet inside-out detailing", "Protective polish on all premium stones & fixtures"],
+            excludes: []
+          }
+        ],
+        disclaimer: "Please ensure adequate water supply and access to electrical points on each floor.",
+        requirements: "Customers are requested to provide buckets with water, power points, and a ladder or stool for height reach."
+      },
+      {
+        id: "villa-duplex",
+        categoryId: "bungalow-villa",
+        title: "Duplex / Multi-Floor Villa Deep Cleaning",
+        price: 7999,
+        description: "Specialized deep cleaning for duplex and triplex villas focusing on staircases, double-height ceilings, multiple washrooms, balconies and living areas.",
+        image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+        includes: [
+          "Double-height living area & ceiling fixture dusting",
+          "Multi-floor staircase, glass railings & landing areas scrub",
+          "All bathrooms clinical descaling & modular kitchen degreasing",
+          "Machine floor polishing across lower and upper levels"
+        ],
+        plans: [
+          {
+            name: "Express",
+            price: 7999,
+            duration: "6 - 8 hours",
+            description: "Standard duplex deep cleaning covering both floors, staircase and bathrooms.",
+            includes: ["Both floors dusted and mopped", "All bathrooms sanitized", "Kitchen deep cleaned", "Staircases wiped"],
+            excludes: ["Machine scrub"]
+          },
+          {
+            name: "Classic",
+            price: 11499,
+            duration: "8 - 10 hours",
+            description: "Machine floor scrubbing, terrace & balcony power wash for duplexes.",
+            includes: ["Machine floor scrub across both levels", "Terrace & balcony power wash", "Double-height window & chandelier dusting"],
+            excludes: []
+          },
+          {
+            name: "Premium",
+            price: 15499,
+            duration: "10 - 12 hours",
+            description: "Elite duplex overhaul with full steam sterilization and protective finishing.",
+            includes: ["All Classic features", "Steam disinfection throughout", "Inside empty wardrobe detailing", "High-gloss stone sealant"],
+            excludes: []
+          }
+        ],
+        disclaimer: "Please ensure adequate water supply and access to electrical points on each floor.",
+        requirements: "Customers are requested to provide buckets with water, power points, and a ladder or stool for height reach."
+      }
+    ];
+
+    for (const s of fullHouseServices) {
+      try {
+        const rows = await query("SELECT id FROM services WHERE id = ?", [s.id]);
+        if (rows.length === 0) {
+          console.log(`Seeding missing Full House service: ${s.title} (${s.id})`);
+          await query(
+            "INSERT INTO services (id, categoryId, title, price, description, includes, image, plans, disclaimer, requirements, precautions, payment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+              s.id,
+              s.categoryId,
+              s.title,
+              s.price,
+              s.description,
+              JSON.stringify(s.includes),
+              s.image,
+              JSON.stringify(s.plans),
+              s.disclaimer,
+              s.requirements,
+              JSON.stringify(s.precautions || null),
+              "full"
+            ]
+          );
+        }
+      } catch (e) {
+        console.warn(`Failed to seed Full House service ${s.id}:`, e.message);
+      }
+    }
+
     console.log("MySQL Database verified. Categories and tables exist.");
       // Migrate existing services if they have empty plans, disclaimer or cover images
       const defaultServicesPlans = [
