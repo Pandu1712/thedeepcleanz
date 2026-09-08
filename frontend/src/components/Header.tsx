@@ -109,7 +109,7 @@ export default function Header({
   const [allServices, setAllServices] = useState<any[]>([]);
 
   useEffect(() => {
-    const list = [...SERVICES];
+    const list: any[] = [...SERVICES];
     try {
       const raw = localStorage.getItem("thedeepcleanerz_categories_v1");
       if (raw) {
@@ -121,9 +121,10 @@ export default function Header({
                 list.push({
                   id: s.id,
                   title: s.title,
-                  desc: s.desc,
+                  desc: s.desc || (s as any).description || "",
                   price: s.price,
                   img: s.img || s.image || "",
+                  Icon: Sparkles,
                   sub: Array.isArray(s.sub) ? s.sub.map((x: any) => typeof x === "string" ? { name: x } : x) : []
                 });
               }
@@ -143,7 +144,7 @@ export default function Header({
     return allServices.filter(
       (s) =>
         s.title.toLowerCase().includes(query) ||
-        s.desc.toLowerCase().includes(query) ||
+        (s.desc && s.desc.toLowerCase().includes(query)) ||
         (Array.isArray(s.sub) && s.sub.some((subItem: any) => subItem?.name?.toLowerCase().includes(query)))
     );
   }, [searchQuery, allServices]);
@@ -184,7 +185,7 @@ export default function Header({
     setUserProfile(null);
     setProfileMenuOpen(false);
     toast.success("Logged out successfully");
-    navigate({ to: "/" });
+    navigate({ to: "/", search: { category: undefined, cart: undefined } });
     // Force storage sync across tabs
     window.dispatchEvent(new Event("storage"));
   };

@@ -1522,8 +1522,8 @@ function Index() {
 
     const seen = new Set<string>();
 
-    const getFallbackImage = (title: string, id: string) => {
-      const norm = (title + " " + id).toLowerCase();
+    const getFallbackImage = (title: string = "", id: string = ""): string => {
+      const norm = ((title || "") + " " + (id || "")).toLowerCase();
       if (norm.includes("chimney") || norm.includes("kitchen")) return imgKitchen;
       if (norm.includes("bath") || norm.includes("toilet") || norm.includes("restroom")) return imgBathroom;
       if (norm.includes("sofa") || norm.includes("couch") || norm.includes("cushion")) return imgSofa;
@@ -1540,8 +1540,8 @@ function Index() {
       return imgInterior;
     };
 
-    const cleanTitle = (raw: string) => {
-      return raw
+    const cleanTitle = (raw: string = "") => {
+      return (raw || "")
         .replace(/\s*\(Only For Flats\)/gi, "")
         .replace(/\s*Service$/gi, "")
         .trim();
@@ -1551,16 +1551,18 @@ function Index() {
     categories.forEach((cat) => {
       if (Array.isArray(cat.services)) {
         cat.services.forEach((s) => {
-          if (!seen.has(s.id)) {
+          if (s && s.id && !seen.has(s.id)) {
             seen.add(s.id);
-            const img = (s.img && s.img.startsWith("http")) || (s.image && s.image.startsWith("http"))
-              ? (s.img || s.image)
-              : (s.img || getFallbackImage(s.title, s.id));
+            const titleStr = s.title || "";
+            const fallbackImg = getFallbackImage(titleStr, s.id);
+            const img: string = (s.img && s.img.startsWith("http")) || (s.image && s.image.startsWith("http"))
+              ? (s.img || s.image || fallbackImg)
+              : (s.img || s.image || fallbackImg);
             list.push({
               id: s.id,
-              title: cleanTitle(s.title),
+              title: cleanTitle(titleStr),
               subtext: s.price ? `Starts ₹${s.price}` : "Deep Clean",
-              image: img,
+              image: img || imgInterior,
               action: () => navigate({ to: "/service-detail", search: { id: s.id } }),
             });
           }
@@ -1570,13 +1572,16 @@ function Index() {
 
     // 2. Add any remaining built-in services if not already added
     SERVICES.forEach((s) => {
-      if (!seen.has(s.id)) {
+      if (s && s.id && !seen.has(s.id)) {
         seen.add(s.id);
+        const titleStr = s.title || "";
+        const fallbackImg = getFallbackImage(titleStr, s.id);
+        const img: string = s.img || fallbackImg || imgInterior;
         list.push({
           id: s.id,
-          title: cleanTitle(s.title),
+          title: cleanTitle(titleStr),
           subtext: `Starts ₹${s.price}`,
-          image: s.img || getFallbackImage(s.title, s.id),
+          image: img,
           action: () => navigate({ to: "/service-detail", search: { id: s.id } }),
         });
       }
@@ -1920,17 +1925,7 @@ function Index() {
       /* ignore */
     }
   }, [cart]);
-  useEffect(() => {
-    if (searchParams.category) {
-      setSelectedCat(searchParams.category);
-      setTimeout(() => {
-        const el = document.getElementById("services");
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth" });
-        }
-      }, 300);
-    }
-  }, [searchParams.category, categories]);
+
   useEffect(() => {
     if (searchParams.cart === "open") {
       setCartOpen(true);
@@ -2460,106 +2455,8 @@ function Index() {
             </div>
           </div>
 
-          {/* Bottom Shelf Card: Choose from our professional deep cleaning services with left-right movement */}
-          <div className="relative bg-white rounded-[20px] sm:rounded-[30px] border border-slate-200/90 shadow-[0_8px_30px_rgba(0,0,0,0.04)] p-3.5 sm:p-7 md:p-8 mt-3.5 sm:mt-6 lg:mt-14 z-20">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 sm:gap-4 mb-3.5 sm:mb-6 lg:mb-8">
-              <div className="text-left">
-                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-[#0B6B46] block mb-0.5">
-                  — OUR CLEANING SERVICES —
-                </span>
-                <h2 className="font-sans text-base sm:text-xl md:text-2xl font-bold text-[#111827] leading-snug">
-                  Choose from our professional deep cleaning services.
-                </h2>
-              </div>
-
-              {/* Left & Right Movement Buttons */}
-              <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => scrollShelf("left")}
-                  aria-label="Previous services"
-                  className="h-9 w-9 sm:h-10 sm:w-10 rounded-full border border-slate-200 hover:border-[#0B6B46] bg-white hover:bg-[#0B6B46]/5 text-slate-700 hover:text-[#0B6B46] shadow-xs flex items-center justify-center transition-all cursor-pointer active:scale-90"
-                  title="Scroll left"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => scrollShelf("right")}
-                  aria-label="Next services"
-                  className="h-9 w-9 sm:h-10 sm:w-10 rounded-full border border-slate-200 hover:border-[#0B6B46] bg-white hover:bg-[#0B6B46]/5 text-slate-700 hover:text-[#0B6B46] shadow-xs flex items-center justify-center transition-all cursor-pointer active:scale-90"
-                  title="Scroll right"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Slider Container with side floating arrows */}
-            <div className="relative group/shelf">
-              {/* Floating Left Button */}
-              <button
-                type="button"
-                onClick={() => scrollShelf("left")}
-                aria-label="Scroll left"
-                className="hidden md:flex absolute -left-4 top-1/2 -translate-y-1/2 z-30 h-10 w-10 rounded-full bg-white border border-slate-200 hover:border-[#0B6B46] text-slate-700 hover:text-[#0B6B46] shadow-md items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-
-              {/* Floating Right Button */}
-              <button
-                type="button"
-                onClick={() => scrollShelf("right")}
-                aria-label="Scroll right"
-                className="hidden md:flex absolute -right-4 top-1/2 -translate-y-1/2 z-30 h-10 w-10 rounded-full bg-white border border-slate-200 hover:border-[#0B6B46] text-slate-700 hover:text-[#0B6B46] shadow-md items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </button>
-
-              {/* Horizontal Scrolling Track */}
-              <div
-                ref={shelfScrollRef}
-                className="flex overflow-x-auto no-scrollbar scroll-smooth gap-3 sm:gap-5 py-2 px-1 snap-x snap-mandatory"
-              >
-                {allShelfServices.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={item.action}
-                    className="group shrink-0 snap-start flex flex-col items-center text-center p-2 sm:p-2.5 rounded-2xl hover:bg-[#F9FAF8] transition-all duration-300 cursor-pointer border border-transparent hover:border-slate-200 w-[125px] sm:w-[145px]"
-                  >
-                    <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-slate-100 group-hover:border-[#0B6B46] group-hover:scale-105 transition-all duration-300 shadow-sm shrink-0 bg-slate-100 flex items-center justify-center">
-                      <img
-                        src={item.image}
-                        alt={item.title}
-                        loading="lazy"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src = imgHouse;
-                        }}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      />
-                    </div>
-                    {/* Fixed-height Title Box - Guaranteed NO Cropping & Proper Clamping */}
-                    <div className="w-full mt-2 min-h-[42px] flex items-center justify-center px-1">
-                      <span
-                        className="text-xs sm:text-[13px] font-bold text-[#111827] group-hover:text-[#0B6B46] transition-colors text-center leading-tight line-clamp-2 block"
-                        title={item.title}
-                      >
-                        {item.title}
-                      </span>
-                    </div>
-                    <span className="text-[10px] sm:text-[11px] font-semibold text-[#0B6B46] tracking-tight mt-1 whitespace-nowrap block">
-                      {item.subtext}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile Trust Stats Bar (shown below the shelf on mobile) */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 mt-3.5 lg:hidden">
+          {/* Mobile Trust Stats Bar (shown below the team image on mobile) */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 mt-4 lg:hidden">
             <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-slate-200/70 shadow-3xs">
               <div className="h-8.5 w-8.5 rounded-full bg-[#EBF5EE] text-[#0B6B46] flex items-center justify-center shrink-0">
                 <HomeIcon className="h-4 w-4" />
@@ -2603,10 +2500,10 @@ function Index() {
         </div>
       </section>
 
-      {/* CATEGORIES (All Services) - REDESIGNED EXACTLY AS REFERENCE DESIGN */}
+      {/* CATEGORIES (All Services) - PLACED DIRECTLY UNDER HERO */}
       <section
         id="categories"
-        className="relative mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 pt-0 sm:pt-2 pb-12 sm:pb-16 font-sans"
+        className="relative mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-8 sm:pb-12 font-sans"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 sm:mb-8">
           <div className="max-w-xl text-left font-sans">
@@ -2778,6 +2675,106 @@ function Index() {
               <h3 className="mt-2 text-[13px] font-bold text-slate-900 leading-snug">
                 Commercial Post Interior Cleaning Services
               </h3>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SERVICES SHELF CAROUSEL - PLACED BELOW CATEGORIES */}
+      <section className="relative mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 pb-12 sm:pb-16 font-sans">
+        <div className="relative bg-white rounded-[20px] sm:rounded-[30px] border border-slate-200/90 shadow-[0_8px_30px_rgba(0,0,0,0.04)] p-3.5 sm:p-7 md:p-8 z-20">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 sm:gap-4 mb-3.5 sm:mb-6 lg:mb-8">
+            <div className="text-left">
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-[#0B6B46] block mb-0.5">
+                — OUR CLEANING SERVICES —
+              </span>
+              <h2 className="font-sans text-base sm:text-xl md:text-2xl font-bold text-[#111827] leading-snug">
+                Choose from our professional deep cleaning services.
+              </h2>
+            </div>
+
+            {/* Left & Right Movement Buttons */}
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+              <button
+                type="button"
+                onClick={() => scrollShelf("left")}
+                aria-label="Previous services"
+                className="h-9 w-9 sm:h-10 sm:w-10 rounded-full border border-slate-200 hover:border-[#0B6B46] bg-white hover:bg-[#0B6B46]/5 text-slate-700 hover:text-[#0B6B46] shadow-xs flex items-center justify-center transition-all cursor-pointer active:scale-90"
+                title="Scroll left"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollShelf("right")}
+                aria-label="Next services"
+                className="h-9 w-9 sm:h-10 sm:w-10 rounded-full border border-slate-200 hover:border-[#0B6B46] bg-white hover:bg-[#0B6B46]/5 text-slate-700 hover:text-[#0B6B46] shadow-xs flex items-center justify-center transition-all cursor-pointer active:scale-90"
+                title="Scroll right"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Slider Container with side floating arrows */}
+          <div className="relative group/shelf">
+            {/* Floating Left Button */}
+            <button
+              type="button"
+              onClick={() => scrollShelf("left")}
+              aria-label="Scroll left"
+              className="hidden md:flex absolute -left-4 top-1/2 -translate-y-1/2 z-30 h-10 w-10 rounded-full bg-white border border-slate-200 hover:border-[#0B6B46] text-slate-700 hover:text-[#0B6B46] shadow-md items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+
+            {/* Floating Right Button */}
+            <button
+              type="button"
+              onClick={() => scrollShelf("right")}
+              aria-label="Scroll right"
+              className="hidden md:flex absolute -right-4 top-1/2 -translate-y-1/2 z-30 h-10 w-10 rounded-full bg-white border border-slate-200 hover:border-[#0B6B46] text-slate-700 hover:text-[#0B6B46] shadow-md items-center justify-center transition-all cursor-pointer hover:scale-110 active:scale-95"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+
+            {/* Horizontal Scrolling Track */}
+            <div
+              ref={shelfScrollRef}
+              className="flex overflow-x-auto no-scrollbar scroll-smooth gap-3 sm:gap-5 py-2 px-1 snap-x snap-mandatory"
+            >
+              {allShelfServices.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={item.action}
+                  className="group shrink-0 snap-start flex flex-col items-center text-center p-2 sm:p-2.5 rounded-2xl hover:bg-[#F9FAF8] transition-all duration-300 cursor-pointer border border-transparent hover:border-slate-200 w-[125px] sm:w-[145px]"
+                >
+                  <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-slate-100 group-hover:border-[#0B6B46] group-hover:scale-105 transition-all duration-300 shadow-sm shrink-0 bg-slate-100 flex items-center justify-center">
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      loading="lazy"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = imgHouse;
+                      }}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                  </div>
+                  {/* Fixed-height Title Box - Guaranteed NO Cropping & Proper Clamping */}
+                  <div className="w-full mt-2 min-h-[42px] flex items-center justify-center px-1">
+                    <span
+                      className="text-xs sm:text-[13px] font-bold text-[#111827] group-hover:text-[#0B6B46] transition-colors text-center leading-tight line-clamp-2 block"
+                      title={item.title}
+                    >
+                      {item.title}
+                    </span>
+                  </div>
+                  <span className="text-[10px] sm:text-[11px] font-semibold text-[#0B6B46] tracking-tight mt-1 whitespace-nowrap block">
+                    {item.subtext}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
         </div>

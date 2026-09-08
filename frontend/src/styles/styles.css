@@ -106,7 +106,7 @@
     font-family: var(--font-sans);
   }
   html {
-    scroll-behavior: smooth;
+    scroll-behavior: auto;
     scroll-padding-top: 105px;
     font-family: var(--font-sans);
   }

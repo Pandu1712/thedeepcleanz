@@ -133,7 +133,7 @@ function CustomizedComponent() {
       const match = services.find(
         (s) =>
           s.id === searchParams.service ||
-          searchParams.service.startsWith(s.id + "-") ||
+          searchParams.service?.startsWith(s.id + "-") ||
           s.title?.toLowerCase() === searchParams.service?.toLowerCase(),
       );
       if (match) {

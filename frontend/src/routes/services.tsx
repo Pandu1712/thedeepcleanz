@@ -170,6 +170,10 @@ function ServicesComponent() {
   }, [categories, selectedCatId]);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
     const cat = searchParams.category || "full-house";
     setSelectedCatId(cat);
 
@@ -506,7 +510,6 @@ function ServicesComponent() {
       to: "/services",
       search: (prev) => ({ ...prev, category: catId, sub: undefined }),
     });
-    window.scrollTo({ top: 320, behavior: "smooth" });
   };
 
   const handleSubCategoryClick = (subId: string) => {
