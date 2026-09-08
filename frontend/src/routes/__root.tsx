@@ -12,7 +12,6 @@ import { Toaster, toast } from "sonner";
 
 import "../styles/styles.css";
 import appCss from "../styles/styles.css?url";
-import { reportLovableError } from "../utils/lovable-error-reporting";
 import { ADMIN_API_URL } from "../api/admin-api";
 
 function NotFoundComponent() {
@@ -39,11 +38,8 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
+  console.error("Application error:", error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -76,29 +72,92 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+const businessJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "HomeAndConstructionBusiness",
+  "name": "TheDeep CleanerZ",
+  "alternateName": "TheDeepCleanerz",
+  "image": "https://thedeepcleanerz.com/logos/logo.png",
+  "logo": "https://thedeepcleanerz.com/logos/logo.png",
+  "url": "https://thedeepcleanerz.com",
+  "telephone": "+91 93902 46688",
+  "email": "thedeepcleanerz.info@gmail.com",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Arundelpet",
+    "addressLocality": "Guntur",
+    "addressRegion": "Andhra Pradesh",
+    "postalCode": "522002",
+    "addressCountry": "IN"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 16.307888,
+    "longitude": 80.438993
+  },
+  "openingHoursSpecification": {
+    "@type": "OpeningHoursSpecification",
+    "dayOfWeek": [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday"
+    ],
+    "opens": "07:00",
+    "closes": "21:00"
+  },
+  "priceRange": "₹₹",
+  "sameAs": [
+    "https://instagram.com/thedeepcleanerz",
+    "https://facebook.com/thedeepcleanerz"
+  ]
+};
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "TheDeep CleanerZ — Premium Deep Cleaning" },
+      { title: "TheDeep CleanerZ — Premium Deep Cleaning & Sanitization Services" },
       {
         name: "description",
-        content: "Professional deep cleaning services for homes, offices and hotels.",
+        content: "TheDeep CleanerZ provides premium hotel-grade deep cleaning, sanitization, and maintenance services for homes, apartments, villas, corporate offices and hotels in Guntur and Andhra Pradesh.",
+      },
+      {
+        name: "keywords",
+        content: "deep cleaning, home cleaning, sofa cleaning, kitchen deep cleaning, bathroom cleaning, villa cleaning, commercial cleaning, Guntur deep cleaners, TheDeep CleanerZ, full house cleaning, Andhra Pradesh",
       },
       { name: "author", content: "TheDeep CleanerZ" },
-      { property: "og:title", content: "TheDeep CleanerZ — Premium Deep Cleaning" },
+      { name: "robots", content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" },
+      { name: "theme-color", content: "#0B6B46" },
+      { property: "og:title", content: "TheDeep CleanerZ — Premium Deep Cleaning & Sanitization Services" },
       {
         property: "og:description",
-        content: "Professional deep cleaning services for homes, offices and hotels.",
+        content: "Professional deep cleaning, sanitization, and maintenance services for homes, apartments, villas and commercial spaces.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: "https://thedeepcleanerz.com/" },
+      { property: "og:image", content: "https://thedeepcleanerz.com/logos/logo.png" },
+      { property: "og:image:alt", content: "TheDeep CleanerZ Official Logo" },
+      { property: "og:site_name", content: "TheDeep CleanerZ" },
+      { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@TheDeepCleanerz" },
+      { name: "twitter:title", content: "TheDeep CleanerZ — Premium Deep Cleaning Services" },
+      {
+        name: "twitter:description",
+        content: "Professional deep cleaning services for homes, villas, offices and hotels.",
+      },
+      { name: "twitter:image", content: "https://thedeepcleanerz.com/logos/logo.png" },
     ],
     links: [
-      { rel: "icon", type: "image/png", href: "/favicon.png" },
-      { rel: "shortcut icon", type: "image/x-icon", href: "/favicon.ico" },
+      { rel: "canonical", href: "https://thedeepcleanerz.com/" },
+      { rel: "icon", type: "image/png", href: "/logos/logo.png" },
+      { rel: "apple-touch-icon", href: "/logos/logo.png" },
+      { rel: "shortcut icon", type: "image/png", href: "/logos/logo.png" },
+      { rel: "manifest", href: "/manifest.json" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -119,6 +178,10 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(businessJsonLd) }}
+        />
       </head>
       <body>
         {children}

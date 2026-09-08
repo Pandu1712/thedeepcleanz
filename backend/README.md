@@ -1,9 +1,5 @@
-# TheDeep CleanerZ Admin Server
-
 Standalone Node + Express admin dashboard for managing TheDeep CleanerZ categories,
-services, and bookings. **This runs separately from the Lovable frontend** —
-it cannot be deployed on Lovable's hosting (Cloudflare Workers). Host it on
-Render, Railway, Fly, a VPS, or run locally.
+services, and bookings.
 
 ## Run locally
 
@@ -36,7 +32,7 @@ up by copying that file. For production, swap `lib/db.js` to a real DB.
 - `GET  /api/catalog`   → `{ categories, services }`
 - `POST /api/bookings`  → accepts JSON, returns `{ ok, booking }`
 
-CORS is open (`*`) on those two endpoints so the Lovable site can call them.
+CORS is enabled on API endpoints so the frontend site can call them.
 Point the frontend at `http://localhost:4000` in dev, or your deployed URL.
 
 ## Features
