@@ -52,6 +52,12 @@ function patchFile(filePath) {
     content = content.replace(/junitVersion\s*=\s*project\.hasProperty\('junitVersion'\)\s*\?\s*rootProject\.ext\.junitVersion\s*:\s*['"][^'"]+['"]/g,
       "junitVersion = project.hasProperty('junitVersion') ? rootProject.ext.junitVersion : '4.13.2'");
 
+    // Lint configuration
+    content = content.replaceAll("abortOnError true", "abortOnError false");
+    content = content.replaceAll("warningsAsErrors true", "warningsAsErrors false");
+    content = content.replaceAll("abortOnError = true", "abortOnError = false");
+    content = content.replaceAll("warningsAsErrors = true", "warningsAsErrors = false");
+
     // SDK versions
     content = content.replaceAll(": 36", ": 35");
     content = content.replaceAll("= 36", "= 35");

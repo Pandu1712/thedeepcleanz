@@ -63,11 +63,15 @@ jobs:
           set -o pipefail
           ./gradlew assembleDebug --no-daemon --stacktrace --info 2>&1 | tee ../../gradle_build.log
 
-      - name: Print Gradle Log on Failure
-        if: failure()
+      - name: Process Build Results & Annotations
+        if: always()
         run: |
-          echo "==================== GRADLE FAILURE LOG TAIL ===================="
-          tail -n 150 gradle_build.log || true
+          if [ -f gradle_build.log ]; then
+            echo "### Gradle Build Output Summary" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -n 120 gradle_build.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Locate Generated APK
         run: |
