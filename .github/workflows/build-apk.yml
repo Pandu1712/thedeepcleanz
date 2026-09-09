@@ -71,6 +71,23 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
             tail -n 120 gradle_build.log >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
+            python3 -c "
+import os
+if os.path.exists('gradle_build.log'):
+    with open('gradle_build.log', 'r', errors='ignore') as f:
+        text = f.read()
+    idx = text.find('FAILURE: Build failed')
+    if idx == -1:
+        idx = text.find('What went wrong:')
+    if idx == -1:
+        idx = text.find('ERROR:')
+    if idx != -1:
+        snippet = text[idx:idx+2000]
+    else:
+        snippet = text[-2000:]
+    encoded = snippet.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+    print(f'::error title=Gradle Build Details::{encoded}')
+"
           fi
 
       - name: Locate Generated APK
