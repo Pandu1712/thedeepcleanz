@@ -25,18 +25,26 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Set up Java JDK
+      - name: Set up Java 21 JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Licenses & Install Android 15 Platform
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Install Frontend Dependencies
         working-directory: frontend
-        run: npm ci || npm install
+        run: npm install
 
       - name: Build Web Application
         working-directory: frontend
@@ -46,11 +54,11 @@ jobs:
         working-directory: frontend
         run: npx cap sync android
 
-      - name: Accept Android Licenses & Build APK
+      - name: Build Android Debug APK
         working-directory: frontend/android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
