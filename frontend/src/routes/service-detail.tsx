@@ -127,6 +127,18 @@ function cleanServiceDescription(desc?: string): string {
  * Returns mobile-optimized inclusions and exclusions for each service plan
  * matching exact high-converting reference specifications.
  */
+function sanitizeItemList(arr: any): string[] {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((item) => {
+      if (!item) return "";
+      if (typeof item === "string") return item;
+      if (typeof item === "object") return item.name || item.title || item.label || "";
+      return String(item);
+    })
+    .filter(Boolean);
+}
+
 function getPlanInclusionsAndExclusions(
   service: Service | any,
   plan?: ServicePlan | any
@@ -136,10 +148,10 @@ function getPlanInclusionsAndExclusions(
 } {
   if (plan?.includes && Array.isArray(plan.includes) && plan.includes.length > 0) {
     return {
-      inclusions: plan.includes,
+      inclusions: sanitizeItemList(plan.includes),
       exclusions:
         plan.excludes && Array.isArray(plan.excludes) && plan.excludes.length > 0
-          ? plan.excludes
+          ? sanitizeItemList(plan.excludes)
           : [
               "Interior cleaning of packed cabinets/wardrobes (unless empty)",
               "Appliance internal motor dismantlement or repair",
@@ -558,11 +570,11 @@ function ServiceDetailPage() {
         duration: p?.duration || "40 - 60 min",
         description: p?.description || p?.desc || service.desc || "",
         includes: Array.isArray(p?.includes)
-          ? p.includes
+          ? sanitizeItemList(p.includes)
           : Array.isArray(service.sub)
-            ? service.sub
+            ? sanitizeItemList(service.sub)
             : [],
-        excludes: Array.isArray(p?.excludes) ? p.excludes : [],
+        excludes: Array.isArray(p?.excludes) ? sanitizeItemList(p.excludes) : [],
       }));
     }
 
@@ -572,7 +584,7 @@ function ServiceDetailPage() {
         price: service.price || 0,
         duration: "40 - 60 min",
         description: service.desc || "Complete deep sanitization and scrubbing of surfaces.",
-        includes: Array.isArray(service.sub) ? service.sub : [],
+        includes: Array.isArray(service.sub) ? sanitizeItemList(service.sub) : [],
         excludes: [
           "Appliance electrical wiring or motor repairs",
           "Permanent acid/paint scraping without prior notice",
@@ -600,7 +612,7 @@ function ServiceDetailPage() {
       price: service?.price || 0,
       duration: "40 - 60 min",
       description: service?.desc || "Complete deep sanitization and scrubbing of surfaces.",
-      includes: Array.isArray(service?.sub) ? service.sub : [],
+      includes: Array.isArray(service?.sub) ? sanitizeItemList(service.sub) : [],
       excludes: [
         "Appliance electrical wiring or motor repairs",
         "Permanent acid/paint scraping without prior notice",
