@@ -11,6 +11,7 @@
     "cap:sync": "node scripts/sync.js",
     "cap:open": "npx @capacitor/cli open android",
     "build:mobile": "vite build && node scripts/sync.js",
+    "postinstall": "node scripts/patch-capacitor.js",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
