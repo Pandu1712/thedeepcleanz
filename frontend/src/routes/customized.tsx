@@ -253,7 +253,7 @@ function CustomizedComponent() {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px]">
+    <div className="min-h-screen bg-background text-foreground font-sans pt-[max(calc(env(safe-area-inset-top,0px)+64px),72px)] sm:pt-[116px] md:pt-[120px] pb-[max(calc(env(safe-area-inset-bottom,0px)+76px),6rem)] md:pb-0">
       <Header
         cartCount={cart.reduce((acc, i) => acc + i.qty, 0)}
         favsCount={favs.length}

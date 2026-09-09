@@ -521,7 +521,7 @@ function ServicesComponent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FBFBF9] text-[#111827] font-sans pt-20 sm:pt-24 lg:pt-28">
+    <div className="min-h-screen bg-[#FBFBF9] text-[#111827] font-sans pt-[max(calc(env(safe-area-inset-top,0px)+64px),72px)] sm:pt-24 lg:pt-28 pb-[max(calc(env(safe-area-inset-bottom,0px)+76px),6rem)] md:pb-0">
       <Header
         cartCount={cart.reduce((acc, i) => acc + i.qty, 0)}
         favsCount={favs.length}

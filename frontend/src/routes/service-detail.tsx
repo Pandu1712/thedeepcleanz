@@ -790,7 +790,7 @@ function ServiceDetailPage() {
   const activePlanPrice = getServicePrice(activePlan.price || service.price || 0);
 
   return (
-    <div className="min-h-screen bg-[#FBFBF9] text-[#1D2939] font-sans pt-20 sm:pt-28 pb-36 md:pb-20 antialiased selection:bg-[#0B6B46] selection:text-white">
+    <div className="min-h-screen bg-[#FBFBF9] text-[#1D2939] font-sans pt-[max(calc(env(safe-area-inset-top,0px)+64px),72px)] sm:pt-28 pb-[max(calc(env(safe-area-inset-bottom,0px)+120px),8rem)] md:pb-20 antialiased selection:bg-[#0B6B46] selection:text-white">
       {/* GLOBAL HEADER (hideMobileNav ensures no overlapping bottom bars on mobile) */}
       <Header
         cartCount={cart.reduce((acc, i) => acc + i.qty, 0)}
@@ -1498,7 +1498,7 @@ function ServiceDetailPage() {
       {/* ============================================================
           STICKY MOBILE BOTTOM ACTION DOCK (Ultra-Premium 1-Tap Booking)
          ============================================================ */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/90 shadow-[0_-8px_30px_rgba(0,42,34,0.12)] px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/90 shadow-[0_-8px_30px_rgba(0,42,34,0.12)] px-3 pt-2 pb-[max(env(safe-area-inset-bottom,0px),16px)]">
         <div className="flex items-center justify-between gap-2 max-w-md mx-auto">
           {/* Price & Plan Info (Shrink-proof) */}
           <div className="shrink-0 flex flex-col justify-center">

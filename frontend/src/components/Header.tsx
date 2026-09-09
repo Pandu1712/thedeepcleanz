@@ -417,8 +417,8 @@ export default function Header({
       )}
 
       {/* HEADER - CLEAN MODERN WHITE REDESIGN MATCHING REFERENCE DESIGN */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] transition-all duration-300">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] transition-all duration-300 pt-[max(env(safe-area-inset-top,0px),12px)] sm:pt-0">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-3 sm:px-6 lg:px-8 py-2 sm:py-3.5">
           {/* Left: Brand Logo & Dynamic Location Selector */}
           <div className="flex items-center gap-2 sm:gap-5 min-w-0">
             <div className="flex flex-col select-none min-w-0">
@@ -1169,7 +1169,7 @@ export default function Header({
       {!hideMobileNav && (
         <nav
           aria-label="Mobile Bottom Navigation"
-          className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1.5"
+          className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom,0px),16px)]"
         >
           <div className="flex items-center justify-around max-w-md mx-auto">
             {/* 1. Home */}

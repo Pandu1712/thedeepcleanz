@@ -2339,7 +2339,7 @@ function Index() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#FBFBF9] text-[#111827] pt-[68px] sm:pt-[76px]">
+    <div className="min-h-screen bg-[#FBFBF9] text-[#111827] pt-[max(calc(env(safe-area-inset-top,0px)+64px),72px)] sm:pt-[76px] pb-[max(calc(env(safe-area-inset-bottom,0px)+76px),6rem)] md:pb-0">
       
       <Header
         cartCount={cartCount}
