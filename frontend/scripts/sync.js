@@ -13,3 +13,6 @@ if (fs.existsSync("public/index.html")) {
 
 console.log("Assets prepared. Running Capacitor Android sync...");
 execSync("npx @capacitor/cli sync android", { stdio: "inherit" });
+console.log("Post-sync patching...");
+execSync("node scripts/patch-capacitor.js", { stdio: "inherit" });
+
