@@ -62,6 +62,11 @@ function patchFile(filePath) {
     content = content.replaceAll(": 36", ": 35");
     content = content.replaceAll("= 36", "= 35");
 
+    // Fix duplicate Kotlin stdlib modules
+    if (filePath.endsWith("build.gradle") && !content.includes("kotlin-stdlib-jdk7")) {
+      content = content.replace(/repositories\s*\{/, "configurations.configureEach {\n    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'\n    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'\n}\nrepositories {");
+    }
+
     if (content !== original) {
       fs.writeFileSync(filePath, content, "utf8");
       console.log(`[patch-capacitor] Successfully patched: ${filePath}`);
