@@ -1376,10 +1376,14 @@ const CAT_STORAGE_KEY = "thedeepcleanerz_categories_v1";
 // Map the admin server's flat catalog (categories + services with categoryId)
 // into the local Category[] shape used by the UI. Falls back to a SERVICES image
 // when the admin service id doesn't match a built-in service.
-export function mergeAdminCatalog(catalog: AdminCatalog): Category[] {
+export function mergeAdminCatalog(catalog?: AdminCatalog | null): Category[] {
+  if (!catalog || !Array.isArray(catalog.categories) || catalog.categories.length === 0) {
+    return DEFAULT_CATEGORIES;
+  }
+
   const fallbackImg = SERVICES[0]?.img ?? "";
-  return catalog.categories.map((c) => {
-    const services: CatService[] = catalog.services
+  const mapped = catalog.categories.map((c) => {
+    const services: CatService[] = (catalog.services || [])
       .filter((s) => s.categoryId === c.id)
       .map((s) => {
         const local = SERVICES.find((x) => x.id === s.id);
@@ -1440,17 +1444,31 @@ export function mergeAdminCatalog(catalog: AdminCatalog): Category[] {
       }
     }
 
+    // If mapped category has no services, check if DEFAULT_CATEGORIES has services for this category
+    const defaultCat = DEFAULT_CATEGORIES.find((dc) => dc.id === c.id);
+    const finalServices = services.length > 0 ? services : (defaultCat?.services || []);
+
     return {
       id: c.id,
-      title: c.title,
-      tagline: categoryTagline,
-      emoji: c.emoji || "✨",
+      title: c.title || defaultCat?.title || c.id,
+      tagline: categoryTagline || defaultCat?.tagline,
+      emoji: c.emoji || defaultCat?.emoji || "✨",
       image: categoryImage,
       parentId: c.parentId || null,
-      includes: c.includes || [],
-      services,
+      includes: c.includes || defaultCat?.includes || [],
+      services: finalServices,
     };
-  }).sort((a, b) => {
+  });
+
+  // Ensure default parent categories are always present
+  const resultCats = [...mapped];
+  DEFAULT_CATEGORIES.forEach((dc) => {
+    if (!resultCats.some((rc) => rc.id === dc.id)) {
+      resultCats.push(dc);
+    }
+  });
+
+  return resultCats.sort((a, b) => {
     const order: Record<string, number> = {
       "full-house": 1,
       "customized": 2,
@@ -1858,7 +1876,14 @@ function Index() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(CAT_STORAGE_KEY);
-      if (raw) setCategories(JSON.parse(raw));
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0 && parsed.some((c: any) => Array.isArray(c.services) && c.services.length > 0)) {
+            setCategories(parsed);
+          }
+        } catch {}
+      }
       const f = localStorage.getItem("thedeepcleanerz_favs_v1");
       if (f) setFavs(JSON.parse(f));
       const c = localStorage.getItem("thedeepcleanerz_cart_v1");
