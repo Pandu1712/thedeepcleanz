@@ -508,7 +508,7 @@ function ServicesComponent() {
     setActiveSubId(null);
     navigate({
       to: "/services",
-      search: (prev) => ({ ...prev, category: catId, sub: undefined }),
+      search: (prev: any) => ({ ...prev, category: catId, sub: undefined }),
     });
   };
 
@@ -516,7 +516,7 @@ function ServicesComponent() {
     setActiveSubId(subId);
     navigate({
       to: "/services",
-      search: (prev) => ({ ...prev, category: selectedCatId, sub: subId }),
+      search: (prev: any) => ({ ...prev, category: selectedCatId, sub: subId }),
     });
   };
 

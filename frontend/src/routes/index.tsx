@@ -507,7 +507,7 @@ export type CatService = {
 export type Category = {
   id: string;
   title: string;
-  tagline: string;
+  tagline?: string;
   emoji: string;
   image?: string;
   parentId?: string | null;
@@ -1382,7 +1382,7 @@ export function mergeAdminCatalog(catalog?: AdminCatalog | null): Category[] {
   }
 
   const fallbackImg = SERVICES[0]?.img ?? "";
-  const mapped = catalog.categories.map((c) => {
+  const mapped: Category[] = catalog.categories.map((c) => {
     const services: CatService[] = (catalog.services || [])
       .filter((s) => s.categoryId === c.id)
       .map((s) => {
@@ -1461,7 +1461,7 @@ export function mergeAdminCatalog(catalog?: AdminCatalog | null): Category[] {
   });
 
   // Ensure default parent categories are always present
-  const resultCats = [...mapped];
+  const resultCats: Category[] = [...mapped];
   DEFAULT_CATEGORIES.forEach((dc) => {
     if (!resultCats.some((rc) => rc.id === dc.id)) {
       resultCats.push(dc);
@@ -4977,71 +4977,79 @@ export function BookingModal({
       setIsPaying(false);
       setShowAuthGate(false);
       setAuthIsRegister(false);
-      setEditingContact(false);
       setShowOtpVerification(false);
       setOtpInput("");
       setOtpVerified(false);
 
       const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-      let initName = "Siva";
-      let initPhone = "9966346347";
+      let initName = "";
+      let initPhone = "";
       let initAddress = "";
       let initLandmark = "";
       let initCity = "Guntur";
-      let initPincode = "522002";
+      let initPincode = "";
+      let loadedAddresses: any[] = [];
 
       try {
-        const prof = sessionStorage.getItem("user_profile");
+        // 1. Check logged-in user profile
+        const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
         if (prof) {
           const u = JSON.parse(prof);
           if (u.name) initName = u.name;
           if (u.phone) initPhone = u.phone;
-
           if (Array.isArray(u.addresses) && u.addresses.length > 0) {
-            setSavedAddresses(u.addresses);
-            const defaultAddr = u.addresses.find((a: any) => a.isDefault) || u.addresses[0];
-            initAddress = defaultAddr.address || "";
-            initLandmark = defaultAddr.landmark || "";
-            initCity = defaultAddr.city || "Guntur";
-            initPincode = defaultAddr.pincode || "";
-          } else {
-            // Default sample saved address matching video format if empty
-            const sampleAddr = [
-              {
-                id: "addr-home-1",
-                type: "Home",
-                address: "Flat 302, Green Meadows, 4th Line, Arundelpet",
-                landmark: "Near Hindu Pharmacy College",
-                city: "Guntur",
-                pincode: "522002",
-                isDefault: true
-              }
-            ];
-            setSavedAddresses(sampleAddr);
-            initAddress = sampleAddr[0].address;
-            initLandmark = sampleAddr[0].landmark;
-            initCity = sampleAddr[0].city;
-            initPincode = sampleAddr[0].pincode;
+            loadedAddresses = u.addresses;
           }
-        } else {
-          const sampleAddr = [
-            {
-              id: "addr-home-1",
-              type: "Home",
-              address: "Flat 302, Green Meadows, 4th Line, Arundelpet",
-              landmark: "Near Hindu Pharmacy College",
-              city: "Guntur",
-              pincode: "522002",
-              isDefault: true
-            }
-          ];
-          setSavedAddresses(sampleAddr);
-          initAddress = sampleAddr[0].address;
-          initLandmark = sampleAddr[0].landmark;
-          initCity = sampleAddr[0].city;
-          initPincode = sampleAddr[0].pincode;
         }
-      } catch (e) {}
+
+        // 2. Check local saved contact
+        if (!initName || !initPhone) {
+          const savedContact = localStorage.getItem("thedeepcleanz_saved_contact");
+          if (savedContact) {
+            const sc = JSON.parse(savedContact);
+            if (sc.name && !initName) initName = sc.name;
+            if (sc.phone && !initPhone) initPhone = sc.phone;
+          }
+        }
+
+        // 3. Check local saved addresses
+        if (loadedAddresses.length === 0) {
+          const savedLocAddrs = localStorage.getItem("thedeepcleanz_saved_addresses");
+          if (savedLocAddrs) {
+            const parsed = JSON.parse(savedLocAddrs);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              loadedAddresses = parsed;
+            }
+          }
+        }
+
+        if (loadedAddresses.length > 0) {
+          setSavedAddresses(loadedAddresses);
+          const defaultAddr = loadedAddresses.find((a: any) => a.isDefault) || loadedAddresses[0];
+          initAddress = defaultAddr.address || "";
+          initLandmark = defaultAddr.landmark || "";
+          initCity = defaultAddr.city || "Guntur";
+          initPincode = defaultAddr.pincode || "";
+          setShowCheckoutAddressForm(false);
+        } else {
+          setSavedAddresses([]);
+          initAddress = "";
+          initLandmark = "";
+          initCity = "Guntur";
+          initPincode = "";
+          setShowCheckoutAddressForm(true);
+        }
+      } catch (e) {
+        setSavedAddresses([]);
+        setShowCheckoutAddressForm(true);
+      }
+
+      // If name or phone is missing, open contact editor
+      if (!initName.trim() || initPhone.replace(/\D/g, "").length < 10) {
+        setEditingContact(true);
+      } else {
+        setEditingContact(false);
+      }
 
       setForm((f) => ({
         ...f,
@@ -5101,6 +5109,7 @@ export function BookingModal({
         const coordsStr = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
         const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
 
+        let detectedStreet = "";
         let detectedPincode = "";
         let detectedCity = "Guntur";
         let detectedLandmark = "";
@@ -5113,29 +5122,60 @@ export function BookingModal({
             const data = await res.json();
             const addr = data.address || {};
             if (addr.postcode) detectedPincode = addr.postcode.replace(/\D/g, "").slice(0, 6);
-            if (addr.city || addr.town || addr.county) detectedCity = addr.city || addr.town || addr.county;
-            const area = addr.suburb || addr.neighbourhood || addr.road || "";
+            if (addr.city || addr.town || addr.county || addr.state_district) {
+              detectedCity = addr.city || addr.town || addr.county || addr.state_district || "Guntur";
+            }
+            const road = addr.road || addr.street || "";
+            const houseNo = addr.house_number || addr.building || "";
+            detectedStreet = [houseNo, road].filter(Boolean).join(", ");
+            const area = addr.suburb || addr.neighbourhood || addr.residential || "";
             if (area) detectedLandmark = `${area}, ${detectedCity}`;
           }
         } catch {}
 
+        const finalAddress = detectedStreet || (detectedLandmark ? `Near ${detectedLandmark}` : "Current GPS Location");
+        const finalPincode = detectedPincode || (detectedCity.toLowerCase().includes("guntur") ? "522002" : "");
+
         setForm((f) => ({
           ...f,
+          address: finalAddress,
           gpsCoords: coordsStr,
           mapsLink: mapsUrl,
-          ...(detectedPincode ? { pincode: detectedPincode } : {}),
+          ...(finalPincode ? { pincode: finalPincode } : {}),
           city: detectedCity || f.city,
-          ...(detectedLandmark && !f.landmark ? { landmark: detectedLandmark } : {}),
+          ...(detectedLandmark ? { landmark: detectedLandmark } : {}),
         }));
 
-        toast.success("GPS Location auto-detected!", { id: toastId, icon: "📍" });
+        // Automatically save detected location into user's saved list
+        const newGeoAddr = {
+          id: `addr-gps-${Date.now()}`,
+          type: "Current Location",
+          address: finalAddress,
+          landmark: detectedLandmark,
+          city: detectedCity || "Guntur",
+          pincode: finalPincode,
+          gpsCoords: coordsStr,
+          mapsLink: mapsUrl,
+          isDefault: true,
+        };
+
+        const updated = [newGeoAddr, ...savedAddresses.filter((a) => a.type !== "Current Location")];
+        setSavedAddresses(updated);
+        try {
+          localStorage.setItem("thedeepcleanz_saved_addresses", JSON.stringify(updated));
+        } catch (e) {}
+
+        setShowCheckoutAddressForm(false);
+        toast.success("GPS Location auto-detected & set!", { id: toastId, icon: "📍" });
         setIsLocating(false);
       },
-      () => {
-        toast.error("Could not retrieve GPS coordinates.", { id: toastId });
+      (err) => {
+        let msg = "Could not retrieve GPS coordinates.";
+        if (err.code === 1) msg = "Location permission denied. Please allow GPS access or enter address manually.";
+        toast.error(msg, { id: toastId });
         setIsLocating(false);
       },
-      { enableHighAccuracy: true, timeout: 10000 },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
     );
   };
 
@@ -5181,10 +5221,15 @@ export function BookingModal({
     }
 
     if (!form.address.trim()) {
-      toast.error("Please enter or select a service delivery address");
+      toast.error("Please enter or auto-detect your service delivery address");
       setShowCheckoutAddressForm(true);
       return;
     }
+
+    // Save contact locally for seamless future bookings
+    try {
+      localStorage.setItem("thedeepcleanz_saved_contact", JSON.stringify({ name: form.name.trim(), phone: form.phone.trim() }));
+    } catch (e) {}
 
     let userEmail: string | null = null;
     let userId: string | null = null;
@@ -5370,7 +5415,7 @@ export function BookingModal({
             </div>
           ) : (
             <>
-              {/* SECTION 1: SEND BOOKING DETAILS TO (Matching Video) */}
+              {/* SECTION 1: SEND BOOKING DETAILS TO */}
               <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-3xs space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -5382,7 +5427,7 @@ export function BookingModal({
                     </span>
                   </div>
 
-                  {!editingContact && (
+                  {!editingContact && form.name && form.phone && (
                     <button
                       type="button"
                       onClick={() => setEditingContact(true)}
@@ -5393,11 +5438,11 @@ export function BookingModal({
                   )}
                 </div>
 
-                {!editingContact ? (
+                {!editingContact && form.name && form.phone ? (
                   <div className="bg-[#F8FAF9] rounded-xl p-3 border border-slate-150 flex items-center justify-between text-xs">
                     <div>
-                      <span className="font-bold text-[#002A22] block">{form.name || "Add Your Name"}</span>
-                      <span className="text-slate-500 font-semibold">+91 {form.phone || "Add Phone Number"}</span>
+                      <span className="font-bold text-[#002A22] block">{form.name}</span>
+                      <span className="text-slate-500 font-semibold">+91 {form.phone}</span>
                     </div>
                     <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
                       ✓ Primary Contact
@@ -5407,20 +5452,20 @@ export function BookingModal({
                   <div className="space-y-2.5 pt-1">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                          Your Name
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                          Your Full Name <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
                           value={form.name}
                           onChange={(e) => setForm({ ...form, name: e.target.value })}
-                          placeholder="e.g. Siva Kumar"
+                          placeholder="Enter your name"
                           className="w-full rounded-xl border border-slate-200 bg-[#F8FAF9] px-3 py-2 text-xs font-bold text-[#002A22] outline-none focus:border-emerald-600"
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                          Phone Number
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                          Mobile Number <span className="text-red-500">*</span>
                         </label>
                         <div className="flex items-center rounded-xl border border-slate-200 bg-[#F8FAF9] px-3 py-2 text-xs">
                           <span className="font-bold text-slate-400 mr-1.5">+91</span>
@@ -5428,48 +5473,105 @@ export function BookingModal({
                             type="tel"
                             value={form.phone}
                             onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
-                            placeholder="99663 46347"
+                            placeholder="10-digit mobile number"
                             className="w-full bg-transparent font-bold text-[#002A22] outline-none"
                           />
                         </div>
                       </div>
                     </div>
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!form.name.trim() || form.phone.length < 10) {
-                            toast.error("Please enter valid name and 10-digit phone");
-                            return;
-                          }
-                          setEditingContact(false);
-                        }}
-                        className="px-4 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold cursor-pointer border-0 shadow-xs"
-                      >
-                        Done
-                      </button>
-                    </div>
+                    {form.name.trim() && form.phone.replace(/\D/g, "").length === 10 && (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            try {
+                              localStorage.setItem("thedeepcleanz_saved_contact", JSON.stringify({ name: form.name.trim(), phone: form.phone.trim() }));
+                            } catch (e) {}
+                            setEditingContact(false);
+                          }}
+                          className="px-4 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold cursor-pointer border-0 shadow-xs"
+                        >
+                          Save Contact
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* SECTION 2: ADDRESS & SAVED ADDRESSES (Matching Video) */}
+              {/* SECTION 2: ADDRESS (USE CURRENT LOCATION OR ENTER MANUALLY) */}
               <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-3xs space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="h-7 w-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs">
                       📍
                     </div>
-                    <span className="text-xs font-extrabold text-[#002A22]">Address</span>
+                    <span className="text-xs font-extrabold text-[#002A22]">Service Address</span>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Saved Addresses
-                  </span>
+                  {savedAddresses.length > 0 && !showCheckoutAddressForm && (
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      {savedAddresses.length} Saved Address{savedAddresses.length > 1 ? "es" : ""}
+                    </span>
+                  )}
                 </div>
 
-                {/* Selected Address Card */}
+                {/* Top Quick Actions: Current Location vs Manual Entry */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={detectLocation}
+                    disabled={isLocating}
+                    className="p-3 rounded-xl border border-emerald-300 bg-emerald-50/60 hover:bg-emerald-100/70 text-emerald-900 transition-all flex items-center gap-2.5 cursor-pointer text-left shadow-3xs"
+                  >
+                    <div className="h-8 w-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                      {isLocating ? (
+                        <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <MapPin className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-xs font-extrabold block">
+                        {isLocating ? "Detecting GPS..." : "📍 Use Current Location"}
+                      </span>
+                      <span className="text-[10px] text-emerald-700 font-medium block">
+                        Auto-detect via Device GPS
+                      </span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingAddressId(null);
+                      setShowCheckoutAddressForm(true);
+                    }}
+                    className={`p-3 rounded-xl border transition-all flex items-center gap-2.5 cursor-pointer text-left ${
+                      showCheckoutAddressForm && !editingAddressId
+                        ? "border-emerald-600 bg-emerald-50/40 text-emerald-900 shadow-3xs"
+                        : "border-slate-200 bg-[#F8FAF9] hover:bg-slate-100 text-[#002A22]"
+                    }`}
+                  >
+                    <div className="h-8 w-8 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center shrink-0">
+                      <Plus className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-extrabold block">
+                        ✏️ Enter Address Manually
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium block">
+                        Flat, Street, Landmark &amp; Pincode
+                      </span>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Saved Addresses List */}
                 {!showCheckoutAddressForm && savedAddresses.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="space-y-2 pt-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Choose From Saved Addresses:
+                    </span>
                     {savedAddresses.map((addr: any) => {
                       const isSelected = form.address === addr.address;
                       return (
@@ -5482,31 +5584,38 @@ export function BookingModal({
                               landmark: addr.landmark,
                               city: addr.city,
                               pincode: addr.pincode,
+                              gpsCoords: addr.gpsCoords || f.gpsCoords,
+                              mapsLink: addr.mapsLink || f.mapsLink,
                             }));
                           }}
                           className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative ${
                             isSelected
-                              ? "bg-emerald-50/50 border-emerald-600 ring-1 ring-emerald-600/30 shadow-xs"
+                              ? "bg-emerald-50/70 border-emerald-600 ring-1 ring-emerald-600/30 shadow-xs"
                               : "bg-[#F8FAF9] border-slate-200 hover:border-slate-300"
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-start gap-2.5">
                               <div className="h-7 w-7 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-xs shrink-0 mt-0.5">
-                                {addr.type === "Office" ? "🏢" : "🏠"}
+                                {addr.type === "Office" ? "🏢" : addr.type === "Current Location" ? "📍" : "🏠"}
                               </div>
                               <div>
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-xs font-extrabold text-[#002A22]">
                                     {addr.type || "Home"}
                                   </span>
-                                  {addr.isDefault && (
+                                  {isSelected && (
                                     <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded">
-                                      Default
+                                      Selected
+                                    </span>
+                                  )}
+                                  {addr.gpsCoords && (
+                                    <span className="text-[9px] font-bold text-blue-800 bg-blue-100 px-1.5 py-0.2 rounded">
+                                      GPS Verified
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-[11px] text-slate-600 font-medium mt-0.5 leading-snug">
+                                <p className="text-[11px] text-slate-700 font-medium mt-0.5 leading-snug">
                                   {addr.address}
                                 </p>
                                 <p className="text-[10px] text-slate-400 font-bold mt-0.5">
@@ -5517,9 +5626,11 @@ export function BookingModal({
                             <div className="shrink-0 flex items-center gap-1">
                               <button
                                 type="button"
+                                title="Edit Address"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setEditingAddressId(addr.id);
+                                  setNewAddrType(addr.type || "Home");
                                   setForm((f) => ({
                                     ...f,
                                     address: addr.address,
@@ -5529,9 +5640,39 @@ export function BookingModal({
                                   }));
                                   setShowCheckoutAddressForm(true);
                                 }}
-                                className="text-[10px] text-slate-500 hover:text-emerald-700 p-1 cursor-pointer bg-transparent border-0"
+                                className="text-[11px] text-slate-500 hover:text-emerald-700 p-1 cursor-pointer bg-transparent border-0"
                               >
                                 ✏️
+                              </button>
+                              <button
+                                type="button"
+                                title="Delete Address"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const updated = savedAddresses.filter((a) => a.id !== addr.id);
+                                  setSavedAddresses(updated);
+                                  try {
+                                    localStorage.setItem("thedeepcleanz_saved_addresses", JSON.stringify(updated));
+                                  } catch (err) {}
+                                  if (form.address === addr.address) {
+                                    if (updated.length > 0) {
+                                      setForm((f) => ({
+                                        ...f,
+                                        address: updated[0].address,
+                                        landmark: updated[0].landmark,
+                                        city: updated[0].city,
+                                        pincode: updated[0].pincode,
+                                      }));
+                                    } else {
+                                      setForm((f) => ({ ...f, address: "", landmark: "", pincode: "" }));
+                                      setShowCheckoutAddressForm(true);
+                                    }
+                                  }
+                                  toast.success("Address removed.");
+                                }}
+                                className="text-[11px] text-slate-400 hover:text-red-600 p-1 cursor-pointer bg-transparent border-0"
+                              >
+                                🗑️
                               </button>
                             </div>
                           </div>
@@ -5541,25 +5682,12 @@ export function BookingModal({
                   </div>
                 )}
 
-                {/* Add New Address Button or Form */}
-                {!showCheckoutAddressForm ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingAddressId(null);
-                      setForm((f) => ({ ...f, address: "", landmark: "", pincode: "" }));
-                      setShowCheckoutAddressForm(true);
-                    }}
-                    className="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer border-0 flex items-center justify-center gap-1.5 shadow-xs"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add New Address
-                  </button>
-                ) : (
-                  <div className="p-3.5 rounded-2xl bg-[#F8FAF9] border border-slate-200 space-y-3">
+                {/* Manual Address Input Form */}
+                {showCheckoutAddressForm && (
+                  <div className="p-3.5 rounded-2xl bg-[#F8FAF9] border border-slate-200 space-y-3 pt-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-[#002A22]">
-                        {editingAddressId ? "Edit Address" : "New Address Details"}
+                        {editingAddressId ? "Edit Address" : "Fill In Address Details"}
                       </span>
                       <div className="flex gap-1">
                         {["Home", "Office", "Other"].map((tag) => (
@@ -5579,69 +5707,85 @@ export function BookingModal({
                       </div>
                     </div>
 
-                    <textarea
-                      rows={2}
-                      placeholder="House / Flat No, Building Name, Street..."
-                      value={form.address}
-                      onChange={(e) => setForm({ ...form, address: e.target.value })}
-                      className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:border-emerald-600 resize-none font-medium"
-                    />
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        placeholder="Landmark (e.g. Near Metro)"
-                        value={form.landmark}
-                        onChange={(e) => setForm({ ...form, landmark: e.target.value })}
-                        className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-600 font-medium"
-                      />
-                      <input
-                        placeholder="Pincode (e.g. 522002)"
-                        value={form.pincode}
-                        onChange={(e) => setForm({ ...form, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })}
-                        className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-600 font-medium"
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                        House / Flat / Door No. &amp; Building Name <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="e.g. Flat 101, Sri Krishna Towers, 4th Cross..."
+                        value={form.address}
+                        onChange={(e) => setForm({ ...form, address: e.target.value })}
+                        className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:border-emerald-600 resize-none font-medium"
                       />
                     </div>
 
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                          Area / Landmark
+                        </label>
+                        <input
+                          placeholder="e.g. Near Hindu Pharmacy College"
+                          value={form.landmark}
+                          onChange={(e) => setForm({ ...form, landmark: e.target.value })}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-600 font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                          Pincode <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          placeholder="e.g. 522002"
+                          value={form.pincode}
+                          onChange={(e) => setForm({ ...form, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-600 font-medium"
+                        />
+                      </div>
+                    </div>
+
                     <div className="flex items-center justify-between pt-1">
-                      <button
-                        type="button"
-                        onClick={detectLocation}
-                        disabled={isLocating}
-                        className="text-[10px] text-emerald-800 font-bold hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
-                      >
-                        {isLocating ? "Detecting..." : "📍 Auto-Detect GPS"}
-                      </button>
+                      <span className="text-[10px] text-slate-400 font-bold">
+                        City: {form.city || "Guntur"}
+                      </span>
                       <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setShowCheckoutAddressForm(false)}
-                          className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold cursor-pointer"
-                        >
-                          Cancel
-                        </button>
+                        {savedAddresses.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setShowCheckoutAddressForm(false)}
+                            className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => {
                             if (!form.address.trim() || !form.pincode.trim()) {
-                              toast.error("Address and Pincode are required");
+                              toast.error("Please enter House/Street address and 6-digit Pincode");
                               return;
                             }
                             const newAddr = {
                               id: editingAddressId || `addr-${Date.now()}`,
                               type: newAddrType,
-                              address: form.address,
-                              landmark: form.landmark,
-                              city: form.city,
-                              pincode: form.pincode,
+                              address: form.address.trim(),
+                              landmark: form.landmark.trim(),
+                              city: form.city || "Guntur",
+                              pincode: form.pincode.trim(),
                               isDefault: savedAddresses.length === 0,
                             };
-                            setSavedAddresses([newAddr, ...savedAddresses.filter((a) => a.id !== newAddr.id)]);
+                            const updated = [newAddr, ...savedAddresses.filter((a) => a.id !== newAddr.id)];
+                            setSavedAddresses(updated);
+                            try {
+                              localStorage.setItem("thedeepcleanz_saved_addresses", JSON.stringify(updated));
+                            } catch (e) {}
                             setShowCheckoutAddressForm(false);
-                            toast.success("Address saved!");
+                            toast.success("Address saved & applied!");
                           }}
-                          className="px-3.5 py-1.5 rounded-xl bg-emerald-800 text-white text-xs font-bold cursor-pointer border-0"
+                          className="px-3.5 py-1.5 rounded-xl bg-emerald-800 text-white text-xs font-bold cursor-pointer border-0 shadow-xs hover:bg-emerald-900"
                         >
-                          Save
+                          Save &amp; Apply Address
                         </button>
                       </div>
                     </div>
