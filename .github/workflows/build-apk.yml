@@ -46,12 +46,15 @@ jobs:
         working-directory: frontend
         run: npm install
 
-      - name: Prepare Assets & Build Mobile Web
+      - name: Build Web Application
+        working-directory: frontend
+        run: npm run build
+
+      - name: Prepare Android Web Assets
         working-directory: frontend
         run: |
-          mkdir -p android/app/src/main/assets
-          npm run build
           mkdir -p dist/client
+          mkdir -p android/app/src/main/assets
           cp public/index.html dist/client/index.html
           npx cap sync android
 
