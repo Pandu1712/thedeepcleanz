@@ -60,7 +60,14 @@ jobs:
         working-directory: frontend/android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          set -o pipefail
+          ./gradlew assembleDebug --no-daemon --stacktrace --info 2>&1 | tee ../../gradle_build.log
+
+      - name: Print Gradle Log on Failure
+        if: failure()
+        run: |
+          echo "==================== GRADLE FAILURE LOG TAIL ===================="
+          tail -n 150 gradle_build.log || true
 
       - name: Locate Generated APK
         run: |
@@ -74,3 +81,12 @@ jobs:
           path: frontend/android/**/*.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload Gradle Diagnostics
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gradle-build-log
+          path: gradle_build.log
+          if-no-files-found: warn
+          retention-days: 7
