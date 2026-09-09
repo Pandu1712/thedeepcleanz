@@ -1,0 +1,16 @@
+{
+  "short_name": "TheDeepCleanerZ",
+  "name": "TheDeep CleanerZ — Premium Deep Cleaning",
+  "icons": [
+    {
+      "src": "/logos/logo.png",
+      "type": "image/png",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#0B6B46",
+  "display": "standalone",
+  "orientation": "portrait"
+}
