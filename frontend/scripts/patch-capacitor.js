@@ -1,22 +1,33 @@
 import fs from "node:fs";
 import path from "node:path";
 
+const versionMap = [
+  ["8.13.0", "8.8.1"],
+  ["'1.2.0'", "'1.0.1'"],
+  ["'1.17.0'", "'1.15.0'"],
+  ["'1.11.0'", "'1.9.3'"],
+  ["'1.7.1'", "'1.7.0'"],
+  ["'1.3.0'", "'1.2.0'"],
+  ["'1.8.9'", "'1.8.5'"],
+  ["'1.14.0'", "'1.12.1'"],
+  ["'3.7.0'", "'3.6.1'"],
+  ["'14.0.1'", "'10.1.1'"],
+];
+
 function patchFile(filePath) {
   if (!fs.existsSync(filePath)) return;
   try {
     let content = fs.readFileSync(filePath, "utf8");
     let changed = false;
-    if (content.includes("8.13.0")) {
-      content = content.replaceAll("8.13.0", "8.8.1");
-      changed = true;
-    }
-    if (content.includes("'1.2.0'")) {
-      content = content.replaceAll("'1.2.0'", "'1.0.1'");
-      changed = true;
+    for (const [target, replacement] of versionMap) {
+      if (content.includes(target)) {
+        content = content.replaceAll(target, replacement);
+        changed = true;
+      }
     }
     if (changed) {
       fs.writeFileSync(filePath, content, "utf8");
-      console.log(`[patch-capacitor] Patched: ${filePath}`);
+      console.log(`[patch-capacitor] Patched versions in: ${filePath}`);
     }
   } catch (e) {
     console.warn(`[patch-capacitor] Could not patch ${filePath}:`, e.message);
@@ -36,7 +47,7 @@ function scanDir(dir) {
       }
     }
   } catch (e) {
-    console.warn(`[patch-capacitor] Error scanning directory ${dir}:`, e.message);
+    console.warn(`[patch-capacitor] Error scanning ${dir}:`, e.message);
   }
 }
 
@@ -52,6 +63,6 @@ for (const rel of explicitFiles) {
   patchFile(path.resolve(rel));
 }
 
-// Scan dirs
+// Scan directories
 scanDir(path.resolve("node_modules/@capacitor"));
 scanDir(path.resolve("android"));
