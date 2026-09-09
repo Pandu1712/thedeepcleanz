@@ -52,6 +52,10 @@ jobs:
         working-directory: frontend
         run: npm run build:mobile
 
+      - name: Patch Native Dependencies
+        working-directory: frontend
+        run: node scripts/patch-capacitor.js
+
       - name: Build Android Debug APK
         working-directory: frontend/android
         run: |
@@ -60,6 +64,7 @@ jobs:
 
       - name: Locate Generated APK
         run: |
+          ls -la frontend/android/app/build/outputs/apk/debug/ || true
           find frontend/android -name "*.apk"
 
       - name: Upload APK Artifact
