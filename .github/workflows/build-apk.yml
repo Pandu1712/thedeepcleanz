@@ -59,14 +59,12 @@ jobs:
         working-directory: frontend/android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee gradle_build.log
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK & Build Log Artifacts
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: TheDeepCleanerZ-App-Debug
-          path: |
-            frontend/android/app/build/outputs/apk/debug/app-debug.apk
-            frontend/android/gradle_build.log
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
           retention-days: 14
