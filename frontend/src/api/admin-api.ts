@@ -1,20 +1,51 @@
-// Client for the standalone Node/Express admin server (admin-server/).
-// Configure the base URL via VITE_ADMIN_API_URL (defaults to http://localhost:4000).
-export const ADMIN_API_URL =
-  (() => {
-    const envUrl = (import.meta.env.VITE_ADMIN_API_URL as string | undefined)?.replace(/\/$/, "");
-    if (envUrl) {
+// Client for the standalone Node/Express admin server (backend/).
+// Dynamic base URL resolution that works seamlessly for:
+// 1. Local development (localhost, 127.0.0.1, LAN IP) -> connects to http://<hostname>:4000
+// 2. Production web (thedeepcleanerz.com or any web host) -> uses window.location.origin
+// 3. Mobile native / Capacitor app -> connects to https://thedeepcleanerz.com
+// 4. Custom override via VITE_ADMIN_API_URL if explicitly provided and valid
+export const ADMIN_API_URL = (() => {
+  const envUrl = (import.meta.env.VITE_ADMIN_API_URL as string | undefined)?.replace(/\/$/, "");
+
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+
+    // 1. Local browser development
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("10.") ||
+      hostname.endsWith(".local")
+    ) {
+      if (envUrl && (envUrl.includes("localhost") || envUrl.includes("127.0.0.1") || envUrl.startsWith("http://192.168."))) {
+        return envUrl;
+      }
+      return `http://${hostname || "localhost"}:4000`;
+    }
+
+    // 2. Capacitor / Native Mobile App
+    const isCapacitor = (window as any).Capacitor?.isNativePlatform?.() || window.location.protocol === "capacitor:";
+    if (isCapacitor) {
+      if (envUrl && !envUrl.includes("api.thedeepcleanerz.com")) {
+        return envUrl;
+      }
+      return "https://thedeepcleanerz.com";
+    }
+
+    // 3. Production web deployment (both frontend & API served on the same domain or proxied)
+    if (envUrl && !envUrl.includes("api.thedeepcleanerz.com")) {
       return envUrl;
     }
-    if (typeof window !== "undefined") {
-      const hostname = window.location.hostname;
-      if (hostname.includes("localhost") || hostname.includes("127.0.0.1")) {
-        return "http://localhost:4000";
-      }
-      return window.location.origin;
-    }
-    return "http://localhost:4000";
-  })();
+    return window.location.origin;
+  }
+
+  // SSR / Node environment
+  if (envUrl && !envUrl.includes("api.thedeepcleanerz.com")) {
+    return envUrl;
+  }
+  return "http://localhost:4000";
+})();
 
 export type AdminCategory = {
   id: string;

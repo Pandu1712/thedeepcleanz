@@ -3630,7 +3630,8 @@ function ReferralModal({
   const code = userProfile?.referralCode || "CLEAN-DEEP100";
   const balance = userProfile?.walletBalance || 0;
 
-  const shareText = `Hey! Use my referral code *${code}* on TheDeep CleanerZ for exclusive luxury home cleaning discounts! Book online at http://localhost:4000/`;
+  const siteUrl = typeof window !== "undefined" ? window.location.origin : "https://thedeepcleanerz.com";
+  const shareText = `Hey! Use my referral code *${code}* on TheDeep CleanerZ for exclusive luxury home cleaning discounts! Book online at ${siteUrl}/`;
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(code);
@@ -4856,6 +4857,7 @@ export function BookingModal({
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [otpSentMessage, setOtpSentMessage] = useState("");
   const [confirmationResult, setConfirmationResult] = useState<any>(null);
+  const [otpProvider, setOtpProvider] = useState<"firebase" | "backend">("firebase");
 
   // Suggested Add-on Services (matching reference video)
   const ADD_ON_SERVICES = [
@@ -4901,7 +4903,7 @@ export function BookingModal({
       toast.error("Mobile number is required");
       return;
     }
-    
+
     const cleanPhone = form.phone.replace(/\D/g, "");
     if (cleanPhone.length < 10) {
       toast.error("Please enter a valid 10-digit mobile number.");
@@ -4909,63 +4911,193 @@ export function BookingModal({
     }
 
     setMobileOtpLoading(true);
-    
+    setOtpSentMessage("");
+
     if (isFirebaseConfigured && auth) {
       try {
         let appVerifier = (window as any).recaptchaVerifier;
         if (!appVerifier) {
-          appVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            size: 'invisible',
-            callback: () => {},
-            'expired-callback': () => {
-              toast.error("reCAPTCHA expired. Please try again.");
-            }
+          appVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+            size: "invisible",
+            callback: () => {
+              console.log("reCAPTCHA verified");
+            },
+            "expired-callback": () => {
+              toast.error("reCAPTCHA expired. Please click resend OTP.");
+            },
           });
           (window as any).recaptchaVerifier = appVerifier;
         }
 
         const formattedPhone = `+91${cleanPhone}`;
+        console.log("Dispatching Firebase SMS OTP to:", formattedPhone);
+
         const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
         setConfirmationResult(confirmation);
         setOtpSentMessage(`Verification code sent to +91 ${cleanPhone} via SMS.`);
         toast.success("OTP sent to your phone via SMS!", { icon: "📨" });
         setShowOtpVerification(true);
       } catch (err: any) {
-        toast.error(err.message || "Failed to send SMS via Firebase.");
-        setOtpSentMessage("Failed to send verification SMS.");
+        console.error("Firebase Phone Auth error:", err);
+        let msg = err.message || "Failed to send SMS via Firebase.";
+        if (err.code === "auth/invalid-phone-number") {
+          msg = "Invalid phone number format.";
+        } else if (err.code === "auth/too-many-requests" || err.message?.includes("TOO_MANY_ATTEMPTS")) {
+          msg = "Too many OTP requests. Google has temporarily rate-limited this number. Please wait a while or try another number.";
+        }
+        toast.error(msg);
+        setOtpSentMessage(msg);
       } finally {
         setMobileOtpLoading(false);
       }
     } else {
-      // Demo mode fallback
-      setOtpVerified(true);
-      toast.success("Mobile number verified!", { icon: "✅" });
+      toast.error("Firebase Authentication is not configured.");
       setMobileOtpLoading(false);
     }
   };
 
   const handleVerifyMobileOtp = async () => {
-    if (!otpInput || otpInput.length < 6) {
-      toast.error("Please enter the 6-digit OTP code");
+    if (!otpInput || otpInput.trim().length !== 6) {
+      toast.error("Please enter the 6-digit OTP code received on your mobile");
+      return;
+    }
+
+    if (!confirmationResult) {
+      toast.error("No active OTP session. Please click 'Resend OTP'.");
       return;
     }
 
     setVerifyLoading(true);
-    if (confirmationResult) {
-      try {
-        await confirmationResult.confirm(otpInput);
-        setOtpVerified(true);
-        setShowOtpVerification(false);
-        toast.success("Mobile number verified successfully!", { icon: "✅" });
-      } catch (err: any) {
-        toast.error("Invalid verification code. Please check and try again.");
-      } finally {
-        setVerifyLoading(false);
-      }
-    } else {
+    const cleanPhone = form.phone.replace(/\D/g, "");
+
+    try {
+      const userCredential = await confirmationResult.confirm(otpInput.trim());
+      console.log("Firebase phone auth confirmed user:", userCredential.user);
+
+      // Create & store user profile in session
+      const userObj = {
+        id: userCredential.user?.uid || `user-${cleanPhone}`,
+        name: form.name.trim() || "Customer",
+        phone: cleanPhone,
+        email: `${cleanPhone}@thedeepcleanerz.com`,
+        role: "user",
+      };
+      sessionStorage.setItem("user_authenticated", "true");
+      sessionStorage.setItem("user_email", userObj.email);
+      sessionStorage.setItem("user_profile", JSON.stringify(userObj));
+      window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new Event("auth-state-change"));
+
       setOtpVerified(true);
       setShowOtpVerification(false);
+      setShowAuthGate(false);
+      toast.success("Mobile number verified successfully!", { icon: "✅" });
+    } catch (err: any) {
+      console.error("Firebase OTP confirmation error:", err);
+      let msg = "Invalid verification code. Please check the SMS and try again.";
+      if (err.code === "auth/invalid-verification-code") {
+        msg = "Incorrect 6-digit OTP. Please check your SMS and enter the valid code.";
+      } else if (err.code === "auth/code-expired") {
+        msg = "OTP code has expired. Please click 'Resend OTP'.";
+      }
+      toast.error(msg);
+    } finally {
       setVerifyLoading(false);
+    }
+  };
+
+  const handleAuthLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!authEmail.trim() || !authPassword.trim()) {
+      setAuthError("Please enter your email/phone and password.");
+      return;
+    }
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      const res = await fetch(`${ADMIN_API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailOrPhone: authEmail.trim(), password: authPassword }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || "Invalid credentials.");
+      }
+      if (data && (data.user || data.email)) {
+        const u = data.user || { id: "user-1", name: authEmail.split("@")[0], email: authEmail, role: data.role || "user" };
+        sessionStorage.setItem("user_authenticated", "true");
+        sessionStorage.setItem("user_email", u.email || authEmail);
+        sessionStorage.setItem("user_profile", JSON.stringify(u));
+        if (data.role === "admin" || u.role === "admin") {
+          sessionStorage.setItem("user_role", "admin");
+          sessionStorage.setItem("admin_authenticated", "true");
+        }
+        window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("auth-state-change"));
+        setOtpVerified(true);
+        setShowAuthGate(false);
+        toast.success(`Welcome back, ${u.name}!`, { icon: "👋" });
+        setForm((f) => ({
+          ...f,
+          name: u.name || f.name,
+          phone: u.phone || f.phone,
+        }));
+      }
+    } catch (err: any) {
+      setAuthError(err.message || "Login failed");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleAuthRegister = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!authName.trim() || !authPhone.trim() || !authEmail.trim() || !authPassword.trim()) {
+      setAuthError("All fields are required.");
+      return;
+    }
+    if (authPhone.replace(/\D/g, "").length < 10) {
+      setAuthError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      const res = await fetch(`${ADMIN_API_URL}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: authName.trim(),
+          phone: authPhone.replace(/\D/g, ""),
+          email: authEmail.trim().toLowerCase(),
+          password: authPassword,
+          referralCode: authReferralCode.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || "Registration failed.");
+      }
+      if (data && data.user) {
+        sessionStorage.setItem("user_authenticated", "true");
+        sessionStorage.setItem("user_email", data.user.email);
+        sessionStorage.setItem("user_profile", JSON.stringify(data.user));
+        window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("auth-state-change"));
+        setOtpVerified(true);
+        setShowAuthGate(false);
+        toast.success("Account created successfully!", { icon: "🎉" });
+        setForm((f) => ({
+          ...f,
+          name: data.user.name || f.name,
+          phone: data.user.phone || f.phone,
+        }));
+      }
+    } catch (err: any) {
+      setAuthError(err.message || "Registration failed");
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -5234,13 +5366,20 @@ export function BookingModal({
     let userEmail: string | null = null;
     let userId: string | null = null;
     try {
-      const prof = sessionStorage.getItem("user_profile");
+      const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
       if (prof) {
         const u = JSON.parse(prof);
         userId = u.id || null;
         userEmail = u.email || null;
       }
     } catch (e) {}
+
+    // Require user login / Mobile OTP verification before proceeding to booking
+    if (!userId && !userEmail && !otpVerified) {
+      toast.info("Please verify your phone number with OTP to confirm your booking.", { icon: "📱" });
+      setShowAuthGate(true);
+      return;
+    }
 
     const customerPayload = {
       name: form.name,
@@ -5396,6 +5535,195 @@ export function BookingModal({
             <X className="h-4 w-4" />
           </button>
         </div>
+
+        {/* AUTH GATE / OTP VERIFICATION MODAL OVERLAY */}
+        {showAuthGate && (
+          <div className="absolute inset-0 z-50 bg-white/98 backdrop-blur-md flex flex-col p-5 overflow-y-auto animate-in fade-in duration-200 font-sans">
+            <div className="flex items-center justify-between border-b border-slate-150 pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-base">
+                  📱
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-[#002A22]">User Verification Required</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">Verify your mobile or sign in to confirm booking</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAuthGate(false)}
+                className="h-8 w-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="my-4 flex rounded-xl bg-slate-100 p-1 text-xs font-bold text-slate-600">
+              <button
+                type="button"
+                onClick={() => { setAuthIsRegister(false); setShowOtpVerification(false); }}
+                className={`flex-1 py-2 rounded-lg transition-all cursor-pointer ${
+                  !authIsRegister ? "bg-white text-emerald-800 shadow-xs" : "hover:text-slate-800"
+                }`}
+              >
+                📱 Mobile SMS OTP
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAuthIsRegister(true); setShowOtpVerification(false); }}
+                className={`flex-1 py-2 rounded-lg transition-all cursor-pointer ${
+                  authIsRegister ? "bg-white text-emerald-800 shadow-xs" : "hover:text-slate-800"
+                }`}
+              >
+                🔐 Password Login
+              </button>
+            </div>
+
+            {!authIsRegister ? (
+              /* TAB 1: Mobile Phone OTP Verification */
+              <div className="space-y-4 pt-1">
+                <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-3.5 text-xs text-emerald-900 space-y-1">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <span>📨</span> Quick SMS Verification
+                  </div>
+                  <p className="text-[11px] text-emerald-800">
+                    We will send a 6-digit verification code to your phone to confirm your booking and link your account.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                    Your 10-Digit Mobile Number <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center rounded-xl border border-slate-200 bg-[#F8FAF9] px-3 py-2.5 text-xs">
+                    <span className="font-bold text-slate-400 mr-1.5">+91</span>
+                    <input
+                      type="tel"
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                      placeholder="Enter mobile number"
+                      className="w-full bg-transparent font-bold text-[#002A22] outline-none"
+                    />
+                  </div>
+                </div>
+
+                {!showOtpVerification ? (
+                  <button
+                    type="button"
+                    disabled={mobileOtpLoading || form.phone.replace(/\D/g, "").length < 10}
+                    onClick={handleSendMobileOtp}
+                    className="w-full py-3 rounded-xl bg-[#0B6B46] hover:bg-[#084F34] text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md disabled:opacity-50"
+                  >
+                    {mobileOtpLoading ? "Sending SMS OTP..." : "Send Verification OTP"}
+                  </button>
+                ) : (
+                  <div className="space-y-3 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-[#002A22]">Enter 6-Digit OTP</span>
+                      <span className="text-[11px] text-emerald-700 font-bold">+91 {form.phone}</span>
+                    </div>
+
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={otpInput}
+                      onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ""))}
+                      placeholder="• • • • • •"
+                      className="w-full text-center tracking-[0.4em] text-lg font-mono font-black py-2.5 rounded-xl border border-emerald-600 bg-emerald-50/30 text-emerald-950 outline-none"
+                    />
+
+                    {otpSentMessage && (
+                      <p className="text-[10px] text-slate-500 text-center font-medium">{otpSentMessage}</p>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSendMobileOtp}
+                        disabled={mobileOtpLoading}
+                        className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                      >
+                        Resend OTP
+                      </button>
+                      <button
+                        type="button"
+                        disabled={verifyLoading || otpInput.trim().length < 4}
+                        onClick={handleVerifyMobileOtp}
+                        className="flex-1 py-2.5 rounded-xl bg-[#0B6B46] hover:bg-[#084F34] text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                      >
+                        {verifyLoading ? "Verifying..." : "Verify & Continue Booking"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setAuthIsRegister(true)}
+                    className="text-xs text-emerald-700 font-bold hover:underline cursor-pointer bg-transparent border-0"
+                  >
+                    Have an existing account password? Login here →
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* TAB 2: Email / Mobile Password Login */
+              <div className="space-y-3 pt-1">
+                {authError && (
+                  <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
+                    {authError}
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                    Email or Mobile Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    placeholder="e.g. yourname@gmail.com or 9876543210"
+                    className="w-full rounded-xl border border-slate-200 bg-[#F8FAF9] px-3 py-2 text-xs font-semibold text-[#002A22] outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                    Password <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    placeholder="Enter account password"
+                    className="w-full rounded-xl border border-slate-200 bg-[#F8FAF9] px-3 py-2 text-xs font-semibold text-[#002A22] outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  disabled={authLoading}
+                  onClick={() => handleAuthLogin()}
+                  className="w-full py-3 rounded-xl bg-[#0B6B46] hover:bg-[#084F34] text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md disabled:opacity-50"
+                >
+                  {authLoading ? "Logging in..." : "Login & Continue Booking"}
+                </button>
+
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setAuthIsRegister(false)}
+                    className="text-xs text-emerald-700 font-bold hover:underline cursor-pointer bg-transparent border-0"
+                  >
+                    ← Switch back to Mobile OTP verification
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Scrollable Checkout Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 pb-28">

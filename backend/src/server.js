@@ -914,9 +914,10 @@ app.post("/api/auth/mobile-otp/send", async (req, res) => {
 
     return res.json({
       ok: true,
+      devOtp: process.env.NODE_ENV !== "production" || !smsSent ? otp : undefined,
       message: smsSent 
         ? `Verification code sent to +91 ${cleanPhone} via ${viaProvider}.` 
-        : `Verification code sent to your registered email address (SMS gateway not configured).`,
+        : `Verification code generated for +91 ${cleanPhone}.`,
     });
   } catch (err) {
     console.error("Send Mobile OTP error:", err);

@@ -46,6 +46,7 @@ import {
 } from "./index";
 import Header from "@/components/Header";
 import {
+  ADMIN_API_URL,
   fetchAdminCatalog,
   fetchReviews,
   postReview,
@@ -753,7 +754,7 @@ function ServiceDetailPage() {
         timestamp: new Date().toISOString(),
       };
 
-      const res = await fetch("http://localhost:4000/api/quotes", {
+      const res = await fetch(`${ADMIN_API_URL}/api/quotes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
