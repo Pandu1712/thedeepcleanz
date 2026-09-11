@@ -82,11 +82,11 @@ export const Route = createFileRoute("/service-detail")({
       id: typeof search.id === "string" ? search.id : undefined,
     };
   },
-  head: ({ search }) => {
-    const rawId = search.id || "deep-cleaning";
+  head: (ctx: any) => {
+    const rawId = (ctx?.search as ServiceDetailSearch)?.id || "deep-cleaning";
     const formattedName = rawId
       .split("-")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
 
     return {

@@ -2367,7 +2367,7 @@ function Index() {
         onOpenReferral={() => setReferralModalOpen(true)}
         activeHash={activeHash}
         isSubPage={false}
-        hideMobileNav={cartOpen || bookingOpen || locationModalOpen || referralModalOpen || !!quickBookService}
+        hideMobileNav={cartOpen || bookingOpen || locationModalOpen || referralModalOpen}
       />
 
       {/* HERO SECTION - REDESIGNED EXACTLY AS REFERENCE DESIGN */}
