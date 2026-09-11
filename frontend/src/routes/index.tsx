@@ -5423,7 +5423,7 @@ export function BookingModal({
         setShowCheckoutAddressForm(true);
       }
 
-      setOtpVerified(isUserAlreadyAuthed);
+      setOtpVerified(false);
 
       // If name or phone is missing, open contact editor
       if (!initName.trim() || initPhone.replace(/\D/g, "").length < 10) {
@@ -5629,28 +5629,24 @@ export function BookingModal({
       localStorage.setItem("thedeepcleanz_saved_contact", JSON.stringify({ name: form.name.trim(), phone: form.phone.trim() }));
     } catch (e) {}
 
-    let userEmail: string | null = null;
-    let userId: string | null = null;
     let currentProfile: any = null;
     try {
       const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
       if (prof) {
         currentProfile = JSON.parse(prof);
-        userId = currentProfile.id || null;
-        userEmail = currentProfile.email || null;
       }
     } catch (e) {}
 
-    // If user is already authenticated or OTP was already verified during this session
-    if (userId || userEmail || otpVerified) {
-      return executePaymentAndBooking(currentProfile);
+    // Option B: Always ask Mobile SMS OTP before confirming booking & payment
+    if (!otpVerified) {
+      toast.info(`Sending verification OTP to +91 ${form.phone.replace(/\D/g, "")}...`, { icon: "📱" });
+      setShowAuthGate(true);
+      setShowOtpVerification(false);
+      handleSendMobileOtp();
+      return;
     }
 
-    // If unauthenticated, prompt OTP verification gate and auto-send OTP
-    toast.info("Please enter the verification OTP sent to your phone.", { icon: "📱" });
-    setShowAuthGate(true);
-    setShowOtpVerification(false);
-    handleSendMobileOtp();
+    return executePaymentAndBooking(currentProfile);
   };
 
   return (
@@ -5696,8 +5692,8 @@ export function BookingModal({
                   📱
                 </div>
                 <div>
-                  <h3 className="text-sm font-extrabold text-[#002A22]">User Verification Required</h3>
-                  <p className="text-[11px] text-slate-500 font-medium">Verify your mobile or sign in to confirm booking</p>
+                  <h3 className="text-sm font-extrabold text-[#002A22]">Mobile OTP Verification</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">Confirm with 6-digit OTP code to proceed to payment</p>
                 </div>
               </div>
               <button
