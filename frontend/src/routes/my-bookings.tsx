@@ -220,6 +220,12 @@ const MapContainer = ({ techLat, techLng, customerLat, customerLng, customerAddr
 };
 
 export const Route = createFileRoute("/my-bookings")({
+  head: () => ({
+    meta: [
+      { title: "My Bookings & Live Order Tracking | TheDeep CleanerZ" },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
   component: MyBookingsPage,
 });
 
@@ -1576,10 +1582,10 @@ function MyBookingsPage() {
                       Email Concierge
                     </div>
                     <a
-                      href="mailto:hello@thedeepcleanerz.com"
+                      href="mailto:thedeepcleanerz.info@gmail.com"
                       className="text-xs font-bold text-white hover:text-[#cb9f5a] transition-colors"
                     >
-                      hello@thedeepcleanerz.com
+                      thedeepcleanerz.info@gmail.com
                     </a>
                   </div>
                 </div>

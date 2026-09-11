@@ -113,17 +113,33 @@ export const Route = createFileRoute("/")({
   },
   head: () => ({
     meta: [
-      { title: "TheDeep CleanerZ — Premium Deep Cleaning for Homes & Businesses" },
+      { title: "TheDeep CleanerZ — Top #1 Deep Cleaning & Sanitization Services in Guntur, AP" },
       {
         name: "description",
         content:
-          "Luxury deep cleaning services for homes, offices and hotels. Verified professionals, eco-friendly products, same-day booking starting ₹499.",
+          "TheDeep CleanerZ is Guntur's #1 premier deep cleaning brand. Verified specialists for Full House, Furnished & Vacant Flats, Luxury Villas, Kitchen, Bathroom, Sofa & Commercial Deep Cleaning in Arundelpet, Guntur & AP. Starting ₹499.",
       },
-      { property: "og:title", content: "TheDeep CleanerZ — Premium Deep Cleaning" },
+      {
+        name: "keywords",
+        content:
+          "TheDeep CleanerZ, The Deep CleanerZ, deep cleaning services Guntur, home cleaning Guntur, full house cleaning, sofa cleaning, kitchen deep cleaning, bathroom sanitization, villa deep cleaning, commercial cleaning Arundelpet Guntur, best cleaning company Guntur, house sanitization Andhra Pradesh",
+      },
+      { name: "robots", content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" },
+      { property: "og:title", content: "TheDeep CleanerZ — Top #1 Deep Cleaning & Sanitization Services in Guntur, AP" },
       {
         property: "og:description",
-        content: "Spotless spaces by trusted experts. Affordable, reliable, hassle-free.",
+        content: "Spotless spaces by trusted cleaning experts. Affordable, reliable, hospital-grade sanitization.",
       },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://thedeepcleanerz.in/" },
+      { property: "og:image", content: "https://thedeepcleanerz.in/logos/logo.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "TheDeep CleanerZ — Premium Deep Cleaning Services" },
+      { name: "twitter:description", content: "Guntur's #1 premier deep cleaning and sanitization experts." },
+      { name: "twitter:image", content: "https://thedeepcleanerz.in/logos/logo.png" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://thedeepcleanerz.in/" },
     ],
   }),
   component: Index,
@@ -3115,7 +3131,7 @@ function Index() {
                     Email Inquiries
                   </h4>
                   <p className="text-xs sm:text-sm font-bold text-[#002a22] mt-0.5">
-                    hello@thedeepcleanerz.com
+                    thedeepcleanerz.info@gmail.com
                   </p>
                   <p className="text-[9px] text-[#002a22]/60 font-semibold mt-0.5">
                     Response Time: Under 15 Minutes
@@ -3349,10 +3365,10 @@ function Index() {
                       Email Concierge
                     </div>
                     <a
-                      href="mailto:hello@thedeepcleanerz.com"
+                      href="mailto:thedeepcleanerz.info@gmail.com"
                       className="text-xs font-bold text-white hover:text-[#cb9f5a] transition-colors"
                     >
-                      hello@thedeepcleanerz.com
+                      thedeepcleanerz.info@gmail.com
                     </a>
                   </div>
                 </div>
@@ -3630,7 +3646,7 @@ function ReferralModal({
   const code = userProfile?.referralCode || "CLEAN-DEEP100";
   const balance = userProfile?.walletBalance || 0;
 
-  const siteUrl = typeof window !== "undefined" ? window.location.origin : "https://thedeepcleanerz.com";
+  const siteUrl = typeof window !== "undefined" ? window.location.origin : "https://thedeepcleanerz.in";
   const shareText = `Hey! Use my referral code *${code}* on TheDeep CleanerZ for exclusive luxury home cleaning discounts! Book online at ${siteUrl}/`;
 
   const handleCopyCode = () => {

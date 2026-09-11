@@ -1,15 +1,22 @@
 {
-  "short_name": "TheDeepCleanerZ",
-  "name": "TheDeep CleanerZ — Premium Deep Cleaning",
+  "short_name": "TheDeep CleanerZ",
+  "name": "TheDeep CleanerZ — Premium Deep Cleaning & Sanitization Services",
+  "description": "Professional deep cleaning, sanitization, and maintenance services for homes, apartments, villas and commercial spaces in Guntur, AP.",
   "icons": [
     {
       "src": "/logos/logo.png",
       "type": "image/png",
-      "sizes": "192x192 512x512"
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "64x64 32x32 24x24 16x16"
     }
   ],
   "start_url": "/",
-  "background_color": "#ffffff",
+  "background_color": "#002A22",
   "theme_color": "#0B6B46",
   "display": "standalone",
   "orientation": "portrait"

@@ -16,6 +16,12 @@ import { toast } from "sonner";
 import { ADMIN_API_URL } from "@/api/admin-api";
 
 export const Route = createFileRoute("/login")({
+  head: () => ({
+    meta: [
+      { title: "Account Login & Register | TheDeep CleanerZ" },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
   component: LoginComponent,
 });
 

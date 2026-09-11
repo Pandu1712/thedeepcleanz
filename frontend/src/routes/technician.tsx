@@ -29,6 +29,12 @@ import {
 } from "@/api/admin-api";
 
 export const Route = createFileRoute("/technician")({
+  head: () => ({
+    meta: [
+      { title: "Technician Portal | TheDeep CleanerZ" },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
   component: TechnicianPortal,
 });
 

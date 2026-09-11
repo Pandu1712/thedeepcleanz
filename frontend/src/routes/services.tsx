@@ -64,6 +64,37 @@ export const Route = createFileRoute("/services")({
       service: typeof search.service === "string" ? search.service : undefined,
     };
   },
+  head: () => ({
+    meta: [
+      { title: "All Deep Cleaning Services & Packages | TheDeep CleanerZ Guntur" },
+      {
+        name: "description",
+        content:
+          "Explore the complete catalog of deep cleaning services by TheDeep CleanerZ. Full house, furnished & vacant flats, luxury duplex villas, sofa shampooing, bathroom sanitization & commercial cleaning in Guntur.",
+      },
+      {
+        name: "keywords",
+        content:
+          "all cleaning services Guntur, home cleaning packages, furnished flat cleaning, vacant flat cleaning, villa sanitization, commercial cleaning services, sofa cleaning, kitchen cleaning, bathroom descaling, TheDeep CleanerZ services list",
+      },
+      { name: "robots", content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" },
+      { property: "og:title", content: "All Deep Cleaning Services & Packages | TheDeep CleanerZ" },
+      {
+        property: "og:description",
+        content: "Complete range of premium residential and commercial deep cleaning solutions in Guntur, AP.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://thedeepcleanerz.in/services" },
+      { property: "og:image", content: "https://thedeepcleanerz.in/logos/logo.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "All Deep Cleaning Services | TheDeep CleanerZ" },
+      { name: "twitter:description", content: "Explore verified deep cleaning services for your home or business." },
+      { name: "twitter:image", content: "https://thedeepcleanerz.in/logos/logo.png" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://thedeepcleanerz.in/services" },
+    ],
+  }),
   component: ServicesComponent,
 });
 
@@ -1298,10 +1329,10 @@ function ServicesComponent() {
                       Email Concierge
                     </div>
                     <a
-                      href="mailto:hello@thedeepcleanerz.com"
+                      href="mailto:thedeepcleanerz.info@gmail.com"
                       className="text-xs font-bold text-white hover:text-[#cb9f5a] transition-colors"
                     >
-                      hello@thedeepcleanerz.com
+                      thedeepcleanerz.info@gmail.com
                     </a>
                   </div>
                 </div>

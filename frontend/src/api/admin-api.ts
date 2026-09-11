@@ -1,8 +1,8 @@
 // Client for the standalone Node/Express admin server (backend/).
 // Dynamic base URL resolution that works seamlessly for:
 // 1. Local development (localhost, 127.0.0.1, LAN IP) -> connects to http://<hostname>:4000
-// 2. Production web (thedeepcleanerz.com or any web host) -> uses window.location.origin
-// 3. Mobile native / Capacitor app -> connects to https://thedeepcleanerz.com
+// 2. Production web (thedeepcleanerz.in or any web host) -> uses window.location.origin
+// 3. Mobile native / Capacitor app -> connects to https://thedeepcleanerz.in
 // 4. Custom override via VITE_ADMIN_API_URL if explicitly provided and valid
 export const ADMIN_API_URL = (() => {
   const envUrl = (import.meta.env.VITE_ADMIN_API_URL as string | undefined)?.replace(/\/$/, "");
@@ -27,21 +27,21 @@ export const ADMIN_API_URL = (() => {
     // 2. Capacitor / Native Mobile App
     const isCapacitor = (window as any).Capacitor?.isNativePlatform?.() || window.location.protocol === "capacitor:";
     if (isCapacitor) {
-      if (envUrl && !envUrl.includes("api.thedeepcleanerz.com")) {
+      if (envUrl && !envUrl.includes("api.thedeepcleanerz.in")) {
         return envUrl;
       }
-      return "https://thedeepcleanerz.com";
+      return "https://thedeepcleanerz.in";
     }
 
     // 3. Production web deployment (both frontend & API served on the same domain or proxied)
-    if (envUrl && !envUrl.includes("api.thedeepcleanerz.com")) {
+    if (envUrl && !envUrl.includes("api.thedeepcleanerz.in")) {
       return envUrl;
     }
     return window.location.origin;
   }
 
   // SSR / Node environment
-  if (envUrl && !envUrl.includes("api.thedeepcleanerz.com")) {
+  if (envUrl && !envUrl.includes("api.thedeepcleanerz.in")) {
     return envUrl;
   }
   return "http://localhost:4000";

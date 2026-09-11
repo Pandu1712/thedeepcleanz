@@ -113,6 +113,12 @@ import {
 } from "@/api/admin-api";
 
 export const Route = createFileRoute("/admin")({
+  head: () => ({
+    meta: [
+      { title: "Admin Management Dashboard | TheDeep CleanerZ" },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
   component: AdminDashboardRoute,
 });
 

@@ -75,13 +75,17 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 const businessJsonLd = {
   "@context": "https://schema.org",
   "@type": "HomeAndConstructionBusiness",
+  "@id": "https://thedeepcleanerz.in/#business",
   "name": "TheDeep CleanerZ",
-  "alternateName": "TheDeepCleanerz",
-  "image": "https://thedeepcleanerz.com/logos/logo.png",
-  "logo": "https://thedeepcleanerz.com/logos/logo.png",
-  "url": "https://thedeepcleanerz.com",
+  "alternateName": ["TheDeepCleanerz", "The Deep CleanerZ", "The Deep Cleanerz Guntur"],
+  "image": "https://thedeepcleanerz.in/logos/logo.png",
+  "logo": "https://thedeepcleanerz.in/logos/logo.png",
+  "url": "https://thedeepcleanerz.in",
   "telephone": "+91 93902 46688",
   "email": "thedeepcleanerz.info@gmail.com",
+  "priceRange": "₹₹",
+  "currenciesAccepted": "INR",
+  "paymentAccepted": "Cash, Credit Card, Debit Card, UPI, Net Banking, Razorpay",
   "address": {
     "@type": "PostalAddress",
     "streetAddress": "Arundelpet",
@@ -95,6 +99,15 @@ const businessJsonLd = {
     "latitude": 16.307888,
     "longitude": 80.438993
   },
+  "hasMap": "https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d3829.2945379659127!2d80.438992875141!3d16.307887884406753!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zMTbCsDE4JzI4LjQiTiA4MMKwMjYnMjkuNiJF!5e0!3m2!1sen!2sin!4v1784366519525!5m2!1sen!2sin",
+  "areaServed": [
+    { "@type": "City", "name": "Guntur" },
+    { "@type": "City", "name": "Vijayawada" },
+    { "@type": "City", "name": "Tenali" },
+    { "@type": "City", "name": "Mangalagiri" },
+    { "@type": "City", "name": "Amaravati" },
+    { "@type": "AdministrativeArea", "name": "Andhra Pradesh" }
+  ],
   "openingHoursSpecification": {
     "@type": "OpeningHoursSpecification",
     "dayOfWeek": [
@@ -109,10 +122,69 @@ const businessJsonLd = {
     "opens": "07:00",
     "closes": "21:00"
   },
-  "priceRange": "₹₹",
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.9",
+    "reviewCount": "385",
+    "bestRating": "5",
+    "worstRating": "1"
+  },
   "sameAs": [
     "https://instagram.com/thedeepcleanerz",
-    "https://facebook.com/thedeepcleanerz"
+    "https://facebook.com/thedeepcleanerz",
+    "https://twitter.com/TheDeepCleanerz"
+  ]
+};
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": "https://thedeepcleanerz.in/#website",
+  "name": "TheDeep CleanerZ",
+  "url": "https://thedeepcleanerz.in",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://thedeepcleanerz.in/services?service={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+};
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What cleaning services does TheDeep CleanerZ provide in Guntur?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "TheDeep CleanerZ offers full house deep cleaning, furnished and vacant flat cleaning, luxury villa sanitization, kitchen degreasing, bathroom descaling, sofa shampooing, carpet extraction, mattress sanitization, and commercial post-construction cleaning in Guntur and Andhra Pradesh."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Where is TheDeep CleanerZ office located in Guntur?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Our office is centrally located at Arundelpet, Guntur, Andhra Pradesh 522002, India (Coordinates: 16.307888, 80.438993)."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How can I book a deep cleaning service?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "You can easily book online at https://thedeepcleanerz.in, customize your package, choose a time slot, or call our team at +91 93902 46688."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Are the cleaning chemicals eco-friendly and pet-safe?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, we exclusively utilize hospital-standard, biodegradable, non-hazardous, and eco-friendly cleaning agents that are safe for infants, seniors, and pets."
+      }
+    }
   ]
 };
 
@@ -120,42 +192,49 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "TheDeep CleanerZ — Premium Deep Cleaning & Sanitization Services" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
+      { title: "TheDeep CleanerZ — Top #1 Deep Cleaning & Sanitization Services in Guntur, AP" },
       {
         name: "description",
-        content: "TheDeep CleanerZ provides premium hotel-grade deep cleaning, sanitization, and maintenance services for homes, apartments, villas, corporate offices and hotels in Guntur and Andhra Pradesh.",
+        content: "TheDeep CleanerZ is Guntur's #1 premier deep cleaning and sanitization brand. Luxury deep cleaning for homes, apartments, villas, and commercial spaces in Arundelpet, Guntur & AP.",
       },
       {
         name: "keywords",
-        content: "deep cleaning, home cleaning, sofa cleaning, kitchen deep cleaning, bathroom cleaning, villa cleaning, commercial cleaning, Guntur deep cleaners, TheDeep CleanerZ, full house cleaning, Andhra Pradesh",
+        content: "TheDeep CleanerZ, The Deep CleanerZ, deep cleaning services Guntur, home cleaning Guntur, sofa cleaning Guntur, bathroom cleaning Guntur, kitchen deep cleaning, villa cleaning, commercial cleaning Arundelpet Guntur, full house cleaning Andhra Pradesh, deep sanitization, carpet cleaning, mattress cleaning",
       },
       { name: "author", content: "TheDeep CleanerZ" },
       { name: "robots", content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" },
       { name: "theme-color", content: "#0B6B46" },
-      { property: "og:title", content: "TheDeep CleanerZ — Premium Deep Cleaning & Sanitization Services" },
+      { name: "geo.region", content: "IN-AP" },
+      { name: "geo.placename", content: "Guntur" },
+      { name: "geo.position", content: "16.307888;80.438993" },
+      { name: "ICBM", content: "16.307888, 80.438993" },
+      { name: "google-site-verification", content: "google639a710a1902b697" },
+      { property: "og:title", content: "TheDeep CleanerZ — Top #1 Deep Cleaning & Sanitization Services in Guntur, AP" },
       {
         property: "og:description",
-        content: "Professional deep cleaning, sanitization, and maintenance services for homes, apartments, villas and commercial spaces.",
+        content: "Professional deep cleaning, sanitization, and maintenance services for homes, apartments, villas, and commercial spaces in Guntur.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://thedeepcleanerz.com/" },
-      { property: "og:image", content: "https://thedeepcleanerz.com/logos/logo.png" },
+      { property: "og:url", content: "https://thedeepcleanerz.in/" },
+      { property: "og:image", content: "https://thedeepcleanerz.in/logos/logo.png" },
       { property: "og:image:alt", content: "TheDeep CleanerZ Official Logo" },
       { property: "og:site_name", content: "TheDeep CleanerZ" },
+      { property: "og:locale", content: "en_IN" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@TheDeepCleanerz" },
       { name: "twitter:title", content: "TheDeep CleanerZ — Premium Deep Cleaning Services" },
       {
         name: "twitter:description",
-        content: "Professional deep cleaning services for homes, villas, offices and hotels.",
+        content: "Guntur's #1 premier deep cleaning and sanitization experts. Spotless spaces with clinical perfection.",
       },
-      { name: "twitter:image", content: "https://thedeepcleanerz.com/logos/logo.png" },
+      { name: "twitter:image", content: "https://thedeepcleanerz.in/logos/logo.png" },
     ],
     links: [
-      { rel: "canonical", href: "https://thedeepcleanerz.com/" },
-      { rel: "icon", type: "image/png", href: "/logos/logo.png" },
-      { rel: "apple-touch-icon", href: "/logos/logo.png" },
+      { rel: "canonical", href: "https://thedeepcleanerz.in/" },
+      { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon.png" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/logos/logo.png" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/logos/logo.png" },
       { rel: "shortcut icon", type: "image/png", href: "/logos/logo.png" },
       { rel: "manifest", href: "/manifest.json" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -178,9 +257,33 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        {/* Google Analytics Tag (gtag.js) */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-KCXSZYY046"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-KCXSZYY046');
+            `,
+          }}
+        />
+        {/* Schema.org Structured Data */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(businessJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
         />
       </head>
       <body>

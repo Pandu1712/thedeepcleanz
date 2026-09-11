@@ -82,6 +82,43 @@ export const Route = createFileRoute("/service-detail")({
       id: typeof search.id === "string" ? search.id : undefined,
     };
   },
+  head: ({ search }) => {
+    const rawId = search.id || "deep-cleaning";
+    const formattedName = rawId
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+
+    return {
+      meta: [
+        { title: `${formattedName} Service in Guntur | TheDeep CleanerZ` },
+        {
+          name: "description",
+          content: `Book professional ${formattedName} in Guntur by TheDeep CleanerZ. Hospital-grade sanitization, verified experts, eco-friendly chemicals, and transparent pricing in Arundelpet, Guntur & AP.`,
+        },
+        {
+          name: "keywords",
+          content: `${formattedName}, ${formattedName} Guntur, deep cleaning ${formattedName}, TheDeep CleanerZ, best cleaning services Guntur, Arundelpet cleaning`,
+        },
+        { name: "robots", content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" },
+        { property: "og:title", content: `${formattedName} Service in Guntur | TheDeep CleanerZ` },
+        {
+          property: "og:description",
+          content: `Luxury ${formattedName} service by verified professionals. Same-day booking available.`,
+        },
+        { property: "og:type", content: "website" },
+        { property: "og:url", content: `https://thedeepcleanerz.in/service-detail?id=${encodeURIComponent(rawId)}` },
+        { property: "og:image", content: "https://thedeepcleanerz.in/logos/logo.png" },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: `${formattedName} | TheDeep CleanerZ` },
+        { name: "twitter:description", content: `Professional ${formattedName} service in Guntur, AP.` },
+        { name: "twitter:image", content: "https://thedeepcleanerz.in/logos/logo.png" },
+      ],
+      links: [
+        { rel: "canonical", href: `https://thedeepcleanerz.in/service-detail?id=${encodeURIComponent(rawId)}` },
+      ],
+    };
+  },
   component: ServiceDetailPage,
 });
 
@@ -540,6 +577,60 @@ function ServiceDetailPage() {
     // 6. Safe ultimate fallback
     return categories[0]?.services?.[0] || FURNISHED_SERVICES[0] || SERVICES[0] || null;
   }, [categories, customizedServices, serviceId]);
+
+  // Dynamic SEO & Structured Data Injection for Search Engines
+  useEffect(() => {
+    if (typeof window !== "undefined" && service) {
+      document.title = `${service.title} in Guntur | TheDeep CleanerZ`;
+
+      // Inject or update dynamic Service JSON-LD Schema
+      const schemaId = "dynamic-service-schema";
+      let scriptTag = document.getElementById(schemaId) as HTMLScriptElement | null;
+      if (!scriptTag) {
+        scriptTag = document.createElement("script");
+        scriptTag.id = schemaId;
+        scriptTag.type = "application/ld+json";
+        document.head.appendChild(scriptTag);
+      }
+
+      const serviceSchema = {
+        "@context": "https://schema.org",
+        "@type": "Service",
+        "name": service.title,
+        "description":
+          service.description ||
+          `${service.title} professional deep cleaning and sanitization service by TheDeep CleanerZ in Guntur, AP.`,
+        "provider": {
+          "@type": "HomeAndConstructionBusiness",
+          "name": "TheDeep CleanerZ",
+          "url": "https://thedeepcleanerz.in",
+          "telephone": "+91 93902 46688",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Arundelpet",
+            "addressLocality": "Guntur",
+            "addressRegion": "Andhra Pradesh",
+            "postalCode": "522002",
+            "addressCountry": "IN",
+          },
+        },
+        "areaServed": [
+          { "@type": "City", "name": "Guntur" },
+          { "@type": "City", "name": "Vijayawada" },
+          { "@type": "AdministrativeArea", "name": "Andhra Pradesh" },
+        ],
+        "offers": {
+          "@type": "Offer",
+          "price": service.price || 499,
+          "priceCurrency": "INR",
+          "availability": "https://schema.org/InStock",
+          "url": `https://thedeepcleanerz.in/service-detail?id=${encodeURIComponent(service.id || serviceId)}`,
+        },
+      };
+
+      scriptTag.text = JSON.stringify(serviceSchema);
+    }
+  }, [service, serviceId]);
 
   // Load verified reviews
   useEffect(() => {

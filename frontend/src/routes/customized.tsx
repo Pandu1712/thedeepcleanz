@@ -44,6 +44,37 @@ export const Route = createFileRoute("/customized")({
       service: typeof search.service === "string" ? search.service : undefined,
     };
   },
+  head: () => ({
+    meta: [
+      { title: "Customized Cleaning Package Builder | TheDeep CleanerZ Guntur" },
+      {
+        name: "description",
+        content:
+          "Build your personalized room-by-room deep cleaning package with TheDeep CleanerZ. Pick exact rooms, bathrooms, kitchens, sofas, and appliances tailored to your home in Guntur, AP.",
+      },
+      {
+        name: "keywords",
+        content:
+          "customized cleaning package, custom cleaning builder, room cleaning Guntur, sofa cleaning, kitchen deep clean, bathroom sanitization, TheDeep CleanerZ custom package, Guntur home cleaning",
+      },
+      { name: "robots", content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" },
+      { property: "og:title", content: "Customized Cleaning Package Builder | TheDeep CleanerZ" },
+      {
+        property: "og:description",
+        content: "Design your custom cleaning plan room by room with verified experts in Guntur.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://thedeepcleanerz.in/customized" },
+      { property: "og:image", content: "https://thedeepcleanerz.in/logos/logo.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Customized Cleaning Builder | TheDeep CleanerZ" },
+      { name: "twitter:description", content: "Pick exact services for your home or office in Guntur." },
+      { name: "twitter:image", content: "https://thedeepcleanerz.in/logos/logo.png" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://thedeepcleanerz.in/customized" },
+    ],
+  }),
   component: CustomizedComponent,
 });
 
@@ -494,10 +525,10 @@ function CustomizedComponent() {
                       Email Concierge
                     </div>
                     <a
-                      href="mailto:hello@thedeepcleanerz.com"
+                      href="mailto:thedeepcleanerz.info@gmail.com"
                       className="text-xs font-bold text-white hover:text-[#cb9f5a] transition-colors"
                     >
-                      hello@thedeepcleanerz.com
+                      thedeepcleanerz.info@gmail.com
                     </a>
                   </div>
                 </div>

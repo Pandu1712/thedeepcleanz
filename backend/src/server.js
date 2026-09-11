@@ -86,6 +86,111 @@ app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "..", "views"));
 app.use(express.static(path.join(__dirname, "..", "public")));
 app.use(express.static(path.join(__dirname, "../../frontend/dist/client")));
+
+// Google Search Console Ownership Verification Route
+app.get(["/google639a710a1902b697.html", "/google639a710a1902b697"], (req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send("google-site-verification: google639a710a1902b697.html");
+});
+
+// Search Engine robots.txt Route
+app.get("/robots.txt", (req, res) => {
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.send(`User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /technician
+Disallow: /technician/*
+Disallow: /api/*
+
+# Host & Sitemap Specifications
+Host: https://thedeepcleanerz.in
+Sitemap: https://thedeepcleanerz.in/sitemap.xml
+`);
+});
+
+// Dynamic XML Sitemap for Search Engines (Google, Bing, Yahoo)
+app.get("/sitemap.xml", async (req, res) => {
+  try {
+    const domain = "https://thedeepcleanerz.in";
+    const today = new Date().toISOString().split("T")[0];
+
+    // Core static URLs
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>${domain}/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>${domain}/logos/logo.png</image:loc>
+      <image:title>TheDeep CleanerZ — Premium Deep Cleaning Services</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>${domain}/services</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>${domain}/customized</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>`;
+
+    // Query categories from database
+    try {
+      const categories = await db.getCategories();
+      if (categories && Array.isArray(categories)) {
+        for (const cat of categories) {
+          xml += `
+  <url>
+    <loc>${domain}/services?category=${encodeURIComponent(cat.id)}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>`;
+        }
+      }
+    } catch (catErr) {
+      console.warn("Sitemap: failed to load dynamic categories:", catErr.message);
+    }
+
+    // Query services from database
+    try {
+      const services = await db.getServices();
+      if (services && Array.isArray(services)) {
+        for (const s of services) {
+          xml += `
+  <url>
+    <loc>${domain}/service-detail?id=${encodeURIComponent(s.id)}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    ${s.image ? `<image:image><image:loc>${s.image.startsWith("http") ? s.image : domain + s.image}</image:loc><image:title>${(s.title || "").replace(/[<>&'"]/g, "")}</image:title></image:image>` : ""}
+  </url>`;
+        }
+      }
+    } catch (svcErr) {
+      console.warn("Sitemap: failed to load dynamic services:", svcErr.message);
+    }
+
+    xml += `\n</urlset>`;
+
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    return res.send(xml);
+  } catch (err) {
+    console.error("Failed to generate dynamic sitemap.xml:", err);
+    res.status(500).send("Error generating sitemap");
+  }
+});
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride("_method"));
