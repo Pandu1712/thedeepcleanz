@@ -1,53 +1,40 @@
 /**
- * TheDeep CleanerZ - High Performance Service Worker
- * Features:
- * - Ultra-fast Network-First for Navigation & API requests (prevents stale cached pages)
- * - Intelligent SPA Shell fallback for offline / spotty connections (eliminates 404 errors)
- * - Cache-First for static images & fonts for blazing load speeds
- * - Automatic cache purging on new deployments
+ * TheDeep CleanerZ - Ultra-Fast Service Worker
+ * Architecture:
+ * - HTML Documents: Always Network-First (Never cache stale HTML with outdated CSS hashes)
+ * - CSS & JS Assets: Let browser native HTTP cache handle with immutable hashes (Prevents FOUC / unstyled flash)
+ * - Offline API Fallback: Cache-safe fallback for catalog/reviews
+ * - Auto-purges all legacy caches on activation
  */
 
-const CACHE_NAME = "thedeepcleanz-static-v4";
-const API_CACHE_NAME = "thedeepcleanz-api-v4";
+const API_CACHE_NAME = "thedeepcleanz-api-v5";
 
-const PRECACHE_ASSETS = [
-  "/",
-  "/services",
-  "/customized",
-  "/my-bookings",
-  "/login",
-  "/favicon.png",
-  "/logos/logo.png",
-  "/manifest.json",
-];
-
-// Install: Pre-cache essential app shell assets and activate immediately
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS).catch((err) => {
-        console.warn("Pre-cache warning during SW install:", err);
-      });
-    })
-  );
+// Install: Activate immediately
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
-// Activate: Purge any old/outdated caches immediately
+// Listen for skipWaiting messages from client
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.action === "skipWaiting") {
+    self.skipWaiting();
+  }
+});
+
+// Activate: Immediately purge all legacy caches to fix any stale CSS / HTML in existing user browsers
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME && key !== API_CACHE_NAME) {
-            console.log("Removing outdated service worker cache:", key);
+          if (key !== API_CACHE_NAME) {
+            console.log("Purging old service worker cache:", key);
             return caches.delete(key);
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 // Fetch Interception
@@ -55,35 +42,31 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Ignore non-GET requests and browser extensions
-  if (req.method !== "GET" || (!url.origin.startsWith(self.location.origin) && !url.origin.includes("fonts.gstatic.com") && !url.origin.includes("fonts.googleapis.com") && !url.origin.includes("res.cloudinary.com"))) {
+  // 1. Only handle GET requests from the same origin or specific CDNs
+  if (req.method !== "GET" || (!url.origin.startsWith(self.location.origin) && !url.origin.includes("res.cloudinary.com"))) {
     return;
   }
 
-  // 1. Navigation Requests (HTML pages): Network-First with SPA Shell Fallback (Never 404)
+  // 2. DO NOT intercept CSS and JS assets (/assets/*.css, /assets/*.js)
+  // Let browser HTTP cache handle hashed assets directly for maximum speed and zero FOUC
+  if (url.pathname.startsWith("/assets/") || url.pathname.endsWith(".css") || url.pathname.endsWith(".js")) {
+    return;
+  }
+
+  // 3. Navigation Requests (HTML pages): Pass directly to network so user always gets the latest CSS/JS hashes
   if (req.mode === "navigate") {
     event.respondWith(
-      fetch(req)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
-          }
-          return networkResponse;
-        })
-        .catch(async () => {
-          const cached = await caches.match(req);
-          if (cached) return cached;
-          // Fallback to cached home shell for client-side routing
-          const shell = await caches.match("/");
-          if (shell) return shell;
-          return new Response("Offline - Please check your connection", { status: 503 });
-        })
+      fetch(req).catch(() => {
+        return new Response(
+          `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Offline - TheDeep CleanerZ</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:system-ui,-apple-system,sans-serif;background:#FBFBF9;color:#002A22;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;text-align:center}div{background:#fff;border:1px solid #e2e8f0;padding:32px;border-radius:24px;max-width:400px;box-shadow:0 10px 25px rgba(0,0,0,0.05)}h1{margin:0 0 8px;font-size:20px}p{color:#64748b;font-size:14px;margin:0 0 20px}button{background:#007A48;color:#fff;border:none;padding:12px 24px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer}</style></head><body><div><h1>You are Offline</h1><p>Please check your internet connection to continue browsing.</p><button onclick="window.location.reload()">Retry Connection</button></div></body></html>`,
+          { headers: { "Content-Type": "text/html; charset=utf-8" }, status: 503 }
+        );
+      })
     );
     return;
   }
 
-  // 2. Dynamic API Endpoints: Network-First with Cache Fallback for instant fresh data
+  // 4. API Endpoints: Network-First with safe offline JSON fallback
   if (url.pathname.startsWith("/api/catalog") || url.pathname.startsWith("/api/customized-services") || url.pathname.startsWith("/api/transformations") || url.pathname.startsWith("/api/coupons") || url.pathname.startsWith("/api/reviews")) {
     event.respondWith(
       fetch(req)
@@ -102,47 +85,6 @@ self.addEventListener("fetch", (event) => {
             status: 200,
           });
         })
-    );
-    return;
-  }
-
-  // 3. Vite Hashed Assets (/assets/*.js, /assets/*.css): Network-First / Stale-While-Revalidate
-  if (url.pathname.includes("/assets/")) {
-    event.respondWith(
-      caches.match(req).then((cached) => {
-        const fetchPromise = fetch(req)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              const copy = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
-            }
-            return networkResponse;
-          })
-          .catch(() => cached);
-
-        return cached || fetchPromise;
-      })
-    );
-    return;
-  }
-
-  // 4. Static Images & Web Fonts: Cache-First with Background Revalidation for max speed
-  if (
-    url.pathname.match(/\.(png|jpg|jpeg|svg|webp|ico|woff|woff2|ttf)$/) ||
-    url.hostname.includes("fonts.gstatic.com") ||
-    url.hostname.includes("res.cloudinary.com")
-  ) {
-    event.respondWith(
-      caches.match(req).then((cached) => {
-        if (cached) return cached;
-        return fetch(req).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
-          }
-          return networkResponse;
-        }).catch(() => cached);
-      })
     );
     return;
   }

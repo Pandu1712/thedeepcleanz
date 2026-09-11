@@ -41,31 +41,52 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error("Application error:", error);
   const router = useRouter();
 
+  useEffect(() => {
+    const msg = error?.message || "";
+    if (
+      msg.includes("Failed to fetch dynamically imported module") ||
+      msg.includes("Importing a module script failed") ||
+      msg.includes("Loading chunk") ||
+      msg.includes("dynamically imported")
+    ) {
+      const now = Date.now();
+      const lastReload = Number(sessionStorage.getItem("last_chunk_reload") || "0");
+      if (now - lastReload > 10000) {
+        sessionStorage.setItem("last_chunk_reload", String(now));
+        window.location.reload();
+      }
+    }
+  }, [error]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 font-sans">
+      <div className="max-w-md text-center p-8 bg-white rounded-3xl border border-[#cb9f5a]/30 shadow-xl">
+        <div className="h-12 w-12 mx-auto mb-4 rounded-2xl bg-[#007A48]/10 text-[#007A48] flex items-center justify-center font-black text-xl">
+          ✨
+        </div>
+        <h1 className="text-xl font-bold tracking-tight text-[#002A22]">
+          Quick Refresh Needed
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+        <p className="mt-2 text-sm text-slate-500 font-medium leading-relaxed">
+          The app was updated with a new version or your connection experienced a momentary interruption.
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button
             onClick={() => {
-              router.invalidate();
-              reset();
+              window.location.reload();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-xl bg-[#007A48] px-5 py-2.5 text-sm font-bold text-white transition-transform hover:scale-[1.02] shadow-md cursor-pointer"
           >
-            Try again
+            Reload Page
           </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          <button
+            onClick={() => {
+              window.location.href = "/";
+            }}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 cursor-pointer"
           >
-            Go home
-          </a>
+            Go to Home
+          </button>
         </div>
       </div>
     </div>
@@ -237,13 +258,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", sizes: "180x180", href: "/logos/logo.png" },
       { rel: "shortcut icon", type: "image/png", href: "/logos/logo.png" },
       { rel: "manifest", href: "/manifest.json" },
+      { rel: "stylesheet", href: import.meta.env.DEV ? `${appCss}?direct` : appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,100..900;1,100..900&family=Urbanist:wght@300;400;500;600;700;800&family=Epilogue:wght@500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap",
       },
-      { rel: "stylesheet", href: import.meta.env.DEV ? `${appCss}?direct` : appCss },
     ],
   }),
   shellComponent: RootShell,
@@ -383,13 +404,28 @@ function RootComponent() {
       window.addEventListener("online", handleOnlineStatus);
       window.addEventListener("offline", handleOfflineStatus);
 
-      // Register Custom Service Worker
+      // Register Custom Service Worker with Instant Update
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker
             .register("/sw.js")
             .then((reg) => {
               console.log("Service Worker registered scope:", reg.scope);
+              // Proactively check for updates on cold visit
+              reg.update();
+              if (reg.waiting) {
+                reg.waiting.postMessage({ action: "skipWaiting" });
+              }
+              reg.addEventListener("updatefound", () => {
+                const newWorker = reg.installing;
+                if (newWorker) {
+                  newWorker.addEventListener("statechange", () => {
+                    if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                      newWorker.postMessage({ action: "skipWaiting" });
+                    }
+                  });
+                }
+              });
             })
             .catch((err) => {
               console.error("Service Worker registration failed:", err);
