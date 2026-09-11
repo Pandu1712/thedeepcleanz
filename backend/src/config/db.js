@@ -2910,17 +2910,47 @@ async function initDb() {
   }
 }
 
+// High-speed In-Memory Cache for ultra-fast API response times (< 1ms)
+const memCache = new Map();
+const CACHE_TTL_MS = 60 * 1000; // 1 minute fresh cache
+
+function getCached(key) {
+  const item = memCache.get(key);
+  if (item && Date.now() - item.time < CACHE_TTL_MS) {
+    return item.data;
+  }
+  return null;
+}
+
+function setCache(key, data) {
+  memCache.set(key, { data, time: Date.now() });
+}
+
+function invalidateCache(...keys) {
+  if (keys.length === 0) {
+    memCache.clear();
+  } else {
+    keys.forEach((k) => memCache.delete(k));
+  }
+}
+
 // Database methods
 module.exports = {
   pool,
-query,
+  query,
   initDb,
+  invalidateCache,
 
   // Recent Transformations
   async getRecentTransformations() {
-    return await query("SELECT * FROM recent_transformations ORDER BY createdAt DESC");
+    const cached = getCached("recent_transformations");
+    if (cached) return cached;
+    const rows = await query("SELECT * FROM recent_transformations ORDER BY createdAt DESC");
+    setCache("recent_transformations", rows);
+    return rows;
   },
   async addRecentTransformation({ id, title, location, beforeImage, afterImage }) {
+    invalidateCache("recent_transformations");
     await query(
       "INSERT INTO recent_transformations (id, title, location, beforeImage, afterImage) VALUES (?, ?, ?, ?, ?)",
       [id, title, location, beforeImage, afterImage]
@@ -2928,6 +2958,7 @@ query,
     return { id, title, location, beforeImage, afterImage };
   },
   async updateRecentTransformation(id, { title, location, beforeImage, afterImage }) {
+    invalidateCache("recent_transformations");
     await query(
       "UPDATE recent_transformations SET title = ?, location = ?, beforeImage = ?, afterImage = ? WHERE id = ?",
       [title, location, beforeImage, afterImage, id]
@@ -2935,19 +2966,25 @@ query,
     return { id, title, location, beforeImage, afterImage };
   },
   async deleteRecentTransformation(id) {
+    invalidateCache("recent_transformations");
     await query("DELETE FROM recent_transformations WHERE id = ?", [id]);
     return { id };
   },
 
   // Categories
   async getCategories() {
+    const cached = getCached("categories");
+    if (cached) return cached;
     const rows = await query("SELECT * FROM categories");
-    return rows.map((r) => ({
+    const result = rows.map((r) => ({
       ...r,
       includes: typeof r.includes === "string" ? JSON.parse(r.includes) : r.includes || [],
     }));
+    setCache("categories", result);
+    return result;
   },
   async addCategory({ id, title, tagline, emoji, image, parentId, includes }) {
+    invalidateCache("categories", "catalog");
     await query(
       "INSERT INTO categories (id, title, tagline, emoji, image, parentId, includes) VALUES (?, ?, ?, ?, ?, ?, ?)",
       [id, title, tagline, emoji, image || null, parentId || null, JSON.stringify(includes || [])],
@@ -2955,6 +2992,7 @@ query,
     return { id, title, tagline, emoji, image, parentId, includes };
   },
   async updateCategory(id, { title, tagline, emoji, image, parentId, includes }) {
+    invalidateCache("categories", "catalog");
     await query(
       "UPDATE categories SET title = ?, tagline = ?, emoji = ?, image = ?, parentId = ?, includes = ? WHERE id = ?",
       [title, tagline, emoji, image, parentId || null, JSON.stringify(includes || []), id],
@@ -2962,13 +3000,16 @@ query,
     return { id, title, tagline, emoji, image, parentId, includes };
   },
   async deleteCategory(id) {
+    invalidateCache("categories", "catalog");
     await query("DELETE FROM categories WHERE id = ?", [id]);
     return true;
   },
 
   async getServices() {
+    const cached = getCached("services");
+    if (cached) return cached;
     const rows = await query("SELECT * FROM services");
-    return rows.map((r) => ({
+    const result = rows.map((r) => ({
       ...r,
       paymentType: r.payment_type || "full",
       includes:
@@ -2981,6 +3022,8 @@ query,
           ? JSON.parse(r.precautions)
           : r.precautions || [],
     }));
+    setCache("services", result);
+    return result;
   },
   async addService({
     id,
@@ -2996,6 +3039,7 @@ query,
     paymentType,
     precautions,
   }) {
+    invalidateCache("services", "catalog");
     const incString = JSON.stringify(includes || []);
     const plansString = JSON.stringify(plans || []);
     const precautionsString = JSON.stringify(precautions || []);
@@ -3047,6 +3091,7 @@ query,
       precautions,
     },
   ) {
+    invalidateCache("services", "catalog");
     const incString = JSON.stringify(includes || []);
     const plansString = JSON.stringify(plans || []);
     const precautionsString = JSON.stringify(precautions || []);
@@ -3083,6 +3128,7 @@ query,
     };
   },
   async deleteService(id) {
+    invalidateCache("services", "catalog");
     await query("DELETE FROM services WHERE id = ?", [id]);
     return true;
   },
@@ -3095,25 +3141,28 @@ query,
     );
   },
   async getAllReviews() {
-    return await query(
-      "SELECT * FROM reviews ORDER BY createdAt DESC LIMIT 20",
-    );
+    return await query("SELECT * FROM reviews ORDER BY createdAt DESC");
   },
-  async addReview({ id, serviceId, userName, rating, comment }) {
-    const createdAt = new Date().toISOString();
+  async addReview({ id, serviceId, userName, rating, comment, createdAt }) {
+    const createdDate = createdAt || new Date().toISOString();
     await query(
       "INSERT INTO reviews (id, serviceId, userName, rating, comment, createdAt) VALUES (?, ?, ?, ?, ?, ?)",
-      [id, serviceId, userName, Number(rating) || 5, comment || "", createdAt],
+      [id, serviceId, userName, Number(rating), comment, createdDate],
     );
-    return { id, serviceId, userName, rating, comment, createdAt };
+    return { id, serviceId, userName, rating, comment, createdAt: createdDate };
+  },
+  async deleteReview(id) {
+    await query("DELETE FROM reviews WHERE id = ?", [id]);
+    return true;
   },
 
   // Bookings
   async getBookings() {
     const rows = await query(`
-      SELECT b.*, t.name as technicianName, t.phone as technicianPhone, t.specialty as technicianSpecialty, t.status as technicianStatus, t.lat as technicianLat, t.lng as technicianLng, t.lastPing as technicianLastPing
+      SELECT b.*, t.name as technicianName, t.phone as technicianPhone, t.email as technicianEmail, t.specialty as technicianSpecialty, t.status as technicianStatus, t.lat as technicianLat, t.lng as technicianLng, t.lastPing as technicianLastPing
       FROM bookings b
       LEFT JOIN technicians t ON b.technicianId = t.id
+      ORDER BY b.id DESC
     `);
 
     // Get all reschedule logs
@@ -3147,6 +3196,7 @@ query,
             id: r.technicianId,
             name: r.technicianName,
             phone: r.technicianPhone,
+            email: r.technicianEmail,
             specialty: r.technicianSpecialty,
             status: r.technicianStatus,
             lat: r.technicianLat ? Number(r.technicianLat) : null,
@@ -3262,14 +3312,19 @@ query,
   },
   // Customized Services
   async getCustomizedServices() {
+    const cached = getCached("customized_services");
+    if (cached) return cached;
     const rows = await query("SELECT * FROM customized_services");
-    return rows.map((r) => ({
+    const result = rows.map((r) => ({
       ...r,
       paymentType: r.payment_type || "full",
       plans: typeof r.plans === "string" ? JSON.parse(r.plans) : r.plans || [],
     }));
+    setCache("customized_services", result);
+    return result;
   },
   async addCustomizedService({ id, title, price, image, plans, paymentType }) {
+    invalidateCache("customized_services");
     const plansString = JSON.stringify(plans || []);
     await query(
       "INSERT INTO customized_services (id, title, price, image, plans, payment_type) VALUES (?, ?, ?, ?, ?, ?)",
@@ -3278,6 +3333,7 @@ query,
     return { id, title, price, image, plans, paymentType: paymentType || "full" };
   },
   async updateCustomizedService(id, { title, price, image, plans, paymentType }) {
+    invalidateCache("customized_services");
     const plansString = JSON.stringify(plans || []);
     await query(
       "UPDATE customized_services SET title = ?, price = ?, image = ?, plans = ?, payment_type = ? WHERE id = ?",
@@ -3286,6 +3342,7 @@ query,
     return { id, title, price, image, plans, paymentType: paymentType || "full" };
   },
   async deleteCustomizedService(id) {
+    invalidateCache("customized_services");
     await query("DELETE FROM customized_services WHERE id = ?", [id]);
     return true;
   },
@@ -3359,9 +3416,14 @@ query,
     return true;
   },
   async getCoupons() {
-    return await query("SELECT * FROM coupons ORDER BY code ASC");
+    const cached = getCached("coupons");
+    if (cached) return cached;
+    const rows = await query("SELECT * FROM coupons ORDER BY code ASC");
+    setCache("coupons", rows);
+    return rows;
   },
   async addCoupon({ code, discount, minAmount, expiryDate, isActive }) {
+    invalidateCache("coupons");
     await query(
       "INSERT INTO coupons (code, discount, minAmount, expiryDate, isActive) VALUES (?, ?, ?, ?, ?)",
       [
@@ -3381,6 +3443,7 @@ query,
     };
   },
   async updateCoupon(code, { discount, minAmount, expiryDate, isActive }) {
+    invalidateCache("coupons");
     await query(
       "UPDATE coupons SET discount = ?, minAmount = ?, expiryDate = ?, isActive = ? WHERE code = ?",
       [Number(discount), Number(minAmount), expiryDate, isActive ? 1 : 0, code],
@@ -3388,6 +3451,7 @@ query,
     return { code, discount, minAmount, expiryDate, isActive };
   },
   async deleteCoupon(code) {
+    invalidateCache("coupons");
     await query("DELETE FROM coupons WHERE code = ?", [code]);
     return true;
   },

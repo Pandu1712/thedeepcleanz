@@ -84,8 +84,23 @@ app.use((req, res, next) => {
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "..", "views"));
-app.use(express.static(path.join(__dirname, "..", "public")));
-app.use(express.static(path.join(__dirname, "../../frontend/dist/client")));
+app.use(express.static(path.join(__dirname, "..", "public"), {
+  maxAge: "1d",
+  etag: true,
+}));
+app.use(express.static(path.join(__dirname, "../../frontend/dist/client"), {
+  maxAge: "7d",
+  etag: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith(".html") || filePath.endsWith("sw.js") || filePath.endsWith("manifest.json")) {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+    } else if (filePath.includes("/assets/")) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    }
+  },
+}));
 
 // Google Search Console Ownership Verification Route
 app.get(["/google639a710a1902b697.html", "/google639a710a1902b697"], (req, res) => {
@@ -382,6 +397,7 @@ app.delete('/bookings/:id', requireAuth, async (req, res) => {
 // ===== Public JSON API (for the frontend to consume) =====
 app.get("/api/catalog", async (req, res) => {
   try {
+    res.setHeader("Cache-Control", "public, max-age=30, s-maxage=60, stale-while-revalidate=120");
     const categories = await db.getCategories();
     const services = await db.getServices();
     res.json({ categories, services });
@@ -1860,6 +1876,7 @@ app.delete("/api/services/:id", async (req, res) => {
 // Customized Services API
 app.get("/api/customized-services", async (req, res) => {
   try {
+    res.setHeader("Cache-Control", "public, max-age=30, s-maxage=60, stale-while-revalidate=120");
     const list = await db.getCustomizedServices();
     res.json(list || []);
   } catch (err) {
@@ -2129,13 +2146,21 @@ async function loadFrontendHandler() {
   }
 }
 
-// Fallback all non-API, non-admin routes to TanStack Start SSR
+// Fallback all non-API, non-admin routes to TanStack Start SSR or Client SPA
 app.all("*", async (req, res, next) => {
   if (req.path.startsWith("/api")) {
     return next();
   }
 
+  const clientIndexPath = path.join(
+    __dirname,
+    "../../frontend/dist/client/index.html",
+  );
+
   if (!startHandler) {
+    if (fs.existsSync(clientIndexPath)) {
+      return res.sendFile(clientIndexPath);
+    }
     return res
       .status(503)
       .send(
@@ -2172,6 +2197,11 @@ app.all("*", async (req, res, next) => {
     const webReq = new Request(url, requestOptions);
     const webRes = await startHandler.fetch(webReq);
 
+    // If SSR returned 404 or an error, fallback to client SPA index.html so client router can resolve
+    if (webRes.status === 404 && req.method === "GET" && fs.existsSync(clientIndexPath)) {
+      return res.sendFile(clientIndexPath);
+    }
+
     res.status(webRes.status);
 
     webRes.headers.forEach((value, key) => {
@@ -2182,6 +2212,9 @@ app.all("*", async (req, res, next) => {
     res.send(bodyText);
   } catch (err) {
     console.error("Error in TanStack Start SSR handler:", err);
+    if (fs.existsSync(clientIndexPath)) {
+      return res.sendFile(clientIndexPath);
+    }
     res.status(500).send("SSR Render Error");
   }
 });

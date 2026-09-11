@@ -294,6 +294,7 @@ function CustomizedComponent() {
         onOpenLocation={() => setLocationModalOpen(true)}
         activeHash=""
         isSubPage={true}
+        hideMobileNav={cartOpen || bookingOpen || locationModalOpen || selectedService !== null}
       />
 
       {/* HERO / TITLE SECTION */}

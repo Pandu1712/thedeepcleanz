@@ -563,6 +563,7 @@ function ServicesComponent() {
         activeHash=""
         isSubPage={true}
         showTopBanner={false}
+        hideMobileNav={cartOpen || bookingOpen || locationModalOpen || detail !== null}
       />
 
       {/* SERVICES HERO HEADER - Hidden on mobile to save vertical screen space */}

@@ -2367,6 +2367,7 @@ function Index() {
         onOpenReferral={() => setReferralModalOpen(true)}
         activeHash={activeHash}
         isSubPage={false}
+        hideMobileNav={cartOpen || bookingOpen || locationModalOpen || referralModalOpen || !!quickBookService}
       />
 
       {/* HERO SECTION - REDESIGNED EXACTLY AS REFERENCE DESIGN */}
@@ -4616,7 +4617,7 @@ export function CartDrawer({
         className="flex h-full w-full max-w-md flex-col bg-[#faf8f5] shadow-2xl border-l border-[#cb9f5a]/20 animate-slide-in-right font-sans"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-[#cb9f5a]/15 p-5">
+        <div className="flex items-center justify-between border-b border-[#cb9f5a]/15 p-5 shrink-0">
           <div className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5 text-[#cb9f5a]" />
             <h3 className="font-display text-xl font-bold text-[#002a22]">Your Cart</h3>
@@ -4632,7 +4633,7 @@ export function CartDrawer({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+        <div className="flex-1 overflow-y-auto min-h-0 p-5 space-y-6">
           {cart.length === 0 ? (
             <div className="grid h-28 place-items-center text-center py-12">
               <div>
@@ -4760,7 +4761,7 @@ export function CartDrawer({
         </div>
 
         {cart.length > 0 && (
-          <div className="border-t border-[#cb9f5a]/15 p-5 bg-white/70">
+          <div className="shrink-0 border-t border-[#cb9f5a]/15 p-4 sm:p-5 pb-[max(env(safe-area-inset-bottom,0px),16px)] bg-white/95 backdrop-blur-md shadow-[0_-8px_25px_rgba(0,0,0,0.06)]">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                 Total Amount
@@ -4775,9 +4776,11 @@ export function CartDrawer({
             </div>
             <button
               onClick={onCheckout}
-              className="mt-4 w-full rounded-xl gradient-gold py-3.5 font-bold text-navy shadow-gold transition-transform hover:scale-[1.02] cursor-pointer"
+              className="mt-3.5 w-full rounded-xl gradient-gold py-3.5 font-bold text-navy shadow-gold transition-transform hover:scale-[1.02] active:scale-98 cursor-pointer flex items-center justify-center gap-2"
             >
-              Proceed to Checkout · ₹{total}
+              <span>Proceed to Checkout</span>
+              <span className="opacity-75">·</span>
+              <span>₹{total}</span>
             </button>
           </div>
         )}
@@ -5873,7 +5876,7 @@ export function BookingModal({
         )}
 
         {/* Scrollable Checkout Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 pb-28">
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-5 space-y-4 pb-4">
           {success ? (
             <div className="grid place-items-center py-12 text-center bg-white rounded-3xl p-6 border border-emerald-100 shadow-sm animate-in zoom-in-95 duration-200">
               <div className="h-16 w-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-3xl shadow-sm mb-4">
@@ -6554,7 +6557,7 @@ export function BookingModal({
 
         {/* SECTION 8: PRIMARY STICKY BOTTOM ACTION CTA (Matching Video) */}
         {!success && (
-          <div className="fixed sm:absolute bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 p-3.5 px-4 shadow-[0_-8px_25px_rgba(0,0,0,0.08)]">
+          <div className="shrink-0 bg-white/98 backdrop-blur-md border-t border-slate-200 p-3.5 px-4 pb-[max(env(safe-area-inset-bottom,0px),14px)] shadow-[0_-8px_25px_rgba(0,0,0,0.08)]">
             <div className="flex items-center justify-between gap-3 max-w-xl mx-auto">
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">

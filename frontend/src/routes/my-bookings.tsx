@@ -609,6 +609,7 @@ function MyBookingsPage() {
         onOpenLocation={() => setLocationModalOpen(true)}
         activeHash=""
         isSubPage={true}
+        hideMobileNav={cartOpen || bookingOpen || locationModalOpen || rescheduleModalOpen || cancellingBooking !== null || reviewModalOpen}
       />
 
       {/* MAIN CONTENT */}
