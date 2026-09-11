@@ -234,10 +234,11 @@ function CustomizedComponent() {
   const completeBooking = () => {
     setCart([]);
     setBookingOpen(false);
-    toast.success("Booking confirmed! Our team will call you shortly.", {
-      icon: "✨",
-      duration: 5000,
+    toast.success("Booking confirmed! Redirecting to your bookings...", {
+      icon: "🎉",
+      duration: 4000,
     });
+    navigate({ to: "/my-bookings" });
   };
 
   const handleAddPlanToCart = (s: AdminCustomizedService, plan: any) => {
@@ -313,7 +314,7 @@ function CustomizedComponent() {
       </section>
 
       {/* MAIN CONTENT GRID */}
-      <main className="mx-auto max-w-7xl px-5 py-12 lg:px-8">
+      <main className="mx-auto max-w-[1440px] 2xl:max-w-[1560px] px-3.5 sm:px-6 lg:px-8 2xl:px-10 py-8 sm:py-12">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-gold border-t-transparent mb-4" />
@@ -322,16 +323,16 @@ function CustomizedComponent() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {services.map((s) => (
               <div
                 key={s.id}
                 onClick={() => setSelectedService(s)}
-                className="group relative overflow-hidden rounded-none text-left transition-all duration-500 border border-[#cb9f5a]/20 bg-white shadow-[0_10px_35px_-10px_rgba(0,42,34,0.08)] hover:border-[#cb9f5a]/80 hover:shadow-[0_22px_55px_-12px_rgba(0,42,34,0.15)] flex flex-col p-5 cursor-pointer hover:-translate-y-2.5 justify-between"
+                className="group relative overflow-hidden rounded-2xl text-left transition-all duration-300 border border-slate-200/90 bg-white shadow-xs hover:border-[#0B6B46] hover:shadow-xl flex flex-col p-4 sm:p-5 cursor-pointer hover:-translate-y-1.5 justify-between"
               >
                 <div>
                   {/* Aspect Ratio 4:3 Image */}
-                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-none bg-slate-100 flex-shrink-0">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-100 flex-shrink-0">
                     <img
                       src={
                         s.image ||
@@ -339,48 +340,49 @@ function CustomizedComponent() {
                       }
                       alt={s.title}
                       loading="lazy"
-                      className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                      className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                     />
 
                     {/* Floating Rating Badge on Top Right */}
-                    <span className="absolute top-3.5 right-3.5 rounded-full bg-[#002a22]/90 backdrop-blur-md border border-white/20 text-[#cb9f5a] px-3.5 py-1 text-[10px] font-extrabold uppercase tracking-widest shadow-md">
+                    <span className="absolute top-3 right-3 rounded-full bg-[#002a22]/90 backdrop-blur-md border border-white/20 text-[#cb9f5a] px-3 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shadow-md">
                       ⭐ 4.83 Stars
                     </span>
 
                     {/* Floating Fav Button */}
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         toggleFav(s.id);
                       }}
-                      className="absolute top-3.5 left-3.5 grid h-8 w-8 place-items-center rounded-none bg-white border border-[#cb9f5a]/30 text-slate-650 shadow-md hover:bg-[#002a22] hover:text-[#cb9f5a] transition-all duration-300 z-10"
+                      className="absolute top-3 left-3 grid h-8 w-8 place-items-center rounded-xl bg-white border border-slate-200 text-slate-600 shadow-md hover:bg-[#002a22] hover:text-[#cb9f5a] transition-all duration-300 z-10 cursor-pointer active:scale-90"
                     >
                       <Heart
-                        className={`h-4.5 w-4.5 ${favs.includes(s.id) ? "fill-red-500 text-red-500 border-red-500" : ""}`}
+                        className={`h-4 w-4 ${favs.includes(s.id) ? "fill-red-500 text-red-500" : ""}`}
                       />
                     </button>
                   </div>
 
                   {/* Body Content */}
-                  <div className="mt-6 px-1">
-                    <h3 className="font-display text-lg font-bold text-[#002a22] group-hover:text-[#cb9f5a] transition-colors leading-snug">
+                  <div className="mt-4 px-1">
+                    <h3 className="font-sans text-base sm:text-lg font-bold text-[#002a22] group-hover:text-[#0B6B46] transition-colors leading-snug">
                       {s.title}
                     </h3>
-                    <div className="mt-3 flex items-baseline gap-1.5">
+                    <div className="mt-2.5 flex items-baseline gap-1.5">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                         Starts At
                       </span>
-                      <span className="text-xl font-black text-[#002a22]">₹{s.price}</span>
+                      <span className="text-lg sm:text-xl font-black text-[#002a22]">₹{s.price}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Premium Action Divider & Text Button */}
-                <div className="mt-5 px-1 pt-3 border-t border-[#cb9f5a]/15 flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#cb9f5a] transition-transform group-hover:translate-x-1">
+                <div className="mt-4 px-1 pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0B6B46] transition-transform group-hover:translate-x-1">
                     View Service Plans <ArrowRight className="h-4 w-4" />
                   </span>
-                  <span className="text-[10px] font-bold text-[#002a22]/40 group-hover:text-[#002a22]/80 transition-colors uppercase tracking-wider">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     Customize →
                   </span>
                 </div>

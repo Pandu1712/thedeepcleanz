@@ -389,8 +389,8 @@ export default function Header({
     <div className="fixed top-0 left-0 right-0 z-45 font-sans">
       {/* TOP TRUST & LOCATION BANNER (WHEN ENABLED - TABLET & DESKTOP ONLY) */}
       {showTopBanner && (
-        <div className="hidden md:block bg-[#002A22] text-white text-[11px] font-medium py-1.5 px-4 sm:px-6 lg:px-8 border-b border-[#003B2B]/60 select-none">
-          <div className="mx-auto flex max-w-[1400px] items-center justify-between">
+        <div className="hidden md:block bg-[#002A22] text-white text-[11px] font-medium py-1.5 px-4 sm:px-6 lg:px-8 2xl:px-10 border-b border-[#003B2B]/60 select-none">
+          <div className="mx-auto flex max-w-[1440px] 2xl:max-w-[1560px] items-center justify-between">
             {/* Left: Location pill */}
             <button
               type="button"
@@ -425,7 +425,7 @@ export default function Header({
 
       {/* HEADER - CLEAN MODERN WHITE REDESIGN MATCHING REFERENCE DESIGN */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] transition-all duration-300 pt-[max(env(safe-area-inset-top,0px),12px)] sm:pt-0">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-3 sm:px-6 lg:px-8 py-2 sm:py-3.5">
+        <div className="mx-auto flex max-w-[1440px] 2xl:max-w-[1560px] items-center justify-between px-3.5 sm:px-6 lg:px-8 2xl:px-10 py-2.5 sm:py-3.5">
           {/* Left: Brand Logo & Dynamic Location Selector */}
           <div className="flex items-center gap-2 sm:gap-5 min-w-0">
             <div className="flex flex-col select-none min-w-0">

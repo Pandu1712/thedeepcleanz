@@ -431,10 +431,11 @@ function ServicesComponent() {
   const completeBooking = () => {
     setCart([]);
     setBookingOpen(false);
-    toast.success("Booking confirmed! Our team will call you shortly.", {
-      icon: "✨",
-      duration: 5000,
+    toast.success("Booking confirmed! Redirecting to your bookings...", {
+      icon: "🎉",
+      duration: 4000,
     });
+    navigate({ to: "/my-bookings" });
   };
 
   const addDefaultServiceToCart = (s: Service) => {
@@ -566,7 +567,7 @@ function ServicesComponent() {
 
       {/* SERVICES HERO HEADER - Hidden on mobile to save vertical screen space */}
       <section className="hidden lg:block relative overflow-hidden bg-[#FBFBF9] text-[#111827] pt-8 sm:pt-12 pb-6 sm:pb-8 font-sans">
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1440px] 2xl:max-w-[1560px] px-4 sm:px-6 lg:px-8 2xl:px-10">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
             {/* Left Side: Eyebrow, Title & Subtitle */}
             <div className="max-w-xl text-left">
@@ -610,7 +611,7 @@ function ServicesComponent() {
       </section>
 
       {/* SPLIT SCREEN SIDEBAR & SERVICES LAYOUT */}
-      <section className="mx-auto max-w-[1400px] px-3 sm:px-6 lg:px-8 pt-3 lg:pt-0 pb-12">
+      <section className="mx-auto max-w-[1440px] 2xl:max-w-[1560px] px-3.5 sm:px-6 lg:px-8 2xl:px-10 pt-3 lg:pt-0 pb-12">
         {/* COMPACT MOBILE NAVIGATION */}
         <div className="block lg:hidden mb-3">
           {activeSubId ? (
@@ -1027,8 +1028,8 @@ function ServicesComponent() {
 
                       {/* Right: Price & CTA */}
                       <div className="flex md:flex-col items-center md:items-end justify-between md:justify-center gap-3 w-full md:w-auto shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                          <Tag className="h-3.5 w-3.5 text-[#007A48]" />
+                        <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-800 shrink-0">
+                          <Tag className="h-3.5 w-3.5 text-[#007A48] shrink-0" />
                           <span>{s.price && s.price > 0 ? `Starts ₹${getServicePrice(s.price)}` : "Customized Price"}</span>
                         </div>
                         <button
@@ -1037,9 +1038,10 @@ function ServicesComponent() {
                             e.stopPropagation();
                             navigate({ to: "/service-detail", search: { id: s.id } });
                           }}
-                          className="bg-[#007A48] hover:bg-[#00623A] text-white text-xs font-bold px-5 py-2.5 rounded-lg flex items-center gap-1.5 transition-all shadow-3xs cursor-pointer active:scale-95"
+                          className="btn-luxury-primary text-xs py-2 px-4.5 min-h-[38px] sm:min-h-[42px] shrink-0"
                         >
-                          View Details <ArrowRight className="h-3.5 w-3.5" />
+                          <span>View Details</span>
+                          <ArrowRight className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </article>
@@ -1101,8 +1103,8 @@ function ServicesComponent() {
 
                       {/* Right: Price & CTA */}
                       <div className="flex md:flex-col items-center md:items-end justify-between md:justify-center gap-3 w-full md:w-auto shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                          <Tag className="h-3.5 w-3.5 text-[#007A48]" />
+                        <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-800 shrink-0">
+                          <Tag className="h-3.5 w-3.5 text-[#007A48] shrink-0" />
                           <span>{pkg.priceText}</span>
                         </div>
                         <button
@@ -1111,9 +1113,10 @@ function ServicesComponent() {
                             e.stopPropagation();
                             pkg.onAction();
                           }}
-                          className="bg-[#007A48] hover:bg-[#00623A] text-white text-xs font-bold px-5 py-2.5 rounded-lg flex items-center gap-1.5 transition-all shadow-3xs cursor-pointer active:scale-95"
+                          className="btn-luxury-primary text-xs py-2 px-4.5 min-h-[38px] sm:min-h-[42px] shrink-0"
                         >
-                          View Details <ArrowRight className="h-3.5 w-3.5" />
+                          <span>View Details</span>
+                          <ArrowRight className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </article>

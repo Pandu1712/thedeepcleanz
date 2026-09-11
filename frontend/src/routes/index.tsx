@@ -2340,10 +2340,11 @@ function Index() {
   const completeBooking = () => {
     setCart([]);
     setBookingOpen(false);
-    toast.success("Booking confirmed! Our team will call you shortly.", {
-      icon: "✨",
-      duration: 5000,
+    toast.success("Booking confirmed! Redirecting to your bookings...", {
+      icon: "🎉",
+      duration: 4000,
     });
+    navigate({ to: "/my-bookings" });
   };
 
   const navLinks = [
@@ -2369,12 +2370,11 @@ function Index() {
       />
 
       {/* HERO SECTION - REDESIGNED EXACTLY AS REFERENCE DESIGN */}
-      {/* HERO SECTION - REDESIGNED EXACTLY AS REFERENCE DESIGN */}
       <section
         id="home"
         className="relative overflow-hidden bg-[#FBFBF9] text-[#111827] pt-3 sm:pt-6 lg:pt-10 pb-8 sm:pb-16 font-sans"
       >
-        <div className="relative mx-auto max-w-[1360px] px-3 sm:px-6 lg:px-8">
+        <div className="relative mx-auto max-w-[1440px] 2xl:max-w-[1560px] px-3.5 sm:px-6 lg:px-8 2xl:px-10">
           {/* MOBILE HERO (< lg): Headline (1-2 lines) -> Next Image -> Next Services Shelf ("All in one view") */}
           <div className="block lg:hidden text-center pt-1 pb-1">
             {/* Small 1 or 2 line Headline */}
@@ -2400,7 +2400,7 @@ function Index() {
             <div className="lg:col-span-7 flex flex-col justify-center">
               {/* Trust Badge Pill */}
               <div className="inline-flex items-center gap-2 rounded-full bg-[#0B6B46] text-white px-4 py-1.5 text-xs font-semibold shadow-sm w-fit">
-                <ShieldCheck className="h-4 w-4 text-emerald-200" />
+                <ShieldCheck className="h-4 w-4 text-emerald-200 shrink-0" />
                 <span>Trusted Cleaning Experts</span>
               </div>
 
@@ -2425,7 +2425,7 @@ function Index() {
                     if (el) el.scrollIntoView({ behavior: "smooth" });
                     else navigate({ to: "/services" });
                   }}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#0B6B46] hover:bg-[#085537] text-white px-6 py-3.5 text-sm sm:text-base font-semibold shadow-[0_4px_14px_rgba(11,107,70,0.25)] hover:shadow-[0_6px_20px_rgba(11,107,70,0.35)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                  className="btn-luxury-primary"
                 >
                   <span>Book a Cleaning</span>
                   <ArrowRight className="h-4 w-4" />
@@ -2434,7 +2434,7 @@ function Index() {
                 <button
                   type="button"
                   onClick={() => navigate({ to: "/services" })}
-                  className="inline-flex items-center justify-center rounded-xl border border-[#0B6B46] text-[#0B6B46] hover:bg-[#0B6B46]/5 bg-transparent px-6 py-3.5 text-sm sm:text-base font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                  className="btn-luxury-secondary"
                 >
                   <span>Explore Services</span>
                 </button>
@@ -5875,7 +5875,7 @@ export function BookingModal({
         {/* Scrollable Checkout Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 pb-28">
           {success ? (
-            <div className="grid place-items-center py-12 text-center bg-white rounded-3xl p-6 border border-emerald-100 shadow-sm">
+            <div className="grid place-items-center py-12 text-center bg-white rounded-3xl p-6 border border-emerald-100 shadow-sm animate-in zoom-in-95 duration-200">
               <div className="h-16 w-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-3xl shadow-sm mb-4">
                 🎉
               </div>
@@ -5886,6 +5886,16 @@ export function BookingModal({
               </p>
               <div className="mt-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 font-bold">
                 ✓ Booking confirmation &amp; updates sent to +91 {form.phone}
+              </div>
+              <div className="mt-5 w-full max-w-xs">
+                <button
+                  type="button"
+                  onClick={() => onConfirm()}
+                  className="w-full py-3 rounded-xl bg-[#0B6B46] hover:bg-[#084F34] text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md flex items-center justify-center gap-2"
+                >
+                  <span>Go to My Bookings</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
               </div>
             </div>
           ) : (
@@ -6778,23 +6788,23 @@ function CategoryCarousel({
                     )}
                   </div>
 
-                  <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2">
-                    <div className="flex items-center justify-between sm:flex-col sm:items-start shrink-0">
+                  <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <div className="flex flex-col items-start shrink-0">
                       <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold">
                         Starts at
                       </span>
-                      <span className="font-display text-sm font-black text-[#002a22]">
+                      <span className="font-sans text-sm sm:text-base font-black text-[#002a22]">
                         ₹{getServicePrice(s.price)}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectService(s);
                         }}
-                        className="flex-1 sm:flex-none text-center px-3.5 py-1.5 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/5 text-[10px] font-bold rounded-none text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer"
+                        className="text-center px-3 py-1.5 border border-[#cb9f5a]/40 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/10 text-[11px] font-bold rounded-xl text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer whitespace-nowrap active:scale-95"
                       >
                         View details
                       </button>
@@ -6804,7 +6814,7 @@ function CategoryCarousel({
                           e.stopPropagation();
                           onAddToCart(s);
                         }}
-                        className="flex-1 sm:flex-none text-center px-4 py-1.5 rounded-none bg-[#002a22] hover:bg-[#cb9f5a] text-white hover:text-[#002a22] text-[10px] font-bold uppercase transition-all shadow-md cursor-pointer"
+                        className="text-center px-3.5 py-1.5 rounded-xl bg-[#002a22] hover:bg-[#0B6B46] text-white text-[11px] font-bold uppercase transition-all shadow-sm cursor-pointer whitespace-nowrap active:scale-95"
                       >
                         Add
                       </button>

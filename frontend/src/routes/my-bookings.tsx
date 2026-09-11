@@ -612,7 +612,7 @@ function MyBookingsPage() {
       />
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 mx-auto w-full max-w-[1400px] px-5 py-10 lg:px-8">
+      <main className="flex-1 mx-auto w-full max-w-[1440px] 2xl:max-w-[1560px] px-3.5 sm:px-6 lg:px-8 2xl:px-10 py-8 sm:py-10">
         {/* Breadcrumb / Page Title */}
         <div className="mb-8">
           <div className="text-sm text-slate-500 mb-2 font-semibold">
@@ -1248,15 +1248,16 @@ function MyBookingsPage() {
                                   </span>
                                 </div>
 
-                                <div className="mt-2.5 text-xs flex flex-col sm:flex-row gap-2 sm:gap-3">
+                                <div className="mt-3 text-xs flex flex-wrap items-center gap-2 sm:gap-2.5">
                                   <button
+                                    type="button"
                                     onClick={() => handleBuyItAgain(item, itemImg)}
-                                    className="flex items-center justify-center gap-1.5 gradient-gold text-navy px-4 py-1.5 rounded-full shadow-gold font-bold transition-all hover:scale-[1.02] cursor-pointer whitespace-nowrap"
+                                    className="btn-luxury-gold text-xs py-2 px-4 min-h-[38px] rounded-xl"
                                   >
                                     <svg
                                       xmlns="http://www.w3.org/2000/svg"
-                                      width="12"
-                                      height="12"
+                                      width="13"
+                                      height="13"
                                       viewBox="0 0 24 24"
                                       fill="none"
                                       stroke="currentColor"
@@ -1269,9 +1270,10 @@ function MyBookingsPage() {
                                       <path d="m3.3 7 8.7 5 8.7-5" />
                                       <path d="M12 22V12" />
                                     </svg>
-                                    Buy it again
+                                    <span>Buy it again</span>
                                   </button>
                                   <button
+                                    type="button"
                                     onClick={() => {
                                       const isCustom =
                                         matchedId.startsWith("cust-") ||
@@ -1306,9 +1308,9 @@ function MyBookingsPage() {
                                         });
                                       }
                                     }}
-                                    className="flex items-center justify-center gap-1.5 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] hover:bg-slate-50/50 text-[#002a22] px-4 py-1.5 rounded-full font-bold transition-all cursor-pointer whitespace-nowrap"
+                                    className="btn-luxury-secondary text-xs py-2 px-4 min-h-[38px] rounded-xl"
                                   >
-                                    View your service
+                                    <span>View your service</span>
                                   </button>
                                 </div>
                               </div>
@@ -1319,7 +1321,7 @@ function MyBookingsPage() {
                     </div>
 
                     {/* Right Column (Actions) */}
-                    <div className="md:w-64 flex flex-col gap-2 border-t md:border-t-0 md:border-l border-[#cb9f5a]/15 pt-4 md:pt-0 md:pl-6 font-sans">
+                    <div className="md:w-64 flex flex-col gap-2.5 border-t md:border-t-0 md:border-l border-[#cb9f5a]/15 pt-4 md:pt-0 md:pl-6 font-sans">
                       {isCancelled ? (
                         <div className="w-full bg-slate-50 border border-slate-200 text-slate-400 text-xs font-bold py-2.5 rounded-xl text-center select-none">
                           ❌ Booking Cancelled
@@ -1328,6 +1330,7 @@ function MyBookingsPage() {
                         <>
                           {balanceAmount > 0 ? (
                             <button
+                              type="button"
                               onClick={() =>
                                 handlePayBalance(
                                   b.id,
@@ -1337,22 +1340,26 @@ function MyBookingsPage() {
                                 )
                               }
                               disabled={isPayingId === b.id}
-                              className="w-full gradient-gold text-[#001712] text-xs font-bold py-2.5 rounded-xl shadow-gold hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                              className="w-full btn-luxury-gold text-xs py-2.5 rounded-xl flex items-center justify-center gap-1.5"
                             >
                               {isPayingId === b.id ? (
                                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-navy border-t-transparent" />
                               ) : (
                                 <Receipt className="h-4 w-4 text-[#001712]" />
                               )}
-                              Pay Balance (₹{balanceAmount})
+                              <span>Pay Balance (₹{balanceAmount})</span>
                             </button>
                           ) : (
-                            <button className="w-full bg-white border border-[#cb9f5a]/30 hover:border-[#cb9f5a] text-[#002a22] text-xs font-bold py-2.5 rounded-xl shadow-sm hover:bg-slate-50/50 transition-all duration-200 cursor-pointer flex items-center justify-center">
-                              <Gift className="h-3.5 w-3.5 mr-2 shrink-0 text-[#cb9f5a]" />
-                              Share gift receipt
+                            <button
+                              type="button"
+                              className="w-full btn-luxury-secondary text-xs py-2.5 rounded-xl flex items-center justify-center gap-1.5"
+                            >
+                              <Gift className="h-3.5 w-3.5 text-[#002A22]" />
+                              <span>Share gift receipt</span>
                             </button>
                           )}
                           <button
+                            type="button"
                             onClick={() => {
                               const firstItem = parsedItems[0] || {
                                 id: "house",
@@ -1376,10 +1383,10 @@ function MyBookingsPage() {
                               setSelectedServiceToReview({ id: baseId, title: firstItem.title });
                               setReviewModalOpen(true);
                             }}
-                            className="w-full bg-white border border-[#cb9f5a]/30 hover:border-[#cb9f5a] text-[#002a22] text-xs font-bold py-2.5 rounded-xl shadow-sm hover:bg-slate-50/50 transition-all duration-200 cursor-pointer font-sans flex items-center justify-center"
+                            className="w-full btn-luxury-secondary text-xs py-2.5 rounded-xl flex items-center justify-center gap-1.5"
                           >
-                            <Star className="h-3.5 w-3.5 mr-2 shrink-0 text-[#cb9f5a]" />
-                            Write a product review
+                            <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                            <span>Write a review</span>
                           </button>
                           {b.jobStatus !== "Cancelled" && b.jobStatus !== "Completed" && (() => {
                             const bookingDate = b.schedule?.date;

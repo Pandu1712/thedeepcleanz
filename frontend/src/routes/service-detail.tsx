@@ -896,7 +896,7 @@ function ServiceDetailPage() {
       />
 
       {/* TOP NAVIGATION BREADCRUMB */}
-      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 pt-2 sm:pt-4 pb-2">
+      <div className="mx-auto max-w-[1440px] 2xl:max-w-[1560px] px-3.5 sm:px-6 lg:px-8 2xl:px-10 pt-2 sm:pt-4 pb-2">
         <div className="flex items-center justify-between gap-2 text-xs">
           <Link
             to="/services"
@@ -919,7 +919,7 @@ function ServiceDetailPage() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 py-2 sm:py-4 space-y-6 sm:space-y-8">
+      <main className="mx-auto max-w-[1440px] 2xl:max-w-[1560px] px-3.5 sm:px-6 lg:px-8 2xl:px-10 py-2 sm:py-4 space-y-6 sm:space-y-8">
         {/* ============================================================
             HERO CARD: ULTRA-PREMIUM PRODUCT OVERVIEW & TIER SELECTOR
            ============================================================ */}
@@ -1125,28 +1125,28 @@ function ServiceDetailPage() {
                       <button
                         type="button"
                         onClick={() => handleAddToCart(activePlan)}
-                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-white border-2 border-[#002A22] text-[#002A22] hover:bg-slate-50 px-5 py-3 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-98"
+                        className="btn-luxury-secondary text-xs uppercase"
                       >
                         <ShoppingCart className="h-4 w-4" />
-                        Add To Cart
+                        <span>Add To Cart</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleDirectBookNow(activePlan)}
-                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#0B6B46] hover:bg-[#084F34] text-white px-6 py-3.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 shadow-sm cursor-pointer border-0 active:scale-98"
+                        className="btn-luxury-primary text-xs uppercase"
                       >
-                        <Zap className="h-4 w-4" />
-                        Book Now
+                        <Zap className="h-4 w-4 text-amber-300 fill-amber-300" />
+                        <span>Book Now</span>
                       </button>
                     </>
                   ) : (
                     <button
                       type="button"
                       onClick={() => setQuoteModalOpen(true)}
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#002A22] hover:bg-[#0B6B46] text-white px-6 py-3.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 shadow-md cursor-pointer border-0 active:scale-98"
+                      className="btn-luxury-primary text-xs uppercase"
                     >
-                      Request Free Estimate
+                      <span>Request Free Estimate</span>
                     </button>
                   )}
                 </div>
@@ -1590,39 +1590,39 @@ function ServiceDetailPage() {
       {/* ============================================================
           STICKY MOBILE BOTTOM ACTION DOCK (Ultra-Premium 1-Tap Booking)
          ============================================================ */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/90 shadow-[0_-8px_30px_rgba(0,42,34,0.12)] px-3 pt-2 pb-[max(env(safe-area-inset-bottom,0px),16px)]">
-        <div className="flex items-center justify-between gap-2 max-w-md mx-auto">
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/90 shadow-[0_-8px_30px_rgba(0,42,34,0.12)] px-3.5 pt-2.5 pb-[max(env(safe-area-inset-bottom,0px),16px)]">
+        <div className="flex items-center justify-between gap-2.5 max-w-md mx-auto">
           {/* Price & Plan Info (Shrink-proof) */}
-          <div className="shrink-0 flex flex-col justify-center">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider truncate max-w-[85px] sm:max-w-[140px] block leading-tight">
+          <div className="shrink-0 flex flex-col justify-center min-w-0 pr-1">
+            <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider truncate max-w-[110px] block leading-tight">
               {activePlan.name}
             </span>
-            <div className="flex items-center gap-1 mt-0.5">
+            <div className="flex items-center gap-1.5 mt-0.5">
               <span className="text-base sm:text-lg font-black text-[#002A22] leading-none whitespace-nowrap">
                 {activePlanPrice > 0 ? `₹${activePlanPrice}` : "Quote"}
               </span>
-              <span className="text-[8px] font-bold text-emerald-800 bg-emerald-100/90 border border-emerald-200/60 px-1 py-0.2 rounded leading-none whitespace-nowrap">
-                {activePlanPrice > 0 ? "GST Incl." : "Free Est."}
+              <span className="text-[8px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
+                {activePlanPrice > 0 ? "All Incl." : "Free Est."}
               </span>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-1.5 shrink-0 justify-end">
+          <div className="flex items-center gap-2 shrink-0 justify-end">
             {activePlanPrice > 0 ? (
               <>
                 <button
                   type="button"
                   onClick={() => handleAddToCart(activePlan)}
-                  className="px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#002A22] text-[11px] font-bold uppercase tracking-wider transition-colors cursor-pointer border-0 active:scale-95 whitespace-nowrap flex items-center gap-1"
+                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#002A22] text-xs font-bold transition-all cursor-pointer border border-slate-300/80 active:scale-95 whitespace-nowrap flex items-center gap-1 shrink-0"
                 >
-                  <Plus className="h-3 w-3 text-slate-600" />
+                  <Plus className="h-3.5 w-3.5 text-slate-700" />
                   <span>Cart</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDirectBookNow(activePlan)}
-                  className="px-3.5 py-2 rounded-xl bg-[#0B6B46] hover:bg-[#084F34] text-white text-[11px] font-bold uppercase tracking-wider transition-all shadow-sm cursor-pointer border-0 flex items-center gap-1 active:scale-95 whitespace-nowrap"
+                  className="btn-luxury-primary text-xs py-2 px-4.5 min-h-[38px] shrink-0 active:scale-95 whitespace-nowrap flex items-center gap-1.5"
                 >
                   <Zap className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
                   <span>Book Now</span>
@@ -1632,9 +1632,9 @@ function ServiceDetailPage() {
               <button
                 type="button"
                 onClick={() => setQuoteModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-[#002A22] hover:bg-[#0B6B46] text-white text-[11px] font-bold uppercase tracking-wider transition-all shadow-sm cursor-pointer border-0 active:scale-95 whitespace-nowrap"
+                className="btn-luxury-primary text-xs py-2 px-4 shrink-0 active:scale-95 whitespace-nowrap"
               >
-                Get Free Estimate
+                <span>Get Free Estimate</span>
               </button>
             )}
           </div>
@@ -1750,6 +1750,11 @@ function ServiceDetailPage() {
         onConfirm={() => {
           setCart([]);
           setBookingOpen(false);
+          toast.success("Booking confirmed! Redirecting to your bookings...", {
+            icon: "🎉",
+            duration: 4000,
+          });
+          navigate({ to: "/my-bookings" });
         }}
         updateQty={updateQty}
         removeItem={removeItem}
