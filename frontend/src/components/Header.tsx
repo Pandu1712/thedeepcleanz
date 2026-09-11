@@ -153,9 +153,9 @@ export default function Header({
   useEffect(() => {
     const loadUser = () => {
       try {
-        const email = sessionStorage.getItem("user_email");
-        const role = sessionStorage.getItem("user_role");
-        const profileStr = sessionStorage.getItem("user_profile");
+        const email = sessionStorage.getItem("user_email") || localStorage.getItem("user_email");
+        const role = sessionStorage.getItem("user_role") || localStorage.getItem("user_role");
+        const profileStr = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
         
         setUserEmail(email);
         setIsAdmin(role === "admin");
@@ -171,23 +171,30 @@ export default function Header({
 
     loadUser();
     
-    // Listen for storage changes
+    // Listen for storage changes & custom auth state changes
     window.addEventListener("storage", loadUser);
+    window.addEventListener("auth-state-change", loadUser);
     return () => {
       window.removeEventListener("storage", loadUser);
+      window.removeEventListener("auth-state-change", loadUser);
     };
   }, []);
 
   const handleLogout = () => {
     sessionStorage.clear();
+    localStorage.removeItem("user_email");
+    localStorage.removeItem("user_role");
+    localStorage.removeItem("user_profile");
+    localStorage.removeItem("user_authenticated");
     setUserEmail(null);
     setIsAdmin(false);
     setUserProfile(null);
     setProfileMenuOpen(false);
     toast.success("Logged out successfully");
     navigate({ to: "/", search: { category: undefined, cart: undefined } });
-    // Force storage sync across tabs
+    // Force storage sync across components and tabs
     window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new Event("auth-state-change"));
   };
 
   // Change password states

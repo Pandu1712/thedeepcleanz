@@ -1033,7 +1033,7 @@ app.post("/api/auth/mobile-otp/send", async (req, res) => {
 // Verify Mobile OTP Endpoint
 app.post("/api/auth/mobile-otp/verify", async (req, res) => {
   try {
-    const { phone, otp } = req.body;
+    const { phone, otp, name } = req.body;
     if (!phone || !otp) {
       return res.status(400).json({ error: "Mobile number and verification code are required." });
     }
@@ -1051,11 +1051,97 @@ app.post("/api/auth/mobile-otp/verify", async (req, res) => {
       return res.status(400).json({ error: "Incorrect verification code. Please check your inputs." });
     }
 
-    // Success!
+    // Success! Clear one-time code
     mobileOtps.delete(cleanPhone);
-    res.json({ ok: true });
+
+    // Look up or auto-create user profile
+    let user = await db.getUserByPhone(cleanPhone);
+    if (!user) {
+      const userId = "usr_" + (typeof nanoid === "function" ? nanoid(10) : Math.random().toString(36).substring(2, 12));
+      const userName = (name && name.trim()) || "Customer";
+      const userEmail = `${cleanPhone}@thedeepcleanerz.com`;
+      const cleanInitName = userName.replace(/[^a-zA-Z]/g, "").slice(0, 4).toUpperCase() || "USER";
+      const userRefCode = `CLEAN-${cleanInitName}${Math.floor(100 + Math.random() * 900)}`;
+
+      try {
+        user = await db.createUser({
+          id: userId,
+          name: userName,
+          phone: cleanPhone,
+          email: userEmail,
+          password: "",
+          referral_code: userRefCode,
+          wallet_balance: 0,
+        });
+      } catch (createErr) {
+        user = {
+          id: userId,
+          name: userName,
+          phone: cleanPhone,
+          email: userEmail,
+          referral_code: userRefCode,
+          wallet_balance: 0,
+        };
+      }
+    }
+
+    let parsedAddresses = [];
+    try {
+      if (user.addresses) {
+        parsedAddresses = typeof user.addresses === "string" ? JSON.parse(user.addresses) : user.addresses;
+      }
+    } catch (e) {}
+
+    res.json({
+      ok: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        referralCode: user.referral_code || user.referralCode,
+        walletBalance: Number(user.wallet_balance || user.walletBalance || 0),
+        role: user.role || "user",
+        addresses: parsedAddresses,
+      },
+    });
   } catch (err) {
     console.error("Verify Mobile OTP error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Profile Lookup by Phone
+app.get("/api/auth/profile-by-phone", async (req, res) => {
+  try {
+    const { phone } = req.query;
+    if (!phone) return res.status(400).json({ error: "Phone number is required." });
+    const cleanPhone = String(phone).replace(/\D/g, "");
+    const user = await db.getUserByPhone(cleanPhone);
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+    let parsedAddresses = [];
+    try {
+      if (user.addresses) {
+        parsedAddresses = typeof user.addresses === "string" ? JSON.parse(user.addresses) : user.addresses;
+      }
+    } catch (e) {}
+
+    return res.json({
+      ok: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        referralCode: user.referral_code || user.referralCode,
+        walletBalance: Number(user.wallet_balance || user.walletBalance || 0),
+        role: user.role || "user",
+        addresses: parsedAddresses,
+      },
+    });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

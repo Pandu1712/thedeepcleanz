@@ -4929,6 +4929,8 @@ export function BookingModal({
     setMobileOtpLoading(true);
     setOtpSentMessage("");
 
+    let sentViaFirebase = false;
+
     if (isFirebaseConfigured && auth) {
       try {
         let appVerifier = (window as any).recaptchaVerifier;
@@ -4953,66 +4955,279 @@ export function BookingModal({
         setOtpSentMessage(`Verification code sent to +91 ${cleanPhone} via SMS.`);
         toast.success("OTP sent to your phone via SMS!", { icon: "📨" });
         setShowOtpVerification(true);
+        sentViaFirebase = true;
       } catch (err: any) {
-        console.error("Firebase Phone Auth error:", err);
-        let msg = err.message || "Failed to send SMS via Firebase.";
-        if (err.code === "auth/invalid-phone-number") {
-          msg = "Invalid phone number format.";
-        } else if (err.code === "auth/too-many-requests" || err.message?.includes("TOO_MANY_ATTEMPTS")) {
-          msg = "Too many OTP requests. Google has temporarily rate-limited this number. Please wait a while or try another number.";
+        console.warn("Firebase Phone Auth failed, trying backend SMS gateway fallback:", err.message);
+      }
+    }
+
+    // Fallback to Backend SMS Gateway if Firebase was not configured or threw an error
+    if (!sentViaFirebase) {
+      try {
+        const res = await fetch(`${ADMIN_API_URL}/api/auth/mobile-otp/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: cleanPhone, name: form.name }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(data?.error || "Failed to send verification OTP.");
         }
-        toast.error(msg);
-        setOtpSentMessage(msg);
-      } finally {
-        setMobileOtpLoading(false);
+        setConfirmationResult(null); // Backend OTP session
+        setOtpSentMessage(data.message || `Verification code sent to +91 ${cleanPhone}.`);
+        if (data.devOtp) {
+          console.log("Development OTP:", data.devOtp);
+          toast.info(`OTP Code: ${data.devOtp}`, { icon: "🔑", duration: 7000 });
+        } else {
+          toast.success("Verification code sent to your phone!", { icon: "📨" });
+        }
+        setShowOtpVerification(true);
+      } catch (err: any) {
+        toast.error(err.message || "Failed to send OTP code. Please try again.");
+        setOtpSentMessage(err.message);
+      }
+    }
+
+    setMobileOtpLoading(false);
+  };
+
+  const executePaymentAndBooking = async (userOverride?: { id?: string; email?: string; name?: string; phone?: string; addresses?: any[] }) => {
+    let currentUserId = userOverride?.id || null;
+    let currentUserEmail = userOverride?.email || null;
+    let currentName = userOverride?.name || form.name;
+    let currentPhone = userOverride?.phone || form.phone;
+
+    if (!currentUserId || !currentUserEmail) {
+      try {
+        const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
+        if (prof) {
+          const u = JSON.parse(prof);
+          if (!currentUserId) currentUserId = u.id || null;
+          if (!currentUserEmail) currentUserEmail = u.email || null;
+          if (!currentName || currentName === "Customer") currentName = u.name || currentName;
+          if (!currentPhone) currentPhone = u.phone || currentPhone;
+        }
+      } catch (e) {}
+    }
+
+    const cleanCustomerPhone = (currentPhone || form.phone).replace(/\D/g, "");
+
+    const customerPayload = {
+      name: currentName || "Customer",
+      phone: cleanCustomerPhone,
+      email: currentUserEmail || sessionStorage.getItem("user_email") || `${cleanCustomerPhone}@thedeepcleanerz.com`,
+      address: form.address,
+      landmark: form.landmark,
+      mapsLink: form.mapsLink,
+      city: form.city,
+      pincode: form.pincode,
+      houseType: form.houseType,
+      houseSize: form.houseSize,
+      gpsCoords: form.gpsCoords,
+      avoidCalling: avoidCalling,
+    };
+
+    const finalNotes = `${avoidCalling ? "[Customer Preference: Avoid calling before arrival] " : ""}${form.notes}`.trim();
+
+    if (payMethod === "razorpay" && upfrontPayAmount > 0) {
+      setIsPaying(true);
+      try {
+        const loaded = await loadRazorpayScript();
+        if (!loaded) {
+          toast.error("Failed to load payment gateway script. Please check your network.");
+          setIsPaying(false);
+          return;
+        }
+
+        const orderInfo = await createRazorpayOrder(upfrontPayAmount);
+        const options = {
+          key: orderInfo.keyId,
+          amount: orderInfo.amount,
+          currency: "INR",
+          name: "TheDeep CleanerZ",
+          description: `Booking Advance (Pay ₹${payLaterAmount} after service)`,
+          order_id: orderInfo.orderId,
+          handler: async function (response: any) {
+            try {
+              await postAdminBooking({
+                customer: customerPayload,
+                schedule: { date: form.date, time: form.time },
+                notes: finalNotes,
+                coupon: form.coupon || null,
+                discount,
+                total: grandTotal,
+                items: cart.map((i) => ({
+                  id: i.id,
+                  title: i.title,
+                  price: i.price,
+                  qty: i.qty,
+                  img: i.img,
+                })),
+                paymentStatus: `Paid Advance (₹${upfrontPayAmount}) - Remaining: ₹${payLaterAmount}`,
+                paymentId: response.razorpay_payment_id,
+                userId: currentUserId,
+              });
+              setSuccess(true);
+              setTimeout(() => {
+                onConfirm();
+              }, 1800);
+            } catch (err) {
+              toast.error("Payment received, but error creating booking. Contacting support...");
+            } finally {
+              setIsPaying(false);
+            }
+          },
+          prefill: {
+            name: currentName,
+            contact: cleanCustomerPhone,
+          },
+          theme: {
+            color: "#0B6B46",
+          },
+          modal: {
+            ondismiss: function () {
+              setIsPaying(false);
+            },
+          },
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.open();
+      } catch (err: any) {
+        toast.error(err.message || "Could not initialize online payment. Please try again.");
+        setIsPaying(false);
       }
     } else {
-      toast.error("Firebase Authentication is not configured.");
-      setMobileOtpLoading(false);
+      setIsPaying(true);
+      try {
+        await postAdminBooking({
+          customer: customerPayload,
+          schedule: { date: form.date, time: form.time },
+          notes: finalNotes,
+          coupon: form.coupon || null,
+          discount,
+          total: grandTotal,
+          items: cart.map((i) => ({
+            id: i.id,
+            title: i.title,
+            price: i.price,
+            qty: i.qty,
+            img: i.img,
+          })),
+          paymentStatus: isFreeAdvance ? "Free Advance (Pay after Service)" : "Pending Deposit (COD)",
+          paymentId: null,
+          userId: currentUserId,
+        });
+        setSuccess(true);
+        setTimeout(() => {
+          onConfirm();
+        }, 1800);
+      } catch (err) {
+        setSuccess(true);
+        setTimeout(() => {
+          onConfirm();
+        }, 1800);
+      } finally {
+        setIsPaying(false);
+      }
     }
   };
 
   const handleVerifyMobileOtp = async () => {
-    if (!otpInput || otpInput.trim().length !== 6) {
-      toast.error("Please enter the 6-digit OTP code received on your mobile");
-      return;
-    }
-
-    if (!confirmationResult) {
-      toast.error("No active OTP session. Please click 'Resend OTP'.");
+    const cleanOtp = otpInput.replace(/\D/g, "");
+    if (!cleanOtp || cleanOtp.length < 4) {
+      toast.error("Please enter the verification code received on your mobile");
       return;
     }
 
     setVerifyLoading(true);
     const cleanPhone = form.phone.replace(/\D/g, "");
+    let verifiedUser: any = null;
 
     try {
-      const userCredential = await confirmationResult.confirm(otpInput.trim());
-      console.log("Firebase phone auth confirmed user:", userCredential.user);
+      // 1. Firebase Phone Auth Session Verification
+      if (confirmationResult) {
+        const userCredential = await confirmationResult.confirm(cleanOtp);
+        console.log("Firebase phone auth confirmed:", userCredential.user);
 
-      // Create & store user profile in session
-      const userObj = {
-        id: userCredential.user?.uid || `user-${cleanPhone}`,
-        name: form.name.trim() || "Customer",
-        phone: cleanPhone,
-        email: `${cleanPhone}@thedeepcleanerz.com`,
-        role: "user",
-      };
+        // Fetch or create profile on backend
+        try {
+          const profileRes = await fetch(`${ADMIN_API_URL}/api/auth/profile-by-phone?phone=${cleanPhone}`);
+          if (profileRes.ok) {
+            const pData = await profileRes.json();
+            if (pData.user) {
+              verifiedUser = pData.user;
+            }
+          }
+        } catch (e) {}
+
+        if (!verifiedUser) {
+          verifiedUser = {
+            id: userCredential.user?.uid || `usr_${cleanPhone}`,
+            name: form.name.trim() || "Customer",
+            phone: cleanPhone,
+            email: `${cleanPhone}@thedeepcleanerz.com`,
+            role: "user",
+            walletBalance: 0,
+          };
+        }
+      } else {
+        // 2. Backend Gateway OTP Verification
+        const res = await fetch(`${ADMIN_API_URL}/api/auth/mobile-otp/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: cleanPhone, otp: cleanOtp, name: form.name }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(data?.error || "Incorrect OTP code. Please check and try again.");
+        }
+        verifiedUser = data.user || {
+          id: `usr_${cleanPhone}`,
+          name: form.name.trim() || "Customer",
+          phone: cleanPhone,
+          email: `${cleanPhone}@thedeepcleanerz.com`,
+          role: "user",
+          walletBalance: 0,
+        };
+      }
+
+      // Populate user info if profile had existing name or saved addresses
+      if (verifiedUser.name && (!form.name || form.name === "Customer")) {
+        setForm((f) => ({ ...f, name: verifiedUser.name }));
+      }
+      if (Array.isArray(verifiedUser.addresses) && verifiedUser.addresses.length > 0) {
+        setSavedAddresses(verifiedUser.addresses);
+      }
+
+      // Save user session & local storage
       sessionStorage.setItem("user_authenticated", "true");
-      sessionStorage.setItem("user_email", userObj.email);
-      sessionStorage.setItem("user_profile", JSON.stringify(userObj));
+      sessionStorage.setItem("user_email", verifiedUser.email);
+      sessionStorage.setItem("user_profile", JSON.stringify(verifiedUser));
+      localStorage.setItem("user_authenticated", "true");
+      localStorage.setItem("user_email", verifiedUser.email);
+      localStorage.setItem("user_profile", JSON.stringify(verifiedUser));
+      localStorage.setItem(
+        "thedeepcleanz_saved_contact",
+        JSON.stringify({ name: verifiedUser.name || form.name, phone: cleanPhone })
+      );
+
+      // Trigger instant header and application profile sync
       window.dispatchEvent(new Event("storage"));
       window.dispatchEvent(new Event("auth-state-change"));
 
       setOtpVerified(true);
       setShowOtpVerification(false);
       setShowAuthGate(false);
-      toast.success("Mobile number verified successfully!", { icon: "✅" });
+      toast.success("Mobile verified! Launching checkout...", { icon: "✅" });
+
+      // Directly proceed with payment/booking without resetting or kicking user back
+      await executePaymentAndBooking(verifiedUser);
     } catch (err: any) {
-      console.error("Firebase OTP confirmation error:", err);
-      let msg = "Invalid verification code. Please check the SMS and try again.";
+      console.error("OTP confirmation error:", err);
+      let msg = err.message || "Invalid verification code. Please check your SMS and try again.";
       if (err.code === "auth/invalid-verification-code") {
-        msg = "Incorrect 6-digit OTP. Please check your SMS and enter the valid code.";
+        msg = "Incorrect 6-digit OTP code. Please check your SMS and enter the valid code.";
       } else if (err.code === "auth/code-expired") {
         msg = "OTP code has expired. Please click 'Resend OTP'.";
       }
@@ -5045,20 +5260,27 @@ export function BookingModal({
         sessionStorage.setItem("user_authenticated", "true");
         sessionStorage.setItem("user_email", u.email || authEmail);
         sessionStorage.setItem("user_profile", JSON.stringify(u));
+        localStorage.setItem("user_authenticated", "true");
+        localStorage.setItem("user_email", u.email || authEmail);
+        localStorage.setItem("user_profile", JSON.stringify(u));
         if (data.role === "admin" || u.role === "admin") {
           sessionStorage.setItem("user_role", "admin");
           sessionStorage.setItem("admin_authenticated", "true");
+          localStorage.setItem("user_role", "admin");
         }
         window.dispatchEvent(new Event("storage"));
         window.dispatchEvent(new Event("auth-state-change"));
         setOtpVerified(true);
         setShowAuthGate(false);
-        toast.success(`Welcome back, ${u.name}!`, { icon: "👋" });
+        toast.success(`Welcome back, ${u.name}! Launching checkout...`, { icon: "👋" });
         setForm((f) => ({
           ...f,
           name: u.name || f.name,
           phone: u.phone || f.phone,
         }));
+
+        // Seamless transition directly into payment & booking
+        await executePaymentAndBooking(u);
       }
     } catch (err: any) {
       setAuthError(err.message || "Login failed");
@@ -5099,16 +5321,22 @@ export function BookingModal({
         sessionStorage.setItem("user_authenticated", "true");
         sessionStorage.setItem("user_email", data.user.email);
         sessionStorage.setItem("user_profile", JSON.stringify(data.user));
+        localStorage.setItem("user_authenticated", "true");
+        localStorage.setItem("user_email", data.user.email);
+        localStorage.setItem("user_profile", JSON.stringify(data.user));
         window.dispatchEvent(new Event("storage"));
         window.dispatchEvent(new Event("auth-state-change"));
         setOtpVerified(true);
         setShowAuthGate(false);
-        toast.success("Account created successfully!", { icon: "🎉" });
+        toast.success("Account created successfully! Launching checkout...", { icon: "🎉" });
         setForm((f) => ({
           ...f,
           name: data.user.name || f.name,
           phone: data.user.phone || f.phone,
         }));
+
+        // Seamless transition directly into payment & booking
+        await executePaymentAndBooking(data.user);
       }
     } catch (err: any) {
       setAuthError(err.message || "Registration failed");
@@ -5127,7 +5355,6 @@ export function BookingModal({
       setAuthIsRegister(false);
       setShowOtpVerification(false);
       setOtpInput("");
-      setOtpVerified(false);
 
       const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
       let initName = "";
@@ -5137,14 +5364,18 @@ export function BookingModal({
       let initCity = "Guntur";
       let initPincode = "";
       let loadedAddresses: any[] = [];
+      let isUserAlreadyAuthed = false;
 
       try {
-        // 1. Check logged-in user profile
+        // 1. Check logged-in user profile from session or local storage
         const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
         if (prof) {
           const u = JSON.parse(prof);
           if (u.name) initName = u.name;
-          if (u.phone) initPhone = u.phone;
+          if (u.phone) {
+            initPhone = u.phone;
+            isUserAlreadyAuthed = true;
+          }
           if (Array.isArray(u.addresses) && u.addresses.length > 0) {
             loadedAddresses = u.addresses;
           }
@@ -5192,6 +5423,8 @@ export function BookingModal({
         setShowCheckoutAddressForm(true);
       }
 
+      setOtpVerified(isUserAlreadyAuthed);
+
       // If name or phone is missing, open contact editor
       if (!initName.trim() || initPhone.replace(/\D/g, "").length < 10) {
         setEditingContact(true);
@@ -5209,6 +5442,23 @@ export function BookingModal({
         city: initCity || f.city,
         pincode: initPincode || f.pincode,
       }));
+
+      // Async live lookup of profile & address if phone number is present
+      if (initPhone && initPhone.replace(/\D/g, "").length === 10) {
+        fetch(`${ADMIN_API_URL}/api/auth/profile-by-phone?phone=${initPhone.replace(/\D/g, "")}`)
+          .then((r) => r.ok ? r.json() : null)
+          .then((data) => {
+            if (data?.user) {
+              if (data.user.name && (!initName || initName === "Customer")) {
+                setForm((f) => ({ ...f, name: data.user.name }));
+              }
+              if (Array.isArray(data.user.addresses) && data.user.addresses.length > 0 && loadedAddresses.length === 0) {
+                setSavedAddresses(data.user.addresses);
+              }
+            }
+          })
+          .catch(() => {});
+      }
 
       fetchCoupons()
         .then(setAvailableCoupons)
@@ -5329,7 +5579,7 @@ export function BookingModal({
 
   const userWalletBalance = (() => {
     try {
-      const prof = sessionStorage.getItem("user_profile");
+      const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
       if (prof) {
         const u = JSON.parse(prof);
         return u.walletBalance || 0;
@@ -5381,141 +5631,26 @@ export function BookingModal({
 
     let userEmail: string | null = null;
     let userId: string | null = null;
+    let currentProfile: any = null;
     try {
       const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
       if (prof) {
-        const u = JSON.parse(prof);
-        userId = u.id || null;
-        userEmail = u.email || null;
+        currentProfile = JSON.parse(prof);
+        userId = currentProfile.id || null;
+        userEmail = currentProfile.email || null;
       }
     } catch (e) {}
 
-    // Require user login / Mobile OTP verification before proceeding to booking
-    if (!userId && !userEmail && !otpVerified) {
-      toast.info("Please verify your phone number with OTP to confirm your booking.", { icon: "📱" });
-      setShowAuthGate(true);
-      return;
+    // If user is already authenticated or OTP was already verified during this session
+    if (userId || userEmail || otpVerified) {
+      return executePaymentAndBooking(currentProfile);
     }
 
-    const customerPayload = {
-      name: form.name,
-      phone: form.phone,
-      email: userEmail || sessionStorage.getItem("user_email") || "",
-      address: form.address,
-      landmark: form.landmark,
-      mapsLink: form.mapsLink,
-      city: form.city,
-      pincode: form.pincode,
-      houseType: form.houseType,
-      houseSize: form.houseSize,
-      gpsCoords: form.gpsCoords,
-      avoidCalling: avoidCalling,
-    };
-
-    const finalNotes = `${avoidCalling ? "[Customer Preference: Avoid calling before arrival] " : ""}${form.notes}`.trim();
-
-    if (payMethod === "razorpay" && upfrontPayAmount > 0) {
-      setIsPaying(true);
-      try {
-        const loaded = await loadRazorpayScript();
-        if (!loaded) {
-          toast.error("Failed to load payment gateway script. Please check your network.");
-          setIsPaying(false);
-          return;
-        }
-
-        const orderInfo = await createRazorpayOrder(upfrontPayAmount);
-        const options = {
-          key: orderInfo.keyId,
-          amount: orderInfo.amount,
-          currency: "INR",
-          name: "TheDeep CleanerZ",
-          description: `Booking Advance (Pay ₹${payLaterAmount} after service)`,
-          order_id: orderInfo.orderId,
-          handler: async function (response: any) {
-            try {
-              await postAdminBooking({
-                customer: customerPayload,
-                schedule: { date: form.date, time: form.time },
-                notes: finalNotes,
-                coupon: form.coupon || null,
-                discount,
-                total: grandTotal,
-                items: cart.map((i) => ({
-                  id: i.id,
-                  title: i.title,
-                  price: i.price,
-                  qty: i.qty,
-                  img: i.img,
-                })),
-                paymentStatus: `Paid Advance (₹${upfrontPayAmount}) - Remaining: ₹${payLaterAmount}`,
-                paymentId: response.razorpay_payment_id,
-                userId,
-              });
-              setSuccess(true);
-              setTimeout(() => {
-                onConfirm();
-              }, 1800);
-            } catch (err) {
-              toast.error("Payment received, but error creating booking. Contacting support...");
-            } finally {
-              setIsPaying(false);
-            }
-          },
-          prefill: {
-            name: form.name,
-            contact: form.phone,
-          },
-          theme: {
-            color: "#0B6B46",
-          },
-          modal: {
-            ondismiss: function () {
-              setIsPaying(false);
-            },
-          },
-        };
-
-        const rzp = new (window as any).Razorpay(options);
-        rzp.open();
-      } catch (err: any) {
-        toast.error(err.message || "Could not initialize online payment. Please try again.");
-        setIsPaying(false);
-      }
-    } else {
-      setIsPaying(true);
-      try {
-        await postAdminBooking({
-          customer: customerPayload,
-          schedule: { date: form.date, time: form.time },
-          notes: finalNotes,
-          coupon: form.coupon || null,
-          discount,
-          total: grandTotal,
-          items: cart.map((i) => ({
-            id: i.id,
-            title: i.title,
-            price: i.price,
-            qty: i.qty,
-            img: i.img,
-          })),
-          paymentStatus: isFreeAdvance ? "Free Advance (Pay after Service)" : "Pending Deposit (COD)",
-          paymentId: null,
-          userId,
-        });
-        setSuccess(true);
-        setTimeout(() => {
-          onConfirm();
-        }, 1800);
-      } catch (err) {
-        setSuccess(true);
-        setTimeout(() => {
-          onConfirm();
-        }, 1800);
-      } finally {
-        setIsPaying(false);
-      }
-    }
+    // If unauthenticated, prompt OTP verification gate and auto-send OTP
+    toast.info("Please enter the verification OTP sent to your phone.", { icon: "📱" });
+    setShowAuthGate(true);
+    setShowOtpVerification(false);
+    handleSendMobileOtp();
   };
 
   return (
