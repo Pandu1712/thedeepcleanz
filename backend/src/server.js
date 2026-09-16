@@ -2361,6 +2361,71 @@ app.post("/api/inquiries", async (req, res) => {
   }
 });
 
+// Quotation / Free Estimate endpoint (alias to inquiries)
+app.post("/api/quotes", async (req, res) => {
+  try {
+    const {
+      name,
+      phone,
+      service,
+      message,
+      customerName,
+      customerPhone,
+      serviceTitle,
+      requirements,
+    } = req.body;
+
+    const finalName = (customerName || name || "").trim();
+    const finalPhone = (customerPhone || phone || "").replace(/\D/g, "");
+    const finalService = (serviceTitle || service || "Custom Estimate Request").trim();
+    const finalMessage = (requirements || message || `Estimate request for ${finalService}`).trim();
+
+    // Strict validation: Name (letters and spaces, min 2 chars)
+    if (!finalName || !/^[A-Za-z\s]{2,60}$/.test(finalName)) {
+      return res.status(400).json({
+        error: "Please enter a valid full name containing letters only (min 2 characters).",
+      });
+    }
+
+    // Strict validation: Phone (exactly 10 digits, starts with 6-9)
+    if (!finalPhone || !/^[6-9]\d{9}$/.test(finalPhone)) {
+      return res.status(400).json({
+        error: "Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.",
+      });
+    }
+
+    const inquiryId = `EST-${Date.now().toString().slice(-6)}`;
+    const newInquiry = await db.createInquiry({
+      id: inquiryId,
+      name: finalName,
+      phone: finalPhone,
+      service: finalService,
+      message: finalMessage,
+      status: "New",
+      createdAt: new Date().toISOString(),
+    });
+
+    try {
+      const mailer = require("./utils/mailer");
+      if (typeof mailer.sendAdminInquiryEmail === "function") {
+        await mailer.sendAdminInquiryEmail(newInquiry);
+      }
+    } catch (e) {
+      console.warn("Could not send admin email for quote inquiry:", e.message);
+    }
+
+    return res.json({
+      ok: true,
+      id: inquiryId,
+      message: "Quotation request submitted! Our expert will call you shortly.",
+      inquiry: newInquiry,
+    });
+  } catch (err) {
+    console.error("Error creating quote inquiry:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/api/inquiries", async (req, res) => {
   try {
     const list = await db.getInquiries();

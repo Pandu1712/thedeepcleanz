@@ -424,18 +424,61 @@ function ServiceDetailPage() {
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [customizedServices, setCustomizedServices] = useState<any[]>([]);
-
   // Cart & Booking State
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [bookingOpen, setBookingOpen] = useState(false);
 
-  // Quote Request States
+  // Quote Request States with Real-time Validation
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
   const [quoteName, setQuoteName] = useState("");
   const [quotePhone, setQuotePhone] = useState("");
   const [quoteRequirements, setQuoteRequirements] = useState("");
+  const [quoteErrors, setQuoteErrors] = useState<{ name?: string; phone?: string; requirements?: string }>({});
+  const [quoteTouched, setQuoteTouched] = useState<{ name?: boolean; phone?: boolean; requirements?: boolean }>({});
   const [quoteSubmitting, setQuoteSubmitting] = useState(false);
+
+  const validateQuoteForm = (nameVal = quoteName, phoneVal = quotePhone, reqVal = quoteRequirements) => {
+    const errs: { name?: string; phone?: string; requirements?: string } = {};
+
+    const cleanName = nameVal.trim();
+    if (!cleanName) {
+      errs.name = "Full name is required.";
+    } else if (cleanName.length < 2) {
+      errs.name = "Name must be at least 2 characters long.";
+    } else if (!/^[A-Za-z\s]+$/.test(cleanName)) {
+      errs.name = "Name can only contain alphabetic letters and spaces.";
+    }
+
+    const cleanDigits = phoneVal.replace(/\D/g, "");
+    if (!cleanDigits) {
+      errs.phone = "Mobile number is required.";
+    } else if (!/^[6-9]/.test(cleanDigits)) {
+      errs.phone = "Indian mobile numbers must start with 6, 7, 8, or 9.";
+    } else if (cleanDigits.length !== 10) {
+      errs.phone = `Enter a complete 10-digit mobile number (${cleanDigits.length}/10).`;
+    }
+
+    return errs;
+  };
+
+  const handleQuoteNameChange = (val: string) => {
+    const cleaned = val.replace(/[^a-zA-Z\s]/g, "");
+    setQuoteName(cleaned);
+    if (quoteTouched.name) {
+      const errs = validateQuoteForm(cleaned, quotePhone, quoteRequirements);
+      setQuoteErrors((prev) => ({ ...prev, name: errs.name }));
+    }
+  };
+
+  const handleQuotePhoneChange = (val: string) => {
+    const digitsOnly = val.replace(/\D/g, "").slice(0, 10);
+    setQuotePhone(digitsOnly);
+    if (quoteTouched.phone) {
+      const errs = validateQuoteForm(quoteName, digitsOnly, quoteRequirements);
+      setQuoteErrors((prev) => ({ ...prev, phone: errs.phone }));
+    }
+  };
 
   // User & Location state
   const [userLocation, setUserLocation] = useState<string>("Guntur, Andhra Pradesh");
@@ -782,7 +825,7 @@ function ServiceDetailPage() {
 
   const handleDirectBookNow = (plan: ServicePlan) => {
     handleAddToCart(plan);
-    setCartOpen(true);
+    setBookingOpen(true);
   };
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -819,49 +862,74 @@ function ServiceDetailPage() {
   };
 
   const handleSubmitQuote = async () => {
-    if (!quoteName.trim()) {
-      toast.error("Please enter your name.");
-      return;
-    }
-    if (!quotePhone.trim()) {
-      toast.error("Please enter your phone number.");
-      return;
-    }
-    if (!quoteRequirements.trim()) {
-      toast.error("Please enter your cleaning requirements.");
+    setQuoteTouched({ name: true, phone: true, requirements: true });
+    const validationErrors = validateQuoteForm();
+    setQuoteErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      const firstErrMsg = Object.values(validationErrors)[0];
+      toast.error(firstErrMsg || "Please correct the highlighted fields.", { icon: "⚠️" });
       return;
     }
 
     setQuoteSubmitting(true);
+    const toastId = toast.loading("Submitting estimate request...", { icon: "⏳" });
+
     try {
       const payload = {
-        serviceId: service?.id,
+        name: quoteName.trim(),
+        phone: quotePhone.trim(),
+        service: service?.title || "Custom Estimate Request",
+        message: quoteRequirements.trim() || `Estimate request for ${service?.title || "Cleaning"}`,
+        customerName: quoteName.trim(),
+        customerPhone: quotePhone.trim(),
         serviceTitle: service?.title,
-        customerName: quoteName,
-        customerPhone: quotePhone,
-        requirements: quoteRequirements,
+        requirements: quoteRequirements.trim(),
+        serviceId: service?.id,
         location: userLocation,
         source: "Service Detail Quote Modal",
         timestamp: new Date().toISOString(),
       };
 
-      const res = await fetch(`${ADMIN_API_URL}/api/quotes`, {
+      // Send to inquiries endpoint
+      const res = await fetch(`${ADMIN_API_URL}/api/inquiries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      if (res.ok) {
-        toast.success("Quotation request submitted! Our expert will call you shortly.", { icon: "📋" });
-        setQuoteName("");
-        setQuotePhone("");
-        setQuoteRequirements("");
-        setQuoteModalOpen(false);
-      } else {
-        toast.error("Failed to submit request. Please call +91 99663 46347 directly.");
+      if (!res.ok) {
+        // Fallback to quotes endpoint
+        const qRes = await fetch(`${ADMIN_API_URL}/api/quotes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!qRes.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to submit request.");
+        }
       }
+
+      toast.success("Quotation request submitted! Our expert will call you shortly.", {
+        id: toastId,
+        icon: "🎉",
+      });
+
+      setQuoteName("");
+      setQuotePhone("");
+      setQuoteRequirements("");
+      setQuoteTouched({});
+      setQuoteErrors({});
+      setQuoteModalOpen(false);
+
+      // Redirect user to thank-you confirmation page
+      navigate({ to: "/thank-you" });
     } catch (e: any) {
-      toast.error(`Error: ${e.message}`);
+      console.error("Quote submission error:", e);
+      toast.error(e.message || "Failed to submit request. Please call +91 99663 46347 directly.", {
+        id: toastId,
+      });
     } finally {
       setQuoteSubmitting(false);
     }
@@ -1120,33 +1188,32 @@ function ServiceDetailPage() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-stretch gap-2.5 shrink-0">
-                  {activePlanPrice > 0 ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleAddToCart(activePlan)}
-                        className="btn-luxury-secondary text-xs uppercase"
-                      >
-                        <ShoppingCart className="h-4 w-4" />
-                        <span>Add To Cart</span>
-                      </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddToCart(activePlan)}
+                    className="btn-luxury-secondary text-xs uppercase"
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    <span>Add To Cart</span>
+                  </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDirectBookNow(activePlan)}
-                        className="btn-luxury-primary text-xs uppercase"
-                      >
-                        <Zap className="h-4 w-4 text-amber-300 fill-amber-300" />
-                        <span>Book Now</span>
-                      </button>
-                    </>
-                  ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleDirectBookNow(activePlan)}
+                    className="btn-luxury-primary text-xs uppercase shadow-lg shadow-emerald-950/20"
+                  >
+                    <Zap className="h-4 w-4 text-amber-300 fill-amber-300" />
+                    <span>{activePlanPrice > 0 ? "Book Now" : "Book Slot with OTP"}</span>
+                  </button>
+
+                  {activePlanPrice === 0 && (
                     <button
                       type="button"
                       onClick={() => setQuoteModalOpen(true)}
-                      className="btn-luxury-primary text-xs uppercase"
+                      className="px-4 py-2.5 rounded-xl border border-emerald-700/50 bg-white hover:bg-emerald-50 text-[#002A22] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
                     >
-                      <span>Request Free Estimate</span>
+                      <Phone className="h-3.5 w-3.5 text-[#007A48]" />
+                      <span>Request Free Quote</span>
                     </button>
                   )}
                 </div>
@@ -1610,32 +1677,30 @@ function ServiceDetailPage() {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2 shrink-0 justify-end">
-              {activePlanPrice > 0 ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => handleAddToCart(activePlan)}
-                    className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#002A22] text-xs font-bold transition-all cursor-pointer border border-slate-300/80 active:scale-95 whitespace-nowrap flex items-center gap-1 shrink-0"
-                  >
-                    <Plus className="h-3.5 w-3.5 text-slate-700" />
-                    <span>Cart</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDirectBookNow(activePlan)}
-                    className="btn-luxury-primary text-xs py-2 px-4.5 min-h-[38px] shrink-0 active:scale-95 whitespace-nowrap flex items-center gap-1.5"
-                  >
-                    <Zap className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
-                    <span>Book Now</span>
-                  </button>
-                </>
-              ) : (
+              <button
+                type="button"
+                onClick={() => handleAddToCart(activePlan)}
+                className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#002A22] text-xs font-bold transition-all cursor-pointer border border-slate-300/80 active:scale-95 whitespace-nowrap flex items-center gap-1 shrink-0"
+              >
+                <Plus className="h-3.5 w-3.5 text-slate-700" />
+                <span>Cart</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDirectBookNow(activePlan)}
+                className="btn-luxury-primary text-xs py-2 px-4 min-h-[38px] shrink-0 active:scale-95 whitespace-nowrap flex items-center gap-1.5 shadow-md shadow-emerald-950/20"
+              >
+                <Zap className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
+                <span>{activePlanPrice > 0 ? "Book Now" : "Book with OTP"}</span>
+              </button>
+              {activePlanPrice === 0 && (
                 <button
                   type="button"
                   onClick={() => setQuoteModalOpen(true)}
-                  className="btn-luxury-primary text-xs py-2 px-4 shrink-0 active:scale-95 whitespace-nowrap"
+                  className="px-3 py-2 rounded-xl bg-white border border-emerald-300 text-[#002A22] text-xs font-bold hover:bg-emerald-50 shrink-0 active:scale-95 whitespace-nowrap flex items-center gap-1"
                 >
-                  <span>Get Free Estimate</span>
+                  <Phone className="h-3.5 w-3.5 text-emerald-700" />
+                  <span>Quote</span>
                 </button>
               )}
             </div>
@@ -1643,66 +1708,181 @@ function ServiceDetailPage() {
         </div>
       )}
 
-      {/* QUOTE MODAL */}
+      {/* QUOTE MODAL - REQUEST FREE ESTIMATE WITH STRICT VALIDATION */}
       {quoteModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-emerald-950/10 space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-[#002A22]">Request Free Estimate</h3>
-                <p className="text-xs text-slate-500 mt-0.5">{service.title}</p>
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-[#007A48]">
+                  <Sparkles className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-[#002A22]">Request Free Estimate</h3>
+                  <p className="text-xs text-emerald-800 font-semibold mt-0.5">{service.title}</p>
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => setQuoteModalOpen(false)}
-                className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 cursor-pointer"
+                onClick={() => {
+                  setQuoteModalOpen(false);
+                  setQuoteErrors({});
+                  setQuoteTouched({});
+                }}
+                className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 cursor-pointer transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3.5">
+              {/* Name Field */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Your Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Ramesh Kumar"
-                  value={quoteName}
-                  onChange={(e) => setQuoteName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#0B6B46]"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                    Your Name <span className="text-rose-500">*</span>
+                  </label>
+                  {quoteTouched.name && !quoteErrors.name && quoteName.trim().length >= 2 && (
+                    <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5">
+                      <CheckCircle2 className="h-3 w-3" /> Valid
+                    </span>
+                  )}
+                </div>
+                <div
+                  className={`relative flex items-center rounded-xl border bg-[#F8FAF9] px-3.5 py-2.5 transition-all ${
+                    quoteTouched.name && quoteErrors.name
+                      ? "border-rose-400 ring-2 ring-rose-400/20"
+                      : quoteTouched.name && !quoteErrors.name && quoteName.trim().length >= 2
+                      ? "border-emerald-500 ring-2 ring-emerald-500/20"
+                      : "border-slate-200 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-600/20"
+                  }`}
+                >
+                  <input
+                    type="text"
+                    placeholder="Enter your full name (letters only)"
+                    value={quoteName}
+                    onChange={(e) => handleQuoteNameChange(e.target.value)}
+                    onBlur={() => {
+                      setQuoteTouched((prev) => ({ ...prev, name: true }));
+                      const errs = validateQuoteForm(quoteName, quotePhone, quoteRequirements);
+                      setQuoteErrors((prev) => ({ ...prev, name: errs.name }));
+                    }}
+                    className="w-full bg-transparent text-xs font-semibold text-[#002A22] placeholder:text-slate-400 outline-none"
+                  />
+                </div>
+                {quoteTouched.name && quoteErrors.name && (
+                  <p className="text-[10px] font-semibold text-rose-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3 shrink-0" />
+                    {quoteErrors.name}
+                  </p>
+                )}
               </div>
 
+              {/* Phone Field */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Phone Number</label>
-                <input
-                  type="tel"
-                  placeholder="e.g. +91 99663 46347"
-                  value={quotePhone}
-                  onChange={(e) => setQuotePhone(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#0B6B46]"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                    Phone Number <span className="text-rose-500">*</span>
+                  </label>
+                  <span
+                    className={`text-[10px] font-bold ${
+                      quotePhone.length === 10 ? "text-emerald-600" : "text-slate-400"
+                    }`}
+                  >
+                    {quotePhone.length}/10 digits
+                  </span>
+                </div>
+                <div
+                  className={`flex items-center rounded-xl border bg-[#F8FAF9] px-3.5 py-2.5 transition-all ${
+                    quoteTouched.phone && quoteErrors.phone
+                      ? "border-rose-400 ring-2 ring-rose-400/20"
+                      : quoteTouched.phone && !quoteErrors.phone && quotePhone.length === 10
+                      ? "border-emerald-500 ring-2 ring-emerald-500/20"
+                      : "border-slate-200 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-600/20"
+                  }`}
+                >
+                  <span className="font-bold text-slate-500 text-xs mr-2 select-none shrink-0 border-r border-slate-200 pr-2">
+                    🇮🇳 +91
+                  </span>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="10-digit mobile number"
+                    value={quotePhone}
+                    onChange={(e) => handleQuotePhoneChange(e.target.value)}
+                    onBlur={() => {
+                      setQuoteTouched((prev) => ({ ...prev, phone: true }));
+                      const errs = validateQuoteForm(quoteName, quotePhone, quoteRequirements);
+                      setQuoteErrors((prev) => ({ ...prev, phone: errs.phone }));
+                    }}
+                    className="w-full bg-transparent text-xs font-semibold text-[#002A22] placeholder:text-slate-400 outline-none tracking-wide"
+                  />
+                  {quotePhone.length === 10 && /^[6-9]\d{9}$/.test(quotePhone) && (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 ml-1" />
+                  )}
+                </div>
+                {quoteTouched.phone && quoteErrors.phone && (
+                  <p className="text-[10px] font-semibold text-rose-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3 shrink-0" />
+                    {quoteErrors.phone}
+                  </p>
+                )}
               </div>
 
+              {/* Requirements Field */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Service Requirements / Notes</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                  Service Requirements / Notes (Optional)
+                </label>
                 <textarea
                   rows={3}
-                  placeholder="e.g. Double door fridge deep clean + kitchen tiles scrub..."
+                  placeholder="e.g. 3 BHK Deep Cleaning + balcony scrub & kitchen chimney degreasing..."
                   value={quoteRequirements}
                   onChange={(e) => setQuoteRequirements(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#0B6B46] resize-none"
+                  className="w-full bg-[#F8FAF9] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-[#002A22] placeholder:text-slate-400 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 resize-none font-medium"
                 />
               </div>
 
+              {/* Trust Badge */}
+              <div className="rounded-xl bg-emerald-50/70 border border-emerald-200/50 p-2.5 flex items-center gap-2 text-[11px] text-[#005B36] font-medium">
+                <Shield className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                <span>Zero obligation • 100% Free custom quotation within 15 min</span>
+              </div>
+
+              {/* Submit Button */}
               <button
                 type="button"
                 disabled={quoteSubmitting}
                 onClick={handleSubmitQuote}
-                className="w-full py-3 rounded-xl bg-[#002A22] hover:bg-[#0B6B46] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer border-0 disabled:opacity-50"
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#00241B] via-[#005B36] to-[#007A48] hover:from-[#001712] hover:to-[#005B36] text-white text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer border-0 disabled:opacity-50 shadow-md shadow-emerald-950/20 active:scale-[0.99] flex items-center justify-center gap-2"
               >
-                {quoteSubmitting ? "Submitting..." : "Submit Estimate Request"}
+                {quoteSubmitting ? (
+                  <>
+                    <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    <span>Submitting Request...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    <span>Submit Estimate Request</span>
+                  </>
+                )}
               </button>
+
+              {/* Or switch to full OTP Booking */}
+              <div className="pt-2 text-center border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuoteModalOpen(false);
+                    handleDirectBookNow(activePlan);
+                  }}
+                  className="w-full py-2.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#002A22] text-xs font-bold transition-all cursor-pointer border border-emerald-200/80 flex items-center justify-center gap-1.5"
+                >
+                  <Zap className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                  <span>Choose Date &amp; Time Slot with Mobile OTP</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1990,13 +2170,19 @@ function PlanDetailsModal({
               </button>
             )
           ) : (
-            <button
-              type="button"
-              onClick={() => onDirectBook(plan)}
-              className="w-full py-3.5 rounded-2xl bg-[#002A22] hover:bg-[#0B6B46] text-white text-xs sm:text-sm font-black uppercase tracking-wider cursor-pointer border-0 shadow-md active:scale-98 transition-all"
-            >
-              Request Free Estimate
-            </button>
+            <div className="flex items-center gap-2 w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onDirectBook(plan);
+                }}
+                className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-[#00241B] via-[#005B36] to-[#007A48] hover:from-[#001712] hover:to-[#005B36] text-white text-xs sm:text-sm font-black uppercase tracking-wider cursor-pointer border-0 shadow-md active:scale-98 transition-all flex items-center justify-center gap-2"
+              >
+                <Zap className="h-4 w-4 text-amber-300 fill-amber-300" />
+                <span>Book Slot with OTP (Zero Advance)</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
