@@ -196,8 +196,8 @@ function ThankYouPage() {
                 href="tel:+919966346347"
                 className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-white border border-slate-200 hover:border-[#007A48] text-[#002A22] font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer"
               >
-                <Phone className="h-4 w-4 text-[#007A48]" />
-                <span>Call +91 99663 46347</span>
+                <Phone className="h-4 w-4 text-[#007A48] shrink-0" />
+                <span className="whitespace-nowrap font-mono tracking-tight select-all">Call +91 99663 46347</span>
               </a>
 
               <Link

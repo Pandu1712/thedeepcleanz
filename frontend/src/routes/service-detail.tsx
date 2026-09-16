@@ -950,8 +950,8 @@ function ServiceDetailPage() {
   const activePlanPrice = getServicePrice(activePlan.price || service.price || 0);
 
   return (
-    <div className="min-h-screen bg-[#FBFBF9] text-[#1D2939] font-sans pt-[max(calc(env(safe-area-inset-top,0px)+64px),72px)] sm:pt-28 pb-[max(calc(env(safe-area-inset-bottom,0px)+120px),8rem)] md:pb-20 antialiased selection:bg-[#0B6B46] selection:text-white">
-      {/* GLOBAL HEADER (hideMobileNav ensures no overlapping bottom bars on mobile) */}
+    <div className="min-h-screen bg-[#FBFBF9] text-[#1D2939] font-sans pt-24 sm:pt-28 lg:pt-32 pb-[max(calc(env(safe-area-inset-bottom,0px)+120px),8rem)] md:pb-20 antialiased selection:bg-[#0B6B46] selection:text-white">
+      {/* GLOBAL HEADER */}
       <Header
         cartCount={cart.reduce((acc, i) => acc + i.qty, 0)}
         favsCount={favs.length}
@@ -964,7 +964,7 @@ function ServiceDetailPage() {
       />
 
       {/* TOP NAVIGATION BREADCRUMB */}
-      <div className="mx-auto max-w-[1440px] 2xl:max-w-[1560px] px-3.5 sm:px-6 lg:px-8 2xl:px-10 pt-2 sm:pt-4 pb-2">
+      <div className="mx-auto max-w-[1440px] 2xl:max-w-[1560px] px-3.5 sm:px-6 lg:px-8 2xl:px-10 pb-2">
         <div className="flex items-center justify-between gap-2 text-xs">
           <Link
             to="/services"
@@ -987,19 +987,19 @@ function ServiceDetailPage() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-[1440px] 2xl:max-w-[1560px] px-3.5 sm:px-6 lg:px-8 2xl:px-10 py-2 sm:py-4 space-y-6 sm:space-y-8">
+      <main className="mx-auto max-w-[1440px] 2xl:max-w-[1560px] px-3.5 sm:px-6 lg:px-8 2xl:px-10 py-2 sm:py-3 space-y-6 sm:space-y-7">
         {/* ============================================================
             HERO CARD: ULTRA-PREMIUM PRODUCT OVERVIEW & TIER SELECTOR
            ============================================================ */}
-        <section className="bg-white rounded-2xl sm:rounded-[28px] border border-slate-200/80 p-4 sm:p-8 md:p-10 shadow-[0_12px_45px_-10px_rgba(0,42,34,0.07)] overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-start">
+        <section className="bg-white rounded-2xl sm:rounded-[24px] border border-slate-200/80 p-4 sm:p-7 md:p-8 shadow-[0_8px_30px_-8px_rgba(0,42,34,0.06)] overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-10 items-start">
             
             {/* LEFT COLUMN: TITLE, SPECS, TIER SELECTOR & PRICING (7 COLS) */}
-            <div className="lg:col-span-7 space-y-5 sm:space-y-6">
+            <div className="lg:col-span-7 space-y-4 sm:space-y-5">
               {/* Category Pill & Trust Flags */}
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-[#0B6B46]/10 text-[#0B6B46] text-[10px] sm:text-xs font-bold uppercase tracking-wider">
-                  <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#0B6B46]" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0B6B46]/10 text-[#0B6B46] text-[10px] sm:text-xs font-bold uppercase tracking-wider">
+                  <Sparkles className="h-3 w-3 text-[#0B6B46]" />
                   Verified Hospital-Grade Sanitation
                 </span>
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] sm:text-xs font-semibold">
@@ -1010,36 +1010,36 @@ function ServiceDetailPage() {
 
               {/* Service Title */}
               <div>
-                <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-[#002A22] tracking-tight leading-snug sm:leading-tight">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#002A22] tracking-tight leading-snug">
                   {service.title}
                 </h1>
                 
                 {/* Rating & Review Counter Row */}
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 text-xs">
-                  <div className="flex items-center gap-1 bg-[#FDF8EE] border border-[#F6E0B3] px-2.5 py-1 rounded-lg text-[#996515] font-bold">
-                    <Star className="h-3.5 w-3.5 fill-[#E5A827] text-[#E5A827]" />
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1.5 text-xs">
+                  <div className="flex items-center gap-1 bg-[#FDF8EE] border border-[#F6E0B3] px-2.5 py-0.5 rounded-lg text-[#996515] font-bold">
+                    <Star className="h-3 w-3 fill-[#E5A827] text-[#E5A827]" />
                     <span>{avgRating}</span>
                     <span className="text-slate-400 font-normal">({reviewCount}+ bookings)</span>
                   </div>
 
                   <span className="hidden sm:inline text-slate-300">•</span>
 
-                  <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg text-slate-600 font-medium">
-                    <Clock className="h-3.5 w-3.5 text-slate-400" />
+                  <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/80 px-2.5 py-0.5 rounded-lg text-slate-600 font-medium">
+                    <Clock className="h-3 w-3 text-slate-400" />
                     <span>{activePlan.duration || "40 - 60 mins"}</span>
                   </div>
 
                   <span className="hidden sm:inline text-slate-300">•</span>
 
-                  <div className="flex items-center gap-1 text-emerald-700 font-semibold">
-                    <Shield className="h-3.5 w-3.5 text-emerald-600" />
+                  <div className="flex items-center gap-1 text-emerald-700 font-semibold text-xs">
+                    <Shield className="h-3 w-3 text-emerald-600" />
                     <span>100% Satisfaction Guarantee</span>
                   </div>
                 </div>
               </div>
 
-              {/* Service Description (Sanitized) */}
-              <p className="text-xs sm:text-sm md:text-base text-slate-600 font-normal leading-relaxed">
+              {/* Service Description */}
+              <p className="text-xs sm:text-sm text-slate-600 font-normal leading-relaxed">
                 {cleanServiceDescription(service.description || service.desc)}
               </p>
 
@@ -1169,40 +1169,40 @@ function ServiceDetailPage() {
               {/* ===================================================
                   STEP 2: TRANSPARENT PRICING & DIRECT ACTION CTA
                  =================================================== */}
-              <div className="mt-5 sm:mt-6 rounded-2xl bg-gradient-to-br from-[#F6FAF8] to-[#EDF6F2] border border-[#CBE2D8] p-4 sm:p-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 sm:gap-5 shadow-xs">
+              <div className="mt-4 sm:mt-5 rounded-2xl bg-gradient-to-br from-[#F6FAF8] to-[#EDF6F2] border border-[#CBE2D8] p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-xs">
                 <div>
                   <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
                     Total All-Inclusive Price ({activePlan.name})
                   </span>
-                  <div className="flex flex-wrap items-baseline gap-2 mt-1">
-                    <span className="text-2xl sm:text-4xl font-black text-[#002A22] tracking-tight">
+                  <div className="flex flex-wrap items-baseline gap-2 mt-0.5">
+                    <span className="text-xl sm:text-2xl font-black text-[#002A22] tracking-tight">
                       {activePlanPrice > 0 ? `₹${activePlanPrice}` : "Customized Price"}
                     </span>
-                    <span className="text-[10px] sm:text-xs font-bold text-emerald-800 bg-emerald-100/90 px-2.5 py-0.5 rounded-full border border-emerald-200/80">
+                    <span className="text-[10px] sm:text-xs font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-200/80">
                       {activePlanPrice > 0 ? "Standard Rate" : "Custom Quote"}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 font-medium mt-1">
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
                     ✓ All eco-friendly chemicals, high-grade tools &amp; GST included. No surprise fees.
                   </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch gap-2.5 shrink-0">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => handleAddToCart(activePlan)}
-                    className="btn-luxury-secondary text-xs uppercase"
+                    className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-[#002A22] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
                   >
-                    <ShoppingCart className="h-4 w-4" />
+                    <ShoppingCart className="h-3.5 w-3.5" />
                     <span>Add To Cart</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleDirectBookNow(activePlan)}
-                    className="btn-luxury-primary text-xs uppercase shadow-lg shadow-emerald-950/20"
+                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#00241B] via-[#005B36] to-[#007A48] hover:from-[#001712] hover:to-[#005B36] text-white text-xs font-extrabold uppercase tracking-wide transition-all cursor-pointer border-0 shadow-md shadow-emerald-950/20 active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap"
                   >
-                    <Zap className="h-4 w-4 text-amber-300 fill-amber-300" />
+                    <Zap className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
                     <span>{activePlanPrice > 0 ? "Book Now" : "Book Slot with OTP"}</span>
                   </button>
 
@@ -1210,112 +1210,79 @@ function ServiceDetailPage() {
                     <button
                       type="button"
                       onClick={() => setQuoteModalOpen(true)}
-                      className="px-4 py-2.5 rounded-xl border border-emerald-700/50 bg-white hover:bg-emerald-50 text-[#002A22] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                      className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl border border-emerald-700/50 bg-white hover:bg-emerald-50 text-[#002A22] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
                     >
                       <Phone className="h-3.5 w-3.5 text-[#007A48]" />
-                      <span>Request Free Quote</span>
+                      <span>Request Quote</span>
                     </button>
                   )}
                 </div>
               </div>
 
-
             </div>
 
             {/* RIGHT COLUMN: ACCURATE SERVICE PHOTO & TRUST BADGES (5 COLS) */}
-            <div className="lg:col-span-5 space-y-6">
+            <div className="lg:col-span-5 space-y-4 sm:space-y-5">
               {/* Service Hero Photo Card */}
-              <div className="relative rounded-3xl overflow-hidden aspect-[4/3] bg-slate-100 border border-slate-200 shadow-sm group">
+              <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[4/3] bg-slate-100 border border-slate-200 shadow-sm group">
                 <img
                   src={serviceImage}
                   alt={service.title}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  onError={(e) => {
-                    // Fallback to house if broken
-                    (e.target as HTMLImageElement).src = imgHouse;
-                  }}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  loading="lazy"
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
 
-                {/* Rating Badge Overlay */}
-                <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md border border-slate-200 px-3.5 py-1.5 rounded-full text-xs font-bold text-[#002A22] flex items-center gap-1.5 shadow-md">
-                  <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                  <span>{avgRating} Top Rated</span>
-                </div>
-
-                {/* Bottom Photo Caption */}
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 text-white">
-                  <span className="text-xs font-bold block">{service.title}</span>
-                  <span className="text-[10px] text-slate-200 font-medium">
-                    Trained technicians • Advanced extraction equipment
+                <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 right-3 sm:right-4 flex items-center justify-between text-white">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                    <span className="text-xs font-bold drop-shadow-md">Available Today in Guntur</span>
+                  </div>
+                  <span className="text-[10px] bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full font-bold border border-white/30">
+                    Verified Crew
                   </span>
                 </div>
               </div>
 
-              {/* 4 Guarantees Pillars */}
-              <div className="bg-[#F8FAF9] rounded-2xl border border-slate-200 p-5 space-y-3.5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#002A22]">
-                  The Deep CleanerZ Service Promises
-                </h3>
-
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="flex items-start gap-2.5">
-                    <div className="h-7 w-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">
-                      🧑‍🔧
-                    </div>
-                    <div>
-                      <span className="font-bold text-[#002A22] block">Verified Staff</span>
-                      <span className="text-[11px] text-slate-500 leading-tight">Police-verified in uniform</span>
-                    </div>
+              {/* Trust Badges Mini Banner */}
+              <div className="grid grid-cols-2 gap-2 bg-[#F6FAF8] border border-[#E2EFEA] p-3 rounded-2xl">
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-lg bg-[#002A22] text-[#0B6B46] flex items-center justify-center shrink-0">
+                    <Shield className="h-4 w-4 text-white" />
                   </div>
-
-                  <div className="flex items-start gap-2.5">
-                    <div className="h-7 w-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">
-                      🌿
-                    </div>
-                    <div>
-                      <span className="font-bold text-[#002A22] block">Eco-Safe Care</span>
-                      <span className="text-[11px] text-slate-500 leading-tight">100% Pet & baby friendly</span>
-                    </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold text-[#002A22] block truncate">₹10k Insurance</span>
+                    <span className="text-[9px] text-slate-500 block truncate">Damage protection</span>
                   </div>
+                </div>
 
-                  <div className="flex items-start gap-2.5">
-                    <div className="h-7 w-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">
-                      ⏱️
-                    </div>
-                    <div>
-                      <span className="font-bold text-[#002A22] block">On-Time Arrival</span>
-                      <span className="text-[11px] text-slate-500 leading-tight">Prompt doorstep service</span>
-                    </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-lg bg-[#002A22] text-[#0B6B46] flex items-center justify-center shrink-0">
+                    <Sparkles className="h-4 w-4 text-white" />
                   </div>
-
-                  <div className="flex items-start gap-2.5">
-                    <div className="h-7 w-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">
-                      🛡️
-                    </div>
-                    <div>
-                      <span className="font-bold text-[#002A22] block">Free Re-Clean</span>
-                      <span className="text-[11px] text-slate-500 leading-tight">If unsatisfied within 24h</span>
-                    </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold text-[#002A22] block truncate">Eco-Certified</span>
+                    <span className="text-[9px] text-slate-500 block truncate">Pet &amp; baby safe</span>
                   </div>
                 </div>
               </div>
 
-              {/* Contact Assistance Box */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-[#002A22] text-[#0B6B46] flex items-center justify-center shrink-0">
-                    <Phone className="h-5 w-5 text-white" />
+              {/* Contact Assistance Box - Guaranteed Single Line Helpline */}
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-3.5 sm:p-4 flex items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                  <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-[#002A22] text-emerald-400 flex items-center justify-center shrink-0 shadow-xs">
+                    <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />
                   </div>
-                  <div>
-                    <span className="text-xs font-bold text-[#002A22] block">Questions or Custom Area?</span>
-                    <span className="text-[11px] text-slate-500">Call our helpline anytime</span>
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-[#002A22] block truncate">Questions or Custom Area?</span>
+                    <span className="text-[11px] text-slate-500 block truncate">Call our helpline anytime</span>
                   </div>
                 </div>
                 <a
                   href="tel:+919966346347"
-                  className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-[#002A22] hover:text-white text-[#002A22] text-xs font-bold transition-colors"
+                  className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-[#002A22] hover:text-white text-[#002A22] text-xs font-black tracking-tight transition-all whitespace-nowrap shrink-0 inline-flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-95"
                 >
-                  +91 99663 46347
+                  <span className="whitespace-nowrap font-mono tracking-tight select-all">+91 99663 46347</span>
                 </a>
               </div>
 
@@ -1327,10 +1294,10 @@ function ServiceDetailPage() {
         {/* ============================================================
             SECTION 2: WHAT'S INCLUDED VS. WHAT'S NOT (EASY TO UNDERSTAND)
            ============================================================ */}
-        <section className="space-y-4">
+        <section className="space-y-3 sm:space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-[#002A22] tracking-tight">
+              <h2 className="text-lg sm:text-xl font-extrabold text-[#002A22] tracking-tight">
                 What's Included in {activePlan.name}
               </h2>
               <p className="text-xs sm:text-sm text-slate-500 mt-0.5">

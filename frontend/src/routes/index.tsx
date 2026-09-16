@@ -3212,8 +3212,8 @@ function Index() {
                   <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-[#cb9f5a]">
                     Phone Support
                   </h4>
-                  <p className="text-xs sm:text-sm font-bold text-[#002a22] mt-0.5">
-                    +91 99663 46347
+                  <p className="text-xs sm:text-sm font-bold text-[#002a22] mt-0.5 whitespace-nowrap">
+                    <span className="whitespace-nowrap font-mono tracking-tight select-all">+91 99663 46347</span>
                   </p>
                   <p className="text-[9px] text-[#002a22]/60 font-semibold mt-0.5">
                     Mon - Sun: 8:00 AM - 8:00 PM
@@ -3569,7 +3569,7 @@ function Index() {
                     </div>
                     <a
                       href="tel:+919966346347"
-                      className="text-xs font-bold text-white hover:text-emerald-400 transition-colors"
+                      className="text-xs font-bold text-white hover:text-emerald-400 transition-colors whitespace-nowrap inline-block font-mono select-all"
                     >
                       +91 99663 46347
                     </a>
@@ -4911,7 +4911,7 @@ export function CartDrawer({
                         </button>
                       </div>
                       <div className="text-xs font-black text-[#002a22]">
-                        ₹{i.price * i.qty}
+                        {i.price > 0 ? `₹${i.price * i.qty}` : "Custom Quote"}
                       </div>
                     </div>
                   </div>
@@ -4987,10 +4987,12 @@ export function CartDrawer({
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                 Total Amount
               </span>
-              <span className="font-display text-2xl font-black text-[#007A48]">₹{total}</span>
+              <span className="font-display text-2xl font-black text-[#007A48]">
+                {total > 0 ? `₹${total}` : "Custom Quote"}
+              </span>
             </div>
             <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-              <span>GST included · 72hr Free Re-clean</span>
+              <span>{total > 0 ? "GST included · 72hr Free Re-clean" : "Zero Advance · Pay After Service"}</span>
               <span className="inline-flex items-center gap-1 text-emerald-600 font-bold">
                 <BadgeCheck className="h-3.5 w-3.5" /> SECURE
               </span>
@@ -4999,9 +5001,13 @@ export function CartDrawer({
               onClick={onCheckout}
               className="mt-3.5 w-full rounded-xl bg-[#007A48] hover:bg-[#005B36] text-white font-black uppercase tracking-wider text-xs py-4 shadow-lg shadow-[#007A48]/30 transition-transform hover:scale-[1.01] active:scale-98 cursor-pointer flex items-center justify-center gap-2"
             >
-              <span>Proceed to Checkout</span>
-              <span className="opacity-75">·</span>
-              <span>₹{total}</span>
+              <span>{total > 0 ? "Proceed to Checkout" : "Book Free Inspection Slot"}</span>
+              {total > 0 && (
+                <>
+                  <span className="opacity-75">·</span>
+                  <span>₹{total}</span>
+                </>
+              )}
             </button>
           </div>
         )}
@@ -5889,7 +5895,8 @@ export function BookingModal({
   // Item Total + Taxes & Fees (5%) - Discount - Wallet = Total Amount
   // Advance Payment (~15-20%) | Remaining Amount (Pay after service)
   const itemTotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0) || total;
-  const taxesAndFees = Math.round(itemTotal * 0.05); // 5% Safety & Platform charges
+  const isCustomQuote = itemTotal === 0 || (cart.length > 0 && cart.every((i) => i.price === 0));
+  const taxesAndFees = isCustomQuote ? 0 : Math.round(itemTotal * 0.05); // 5% Safety & Platform charges
   const totalBeforeDiscounts = itemTotal + taxesAndFees;
   const totalAfterDiscount = Math.max(0, totalBeforeDiscounts - discount);
   const appliedWalletCredit = useWalletCredit
@@ -5898,7 +5905,7 @@ export function BookingModal({
   const grandTotal = Math.max(0, totalAfterDiscount - appliedWalletCredit);
   
   // Advance payment is standard ~15% (min ₹299, rounded) or full if item is small
-  const isFreeAdvance = cart.some((i) => i.paymentType === "free_advance");
+  const isFreeAdvance = isCustomQuote || cart.some((i) => i.paymentType === "free_advance");
   const upfrontPayAmount = isFreeAdvance 
     ? 0 
     : grandTotal > 1500 
@@ -5966,7 +5973,7 @@ export function BookingModal({
                 TheDeep CleanerZ
               </span>
               <h2 className="text-base font-extrabold text-[#002A22] leading-tight">
-                Complete Booking
+                {isCustomQuote ? "Book Free Inspection Slot" : "Complete Booking"}
               </h2>
             </div>
           </div>
@@ -5988,7 +5995,7 @@ export function BookingModal({
                 </div>
                 <div>
                   <h3 className="text-sm font-extrabold text-[#002A22]">Mobile OTP Verification</h3>
-                  <p className="text-[11px] text-slate-500 font-medium">Confirm with 6-digit OTP code to proceed to payment</p>
+                  <p className="text-[11px] text-slate-500 font-medium">Confirm with 6-digit OTP code to {isCustomQuote ? "confirm your free inspection slot" : "proceed to payment"}</p>
                 </div>
               </div>
               <button
@@ -6174,13 +6181,15 @@ export function BookingModal({
               <div className="h-16 w-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-3xl shadow-sm mb-4">
                 🎉
               </div>
-              <h3 className="text-xl font-extrabold text-[#002A22]">Booking Confirmed!</h3>
+              <h3 className="text-xl font-extrabold text-[#002A22]">
+                {isCustomQuote ? "Free Inspection Slot Confirmed!" : "Booking Confirmed!"}
+              </h3>
               <p className="mt-1 text-xs text-slate-500 max-w-xs font-medium">
-                Our verified cleaning crew will arrive on{" "}
+                {isCustomQuote ? "Our verified supervisor will visit on " : "Our verified cleaning crew will arrive on "}
                 <strong className="text-emerald-800">{form.date} at {form.time}</strong>.
               </p>
               <div className="mt-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 font-bold">
-                ✓ Booking confirmation &amp; updates sent to +91 {form.phone}
+                ✓ {isCustomQuote ? "Inspection confirmation" : "Booking confirmation"} &amp; updates sent to +91 {form.phone}
               </div>
               <div className="mt-5 w-full max-w-xs">
                 <button
@@ -6897,87 +6906,119 @@ export function BookingModal({
                 </div>
               </div>
 
-              {/* SECTION 7: PAYMENT SUMMARY (Matching Video) */}
-              <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-3xs space-y-3 font-sans">
-                <span className="text-xs font-extrabold text-[#002A22] block border-b border-slate-100 pb-2">
-                  Payment summary
-                </span>
-
-                <div className="space-y-2 text-xs font-semibold text-slate-600">
-                  <div className="flex justify-between">
-                    <span>Item total</span>
-                    <span className="font-bold text-[#002A22]">₹{itemTotal}/-</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Taxes and Fees</span>
-                    <span className="font-bold text-[#002A22]">₹{taxesAndFees}/-</span>
-                  </div>
-                  {discount > 0 && (
-                    <div className="flex justify-between text-emerald-700">
-                      <span>Coupon Discount</span>
-                      <span className="font-bold">− ₹{discount}/-</span>
+              {/* SECTION 7: PAYMENT SUMMARY OR FREE INSPECTION DETAILS */}
+              {isCustomQuote ? (
+                <div className="bg-white rounded-2xl p-4 border border-emerald-200/90 shadow-3xs space-y-3 font-sans">
+                  <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-[#007A48]" />
+                      <span className="text-xs font-extrabold text-[#002A22]">Free Inspection &amp; Custom Quote</span>
                     </div>
-                  )}
-                  {appliedWalletCredit > 0 && (
-                    <div className="flex justify-between text-emerald-700">
-                      <span>Wallet Credit</span>
-                      <span className="font-bold">− ₹{appliedWalletCredit}/-</span>
-                    </div>
-                  )}
-
-                  <div className="border-t border-slate-150 pt-2 flex justify-between font-bold text-sm text-[#002A22]">
-                    <span>Total amount</span>
-                    <span>₹{grandTotal}/-</span>
-                  </div>
-
-                  <div className="flex justify-between text-slate-500 text-[11px]">
-                    <span>Advance payment</span>
-                    <span className="font-bold text-emerald-800">₹{upfrontPayAmount}/-</span>
-                  </div>
-                  <div className="flex justify-between text-slate-500 text-[11px]">
-                    <span>Remaining Amount (Pay after clean)</span>
-                    <span className="font-bold">₹{payLaterAmount}/-</span>
-                  </div>
-
-                  <div className="border-t border-slate-200 pt-2 flex justify-between items-center text-sm">
-                    <span className="font-extrabold text-[#002A22]">Amount to pay</span>
-                    <span className="text-base font-black text-emerald-800">
-                      ₹{upfrontPayAmount}/-
+                    <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100/90 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                      Zero Advance (Pay Later)
                     </span>
                   </div>
-                </div>
 
-                {/* Coupon Input Box */}
-                <div className="pt-2 border-t border-slate-100 flex gap-2">
-                  <input
-                    placeholder="Coupon code (e.g. WELCOME500)"
-                    value={form.coupon}
-                    onChange={(e) => setForm({ ...form, coupon: e.target.value.toUpperCase() })}
-                    className="flex-1 bg-[#F8FAF9] border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-[#002A22] outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={applyCoupon}
-                    className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer border-0"
-                  >
-                    Apply
-                  </button>
+                  <div className="space-y-2 text-xs font-semibold text-slate-600">
+                    <div className="flex justify-between">
+                      <span>Doorstep Site Visit &amp; Inspection</span>
+                      <span className="font-extrabold text-emerald-700">FREE (₹0)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Advance Deposit</span>
+                      <span className="font-extrabold text-emerald-700">₹0 (No Prepayment)</span>
+                    </div>
+                    <div className="border-t border-slate-150 pt-2 flex justify-between font-bold text-sm text-[#002A22]">
+                      <span>Estimated Service Cost</span>
+                      <span className="text-emerald-800 font-extrabold">Custom Quote at Doorstep</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-normal pt-1.5 border-t border-slate-100 leading-relaxed">
+                      ✓ Our expert supervisor will inspect the premises on your selected date/time and give you a fixed quote before starting work. You pay only after you are 100% satisfied.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-3xs space-y-3 font-sans">
+                  <span className="text-xs font-extrabold text-[#002A22] block border-b border-slate-100 pb-2">
+                    Payment summary
+                  </span>
+
+                  <div className="space-y-2 text-xs font-semibold text-slate-600">
+                    <div className="flex justify-between">
+                      <span>Item total</span>
+                      <span className="font-bold text-[#002A22]">₹{itemTotal}/-</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Taxes and Fees</span>
+                      <span className="font-bold text-[#002A22]">₹{taxesAndFees}/-</span>
+                    </div>
+                    {discount > 0 && (
+                      <div className="flex justify-between text-emerald-700">
+                        <span>Coupon Discount</span>
+                        <span className="font-bold">− ₹{discount}/-</span>
+                      </div>
+                    )}
+                    {appliedWalletCredit > 0 && (
+                      <div className="flex justify-between text-emerald-700">
+                        <span>Wallet Credit</span>
+                        <span className="font-bold">− ₹{appliedWalletCredit}/-</span>
+                      </div>
+                    )}
+
+                    <div className="border-t border-slate-150 pt-2 flex justify-between font-bold text-sm text-[#002A22]">
+                      <span>Total amount</span>
+                      <span>₹{grandTotal}/-</span>
+                    </div>
+
+                    <div className="flex justify-between text-slate-500 text-[11px]">
+                      <span>Advance payment</span>
+                      <span className="font-bold text-emerald-800">₹{upfrontPayAmount}/-</span>
+                    </div>
+                    <div className="flex justify-between text-slate-500 text-[11px]">
+                      <span>Remaining Amount (Pay after clean)</span>
+                      <span className="font-bold">₹{payLaterAmount}/-</span>
+                    </div>
+
+                    <div className="border-t border-slate-200 pt-2 flex justify-between items-center text-sm">
+                      <span className="font-extrabold text-[#002A22]">Amount to pay</span>
+                      <span className="text-base font-black text-emerald-800">
+                        ₹{upfrontPayAmount}/-
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Coupon Input Box */}
+                  <div className="pt-2 border-t border-slate-100 flex gap-2">
+                    <input
+                      placeholder="Coupon code (e.g. WELCOME500)"
+                      value={form.coupon}
+                      onChange={(e) => setForm({ ...form, coupon: e.target.value.toUpperCase() })}
+                      className="flex-1 bg-[#F8FAF9] border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-[#002A22] outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={applyCoupon}
+                      className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer border-0"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
 
-        {/* SECTION 8: PRIMARY STICKY BOTTOM ACTION CTA (Matching Video) */}
+        {/* SECTION 8: PRIMARY STICKY BOTTOM ACTION CTA */}
         {!success && (
           <div className="shrink-0 bg-white/98 backdrop-blur-md border-t border-slate-200 p-3.5 px-4 pb-[max(env(safe-area-inset-bottom,0px),14px)] shadow-[0_-8px_25px_rgba(0,0,0,0.08)]">
             <div className="flex items-center justify-between gap-3 max-w-xl mx-auto">
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Amount to pay
+                <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider block">
+                  {isCustomQuote ? "Free Inspection Slot" : "Amount to pay"}
                 </span>
-                <span className="text-lg font-black text-[#002A22] leading-tight">
-                  ₹{upfrontPayAmount}/-
+                <span className="text-base sm:text-lg font-black text-[#002A22] leading-tight whitespace-nowrap">
+                  {isCustomQuote ? "Zero Advance" : `₹${upfrontPayAmount}/-`}
                 </span>
               </div>
 
@@ -6985,10 +7026,15 @@ export function BookingModal({
                 type="button"
                 disabled={isPaying}
                 onClick={handleConfirm}
-                className="flex-1 max-w-[280px] py-3 rounded-xl bg-[#0B6B46] hover:bg-[#084F34] text-white text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer border-0 flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-50"
+                className="flex-1 max-w-[300px] py-3 rounded-xl bg-[#0B6B46] hover:bg-[#084F34] text-white text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer border-0 flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-50"
               >
                 {isPaying ? (
                   "Processing..."
+                ) : isCustomQuote ? (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                    <span>Confirm Free Inspection Slot</span>
+                  </>
                 ) : (
                   <>
                     Pay ₹{upfrontPayAmount}/- &amp; Book Service

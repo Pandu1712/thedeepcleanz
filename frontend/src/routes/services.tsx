@@ -577,7 +577,7 @@ function ServicesComponent() {
                 <span>OUR EXPERTISE</span>
                 <span className="h-[2px] w-6 bg-[#007A48] rounded-full inline-block" />
               </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-[#002A22] leading-tight">
                 Our Premium <br />
                 <span className="text-[#007A48]">Cleaning Services</span>
               </h1>
@@ -1174,7 +1174,7 @@ function ServicesComponent() {
           </div>
 
           {/* Call CTA */}
-          <div className="flex items-center justify-between sm:justify-end gap-4 w-full lg:w-auto pt-4 lg:pt-0 border-t lg:border-t-0 border-emerald-800/60">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full lg:w-auto pt-4 lg:pt-0 border-t lg:border-t-0 border-emerald-800/60">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-[#005A3E] flex items-center justify-center shrink-0">
                 <Phone className="h-5 w-5 text-emerald-300" />
@@ -1183,14 +1183,14 @@ function ServicesComponent() {
                 <div className="text-[10px] text-emerald-200 uppercase font-bold tracking-wider">
                   Need Help? Talk to Our Experts
                 </div>
-                <div className="text-sm font-black text-white">
-                  +91 99663 46347
+                <div className="text-sm font-black text-white whitespace-nowrap">
+                  <span className="whitespace-nowrap font-mono tracking-tight select-all">+91 99663 46347</span>
                 </div>
               </div>
             </div>
             <a
               href="tel:+919966346347"
-              className="bg-white text-[#003B2B] hover:bg-slate-100 text-xs font-bold px-4 py-2 rounded-lg transition-colors shadow-xs"
+              className="bg-white text-[#003B2B] hover:bg-slate-100 text-xs font-bold px-4 py-2 rounded-lg transition-colors shadow-xs whitespace-nowrap shrink-0 inline-flex items-center justify-center cursor-pointer active:scale-95"
             >
               Call Now
             </a>
@@ -1317,7 +1317,7 @@ function ServicesComponent() {
                     </div>
                     <a
                       href="tel:+919966346347"
-                      className="text-xs font-bold text-white hover:text-emerald-400 transition-colors"
+                      className="text-xs font-bold text-white hover:text-emerald-400 transition-colors whitespace-nowrap inline-block font-mono select-all"
                     >
                       +91 99663 46347
                     </a>

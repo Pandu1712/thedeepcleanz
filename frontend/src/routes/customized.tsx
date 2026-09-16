@@ -512,7 +512,7 @@ function CustomizedComponent() {
                     </div>
                     <a
                       href="tel:+919966346347"
-                      className="text-xs font-bold text-white hover:text-emerald-400 transition-colors"
+                      className="text-xs font-bold text-white hover:text-emerald-400 transition-colors whitespace-nowrap inline-block font-mono select-all"
                     >
                       +91 99663 46347
                     </a>
