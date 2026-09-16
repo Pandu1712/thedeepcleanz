@@ -693,3 +693,45 @@ export async function deleteBlockedDate(id: string): Promise<boolean> {
   return (await res.json()).ok as boolean;
 }
 
+export interface AdminInquiry {
+  id: string;
+  name: string;
+  phone: string;
+  service?: string;
+  message?: string;
+  city?: string;
+  status: "pending" | "contacted" | "resolved";
+  createdAt: string;
+}
+
+export async function fetchInquiries(signal?: AbortSignal): Promise<AdminInquiry[]> {
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/api/inquiries`, { signal });
+    if (!res.ok) throw new Error(`Fetch inquiries failed: ${res.status}`);
+    const data = await res.json();
+    return Array.isArray(data.inquiries) ? data.inquiries : [];
+  } catch (err) {
+    console.warn("Fetch inquiries error:", err);
+    return [];
+  }
+}
+
+export async function updateInquiryStatus(id: string, status: "pending" | "contacted" | "resolved"): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/inquiries/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error(`Update inquiry status failed: ${res.status}`);
+  return (await res.json()).ok as boolean;
+}
+
+export async function deleteInquiry(id: string): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/inquiries/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(`Delete inquiry failed: ${res.status}`);
+  return (await res.json()).ok as boolean;
+}
+
+
