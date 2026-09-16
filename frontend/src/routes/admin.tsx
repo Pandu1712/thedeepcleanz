@@ -53,6 +53,7 @@ import {
   EyeOff,
   ChevronLeft,
   ChevronRight,
+  CalendarOff,
 } from "lucide-react";
 
 import {
@@ -104,6 +105,10 @@ import {
   addRecentTransformation,
   updateRecentTransformation,
   deleteRecentTransformation,
+  fetchBlockedDates,
+  addBlockedDate,
+  deleteBlockedDate,
+  type BlockedDate,
   type RecentTransformation,
   type AdminCategory,
   type AdminService,
@@ -187,6 +192,7 @@ type TabType =
   | "customized"
   | "bookings"
   | "calendar"
+  | "blocked-dates"
   | "users"
   | "coupons"
   | "technicians"
@@ -210,6 +216,12 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [customizedServices, setCustomizedServices] = useState<AdminCustomizedService[]>([]);
   const [coupons, setCoupons] = useState<AdminCoupon[]>([]);
   const [technicians, setTechnicians] = useState<AdminTechnician[]>([]);
+  const [blockedDatesList, setBlockedDatesList] = useState<BlockedDate[]>([]);
+
+  // Date Block management states
+  const [blockDateInput, setBlockDateInput] = useState("");
+  const [blockReasonInput, setBlockReasonInput] = useState("");
+  const [isSavingBlockDate, setIsSavingBlockDate] = useState(false);
 
   // Reschedule states
   const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
@@ -237,6 +249,10 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [admReferralEnabled, setAdmReferralEnabled] = useState<boolean>(true);
   const [admPromoText, setAdmPromoText] = useState("Exclusive Privilege: Enjoy Flat 20% OFF on your first booking — apply code");
   const [admPromoCode, setAdmPromoCode] = useState("CLEAN20");
+  const [admWhatsappEnabled, setAdmWhatsappEnabled] = useState<boolean>(true);
+  const [admWhatsappPhone, setAdmWhatsappPhone] = useState<string>("919154351636");
+  const [admWhatsappApiKey, setAdmWhatsappApiKey] = useState<string>("");
+  const [isSendingTestWhatsapp, setIsSendingTestWhatsapp] = useState<boolean>(false);
 
   // User Edit Wallet State
   const [walletEditUserId, setWalletEditUserId] = useState<string | null>(null);
@@ -482,6 +498,9 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       const transData = await fetchRecentTransformations();
       setTransformations(transData || []);
 
+      const blkData = await fetchBlockedDates();
+      setBlockedDatesList(blkData || []);
+
       // Fetch travel distance pricing configurations
       try {
         const sRes = await fetch(`${ADMIN_API_URL}/api/settings`);
@@ -504,6 +523,15 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           }
           if (settings.header_promo_code !== undefined) {
             setAdmPromoCode(settings.header_promo_code);
+          }
+          if (settings.whatsapp_enabled !== undefined) {
+            setAdmWhatsappEnabled(settings.whatsapp_enabled !== "0");
+          }
+          if (settings.whatsapp_admin_phone !== undefined) {
+            setAdmWhatsappPhone(settings.whatsapp_admin_phone);
+          }
+          if (settings.whatsapp_api_key !== undefined) {
+            setAdmWhatsappApiKey(settings.whatsapp_api_key);
           }
         }
       } catch (err) {
@@ -718,6 +746,11 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       toast.error("Please specify a Date and Time.");
       return;
     }
+    const todayStr = new Date().toISOString().split("T")[0];
+    if (newDate < todayStr) {
+      toast.error("Cannot reschedule to a past date. Please pick today or a future date.");
+      return;
+    }
     try {
       await rescheduleBooking(rescheduleBookingId, newDate, newTime, "Admin");
       toast.success("Appointment rescheduled successfully!");
@@ -726,6 +759,44 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       refreshData();
     } catch (err: any) {
       toast.error(`Reschedule failed: ${err.message}`);
+    }
+  };
+
+  const handleBlockDate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!blockDateInput) {
+      toast.error("Please select a date to block.");
+      return;
+    }
+    const todayStr = new Date().toISOString().split("T")[0];
+    if (blockDateInput < todayStr) {
+      toast.error("Cannot block past dates. Please choose today or a future date.");
+      return;
+    }
+    try {
+      setIsSavingBlockDate(true);
+      await addBlockedDate({ date: blockDateInput, reason: blockReasonInput });
+      toast.success(`Date ${blockDateInput} successfully blocked for bookings!`);
+      setBlockDateInput("");
+      setBlockReasonInput("");
+      const updated = await fetchBlockedDates();
+      setBlockedDatesList(updated || []);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to block date");
+    } finally {
+      setIsSavingBlockDate(false);
+    }
+  };
+
+  const handleUnblockDate = async (id: string, dateStr: string) => {
+    if (!confirm(`Are you sure you want to unblock ${dateStr} for bookings?`)) return;
+    try {
+      await deleteBlockedDate(id);
+      toast.success(`Date ${dateStr} has been unblocked!`);
+      const updated = await fetchBlockedDates();
+      setBlockedDatesList(updated || []);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to unblock date");
     }
   };
 
@@ -1599,6 +1670,32 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           >
             <Calendar className="h-4.5 w-4.5" />
             <span>Booking Calendar</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("blocked-dates");
+              setIsSidebarOpen(false);
+            }}
+            className={`flex w-full items-center gap-3.5 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer ${
+              activeTab === "blocked-dates"
+                ? "gradient-gold text-navy shadow-gold font-bold"
+                : "text-cream/80 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <CalendarOff className="h-4.5 w-4.5 text-rose-400" />
+            <span>Date Block &amp; Holidays</span>
+            {blockedDatesList.length > 0 && (
+              <span
+                className={`ml-auto rounded-full px-2 py-0.5 text-2xs font-extrabold ${
+                  activeTab === "blocked-dates"
+                    ? "bg-[#002a22] text-white"
+                    : "bg-rose-500/25 text-rose-300 border border-rose-500/30"
+                }`}
+              >
+                {blockedDatesList.length}
+              </span>
+            )}
           </button>
 
           <button
@@ -4626,6 +4723,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
             <BookingCalendarTab
               bookings={bookings}
               technicians={technicians}
+              blockedDates={blockedDatesList}
               onAssignTechnician={handleAssignTechnician}
               onTriggerReschedule={triggerRescheduleFromCalendar}
             />
@@ -5827,6 +5925,182 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                   </button>
                 </div>
               </div>
+
+              {/* WhatsApp Booking Alerts (CallMeBot API) Card */}
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/20 p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-100 pb-4 mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-2xl bg-emerald-700 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                      💬
+                    </div>
+                    <div>
+                      <h3 className="font-display text-base font-bold text-[#002a22] flex items-center gap-2">
+                        Instant WhatsApp Booking Alerts (CallMeBot)
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                          100% Free
+                        </span>
+                      </h3>
+                      <p className="text-2xs text-slate-500 font-semibold mt-0.5">
+                        Receive instant automated WhatsApp alerts with full customer &amp; order details whenever a booking is created.
+                      </p>
+                    </div>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={admWhatsappEnabled}
+                      onChange={(e) => setAdmWhatsappEnabled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    <span className="ml-2.5 text-xs font-bold text-[#002a22]">
+                      {admWhatsappEnabled ? "Alerts Active" : "Disabled"}
+                    </span>
+                  </label>
+                </div>
+
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label className="text-2xs font-extrabold uppercase tracking-wider block mb-1 text-[#cb9f5a]">
+                      Admin WhatsApp Number <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs">
+                      <span className="font-bold text-slate-400 mr-2">+91</span>
+                      <input
+                        type="text"
+                        value={admWhatsappPhone}
+                        onChange={(e) => setAdmWhatsappPhone(e.target.value.replace(/\D/g, ""))}
+                        placeholder="e.g. 9154351636"
+                        className="w-full bg-transparent font-bold text-slate-800 outline-none"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1 font-medium">
+                      WhatsApp message will be sent to this number when a customer books a service.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-2xs font-extrabold uppercase tracking-wider block mb-1 text-[#cb9f5a]">
+                      CallMeBot API Key <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={admWhatsappApiKey}
+                      onChange={(e) => setAdmWhatsappApiKey(e.target.value.trim())}
+                      placeholder="e.g. 123456"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-mono font-bold text-slate-800 outline-none focus:border-emerald-600"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1 font-medium">
+                      Your free 6-digit CallMeBot API key received via WhatsApp.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step-by-step Setup Guide */}
+                <div className="mt-5 p-4 rounded-xl bg-white border border-emerald-200/80 shadow-2xs">
+                  <span className="text-2xs font-extrabold uppercase tracking-wider text-emerald-800 block mb-2">
+                    ⚡ How to get your Free CallMeBot API Key in 30 Seconds:
+                  </span>
+                  <ol className="text-xs text-slate-700 space-y-2 list-decimal list-inside font-medium">
+                    <li>
+                      Open WhatsApp with one of the active bot numbers:
+                      <div className="mt-1.5 flex flex-wrap gap-2 pl-4">
+                        <a
+                          href="https://wa.me/34623786449?text=I%20allow%20callmebot%20to%20send%20me%20messages"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-2xs px-3 py-1.5 rounded-lg shadow-xs transition-colors"
+                        >
+                          📲 Click: Bot #1 (+34 623 78 64 49)
+                        </a>
+                        <a
+                          href="https://wa.me/34698288973?text=I%20allow%20callmebot%20to%20send%20me%20messages"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-2xs px-3 py-1.5 rounded-lg border border-slate-300 transition-colors"
+                        >
+                          📲 Click: Bot #2 (+34 698 28 89 73)
+                        </a>
+                      </div>
+                    </li>
+                    <li>
+                      Send this exact message in chat: <code className="bg-emerald-50 px-1.5 py-0.5 rounded text-emerald-900 font-bold font-mono">I allow callmebot to send me messages</code>
+                    </li>
+                    <li>
+                      The bot will reply in 2 seconds with your <strong>API Key</strong> (e.g. <code className="bg-slate-100 px-1 py-0.5 rounded font-mono">123456</code>). Paste it in the box above and click Save!
+                    </li>
+                  </ol>
+                </div>
+
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-emerald-100">
+                  <button
+                    type="button"
+                    disabled={isSendingTestWhatsapp || !admWhatsappPhone || !admWhatsappApiKey}
+                    onClick={async () => {
+                      if (!admWhatsappPhone || !admWhatsappApiKey) {
+                        toast.error("Please enter Admin Phone and CallMeBot API Key first.");
+                        return;
+                      }
+                      setIsSendingTestWhatsapp(true);
+                      const tId = toast.loading("Sending test WhatsApp message to your phone...", { id: "wa-test" });
+                      try {
+                        const res = await fetch(`${ADMIN_API_URL}/api/whatsapp/test`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            phone: admWhatsappPhone,
+                            apiKey: admWhatsappApiKey,
+                          }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || "Failed to send test message.");
+                        toast.success("✅ Test WhatsApp message delivered to your phone! Check WhatsApp.", { id: "wa-test" });
+                      } catch (err: any) {
+                        toast.error(`WhatsApp Test Failed: ${err.message}`, { id: "wa-test" });
+                      } finally {
+                        setIsSendingTestWhatsapp(false);
+                      }
+                    }}
+                    className="rounded-xl border border-emerald-600 bg-white hover:bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-800 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                  >
+                    {isSendingTestWhatsapp ? "Sending Test..." : "🧪 Send Test WhatsApp Alert"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      toast.loading("Saving WhatsApp notification settings...", {
+                        id: "whatsapp-settings",
+                      });
+                      try {
+                        const res = await fetch(`${ADMIN_API_URL}/api/settings`, {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            whatsapp_enabled: admWhatsappEnabled ? "1" : "0",
+                            whatsapp_admin_phone: admWhatsappPhone,
+                            whatsapp_api_key: admWhatsappApiKey,
+                          }),
+                        });
+                        if (!res.ok) throw new Error();
+                        toast.success("WhatsApp alert settings saved successfully!", {
+                          id: "whatsapp-settings",
+                          icon: "💬",
+                        });
+                        refreshData();
+                      } catch (err) {
+                        toast.error("Failed to save WhatsApp settings.", {
+                          id: "whatsapp-settings",
+                        });
+                      }
+                    }}
+                    className="rounded-xl bg-[#002a22] hover:bg-[#002a22]/90 border border-[#cb9f5a]/30 hover:border-[#cb9f5a] px-6 py-2.5 font-bold text-[#cb9f5a] hover:text-white transition-all cursor-pointer shadow-sm active:scale-[0.98]"
+                  >
+                    Save WhatsApp Settings
+                  </button>
+                </div>
+              </div>
             </>
           )}
 
@@ -6131,6 +6405,199 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
               </div>
             </>
           )}
+
+          {/* TAB: BLOCKED DATES / HOLIDAYS */}
+          {activeTab === "blocked-dates" && (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-800 flex items-center gap-2.5">
+                    <span className="p-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
+                      <CalendarOff className="h-5 w-5" />
+                    </span>
+                    Date Block &amp; Holiday Manager
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Block specific calendar dates (festivals, maintenance, public holidays, staff off). Customers will not be able to book orders on these blocked days.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
+                    <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse"></span>
+                    {blockedDatesList.length} {blockedDatesList.length === 1 ? "Date Blocked" : "Dates Blocked"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Add Block Date Form */}
+              <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-xs">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <span>➕ Block a New Date</span>
+                </h3>
+
+                <form onSubmit={handleBlockDate} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                    {/* Date Picker */}
+                    <div className="md:col-span-4">
+                      <label className="text-2xs font-extrabold uppercase tracking-wider block mb-1.5 text-slate-600">
+                        Select Date to Block <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        min={new Date().toISOString().split("T")[0]}
+                        value={blockDateInput}
+                        onChange={(e) => setBlockDateInput(e.target.value)}
+                        required
+                        className="w-full rounded-xl border border-slate-200 bg-[#F9FBFA] hover:bg-white px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-[#002a22] transition-colors cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Reason Input */}
+                    <div className="md:col-span-5">
+                      <label className="text-2xs font-extrabold uppercase tracking-wider block mb-1.5 text-slate-600">
+                        Reason / Occasion (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Ganesh Chaturthi / Festival Holiday"
+                        value={blockReasonInput}
+                        onChange={(e) => setBlockReasonInput(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-[#F9FBFA] hover:bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#002a22] transition-colors"
+                      />
+                    </div>
+
+                    {/* Submit Button */}
+                    <div className="md:col-span-3">
+                      <button
+                        type="submit"
+                        disabled={isSavingBlockDate}
+                        className="w-full rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white px-4 py-2.5 text-xs font-bold transition-all shadow-xs hover:shadow flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                      >
+                        <CalendarOff className="h-4 w-4" />
+                        <span>{isSavingBlockDate ? "Blocking..." : "Block Date"}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Preset quick chips */}
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                      Quick Reason Presets:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        "🪔 Festive Holiday",
+                        "🛠️ Maintenance & Servicing",
+                        "👥 Staff Holiday / Day Off",
+                        "🔒 Full Capacity / Overbooked",
+                        "🌧️ Heavy Rain / Weather Alert",
+                        "🏢 Office Closed",
+                      ].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setBlockReasonInput(preset)}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer border ${
+                            blockReasonInput === preset
+                              ? "bg-rose-50 text-rose-700 border-rose-200 shadow-2xs"
+                              : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </form>
+              </div>
+
+              {/* Blocked Dates List */}
+              <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-xs">
+                <div className="flex items-center justify-between gap-4 mb-4 pb-3 border-b border-slate-100">
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <span>🗓️ Currently Blocked Dates</span>
+                  </h3>
+                  <span className="text-xs text-slate-400 font-medium">
+                    {blockedDatesList.length} active blackout {blockedDatesList.length === 1 ? "day" : "days"}
+                  </span>
+                </div>
+
+                {blockedDatesList.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400">
+                    <div className="h-12 w-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+                      <Check className="h-6 w-6" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-700">No dates are currently blocked!</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      All upcoming days are open for customer online bookings.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    {blockedDatesList.map((item) => {
+                      const dateObj = new Date(item.date + "T00:00:00");
+                      const formattedDate = dateObj.toLocaleDateString("en-IN", {
+                        weekday: "short",
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      });
+                      const dayNum = dateObj.getDate();
+                      const monthStr = dateObj.toLocaleDateString("en-IN", { month: "short" });
+                      const weekdayStr = dateObj.toLocaleDateString("en-IN", { weekday: "long" });
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="group relative bg-[#FFF9F9] border border-rose-200/80 hover:border-rose-300 rounded-2xl p-4 transition-all duration-200 shadow-2xs hover:shadow-sm flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            {/* Calendar Day Badge */}
+                            <div className="h-12 w-12 rounded-xl bg-white border border-rose-200 text-rose-600 flex flex-col items-center justify-center shrink-0 shadow-2xs">
+                              <span className="text-[9px] font-extrabold uppercase leading-none text-rose-400">
+                                {monthStr}
+                              </span>
+                              <span className="text-base font-black leading-tight text-rose-700">
+                                {dayNum}
+                              </span>
+                            </div>
+
+                            {/* Details */}
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-900 truncate">
+                                  {formattedDate}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-medium truncate mt-0.5">
+                                {weekdayStr}
+                              </div>
+                              {item.reason && (
+                                <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-100/70 text-rose-800 border border-rose-200/60 truncate max-w-[180px]">
+                                  {item.reason}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Unblock Action */}
+                          <button
+                            type="button"
+                            onClick={() => handleUnblockDate(item.id, item.date)}
+                            className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer shrink-0"
+                            title={`Unblock ${item.date}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </main>
       {/* Reschedule Modal */}
@@ -6152,10 +6619,16 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                 </label>
                 <input
                   type="date"
+                  min={new Date().toISOString().split("T")[0]}
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-[#cb9f5a]"
                 />
+                {blockedDatesList.some((b) => b.date === newDate) && (
+                  <p className="mt-1.5 text-[10px] font-bold text-rose-600 flex items-center gap-1">
+                    <span>⚠️ Warning: This date is currently blocked ({blockedDatesList.find((b) => b.date === newDate)?.reason || "Blocked"}).</span>
+                  </p>
+                )}
               </div>
 
               <div>
@@ -6299,6 +6772,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
 interface BookingCalendarTabProps {
   bookings: any[];
   technicians: AdminTechnician[];
+  blockedDates?: BlockedDate[];
   onAssignTechnician: (bookingId: string, technicianId: string | null) => Promise<void>;
   onTriggerReschedule: (bookingId: string, currentDate: string, currentTime: string) => void;
 }
@@ -6306,6 +6780,7 @@ interface BookingCalendarTabProps {
 export function BookingCalendarTab({
   bookings,
   technicians,
+  blockedDates = [],
   onAssignTechnician,
   onTriggerReschedule,
 }: BookingCalendarTabProps) {
@@ -6392,8 +6867,7 @@ export function BookingCalendarTab({
         <div>
           <h2 className="text-xl font-bold text-slate-800">Booking Calendar</h2>
           <p className="text-xs text-slate-500 mt-1">
-            Visual schedule planner. Track appointment densities and assign technicians in
-            real-time.
+            Visual schedule planner. Track appointment densities, blocked holidays, and assign technicians in real-time.
           </p>
         </div>
 
@@ -6438,12 +6912,16 @@ export function BookingCalendarTab({
               const count = dayBookings.length;
               const isSelected = selectedDateStr === cell.dateStr;
               const isToday = todayStr === cell.dateStr;
+              const isBlocked = blockedDates.some((b) => b.date === cell.dateStr);
+              const blockedInfo = blockedDates.find((b) => b.date === cell.dateStr);
 
               // Density styling
               let densityClass = "bg-white text-slate-800 border-slate-200/60 hover:bg-slate-55";
               if (!cell.isCurrentMonth) {
                 densityClass =
                   "bg-slate-50/50 text-slate-455 border-slate-100 hover:bg-slate-100/40";
+              } else if (isBlocked) {
+                densityClass = "bg-rose-50/70 text-rose-900 border-rose-200/90 hover:bg-rose-100/80";
               } else if (count > 0) {
                 if (count <= 2) {
                   densityClass =
@@ -6473,24 +6951,39 @@ export function BookingCalendarTab({
                     >
                       {cell.day}
                     </span>
-                    {count > 0 && (
-                      <span
-                        className={`h-4.5 min-w-[18px] rounded-full px-1 text-[9px] font-black flex items-center justify-center ${
-                          count <= 2
-                            ? "bg-emerald-200/75 text-emerald-900"
-                            : count <= 4
-                              ? "bg-amber-200/75 text-amber-900"
-                              : "bg-rose-200/75 text-rose-900"
-                        }`}
-                      >
-                        {count}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {isBlocked && (
+                        <span
+                          className="h-4 px-1 rounded bg-rose-600 text-white text-[8px] font-black uppercase flex items-center justify-center shadow-3xs"
+                          title={`Blocked: ${blockedInfo?.reason || "Holiday"}`}
+                        >
+                          Blocked
+                        </span>
+                      )}
+                      {count > 0 && (
+                        <span
+                          className={`h-4.5 min-w-[18px] rounded-full px-1 text-[9px] font-black flex items-center justify-center ${
+                            count <= 2
+                              ? "bg-emerald-200/75 text-emerald-900"
+                              : count <= 4
+                                ? "bg-amber-200/75 text-amber-900"
+                                : "bg-rose-200/75 text-rose-900"
+                          }`}
+                        >
+                          {count}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Micro list of bookings for larger screens */}
+                  {/* Micro list of bookings or blocked info for larger screens */}
                   <div className="space-y-1 mt-1.5 overflow-hidden hidden sm:block">
-                    {dayBookings.slice(0, 2).map((b) => (
+                    {isBlocked && (
+                      <div className="text-[8px] font-bold text-rose-700 bg-rose-100/80 px-1 py-0.5 rounded border border-rose-200 truncate">
+                        🚫 {blockedInfo?.reason || "Holiday Block"}
+                      </div>
+                    )}
+                    {dayBookings.slice(0, isBlocked ? 1 : 2).map((b) => (
                       <div
                         key={b.id}
                         className="text-[9px] truncate font-semibold bg-white/70 px-1 py-0.5 rounded border border-black/5 text-slate-700 leading-tight"
@@ -6498,9 +6991,9 @@ export function BookingCalendarTab({
                         {b.schedule?.time} - {b.customer?.name}
                       </div>
                     ))}
-                    {count > 2 && (
+                    {count > (isBlocked ? 1 : 2) && (
                       <div className="text-[8px] font-bold text-slate-500/80 pl-1 leading-none">
-                        +{count - 2} more
+                        +{count - (isBlocked ? 1 : 2)} more
                       </div>
                     )}
                   </div>
@@ -6514,6 +7007,10 @@ export function BookingCalendarTab({
             <div className="flex items-center gap-1.5">
               <span className="h-3 w-3 rounded bg-white border border-slate-200" />
               <span>Available (0 Bookings)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded bg-rose-100 border border-rose-300 text-rose-700 flex items-center justify-center text-[8px] font-black">🚫</span>
+              <span>Blocked Date</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-3 w-3 rounded bg-emerald-50 border border-emerald-100" />
@@ -6539,7 +7036,7 @@ export function BookingCalendarTab({
             </h3>
             {selectedDateStr && (
               <p className="text-xs text-[#cb9f5a] font-semibold mt-0.5">
-                {new Date(selectedDateStr).toLocaleDateString("default", {
+                {new Date(selectedDateStr + "T00:00:00").toLocaleDateString("default", {
                   weekday: "long",
                   year: "numeric",
                   month: "long",
@@ -6549,11 +7046,24 @@ export function BookingCalendarTab({
             )}
           </div>
 
+          {/* Blocked Date Alert Banner in Selected Day Panel */}
+          {selectedDateStr && blockedDates.some((b) => b.date === selectedDateStr) && (
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 text-xs text-rose-900 shadow-2xs">
+              <CalendarOff className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+              <div>
+                <div className="font-extrabold text-rose-900">Date Blocked for Online Orders</div>
+                <div className="text-[11px] text-rose-700 font-semibold mt-0.5">
+                  Reason: {blockedDates.find((b) => b.date === selectedDateStr)?.reason || "Holiday / Maintenance"}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
             {selectedDayBookings.length === 0 ? (
               <div className="py-12 text-center text-slate-400 text-xs italic bg-slate-50/50 border border-slate-100 rounded-2xl flex flex-col items-center justify-center gap-2">
                 <CheckCircle2 className="h-6 w-6 text-slate-300" />
-                <span>No bookings scheduled.</span>
+                <span>No bookings scheduled for this date.</span>
               </div>
             ) : (
               selectedDayBookings.map((b) => {

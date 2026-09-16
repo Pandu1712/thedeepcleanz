@@ -64,6 +64,7 @@ import {
   User,
   Map,
   Smartphone,
+  Loader2,
 } from "lucide-react";
 
 import heroImg from "@/assets/hero-cleaning.jpg";
@@ -94,6 +95,11 @@ import {
   ADMIN_API_URL,
   fetchAllReviews,
   fetchRecentTransformations,
+  fetchBlockedDates,
+  fetchBookedSlots,
+  normalizeTimeSlot,
+  type BlockedDate,
+  type BookedSlotsResponse,
   type RecentTransformation,
   type AdminCatalog,
   type ServicePlan,
@@ -907,7 +913,7 @@ function MapPickerModal({
                 });
                 onClose();
               }}
-              className="flex-2 rounded-xl gradient-gold py-2.5 text-xs font-bold text-navy shadow-gold hover:scale-[1.01] transition-transform cursor-pointer"
+              className="flex-2 rounded-xl bg-[#007A48] hover:bg-[#005B36] py-2.5 text-xs font-bold text-white shadow-md hover:scale-[1.01] transition-transform cursor-pointer"
             >
               Confirm Exact Doorstep Pin
             </button>
@@ -1651,6 +1657,99 @@ function Index() {
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [citySearch, setCitySearch] = useState("");
+
+  // Contact & Callback Request Form State & Real-time Validations
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactService, setContactService] = useState("Full House Deep Cleaning");
+  const [contactMessage, setContactMessage] = useState("");
+  const [contactTouched, setContactTouched] = useState({ name: false, phone: false });
+  const [isSubmittingContact, setIsSubmittingContact] = useState(false);
+
+  // Derived validation rules
+  const isContactNameValid =
+    contactName.trim().length >= 2 && /^[A-Za-z\s]{2,60}$/.test(contactName.trim());
+  const isContactPhoneValid = /^[6-9]\d{9}$/.test(contactPhone.replace(/\D/g, ""));
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setContactTouched({ name: true, phone: true });
+
+    if (!contactName.trim()) {
+      toast.error("Please enter your name (letters only)");
+      return;
+    }
+    if (!isContactNameValid) {
+      toast.error("Name must contain letters only (at least 2 characters)");
+      return;
+    }
+    if (!contactPhone.trim()) {
+      toast.error("Please enter your 10-digit mobile number");
+      return;
+    }
+    if (!isContactPhoneValid) {
+      toast.error("Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9");
+      return;
+    }
+
+    setIsSubmittingContact(true);
+    const toastId = toast.loading("Submitting your request to our concierge...", { id: "contact-submit" });
+
+    try {
+      const res = await fetch(`${ADMIN_API_URL}/api/inquiries`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: contactName.trim(),
+          phone: contactPhone.replace(/\D/g, ""),
+          service: contactService,
+          message: contactMessage.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Failed to submit inquiry. Please try again.");
+      }
+
+      toast.success("Request received! Redirecting to confirmation...", { id: "contact-submit" });
+
+      // Save contact info locally
+      try {
+        localStorage.setItem(
+          "thedeepcleanz_saved_contact",
+          JSON.stringify({
+            name: contactName.trim(),
+            phone: contactPhone.replace(/\D/g, ""),
+          })
+        );
+      } catch {}
+
+      // Reset form
+      setContactName("");
+      setContactPhone("");
+      setContactMessage("");
+      setContactTouched({ name: false, phone: false });
+      setIsSubmittingContact(false);
+
+      // Smooth redirect to Thank You page
+      setTimeout(() => {
+        navigate({
+          to: "/thank-you",
+          search: {
+            id: data.id || `INQ-${Date.now().toString().slice(-6)}`,
+            name: data.inquiry?.name || contactName.trim(),
+            phone: data.inquiry?.phone || contactPhone.replace(/\D/g, ""),
+            service: data.inquiry?.service || contactService,
+            type: "inquiry",
+          },
+        });
+      }, 400);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit request", { id: "contact-submit" });
+      setIsSubmittingContact(false);
+    }
+  };
 
   // Haversine formula calculation for KM distance
   const getKmDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -3163,55 +3262,175 @@ function Index() {
           {/* Right Column - Premium Request Callback Form */}
           <div className="lg:col-span-7">
             <form
-              onSubmit={(e) => e.preventDefault()}
-              className="bg-white rounded-3xl p-6 md:p-8 border border-[#f1ede6] shadow-md hover:shadow-lg transition-shadow duration-300 space-y-6"
+              onSubmit={handleContactSubmit}
+              noValidate
+              className="bg-white rounded-3xl p-6 md:p-8 border border-[#f1ede6] shadow-md hover:shadow-lg transition-shadow duration-300 space-y-5 relative"
             >
               <div>
-                <h3 className="font-display text-xl font-bold text-[#002a22]">
-                  Request a Callback
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-display text-xl font-bold text-[#002a22]">
+                    Request a Quick Callback
+                  </h3>
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-[#007A48] bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#007A48] animate-pulse" />
+                    15-Min Response
+                  </span>
+                </div>
                 <p className="text-xs text-[#002a22]/60 mt-1 font-medium font-sans">
-                  Leave your query details and our luxury service representative will contact you
-                  shortly.
+                  Leave your details and our senior cleaning concierge in Guntur will contact you shortly.
                 </p>
               </div>
 
-              <div className="space-y-4 font-sans">
-                <div className="relative">
-                  <input
-                    placeholder="Your Name"
-                    className="w-full rounded-xl border border-[#f1ede6] bg-[#faf8f5] pl-10 pr-4 py-3.5 text-xs text-[#002a22] placeholder:text-[#002a22]/35 outline-none focus:border-[#cb9f5a] focus:bg-white focus:ring-1 focus:ring-[#cb9f5a]/10 transition-all font-semibold"
-                  />
-                  <User className="absolute left-3.5 top-4 h-4 w-4 text-[#002a22]/40" />
+              <div className="space-y-4 font-sans text-xs">
+                {/* 1. Name Field */}
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-1">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="e.g. Rahul Sharma"
+                      value={contactName}
+                      onChange={(e) => {
+                        // Strict filter: letters and spaces only
+                        const val = e.target.value.replace(/[^a-zA-Z\s]/g, "");
+                        setContactName(val);
+                      }}
+                      onBlur={() => setContactTouched((prev) => ({ ...prev, name: true }))}
+                      className={`w-full rounded-xl border bg-[#faf8f5] pl-10 pr-10 py-3.5 text-xs text-[#002a22] placeholder:text-[#002a22]/35 outline-none font-semibold transition-all ${
+                        contactTouched.name && !isContactNameValid
+                          ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-1 focus:ring-red-200"
+                          : contactName && isContactNameValid
+                          ? "border-emerald-500/80 bg-white focus:border-emerald-600 focus:ring-1 focus:ring-emerald-200"
+                          : "border-[#f1ede6] focus:border-[#cb9f5a] focus:bg-white focus:ring-1 focus:ring-[#cb9f5a]/20"
+                      }`}
+                    />
+                    <User className="absolute left-3.5 top-3.5 h-4 w-4 text-[#002a22]/40" />
+                    {contactName && isContactNameValid && (
+                      <Check className="absolute right-3.5 top-3.5 h-4 w-4 text-emerald-600" />
+                    )}
+                  </div>
+                  {contactTouched.name && !isContactNameValid && (
+                    <p className="text-[10px] text-red-600 font-semibold mt-1 animate-in fade-in duration-200">
+                      ⚠️ Please enter letters only (minimum 2 characters, no numbers).
+                    </p>
+                  )}
                 </div>
 
-                <div className="relative">
-                  <input
-                    placeholder="Mobile Number"
-                    className="w-full rounded-xl border border-[#f1ede6] bg-[#faf8f5] pl-10 pr-4 py-3.5 text-xs text-[#002a22] placeholder:text-[#002a22]/35 outline-none focus:border-[#cb9f5a] focus:bg-white focus:ring-1 focus:ring-[#cb9f5a]/10 transition-all font-semibold"
-                  />
-                  <Phone className="absolute left-3.5 top-4 h-4 w-4 text-[#002a22]/40" />
+                {/* 2. Mobile Phone Number Field */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                      Mobile Number <span className="text-red-500">*</span>
+                    </label>
+                    <span className="text-[9px] font-bold text-slate-400">
+                      {contactPhone.length}/10 Digits
+                    </span>
+                  </div>
+                  <div className="relative flex items-center">
+                    <div className="absolute left-3.5 flex items-center gap-1 text-[#002a22]/60 font-bold border-r border-slate-200 pr-2">
+                      <Phone className="h-3.5 w-3.5 text-[#002a22]/40" />
+                      <span className="text-[11px]">+91</span>
+                    </div>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      placeholder="9876543210"
+                      value={contactPhone}
+                      onChange={(e) => {
+                        // Strict filter: numbers only, max 10 digits
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        setContactPhone(val);
+                      }}
+                      onBlur={() => setContactTouched((prev) => ({ ...prev, phone: true }))}
+                      className={`w-full rounded-xl border bg-[#faf8f5] pl-20 pr-10 py-3.5 text-xs text-[#002a22] placeholder:text-[#002a22]/35 outline-none font-semibold transition-all ${
+                        contactTouched.phone && !isContactPhoneValid
+                          ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-1 focus:ring-red-200"
+                          : contactPhone.length === 10 && isContactPhoneValid
+                          ? "border-emerald-500/80 bg-white focus:border-emerald-600 focus:ring-1 focus:ring-emerald-200"
+                          : "border-[#f1ede6] focus:border-[#cb9f5a] focus:bg-white focus:ring-1 focus:ring-[#cb9f5a]/20"
+                      }`}
+                    />
+                    {contactPhone.length === 10 && isContactPhoneValid && (
+                      <Check className="absolute right-3.5 top-3.5 h-4 w-4 text-emerald-600" />
+                    )}
+                  </div>
+                  {contactTouched.phone && !isContactPhoneValid && (
+                    <p className="text-[10px] text-red-600 font-semibold mt-1 animate-in fade-in duration-200">
+                      ⚠️ Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.
+                    </p>
+                  )}
                 </div>
 
-                <div className="relative">
-                  <input
-                    placeholder="Service Required (e.g. Sofa Cleaning)"
-                    className="w-full rounded-xl border border-[#f1ede6] bg-[#faf8f5] pl-10 pr-4 py-3.5 text-xs text-[#002a22] placeholder:text-[#002a22]/35 outline-none focus:border-[#cb9f5a] focus:bg-white focus:ring-1 focus:ring-[#cb9f5a]/10 transition-all font-semibold"
-                  />
-                  <Star className="absolute left-3.5 top-4 h-4 w-4 text-[#002a22]/40" />
+                {/* 3. Service Required Field */}
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-500 mb-1">
+                    Service Required
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={contactService}
+                      onChange={(e) => setContactService(e.target.value)}
+                      className="w-full rounded-xl border border-[#f1ede6] bg-[#faf8f5] pl-10 pr-8 py-3.5 text-xs text-[#002a22] font-semibold outline-none focus:border-[#cb9f5a] focus:bg-white focus:ring-1 focus:ring-[#cb9f5a]/20 transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="Full House Deep Cleaning">🏠 Full House Deep Cleaning</option>
+                      <option value="Furnished Apartment Cleaning">🛋️ Furnished Apartment Cleaning</option>
+                      <option value="Vacant / Moving Flat Cleaning">📦 Vacant / Moving Flat Cleaning</option>
+                      <option value="Bungalow / Villa Deep Sanitation">🏡 Bungalow / Villa Deep Sanitation</option>
+                      <option value="Kitchen Deep Degreasing">🍳 Kitchen Deep Degreasing</option>
+                      <option value="Bathroom Sanitization & Descaling">🚿 Bathroom Sanitization & Descaling</option>
+                      <option value="Sofa & Upholstery Shampooing">🛋️ Sofa & Upholstery Shampooing</option>
+                      <option value="Carpet & Mattress Deep Cleaning">🧹 Carpet & Mattress Deep Cleaning</option>
+                      <option value="Commercial Post-Construction Clean">🏢 Commercial Post-Construction Clean</option>
+                      <option value="Other Custom Cleaning Requirement">✨ Other Custom Cleaning Requirement</option>
+                    </select>
+                    <Star className="absolute left-3.5 top-3.5 h-4 w-4 text-[#002a22]/40 pointer-events-none" />
+                    <ChevronDown className="absolute right-3.5 top-3.5 h-4 w-4 text-[#002a22]/40 pointer-events-none" />
+                  </div>
                 </div>
 
-                <div className="relative">
-                  <textarea
-                    rows={3}
-                    placeholder="Your Message (Optional)"
-                    className="w-full rounded-xl border border-[#f1ede6] bg-[#faf8f5] pl-10 pr-4 py-3.5 text-xs text-[#002a22] placeholder:text-[#002a22]/35 outline-none focus:border-[#cb9f5a] focus:bg-white focus:ring-1 focus:ring-[#cb9f5a]/10 transition-all resize-none font-semibold"
-                  />
-                  <MessageCircle className="absolute left-3.5 top-4 h-4 w-4 text-[#002a22]/40" />
+                {/* 4. Message / Note Field */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                      Message / Special Requests <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <span className="text-[9px] font-bold text-slate-400">
+                      {contactMessage.length}/300
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <textarea
+                      rows={3}
+                      maxLength={300}
+                      placeholder="Share your requirements (e.g. 3 BHK in Arundelpet, prefer weekend slot)..."
+                      value={contactMessage}
+                      onChange={(e) => setContactMessage(e.target.value)}
+                      className="w-full rounded-xl border border-[#f1ede6] bg-[#faf8f5] pl-10 pr-4 py-3 text-xs text-[#002a22] placeholder:text-[#002a22]/35 outline-none focus:border-[#007A48] focus:bg-white focus:ring-1 focus:ring-[#007A48]/20 transition-all resize-none font-semibold"
+                    />
+                    <MessageCircle className="absolute left-3.5 top-3.5 h-4 w-4 text-[#002a22]/40" />
+                  </div>
                 </div>
 
-                <button className="w-full inline-flex items-center justify-center gap-2 rounded-xl gradient-gold py-3.5 text-xs font-bold text-navy shadow-gold hover:shadow-xl transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer">
-                  <Send className="h-3.5 w-3.5" /> Send Request
+                {/* Submit Action Button */}
+                <button
+                  type="submit"
+                  disabled={isSubmittingContact}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#007A48] hover:bg-[#005B36] py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-[#007A48]/30 hover:shadow-xl transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+                >
+                  {isSubmittingContact ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Sending Request...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-3.5 w-3.5" />
+                      <span>Submit Request & Get 15-Min Callback</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -3243,32 +3462,32 @@ function Index() {
       </section>
 
       {/* FOOTER */}
-      <footer className="bg-[#001712] text-cream/80 relative overflow-hidden border-t border-[#cb9f5a]/20">
+      <footer className="bg-[#00241B] text-slate-200 relative overflow-hidden border-t border-emerald-800/40">
         {/* Subtle background glow */}
-        <div className="absolute top-0 left-1/4 -translate-y-1/2 w-[500px] h-[250px] bg-[#cb9f5a]/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-0 left-1/4 -translate-y-1/2 w-[500px] h-[250px] bg-[#007A48]/15 blur-[120px] rounded-full pointer-events-none" />
 
         <div className="mx-auto max-w-[1400px] px-5 pt-16 pb-12 lg:px-8 relative z-10">
-          <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-4 pb-12 border-b border-[#cb9f5a]/10">
+          <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-4 pb-12 border-b border-emerald-900/60">
             {/* Column 1: Brand Info */}
             <div className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#cb9f5a] to-[#a37937] p-[1px] shadow-lg shadow-[#cb9f5a]/10">
-                  <div className="h-full w-full rounded-[15px] bg-[#001712] flex items-center justify-center">
-                    <Sparkles className="h-5 w-5 text-[#cb9f5a]" />
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#007A48] to-[#005B36] p-[1px] shadow-lg shadow-[#007A48]/20">
+                  <div className="h-full w-full rounded-[15px] bg-[#00241B] flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-emerald-400" />
                   </div>
                 </div>
                 <div>
                   <div className="font-display text-xl font-bold tracking-tight text-white">
                     TheDeep CleanerZ
                   </div>
-                  <div className="text-[10px] uppercase tracking-[0.25em] text-[#cb9f5a] font-extrabold mt-0.5">
-                    Luxury Care
+                  <div className="text-[10px] uppercase tracking-[0.25em] text-emerald-400 font-extrabold mt-0.5">
+                    Premium Deep Cleaning
                   </div>
                 </div>
               </div>
-              <p className="text-xs leading-relaxed text-cream/60 font-medium">
+              <p className="text-xs leading-relaxed text-slate-300 font-medium">
                 Redefining cleanliness with bespoke, hotel-grade service for premium homes &
-                estates. Our attention to detail is your ultimate peace of mind.
+                estates in Guntur & AP. Our attention to detail is your ultimate peace of mind.
               </p>
               <div className="flex gap-2.5">
                 {[
@@ -3281,7 +3500,7 @@ function Index() {
                     key={idx}
                     href="#"
                     aria-label={s.label}
-                    className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 border border-white/10 transition-all duration-300 text-cream/70 hover:bg-[#cb9f5a] hover:text-[#001712] hover:border-[#cb9f5a] hover:-translate-y-1 hover:shadow-md hover:shadow-[#cb9f5a]/10"
+                    className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 border border-emerald-800/40 transition-all duration-300 text-slate-300 hover:bg-[#007A48] hover:text-white hover:border-[#007A48] hover:-translate-y-1 hover:shadow-md hover:shadow-[#007A48]/20"
                   >
                     <s.Icon className="h-4 w-4" />
                   </a>
@@ -3291,7 +3510,7 @@ function Index() {
 
             {/* Column 2: Quick Links */}
             <div>
-              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[#cb9f5a] border-b border-[#cb9f5a]/20 pb-3">
+              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-emerald-400 border-b border-emerald-800/40 pb-3">
                 Quick Navigation
               </h4>
               <ul className="mt-5 space-y-3 text-xs font-semibold">
@@ -3299,9 +3518,9 @@ function Index() {
                   <li key={l.href}>
                     <a
                       href={l.href}
-                      className="group flex items-center gap-1 text-cream/75 hover:text-[#cb9f5a] transition-all duration-200"
+                      className="group flex items-center gap-1 text-slate-300 hover:text-emerald-400 transition-all duration-200"
                     >
-                      <span className="h-1 w-1 rounded-full bg-[#cb9f5a]/50 scale-0 group-hover:scale-100 transition-transform duration-200 mr-1" />
+                      <span className="h-1 w-1 rounded-full bg-emerald-400 scale-0 group-hover:scale-100 transition-transform duration-200 mr-1" />
                       <span className="group-hover:translate-x-1.5 transition-transform duration-250">
                         {l.label}
                       </span>
@@ -3313,7 +3532,7 @@ function Index() {
 
             {/* Column 3: Top Services */}
             <div>
-              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[#cb9f5a] border-b border-[#cb9f5a]/20 pb-3">
+              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-emerald-400 border-b border-emerald-800/40 pb-3">
                 Our Core Services
               </h4>
               <ul className="mt-5 space-y-3 text-xs font-semibold">
@@ -3321,9 +3540,9 @@ function Index() {
                   <li key={s.id}>
                     <a
                       href="#services"
-                      className="group flex items-center gap-1 text-cream/75 hover:text-[#cb9f5a] transition-all duration-200"
+                      className="group flex items-center gap-1 text-slate-300 hover:text-emerald-400 transition-all duration-200"
                     >
-                      <span className="h-1 w-1 rounded-full bg-[#cb9f5a]/50 scale-0 group-hover:scale-100 transition-transform duration-200 mr-1" />
+                      <span className="h-1 w-1 rounded-full bg-emerald-400 scale-0 group-hover:scale-100 transition-transform duration-200 mr-1" />
                       <span className="group-hover:translate-x-1.5 transition-transform duration-250">
                         {s.title}
                       </span>
@@ -3335,22 +3554,22 @@ function Index() {
 
             {/* Column 4: Contact & Support */}
             <div className="space-y-5">
-              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[#cb9f5a] border-b border-[#cb9f5a]/20 pb-3">
+              <h4 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-emerald-400 border-b border-emerald-800/40 pb-3">
                 Reservations
               </h4>
 
               <div className="space-y-4 font-sans">
                 <div className="flex items-center gap-3 group">
-                  <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#cb9f5a] group-hover:bg-[#cb9f5a]/10 group-hover:border-[#cb9f5a]/30 transition-all">
+                  <div className="h-9 w-9 rounded-xl bg-emerald-900/40 border border-emerald-700/40 flex items-center justify-center text-emerald-400 group-hover:bg-[#007A48] group-hover:text-white group-hover:border-[#007A48] transition-all">
                     <Phone className="h-4 w-4" />
                   </div>
                   <div>
-                    <div className="text-[9px] text-cream/40 uppercase tracking-wider font-extrabold">
+                    <div className="text-[9px] text-emerald-300/70 uppercase tracking-wider font-extrabold">
                       Hotline Support
                     </div>
                     <a
                       href="tel:+919966346347"
-                      className="text-xs font-bold text-white hover:text-[#cb9f5a] transition-colors"
+                      className="text-xs font-bold text-white hover:text-emerald-400 transition-colors"
                     >
                       +91 99663 46347
                     </a>
@@ -3358,16 +3577,16 @@ function Index() {
                 </div>
 
                 <div className="flex items-center gap-3 group">
-                  <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#cb9f5a] group-hover:bg-[#cb9f5a]/10 group-hover:border-[#cb9f5a]/30 transition-all">
+                  <div className="h-9 w-9 rounded-xl bg-emerald-900/40 border border-emerald-700/40 flex items-center justify-center text-emerald-400 group-hover:bg-[#007A48] group-hover:text-white group-hover:border-[#007A48] transition-all">
                     <Mail className="h-4 w-4" />
                   </div>
                   <div>
-                    <div className="text-[9px] text-cream/40 uppercase tracking-wider font-extrabold">
+                    <div className="text-[9px] text-emerald-300/70 uppercase tracking-wider font-extrabold">
                       Email Concierge
                     </div>
                     <a
                       href="mailto:thedeepcleanerz.info@gmail.com"
-                      className="text-xs font-bold text-white hover:text-[#cb9f5a] transition-colors"
+                      className="text-xs font-bold text-white hover:text-emerald-400 transition-colors"
                     >
                       thedeepcleanerz.info@gmail.com
                     </a>
@@ -3375,14 +3594,14 @@ function Index() {
                 </div>
 
                 <div className="flex items-center gap-3 group">
-                  <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#cb9f5a] group-hover:bg-[#cb9f5a]/10 group-hover:border-[#cb9f5a]/30 transition-all">
+                  <div className="h-9 w-9 rounded-xl bg-emerald-900/40 border border-emerald-700/40 flex items-center justify-center text-emerald-400 group-hover:bg-[#007A48] group-hover:text-white group-hover:border-[#007A48] transition-all">
                     <MapPin className="h-4 w-4" />
                   </div>
                   <div>
-                    <div className="text-[9px] text-cream/40 uppercase tracking-wider font-extrabold">
+                    <div className="text-[9px] text-emerald-300/70 uppercase tracking-wider font-extrabold">
                       Service Areas
                     </div>
-                    <span className="text-xs font-bold text-white">25+ Luxury Hubs in India</span>
+                    <span className="text-xs font-bold text-white">Arundelpet, Guntur & AP Hubs</span>
                   </div>
                 </div>
               </div>
@@ -3390,21 +3609,21 @@ function Index() {
           </div>
 
           {/* Bottom Copyright & Legal Links */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] text-cream/40 font-semibold tracking-wide">
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] text-slate-400 font-semibold tracking-wide">
             <div>
               &copy; {new Date().getFullYear()} TheDeep CleanerZ. All rights reserved. Crafted for
               pristine luxury living.
             </div>
             <div className="flex items-center gap-6">
-              <a href="#" className="hover:text-[#cb9f5a] transition-colors">
+              <a href="#" className="hover:text-emerald-400 transition-colors">
                 Privacy Policy
               </a>
-              <a href="#" className="hover:text-[#cb9f5a] transition-colors">
+              <a href="#" className="hover:text-emerald-400 transition-colors">
                 Terms of Service
               </a>
               <Link
                 to="/admin"
-                className="text-[#cb9f5a]/70 hover:text-[#cb9f5a] hover:underline flex items-center gap-1 font-bold"
+                className="text-emerald-400/80 hover:text-emerald-300 hover:underline flex items-center gap-1 font-bold"
               >
                 🛡️ Admin Area
               </Link>
@@ -3449,7 +3668,7 @@ function Index() {
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           aria-label="Scroll to top"
-          className="fixed bottom-24 right-6 z-40 grid h-12 w-12 place-items-center rounded-full gradient-gold text-navy shadow-gold transition-transform hover:scale-110"
+          className="fixed bottom-24 right-6 z-40 grid h-12 w-12 place-items-center rounded-full bg-[#007A48] hover:bg-[#005B36] text-white shadow-lg shadow-[#007A48]/30 transition-transform hover:scale-110 cursor-pointer"
         >
           <ArrowUp className="h-5 w-5" />
         </button>
@@ -3461,7 +3680,7 @@ function Index() {
           {/* Backdrop Click Closer */}
           <div className="absolute inset-0" onClick={() => setLocationModalOpen(false)} />
 
-          <div className="bg-white rounded-3xl w-full max-w-sm border border-[#cb9f5a]/20 shadow-2xl p-6 relative animate-in zoom-in-95 duration-200 font-sans text-slate-800">
+          <div className="bg-white rounded-3xl w-full max-w-sm border border-slate-200 shadow-2xl p-6 relative animate-in zoom-in-95 duration-200 font-sans text-slate-800">
             {/* Modal Title Row */}
             <div className="flex items-center gap-2.5 mb-5">
               <button
@@ -3711,13 +3930,13 @@ function ReferralModal({
             Your Unique Referral Code
           </label>
 
-          <div className="flex items-center justify-between rounded-2xl border-2 border-dashed border-[#cb9f5a]/40 bg-[#cb9f5a]/5 p-3.5">
+          <div className="flex items-center justify-between rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/70 p-3.5">
             <span className="font-mono text-lg font-black tracking-widest text-[#002a22]">
               {code}
             </span>
             <button
               onClick={handleCopyCode}
-              className="flex items-center gap-1.5 rounded-xl gradient-gold px-3.5 py-1.5 text-2xs font-bold text-navy shadow-gold hover:scale-105 transition-transform cursor-pointer"
+              className="flex items-center gap-1.5 rounded-xl bg-[#007A48] hover:bg-[#005B36] px-3.5 py-1.5 text-2xs font-bold text-white shadow-sm hover:scale-105 transition-transform cursor-pointer"
             >
               Copy Code
             </button>
@@ -3849,15 +4068,15 @@ function ModalShell({
       onClick={onClose}
     >
       <div
-        className={`relative w-full ${maxW} rounded-3xl bg-white border border-[#cb9f5a]/30 shadow-[0_25px_70px_-15px_rgba(0,42,34,0.35)] overflow-hidden`}
+        className={`relative w-full ${maxW} rounded-3xl bg-white border border-slate-200 shadow-[0_25px_70px_-15px_rgba(0,42,34,0.35)] overflow-hidden`}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-4 top-4 z-50 grid h-10 w-10 place-items-center rounded-full bg-[#002a22]/85 text-[#cb9f5a] border border-[#cb9f5a]/40 backdrop-blur-md transition-all hover:bg-[#cb9f5a] hover:text-[#002a22] hover:scale-110 shadow-xl cursor-pointer"
+          className="absolute right-4 top-4 z-50 grid h-9 w-9 place-items-center rounded-full bg-slate-100 hover:bg-[#002a22] text-[#002a22] hover:text-white transition-all shadow-md cursor-pointer"
         >
-          <X className="h-4.5 w-4.5" />
+          <X className="h-4 w-4" />
         </button>
         {children}
       </div>
@@ -3873,35 +4092,35 @@ function AuthModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <ModalShell open={open} onClose={onClose}>
       <div className="p-8">
-        <div className="grid h-12 w-12 place-items-center rounded-2xl gradient-gold shadow-gold">
-          <Phone className="h-5 w-5 text-navy" />
+        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-tr from-[#005B36] to-[#007A48] text-white shadow-lg shadow-[#007A48]/20">
+          <Phone className="h-5 w-5 text-white" />
         </div>
-        <h3 className="mt-4 font-display text-2xl font-bold text-navy">
+        <h3 className="mt-4 font-display text-2xl font-bold text-[#002A22]">
           Welcome to TheDeep CleanerZ
         </h3>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 text-sm text-slate-500">
           Login or register with your mobile number.
         </p>
 
         {verified ? (
-          <div className="mt-6 rounded-2xl bg-muted p-5 text-center">
-            <CheckCircle2 className="mx-auto h-10 w-10 text-gold" />
-            <div className="mt-2 font-semibold text-navy">You're logged in!</div>
-            <p className="text-xs text-muted-foreground">Demo only — no real OTP sent.</p>
+          <div className="mt-6 rounded-2xl bg-emerald-50 p-5 text-center border border-emerald-200">
+            <CheckCircle2 className="mx-auto h-10 w-10 text-[#007A48]" />
+            <div className="mt-2 font-bold text-[#002A22]">You're logged in!</div>
+            <p className="text-xs text-slate-500">Demo only — no real OTP sent.</p>
           </div>
         ) : (
-          <div className="mt-6 space-y-4">
+          <div className="mt-6 space-y-4 font-sans">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-navy/70">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
                 Mobile Number
               </label>
-              <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 focus-within:border-gold">
-                <span className="text-sm font-semibold text-navy">+91</span>
+              <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus-within:border-[#007A48] focus-within:bg-white transition-all">
+                <span className="text-sm font-bold text-[#002A22]">+91</span>
                 <input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                   placeholder="99663 46347"
-                  className="w-full bg-transparent text-sm outline-none"
+                  className="w-full bg-transparent text-sm font-bold text-[#002A22] outline-none"
                 />
               </div>
             </div>
@@ -3909,30 +4128,30 @@ function AuthModal({ open, onClose }: { open: boolean; onClose: () => void }) {
               <button
                 disabled={phone.length < 10}
                 onClick={() => setSent(true)}
-                className="w-full rounded-xl gradient-gold py-3 font-semibold text-navy shadow-gold transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
+                className="w-full rounded-xl bg-[#007A48] hover:bg-[#005B36] py-3 text-xs font-black uppercase tracking-wider text-white shadow-md shadow-[#007A48]/25 transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
               >
                 Send OTP
               </button>
             ) : (
               <>
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-navy/70">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
                     Enter OTP
                   </label>
                   <input
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="6-digit code"
-                    className="mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-3 text-center text-lg font-semibold tracking-[0.5em] outline-none focus:border-gold"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center text-lg font-bold tracking-[0.5em] outline-none focus:border-[#007A48] focus:bg-white transition-all"
                   />
-                  <p className="mt-1 text-[11px] text-muted-foreground">
+                  <p className="mt-1 text-[11px] text-slate-400">
                     OTP sent to +91 {phone}. (Demo — enter any 6 digits)
                   </p>
                 </div>
                 <button
                   disabled={otp.length < 4}
                   onClick={() => setVerified(true)}
-                  className="w-full rounded-xl gradient-navy py-3 font-semibold text-gold transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
+                  className="w-full rounded-xl bg-[#002A22] hover:bg-[#00382E] py-3 text-xs font-black uppercase tracking-wider text-white transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100 cursor-pointer"
                 >
                   Verify OTP
                 </button>
@@ -4073,8 +4292,8 @@ export function ServiceDetailModal({
   return (
     <ModalShell open onClose={onClose} maxW="max-w-5xl">
       <div className="overflow-hidden rounded-3xl max-h-[88vh] overflow-y-auto scrollbar-none font-sans bg-[#f8f6f0] p-4 sm:p-6 space-y-6">
-        {/* SECTION 1: HERO TOP BLOCK (Matching Image 2 style) */}
-        <div className="bg-white rounded-3xl border border-[#cb9f5a]/25 p-6 sm:p-8 shadow-[0_10px_30px_-10px_rgba(0,42,34,0.08)] grid gap-8 md:grid-cols-[1fr_360px] items-center">
+        {/* SECTION 1: HERO TOP BLOCK */}
+        <div className="bg-white rounded-3xl border border-emerald-200/60 p-6 sm:p-8 shadow-[0_10px_30px_-10px_rgba(0,42,34,0.08)] grid gap-8 md:grid-cols-[1fr_360px] items-center">
           {/* Left Column: Details & CTA */}
           <div className="space-y-4">
             <h2 className="font-display text-2xl sm:text-4xl font-black text-[#002a22] tracking-tight">
@@ -4083,7 +4302,7 @@ export function ServiceDetailModal({
 
             {/* Quick Feature Badges */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 bg-[#cb9f5a]/10 border border-[#cb9f5a]/30 px-3 py-1 rounded-full text-xs font-black text-[#002a22]">
+              <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-black text-[#007A48]">
                 ⏱️ {primaryPlan?.duration || "2-3 Hours"}
               </span>
               <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-black text-emerald-800">
@@ -4101,10 +4320,10 @@ export function ServiceDetailModal({
 
             {/* Price Tag */}
             <div className="pt-2 flex items-baseline gap-3">
-              <span className="text-3xl sm:text-4xl font-black text-[#002a22] font-display">
+              <span className="text-3xl sm:text-4xl font-black text-[#007A48] font-display">
                 ₹{getServicePrice(primaryPlan?.price || service.price || 0)}
               </span>
-              <span className="text-xs font-extrabold uppercase text-[#cb9f5a] tracking-wider">
+              <span className="text-xs font-extrabold uppercase text-slate-400 tracking-wider">
                 (Inclusive of all taxes & equipment)
               </span>
             </div>
@@ -4114,7 +4333,7 @@ export function ServiceDetailModal({
               <button
                 type="button"
                 onClick={() => onAddPlan(service, primaryPlan)}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#002a22] via-[#00382d] to-[#002a22] hover:from-[#cb9f5a] hover:via-[#e5be7a] hover:to-[#cb9f5a] text-white hover:text-[#002a22] px-8 py-3.5 text-sm font-black uppercase tracking-wider shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-2xl bg-[#007A48] hover:bg-[#005B36] text-white px-8 py-3.5 text-sm font-black uppercase tracking-wider shadow-lg shadow-[#007A48]/25 hover:shadow-xl transition-all duration-300 cursor-pointer"
               >
                 <ShoppingCart className="h-4 w-4" /> Add to Cart
               </button>
@@ -4135,18 +4354,18 @@ export function ServiceDetailModal({
           </div>
 
           {/* Right Column: Hero Image Frame */}
-          <div className="relative overflow-hidden rounded-3xl aspect-[4/3] w-full bg-slate-100 border border-[#cb9f5a]/30 shadow-md">
+          <div className="relative overflow-hidden rounded-3xl aspect-[4/3] w-full bg-slate-100 border border-slate-200 shadow-md">
             <img src={service.img} alt={service.title} className="h-full w-full object-cover" />
-            <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-md border border-[#cb9f5a]/40 px-3 py-1 rounded-full text-xs font-black text-[#002a22] flex items-center gap-1 shadow-md">
-              <Star className="h-3.5 w-3.5 text-[#cb9f5a] fill-[#cb9f5a]" /> {avgRating} Rating
+            <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-md border border-slate-200 px-3 py-1 rounded-full text-xs font-black text-[#002a22] flex items-center gap-1 shadow-md">
+              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> {avgRating} Rating
             </div>
           </div>
         </div>
 
-        {/* SECTION 2: IMPORTANT NOTES (Matching Image 2 style) */}
-        <div className="bg-white rounded-3xl border border-[#cb9f5a]/25 p-6 shadow-sm">
+        {/* SECTION 2: IMPORTANT NOTES */}
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-3">
-            <div className="h-7 w-7 rounded-full bg-[#cb9f5a]/15 text-[#002a22] flex items-center justify-center font-black text-xs">
+            <div className="h-7 w-7 rounded-full bg-emerald-100 text-[#007A48] flex items-center justify-center font-black text-xs">
               🔔
             </div>
             <h3 className="font-display text-base font-black text-[#002a22]">
@@ -4155,24 +4374,24 @@ export function ServiceDetailModal({
           </div>
           <ul className="grid gap-2.5 text-xs text-slate-600 font-semibold sm:grid-cols-2">
             <li className="flex items-start gap-2.5 bg-[#faf8f5] p-3 rounded-xl border border-slate-100">
-              <span className="text-[#cb9f5a] font-bold shrink-0">1.</span>
+              <span className="text-[#007A48] font-bold shrink-0">1.</span>
               <span>
                 Please ensure continuous water supply & functioning 16A power sockets for scrubber
                 machines.
               </span>
             </li>
             <li className="flex items-start gap-2.5 bg-[#faf8f5] p-3 rounded-xl border border-slate-100">
-              <span className="text-[#cb9f5a] font-bold shrink-0">2.</span>
+              <span className="text-[#007A48] font-bold shrink-0">2.</span>
               <span>Keep valuable items & fragile decor secured before specialists arrive.</span>
             </li>
             <li className="flex items-start gap-2.5 bg-[#faf8f5] p-3 rounded-xl border border-slate-100">
-              <span className="text-[#cb9f5a] font-bold shrink-0">3.</span>
+              <span className="text-[#007A48] font-bold shrink-0">3.</span>
               <span>
                 Heavy furniture over 40kg will be cleaned underneath without moving if unassisted.
               </span>
             </li>
             <li className="flex items-start gap-2.5 bg-[#faf8f5] p-3 rounded-xl border border-slate-100">
-              <span className="text-[#cb9f5a] font-bold shrink-0">4.</span>
+              <span className="text-[#007A48] font-bold shrink-0">4.</span>
               <span>Quality check inspection will be conducted before team departure.</span>
             </li>
           </ul>
@@ -4614,20 +4833,22 @@ export function CartDrawer({
     <div className="fixed inset-0 z-50 flex animate-fade-in" onClick={onClose}>
       <div className="flex-1 bg-[#001712]/60 backdrop-blur-sm" />
       <aside
-        className="flex h-full w-full max-w-md flex-col bg-[#faf8f5] shadow-2xl border-l border-[#cb9f5a]/20 animate-slide-in-right font-sans"
+        className="flex h-full w-full max-w-md flex-col bg-[#faf8f5] shadow-2xl border-l border-slate-200/80 animate-slide-in-right font-sans"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-[#cb9f5a]/15 p-5 shrink-0">
+        <div className="flex items-center justify-between border-b border-slate-200/80 p-5 shrink-0 bg-white">
           <div className="flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5 text-[#cb9f5a]" />
+            <div className="h-8 w-8 rounded-xl bg-emerald-50 text-[#007A48] flex items-center justify-center border border-emerald-200/60">
+              <ShoppingCart className="h-4.5 w-4.5" />
+            </div>
             <h3 className="font-display text-xl font-bold text-[#002a22]">Your Cart</h3>
-            <span className="rounded-full bg-[#cb9f5a]/10 px-2.5 py-0.5 text-2xs font-extrabold text-[#cb9f5a] border border-[#cb9f5a]/20">
-              {cart.length}
+            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-2xs font-extrabold text-[#007A48] border border-emerald-200">
+              {cart.length} {cart.length === 1 ? "Item" : "Items"}
             </span>
           </div>
           <button
             onClick={onClose}
-            className="grid h-8 w-8 place-items-center rounded-full bg-slate-200/60 hover:bg-[#002a22] text-[#002a22] hover:text-white transition-all cursor-pointer"
+            className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 hover:bg-[#002a22] text-[#002a22] hover:text-white transition-all cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
@@ -4637,12 +4858,12 @@ export function CartDrawer({
           {cart.length === 0 ? (
             <div className="grid h-28 place-items-center text-center py-12">
               <div>
-                <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#cb9f5a]/5 border border-dashed border-[#cb9f5a]/25">
-                  <ShoppingCart className="h-6 w-6 text-[#cb9f5a]/40" />
+                <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 border border-dashed border-emerald-300/80">
+                  <ShoppingCart className="h-6 w-6 text-[#007A48]/60" />
                 </div>
                 <p className="mt-3 font-bold text-[#002a22]">Your cart is empty</p>
                 <p className="mt-1 text-xs text-slate-400 font-semibold">
-                  Select a bespoke clean package to start.
+                  Select a deep cleaning service to start.
                 </p>
               </div>
             </div>
@@ -4651,12 +4872,12 @@ export function CartDrawer({
               {cart.map((i) => (
                 <li
                   key={i.id}
-                  className="flex gap-3 rounded-2xl border border-[#cb9f5a]/15 bg-white p-3 shadow-sm"
+                  className="flex gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-xs hover:border-emerald-300 transition-colors"
                 >
                   <img
                     src={i.img}
                     alt=""
-                    className="h-20 w-20 rounded-xl object-cover shrink-0 border border-[#cb9f5a]/10"
+                    className="h-20 w-20 rounded-xl object-cover shrink-0 border border-slate-100"
                   />
                   <div className="flex flex-1 flex-col">
                     <div className="flex items-start justify-between gap-2">
@@ -4665,31 +4886,31 @@ export function CartDrawer({
                       </div>
                       <button
                         onClick={() => removeItem(i.id)}
-                        className="text-red-400 hover:text-red-650 hover:scale-105 transition-transform cursor-pointer"
+                        className="text-slate-400 hover:text-red-500 hover:scale-105 transition-transform cursor-pointer p-1"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
-                    <div className="text-xs text-[#cb9f5a] font-extrabold mt-1">₹{i.price}</div>
+                    <div className="text-xs text-[#007A48] font-black mt-1">₹{i.price}</div>
                     <div className="mt-auto flex items-center justify-between">
-                      <div className="inline-flex items-center rounded-full border border-[#cb9f5a]/20 bg-slate-50/50">
+                      <div className="inline-flex items-center rounded-xl border border-slate-200 bg-slate-50">
                         <button
                           onClick={() => updateQty(i.id, -1)}
-                          className="grid h-7 w-7 place-items-center text-[#002a22] hover:bg-slate-200/50 rounded-l-full cursor-pointer"
+                          className="grid h-7 w-7 place-items-center text-[#002a22] hover:bg-slate-200 rounded-l-xl cursor-pointer"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
-                        <span className="w-7 text-center text-xs font-bold text-[#002a22]">
+                        <span className="w-7 text-center text-xs font-black text-[#002a22]">
                           {i.qty}
                         </span>
                         <button
                           onClick={() => updateQty(i.id, 1)}
-                          className="grid h-7 w-7 place-items-center text-[#002a22] hover:bg-slate-200/50 rounded-r-full cursor-pointer"
+                          className="grid h-7 w-7 place-items-center text-[#002a22] hover:bg-slate-200 rounded-r-xl cursor-pointer"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
                       </div>
-                      <div className="text-xs font-extrabold text-[#002a22]">
+                      <div className="text-xs font-black text-[#002a22]">
                         ₹{i.price * i.qty}
                       </div>
                     </div>
@@ -4701,9 +4922,9 @@ export function CartDrawer({
 
           {/* Suggestions / Cross selling */}
           {cart.length > 0 && recommendations.length > 0 && (
-            <div className="border-t border-[#cb9f5a]/15 pt-5">
+            <div className="border-t border-slate-200/80 pt-5">
               <h4 className="font-display text-2xs font-extrabold uppercase tracking-wider text-[#002a22] flex items-center gap-1.5 mb-3.5">
-                <Sparkles className="h-3.5 w-3.5 text-[#cb9f5a] animate-pulse" />
+                <Sparkles className="h-3.5 w-3.5 text-[#007A48] animate-pulse" />
                 <span>Frequently Added Together</span>
               </h4>
               <div className="space-y-2.5">
@@ -4712,12 +4933,12 @@ export function CartDrawer({
                   return (
                     <div
                       key={rec.id}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-[#cb9f5a]/15 bg-white p-2.5 hover:bg-slate-50/50 transition-all"
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-2.5 hover:bg-slate-50 transition-all shadow-2xs"
                     >
                       <img
                         src={rec.img}
                         alt=""
-                        className="h-10 w-10 rounded-xl object-cover shrink-0 border border-[#cb9f5a]/10"
+                        className="h-10 w-10 rounded-xl object-cover shrink-0 border border-slate-100"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="text-[11px] font-bold text-[#002a22] truncate">
@@ -4726,7 +4947,7 @@ export function CartDrawer({
                         <div className="text-[9px] text-slate-400 truncate font-semibold">
                           {rec.desc}
                         </div>
-                        <div className="text-xs font-extrabold text-[#cb9f5a] mt-0.5">
+                        <div className="text-xs font-extrabold text-[#007A48] mt-0.5">
                           ₹{rec.price}
                         </div>
                       </div>
@@ -4744,10 +4965,10 @@ export function CartDrawer({
                             });
                           }
                         }}
-                        className={`rounded-xl px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                        className={`rounded-xl px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
                           isInCart
-                            ? "bg-[#002a22]/5 text-[#002a22] border border-[#002a22]/10"
-                            : "gradient-gold text-navy shadow-gold active:scale-95"
+                            ? "bg-emerald-50 text-[#007A48] border border-emerald-200"
+                            : "bg-[#007A48] hover:bg-[#005B36] text-white shadow-xs hover:shadow-md active:scale-95"
                         }`}
                       >
                         {isInCart ? "Added ✓" : "+ Add"}
@@ -4761,12 +4982,12 @@ export function CartDrawer({
         </div>
 
         {cart.length > 0 && (
-          <div className="shrink-0 border-t border-[#cb9f5a]/15 p-4 sm:p-5 pb-[max(env(safe-area-inset-bottom,0px),16px)] bg-white/95 backdrop-blur-md shadow-[0_-8px_25px_rgba(0,0,0,0.06)]">
+          <div className="shrink-0 border-t border-slate-200/80 p-4 sm:p-5 pb-[max(env(safe-area-inset-bottom,0px),16px)] bg-white shadow-[0_-8px_25px_rgba(0,0,0,0.06)]">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                 Total Amount
               </span>
-              <span className="font-display text-2xl font-bold text-[#002a22]">₹{total}</span>
+              <span className="font-display text-2xl font-black text-[#007A48]">₹{total}</span>
             </div>
             <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
               <span>GST included · 72hr Free Re-clean</span>
@@ -4776,7 +4997,7 @@ export function CartDrawer({
             </div>
             <button
               onClick={onCheckout}
-              className="mt-3.5 w-full rounded-xl gradient-gold py-3.5 font-bold text-navy shadow-gold transition-transform hover:scale-[1.02] active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+              className="mt-3.5 w-full rounded-xl bg-[#007A48] hover:bg-[#005B36] text-white font-black uppercase tracking-wider text-xs py-4 shadow-lg shadow-[#007A48]/30 transition-transform hover:scale-[1.01] active:scale-98 cursor-pointer flex items-center justify-center gap-2"
             >
               <span>Proceed to Checkout</span>
               <span className="opacity-75">·</span>
@@ -4824,6 +5045,8 @@ export function BookingModal({
   removeItem?: (id: string) => void;
   onAddItem?: (item: { id: string; title: string; price: number; img: string }) => void;
 }) {
+  const slots = ["08:00 AM", "10:00 AM", "12:00 PM", "02:00 PM", "04:00 PM", "06:00 PM"];
+
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -4833,13 +5056,20 @@ export function BookingModal({
     city: "Guntur",
     pincode: "",
     date: "",
-    time: "10:00",
+    time: "10:00 AM",
     notes: "",
     coupon: "",
     houseType: "Flat / Apartment",
     houseSize: "2 BHK",
     gpsCoords: "",
   });
+
+  const [bookedSlotsInfo, setBookedSlotsInfo] = useState<BookedSlotsResponse>({
+    date: "",
+    bookedSlots: [],
+    normalizedSlots: [],
+  });
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   const [editingContact, setEditingContact] = useState(false);
   const [avoidCalling, setAvoidCalling] = useState(false);
@@ -4869,6 +5099,7 @@ export function BookingModal({
   const [useWalletCredit, setUseWalletCredit] = useState(false);
 
   const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
+  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
   const [showOtpVerification, setShowOtpVerification] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
@@ -5013,6 +5244,27 @@ export function BookingModal({
       } catch (e) {}
     }
 
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (!form.date) {
+      toast.error("Please select a date for your cleaning appointment.");
+      return;
+    }
+    if (form.date < todayStr) {
+      toast.error("Booking date cannot be in the past. Please select today or a future date.");
+      return;
+    }
+    const blockedInfo = blockedDates.find((b) => b.date === form.date);
+    if (blockedInfo) {
+      toast.error(`⚠️ Selected date (${form.date}) is unavailable for bookings: ${blockedInfo.reason || "Holiday"}. Please select another date.`);
+      return;
+    }
+
+    const normChosenTime = normalizeTimeSlot(form.time);
+    if (bookedSlotsInfo.normalizedSlots.includes(normChosenTime)) {
+      toast.error(`⚠️ The slot (${form.time} on ${form.date}) is already booked by another customer. Please choose another time slot.`);
+      return;
+    }
+
     const cleanCustomerPhone = (currentPhone || form.phone).replace(/\D/g, "");
 
     const customerPayload = {
@@ -5074,8 +5326,8 @@ export function BookingModal({
               setTimeout(() => {
                 onConfirm();
               }, 1800);
-            } catch (err) {
-              toast.error("Payment received, but error creating booking. Contacting support...");
+            } catch (err: any) {
+              toast.error(err?.message || "Payment received, but error creating booking. Contacting support...");
             } finally {
               setIsPaying(false);
             }
@@ -5125,11 +5377,8 @@ export function BookingModal({
         setTimeout(() => {
           onConfirm();
         }, 1800);
-      } catch (err) {
-        setSuccess(true);
-        setTimeout(() => {
-          onConfirm();
-        }, 1800);
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to confirm booking. Please choose another slot.");
       } finally {
         setIsPaying(false);
       }
@@ -5463,11 +5712,56 @@ export function BookingModal({
           .catch(() => {});
       }
 
+      fetchBlockedDates()
+        .then((bData) => {
+          const list = Array.isArray(bData) ? bData : [];
+          setBlockedDates(list);
+          // If tomorrow or today is blocked, pick earliest non-blocked date
+          const isDateBlocked = (d: string) => list.some((b) => b.date === d);
+          let targetDate = tomorrow;
+          let checkD = new Date(Date.now() + 86400000);
+          let attempts = 0;
+          while (isDateBlocked(targetDate) && attempts < 30) {
+            checkD.setDate(checkD.getDate() + 1);
+            targetDate = `${checkD.getFullYear()}-${String(checkD.getMonth() + 1).padStart(2, "0")}-${String(checkD.getDate()).padStart(2, "0")}`;
+            attempts++;
+          }
+          setForm((f) => ({ ...f, date: targetDate }));
+        })
+        .catch(() => {});
+
       fetchCoupons()
         .then(setAvailableCoupons)
         .catch(() => {});
     }
   }, [open]);
+
+  // Fetch occupied slots whenever selected date changes
+  useEffect(() => {
+    if (!open || !form.date) return;
+    let active = true;
+    setIsLoadingSlots(true);
+    fetchBookedSlots(form.date)
+      .then((res) => {
+        if (!active) return;
+        setBookedSlotsInfo(res);
+        // If the currently chosen slot is booked, auto-select the first unbooked slot
+        const currentNorm = normalizeTimeSlot(form.time);
+        if (res.normalizedSlots.includes(currentNorm)) {
+          const firstFree = slots.find((s) => !res.normalizedSlots.includes(normalizeTimeSlot(s)));
+          if (firstFree) {
+            setForm((f) => ({ ...f, time: firstFree }));
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setIsLoadingSlots(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [open, form.date]);
 
   const filteredGuntur = useMemo(() => {
     const query = form.landmark.toLowerCase();
@@ -5611,8 +5905,6 @@ export function BookingModal({
       ? Math.round((grandTotal * 0.18) / 5) * 5 // Clean rounded 18% advance
       : grandTotal;
   const payLaterAmount = Math.max(0, grandTotal - upfrontPayAmount);
-
-  const slots = ["08:00 AM", "10:00 AM", "12:00 PM", "02:00 PM", "04:00 PM", "06:00 PM"];
 
   const handleConfirm = async () => {
     if (!form.name.trim() || form.phone.replace(/\D/g, "").length < 10) {
@@ -6283,11 +6575,16 @@ export function BookingModal({
 
               {/* SECTION 3: DATE & TIME (Matching Video) */}
               <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-3xs space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="h-7 w-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs">
-                    🕒
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs">
+                      🕒
+                    </div>
+                    <span className="text-xs font-extrabold text-[#002A22]">Date &amp; Time</span>
                   </div>
-                  <span className="text-xs font-extrabold text-[#002A22]">Date &amp; Time</span>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    {form.date ? new Date(form.date + "T00:00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }) : "Select Date"}
+                  </span>
                 </div>
 
                 <div className="space-y-2.5">
@@ -6297,31 +6594,147 @@ export function BookingModal({
                       type="date"
                       value={form.date}
                       min={new Date().toISOString().slice(0, 10)}
-                      onChange={(e) => setForm({ ...form, date: e.target.value })}
+                      onChange={(e) => {
+                        const picked = e.target.value;
+                        const todayStr = new Date().toISOString().slice(0, 10);
+                        if (picked && picked < todayStr) {
+                          toast.error("Cannot select past dates.");
+                          return;
+                        }
+                        const isBlocked = blockedDates.find((b) => b.date === picked);
+                        if (isBlocked) {
+                          toast.error(`⚠️ Selected date (${picked}) is unavailable for bookings: ${isBlocked.reason || "Holiday / No Orders"}. Please choose another date.`);
+                          setForm({ ...form, date: "" });
+                          return;
+                        }
+                        setForm({ ...form, date: picked });
+                      }}
                       className="w-full bg-transparent font-bold text-[#002A22] outline-none cursor-pointer"
                     />
                   </div>
 
+                  {/* Quick Select Upcoming Dates */}
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-                      Select Preferred Slot
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                      Quick Pick Date:
                     </span>
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-                      {slots.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => setForm({ ...form, time: s })}
-                          className={`py-2 px-1 rounded-xl text-[10px] font-bold transition-all cursor-pointer border ${
-                            form.time === s
-                              ? "bg-emerald-800 text-white border-emerald-800 shadow-xs"
-                              : "bg-[#F8FAF9] border-slate-200 text-slate-700 hover:bg-slate-100"
-                          }`}
-                        >
-                          {s}
-                        </button>
-                      ))}
+                    <div className="flex overflow-x-auto no-scrollbar gap-1.5 py-1">
+                      {(() => {
+                        const chips = [];
+                        const today = new Date();
+                        for (let i = 0; i < 7; i++) {
+                          const d = new Date(today);
+                          d.setDate(today.getDate() + i);
+                          const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                          const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+                          const isBlocked = blockedDates.some((b) => b.date === dStr);
+                          const blockInfo = blockedDates.find((b) => b.date === dStr);
+                          chips.push({ dStr, label, isBlocked, blockInfo });
+                        }
+                        return chips.map((c) => (
+                          <button
+                            key={c.dStr}
+                            type="button"
+                            disabled={c.isBlocked}
+                            onClick={() => {
+                              if (c.isBlocked) {
+                                toast.error(`⚠️ ${c.dStr} is blocked for bookings: ${c.blockInfo?.reason || "Holiday"}`);
+                                return;
+                              }
+                              setForm({ ...form, date: c.dStr });
+                            }}
+                            className={`py-1.5 px-2.5 rounded-xl text-[10px] font-bold transition-all border whitespace-nowrap shrink-0 cursor-pointer ${
+                              c.isBlocked
+                                ? "bg-rose-50/80 text-rose-400 border-rose-200 line-through opacity-60 cursor-not-allowed"
+                                : form.date === c.dStr
+                                  ? "bg-[#002A22] text-white border-[#002A22] shadow-xs"
+                                  : "bg-[#F8FAF9] border-slate-200 text-slate-700 hover:bg-slate-100"
+                            }`}
+                            title={c.isBlocked ? `Blocked: ${c.blockInfo?.reason || "Holiday"}` : c.dStr}
+                          >
+                            {c.label} {c.isBlocked && "🚫"}
+                          </button>
+                        ));
+                      })()}
                     </div>
+                  </div>
+
+                  {/* Blocked Date Inline Warning Banner */}
+                  {form.date && blockedDates.some((b) => b.date === form.date) && (
+                    <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-2xs font-bold flex items-center gap-2">
+                      <span className="text-rose-600 text-xs">⚠️</span>
+                      <span>
+                        This date ({form.date}) is blocked: {blockedDates.find((b) => b.date === form.date)?.reason || "Holiday / No Orders"}. Please choose another date.
+                      </span>
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Select Preferred Slot (1 Booking Per Slot)
+                      </span>
+                      {isLoadingSlots && (
+                        <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1 animate-pulse">
+                          Checking slots...
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                      {slots.map((s) => {
+                        const isBooked = bookedSlotsInfo.normalizedSlots.includes(normalizeTimeSlot(s));
+                        const isSelected = form.time === s;
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            disabled={isBooked}
+                            onClick={() => {
+                              if (isBooked) {
+                                toast.error(`Slot ${s} is already booked on ${form.date}. Please pick an available slot.`);
+                                return;
+                              }
+                              setForm({ ...form, time: s });
+                            }}
+                            title={isBooked ? `Slot ${s} is already booked on this date` : `Select ${s}`}
+                            className={`py-2 px-1.5 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center justify-center gap-0.5 ${
+                              isBooked
+                                ? "bg-slate-100/90 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed"
+                                : isSelected
+                                  ? "bg-[#002A22] text-white border-[#002A22] shadow-sm cursor-pointer ring-2 ring-emerald-600/30"
+                                  : "bg-[#F8FAF9] border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300 cursor-pointer"
+                            }`}
+                          >
+                            <span className={`${isBooked ? "line-through text-slate-400" : isSelected ? "text-white font-extrabold" : "text-slate-800"}`}>
+                              {s}
+                            </span>
+                            {isBooked ? (
+                              <span className="text-[8px] font-extrabold text-rose-600 uppercase tracking-tighter bg-rose-50 px-1 rounded">
+                                Booked
+                              </span>
+                            ) : isSelected ? (
+                              <span className="text-[8px] font-bold text-emerald-300 uppercase tracking-tighter">
+                                Selected ✓
+                              </span>
+                            ) : (
+                              <span className="text-[8px] font-medium text-emerald-600">
+                                Available
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* All Slots Occupied Warning */}
+                    {form.date && slots.length > 0 && slots.every((s) => bookedSlotsInfo.normalizedSlots.includes(normalizeTimeSlot(s))) && (
+                      <div className="p-2.5 mt-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-2xs font-bold flex items-center gap-2">
+                        <span className="text-amber-600 text-xs">⚠️</span>
+                        <span>
+                          All time slots for {form.date} are fully booked by other customers. Please pick another date.
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -6807,7 +7220,7 @@ function CategoryCarousel({
                           e.stopPropagation();
                           onSelectService(s);
                         }}
-                        className="text-center px-3 py-1.5 border border-[#cb9f5a]/40 hover:border-[#cb9f5a] hover:bg-[#cb9f5a]/10 text-[11px] font-bold rounded-xl text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer whitespace-nowrap active:scale-95"
+                        className="text-center px-3 py-1.5 border border-emerald-300 hover:border-[#007A48] hover:bg-emerald-50 text-[11px] font-bold rounded-xl text-[#002a22] bg-white transition-all shadow-3xs cursor-pointer whitespace-nowrap active:scale-95"
                       >
                         View details
                       </button>
@@ -6817,7 +7230,7 @@ function CategoryCarousel({
                           e.stopPropagation();
                           onAddToCart(s);
                         }}
-                        className="text-center px-3.5 py-1.5 rounded-xl bg-[#002a22] hover:bg-[#0B6B46] text-white text-[11px] font-bold uppercase transition-all shadow-sm cursor-pointer whitespace-nowrap active:scale-95"
+                        className="text-center px-3.5 py-1.5 rounded-xl bg-[#007A48] hover:bg-[#005B36] text-white text-[11px] font-bold uppercase transition-all shadow-sm cursor-pointer whitespace-nowrap active:scale-95"
                       >
                         Add
                       </button>
@@ -6904,7 +7317,7 @@ export function BeforeAfterSlider({ before, after, title, location }: BeforeAfte
   return (
     <div
       ref={containerRef}
-      className="relative overflow-hidden aspect-[4/3] w-full border border-[#cb9f5a]/20 select-none rounded-none group shadow-sm bg-slate-900"
+      className="relative overflow-hidden aspect-[4/3] w-full border border-emerald-800/40 select-none rounded-none group shadow-sm bg-slate-900"
     >
       {/* After Image (Background) */}
       <img
@@ -6928,14 +7341,14 @@ export function BeforeAfterSlider({ before, after, title, location }: BeforeAfte
 
       {/* Vertical Slider Handle Line */}
       <div
-        className="absolute top-0 bottom-0 w-1 bg-[#cb9f5a] shadow-[0_0_15px_rgba(203,159,90,0.85)] z-20 cursor-ew-resize flex items-center justify-center"
+        className="absolute top-0 bottom-0 w-1 bg-[#007A48] shadow-[0_0_15px_rgba(0,122,72,0.85)] z-20 cursor-ew-resize flex items-center justify-center"
         style={{ left: `${sliderPosition}%` }}
         onMouseDown={handleStart}
         onTouchStart={handleStart}
       >
         {/* Grab Circle */}
-        <div className="h-8 w-8 rounded-full bg-white border border-[#cb9f5a] shadow-lg flex items-center justify-center pointer-events-none select-none">
-          <span className="text-[#002a22] text-xs font-black select-none">↔</span>
+        <div className="h-8 w-8 rounded-full bg-white border border-[#007A48] shadow-lg flex items-center justify-center pointer-events-none select-none">
+          <span className="text-[#007A48] text-xs font-black select-none">↔</span>
         </div>
       </div>
 
@@ -6943,14 +7356,14 @@ export function BeforeAfterSlider({ before, after, title, location }: BeforeAfte
       <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-xs px-2 py-0.5 text-[8px] font-black tracking-wider text-white border border-white/10 uppercase z-30 rounded-none select-none pointer-events-none">
         Before
       </div>
-      <div className="absolute top-3 right-3 bg-[#cb9f5a] px-2 py-0.5 text-[8px] font-black tracking-wider text-[#002a22] z-30 rounded-none select-none pointer-events-none">
+      <div className="absolute top-3 right-3 bg-[#007A48] px-2 py-0.5 text-[8px] font-black tracking-wider text-white z-30 rounded-none select-none pointer-events-none">
         After
       </div>
 
       {/* Label Content Overlay */}
       <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/85 via-black/35 to-transparent z-10 pointer-events-none text-white">
         <h3 className="font-display text-xs font-bold text-white leading-tight">{title}</h3>
-        <p className="text-[9px] text-[#cb9f5a] font-extrabold mt-0.5">{location}</p>
+        <p className="text-[9px] text-emerald-400 font-extrabold mt-0.5">{location}</p>
       </div>
     </div>
   );

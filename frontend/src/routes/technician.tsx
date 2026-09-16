@@ -943,6 +943,7 @@ function TechnicianPortal() {
                 </label>
                 <input
                   type="date"
+                  min={new Date().toISOString().slice(0, 10)}
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-700 outline-none focus:border-[#002a22]"

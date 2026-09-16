@@ -13,6 +13,7 @@ import { Toaster, toast } from "sonner";
 import "../styles/styles.css";
 import appCss from "../styles/styles.css?url";
 import { ADMIN_API_URL } from "../api/admin-api";
+import StickyContactButtons from "../components/StickyContactButtons";
 
 function NotFoundComponent() {
   return (
@@ -445,6 +446,9 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+
+      {/* Persistent Sticky WhatsApp & Call Quick Contact Buttons */}
+      <StickyContactButtons />
       
       {/* Offline Status Float Banner */}
       {!isOnline && (

@@ -93,6 +93,50 @@ export async function fetchAdminCatalog(signal?: AbortSignal): Promise<AdminCata
   }
 }
 
+export interface BookedSlotsResponse {
+  date: string;
+  bookedSlots: string[];
+  normalizedSlots: string[];
+}
+
+export function normalizeTimeSlot(t: string): string {
+  if (!t) return "";
+  let str = String(t).trim().toUpperCase();
+  const match12 = str.match(/^0?(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+  if (match12) {
+    let hour = parseInt(match12[1], 10);
+    const min = match12[2];
+    const period = match12[3];
+    if (period === "AM" && hour === 12) hour = 0;
+    if (period === "PM" && hour < 12) hour += 12;
+    return `${String(hour).padStart(2, "0")}:${min}`;
+  }
+  const match24 = str.match(/^0?(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (match24) {
+    let hour = parseInt(match24[1], 10);
+    const min = match24[2];
+    return `${String(hour).padStart(2, "0")}:${min}`;
+  }
+  return str;
+}
+
+export async function fetchBookedSlots(date: string): Promise<BookedSlotsResponse> {
+  if (!date) return { date: "", bookedSlots: [], normalizedSlots: [] };
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/api/bookings/booked-slots?date=${encodeURIComponent(date)}`);
+    if (!res.ok) return { date, bookedSlots: [], normalizedSlots: [] };
+    const data = await res.json();
+    return {
+      date: data.date || date,
+      bookedSlots: Array.isArray(data.bookedSlots) ? data.bookedSlots : [],
+      normalizedSlots: Array.isArray(data.normalizedSlots) ? data.normalizedSlots : [],
+    };
+  } catch (err) {
+    console.warn("Failed to fetch booked slots:", err);
+    return { date, bookedSlots: [], normalizedSlots: [] };
+  }
+}
+
 export async function postAdminBooking(
   payload: unknown,
 ): Promise<{ ok: boolean; booking?: unknown }> {
@@ -102,22 +146,28 @@ export async function postAdminBooking(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error(`Booking request failed: ${res.status}`);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `Booking request failed: ${res.status}`);
+    }
     return (await res.json()) as { ok: boolean; booking?: unknown };
   } catch (err: any) {
-    console.warn("Backend booking API unreachable, saving booking locally in offline mode:", err);
-    try {
-      const localBookings = JSON.parse(localStorage.getItem("thedeepcleanz_local_bookings") || "[]");
-      const offlineBooking = {
-        id: "local-" + Math.random().toString(36).substr(2, 9),
-        createdAt: new Date().toISOString(),
-        ...(typeof payload === "object" && payload !== null ? payload : {}),
-      };
-      localStorage.setItem("thedeepcleanz_local_bookings", JSON.stringify([offlineBooking, ...localBookings]));
-      return { ok: true, booking: offlineBooking };
-    } catch (e) {
-      throw err;
+    if (err.message && err.message.includes("Failed to fetch")) {
+      console.warn("Backend booking API unreachable, saving booking locally in offline mode:", err);
+      try {
+        const localBookings = JSON.parse(localStorage.getItem("thedeepcleanz_local_bookings") || "[]");
+        const offlineBooking = {
+          id: "local-" + Math.random().toString(36).substr(2, 9),
+          createdAt: new Date().toISOString(),
+          ...(typeof payload === "object" && payload !== null ? payload : {}),
+        };
+        localStorage.setItem("thedeepcleanz_local_bookings", JSON.stringify([offlineBooking, ...localBookings]));
+        return { ok: true, booking: offlineBooking };
+      } catch (e) {
+        throw err;
+      }
     }
+    throw err;
   }
 }
 
@@ -498,7 +548,10 @@ export async function rescheduleBooking(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ date, time, rescheduledBy }),
   });
-  if (!res.ok) throw new Error(`Reschedule request failed: ${res.status}`);
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Reschedule request failed: ${res.status}`);
+  }
   return (await res.json()).ok as boolean;
 }
 
@@ -605,3 +658,38 @@ export async function deleteRecentTransformation(id: string): Promise<boolean> {
   if (!res.ok) throw new Error(`Delete transformation failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
+
+export interface BlockedDate {
+  id: string;
+  date: string;
+  reason?: string;
+  createdAt: string;
+}
+
+export async function fetchBlockedDates(signal?: AbortSignal): Promise<BlockedDate[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/blocked-dates`, { signal });
+  if (!res.ok) throw new Error(`Fetch blocked dates failed: ${res.status}`);
+  return (await res.json()) as BlockedDate[];
+}
+
+export async function addBlockedDate(payload: { date: string; reason?: string }): Promise<BlockedDate> {
+  const res = await fetch(`${ADMIN_API_URL}/api/blocked-dates`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Add blocked date failed: ${res.status}`);
+  }
+  return (await res.json()).blockedDate as BlockedDate;
+}
+
+export async function deleteBlockedDate(id: string): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/blocked-dates/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(`Delete blocked date failed: ${res.status}`);
+  return (await res.json()).ok as boolean;
+}
+

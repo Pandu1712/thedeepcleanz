@@ -379,6 +379,31 @@ async function initDb() {
     `);
     console.log("Recent transformations table verified/created.");
 
+    // Create blocked_dates table for holiday / date block management
+    await query(`
+      CREATE TABLE IF NOT EXISTS blocked_dates (
+        id VARCHAR(255) PRIMARY KEY,
+        date VARCHAR(50) UNIQUE NOT NULL,
+        reason VARCHAR(255) DEFAULT NULL,
+        createdAt VARCHAR(100) NOT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+    console.log("Blocked dates table verified/created.");
+
+    // Create inquiries table for contact & callback requests
+    await query(`
+      CREATE TABLE IF NOT EXISTS inquiries (
+        id VARCHAR(255) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        phone VARCHAR(15) NOT NULL,
+        service VARCHAR(255) NOT NULL,
+        message TEXT DEFAULT NULL,
+        status VARCHAR(50) DEFAULT 'New',
+        createdAt VARCHAR(100) NOT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+    console.log("Inquiries table verified/created.");
+
     // Alter table users to add role column if it doesn't exist
     userColumns = await query("SHOW COLUMNS FROM users");
     const hasRole = userColumns.some((c) => c.Field === "role");
@@ -3679,5 +3704,66 @@ module.exports = {
       return rows[0].key_value;
     }
     return null;
+  },
+  async getBlockedDates() {
+    try {
+      const rows = await query("SELECT * FROM blocked_dates ORDER BY date ASC");
+      return rows || [];
+    } catch (e) {
+      console.warn("getBlockedDates error:", e.message);
+      return [];
+    }
+  },
+  async addBlockedDate({ id, date, reason, createdAt }) {
+    await query(
+      "INSERT INTO blocked_dates (id, date, reason, createdAt) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE reason = VALUES(reason)",
+      [id, date, reason || null, createdAt || new Date().toISOString()]
+    );
+    return { id, date, reason, createdAt };
+  },
+  async deleteBlockedDate(id) {
+    await query("DELETE FROM blocked_dates WHERE id = ? OR date = ?", [id, id]);
+    return true;
+  },
+  async isDateBlocked(dateStr) {
+    try {
+      const rows = await query("SELECT * FROM blocked_dates WHERE date = ?", [dateStr]);
+      return rows && rows.length > 0 ? rows[0] : null;
+    } catch (e) {
+      console.warn("isDateBlocked error:", e.message);
+      return null;
+    }
+  },
+  async createInquiry({ id, name, phone, service, message, status, createdAt }) {
+    await query(
+      "INSERT INTO inquiries (id, name, phone, service, message, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [
+        id,
+        name,
+        phone,
+        service,
+        message || null,
+        status || "New",
+        createdAt || new Date().toISOString(),
+      ]
+    );
+    return { id, name, phone, service, message, status: status || "New", createdAt };
+  },
+  async getInquiries() {
+    try {
+      const rows = await query("SELECT * FROM inquiries ORDER BY createdAt DESC");
+      return rows || [];
+    } catch (e) {
+      console.warn("getInquiries error:", e.message);
+      return [];
+    }
+  },
+  async updateInquiryStatus(id, status) {
+    await query("UPDATE inquiries SET status = ? WHERE id = ?", [status, id]);
+    return true;
+  },
+  async deleteInquiry(id) {
+    await query("DELETE FROM inquiries WHERE id = ?", [id]);
+    return true;
   },
 };

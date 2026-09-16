@@ -50,6 +50,7 @@ const bcrypt = require("bcryptjs");
 const { nanoid } = require("nanoid");
 const db = require("./config/db");
 const { sendBookingEmails } = require("./utils/mailer");
+const { sendAdminWhatsAppAlert, sendTestWhatsAppAlert } = require("./utils/whatsapp");
 const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
 
@@ -501,6 +502,60 @@ app.post("/api/payment/order", async (req, res) => {
   }
 });
 
+// Time slot normalization helper (supports 12-hour "10:00 AM", "02:00 PM" and 24-hour "10:00", "14:00")
+function normalizeTimeSlot(t) {
+  if (!t) return "";
+  let str = String(t).trim().toUpperCase();
+  const match12 = str.match(/^0?(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+  if (match12) {
+    let hour = parseInt(match12[1], 10);
+    const min = match12[2];
+    const period = match12[3];
+    if (period === "AM" && hour === 12) hour = 0;
+    if (period === "PM" && hour < 12) hour += 12;
+    return `${String(hour).padStart(2, "0")}:${min}`;
+  }
+  const match24 = str.match(/^0?(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (match24) {
+    let hour = parseInt(match24[1], 10);
+    const min = match24[2];
+    return `${String(hour).padStart(2, "0")}:${min}`;
+  }
+  return str;
+}
+
+// Fetch occupied/booked time slots for a given date (to enforce 1 booking per slot)
+app.get("/api/bookings/booked-slots", async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) {
+      return res.json({ date: "", bookedSlots: [], normalizedSlots: [] });
+    }
+    const allBookings = await db.getBookings();
+    const activeForDate = (allBookings || []).filter((b) => {
+      if (b.jobStatus === "Cancelled") return false;
+      const sched = typeof b.schedule === "string" ? JSON.parse(b.schedule) : b.schedule;
+      return sched && sched.date === date && sched.time;
+    });
+
+    const bookedSlots = activeForDate.map((b) => {
+      const sched = typeof b.schedule === "string" ? JSON.parse(b.schedule) : b.schedule;
+      return sched.time;
+    });
+
+    const normalizedSlots = bookedSlots.map((t) => normalizeTimeSlot(t));
+
+    res.json({
+      date,
+      bookedSlots,
+      normalizedSlots,
+    });
+  } catch (err) {
+    console.error("Error fetching booked slots:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post("/api/bookings", async (req, res) => {
   try {
     const {
@@ -515,6 +570,44 @@ app.post("/api/bookings", async (req, res) => {
       paymentId,
       userId,
     } = req.body;
+
+    // Validate booking date: past dates and blocked dates protection
+    const scheduleObj = typeof schedule === "string" ? JSON.parse(schedule) : schedule;
+    const bookingDate = scheduleObj?.date;
+    const bookingTime = scheduleObj?.time;
+
+    if (bookingDate) {
+      const todayStr = new Date().toISOString().split("T")[0];
+      if (bookingDate < todayStr) {
+        return res.status(400).json({
+          error: "Selected booking date cannot be in the past. Please choose today or a future date.",
+        });
+      }
+      const blocked = await db.isDateBlocked(bookingDate);
+      if (blocked) {
+        return res.status(400).json({
+          error: `Selected date (${bookingDate}) is blocked: ${blocked.reason || "Unavailable for bookings"}. Please choose another date.`,
+        });
+      }
+    }
+
+    // Enforce strictly 1 booking per date & time slot
+    if (bookingDate && bookingTime) {
+      const normTime = normalizeTimeSlot(bookingTime);
+      const allBookings = await db.getBookings();
+      const slotConflict = (allBookings || []).find((b) => {
+        if (b.jobStatus === "Cancelled") return false;
+        const bSched = typeof b.schedule === "string" ? JSON.parse(b.schedule) : b.schedule;
+        return bSched?.date === bookingDate && normalizeTimeSlot(bSched?.time) === normTime;
+      });
+
+      if (slotConflict) {
+        return res.status(400).json({
+          error: `The slot (${bookingTime} on ${bookingDate}) is already booked by another customer. Only 1 booking is allowed per slot. Please choose another time slot.`,
+        });
+      }
+    }
+
     const booking = {
       id: nanoid(10),
       createdAt: new Date().toISOString(),
@@ -555,9 +648,28 @@ app.post("/api/bookings", async (req, res) => {
         err,
       ),
     );
+
+    // Send instant WhatsApp alert to Admin asynchronously
+    sendAdminWhatsAppAlert(booking).catch((err) =>
+      console.error(
+        "[WhatsApp] Booking WhatsApp alert failed to send:",
+        err,
+      ),
+    );
     res.json({ ok: true, booking });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/whatsapp/test", async (req, res) => {
+  try {
+    const { phone, apiKey } = req.body;
+    const result = await sendTestWhatsAppAlert(phone, apiKey);
+    res.json(result);
+  } catch (err) {
+    console.error("[WhatsApp Test Error]:", err.message);
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -1736,6 +1848,37 @@ app.put("/api/bookings/:id/reschedule", async (req, res) => {
     if (!date || !time) {
       return res.status(400).json({ error: "Date and Time are required." });
     }
+
+    const todayStr = new Date().toISOString().split("T")[0];
+    if (date < todayStr) {
+      return res.status(400).json({
+        error: "Reschedule date cannot be in the past. Please choose today or a future date.",
+      });
+    }
+
+    const blocked = await db.isDateBlocked(date);
+    if (blocked) {
+      return res.status(400).json({
+        error: `Selected date (${date}) is blocked: ${blocked.reason || "Unavailable for bookings"}. Please choose another date.`,
+      });
+    }
+
+    // Enforce strictly 1 booking per date & time slot
+    const normTime = normalizeTimeSlot(time);
+    const allBookings = await db.getBookings();
+    const slotConflict = (allBookings || []).find((b) => {
+      if (b.id === req.params.id) return false;
+      if (b.jobStatus === "Cancelled") return false;
+      const bSched = typeof b.schedule === "string" ? JSON.parse(b.schedule) : b.schedule;
+      return bSched?.date === date && normalizeTimeSlot(bSched?.time) === normTime;
+    });
+
+    if (slotConflict) {
+      return res.status(400).json({
+        error: `The slot (${time} on ${date}) is already booked by another customer. Only 1 booking is allowed per slot. Please choose another time slot.`,
+      });
+    }
+
     await db.rescheduleBooking(
       req.params.id,
       date,
@@ -2117,6 +2260,132 @@ app.delete("/api/transformations/:id", async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== Blocked Dates / Holiday Management Endpoints =====
+app.get("/api/blocked-dates", async (req, res) => {
+  try {
+    const list = await db.getBlockedDates();
+    res.json(list || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/blocked-dates", async (req, res) => {
+  try {
+    const { date, reason } = req.body;
+    if (!date) {
+      return res.status(400).json({ error: "Date is required (YYYY-MM-DD)." });
+    }
+    const todayStr = new Date().toISOString().split("T")[0];
+    if (date < todayStr) {
+      return res.status(400).json({ error: "Cannot block a date in the past." });
+    }
+    const id = `blk-${Date.now()}-${nanoid(4)}`;
+    const created = await db.addBlockedDate({
+      id,
+      date,
+      reason: (reason || "").trim(),
+      createdAt: new Date().toISOString(),
+    });
+    res.json({ ok: true, blockedDate: created });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/blocked-dates/:id", async (req, res) => {
+  try {
+    await db.deleteBlockedDate(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== Inquiries / Contact Us & Callback API =====
+app.post("/api/inquiries", async (req, res) => {
+  try {
+    const { name, phone, service, message } = req.body;
+
+    // Strict validation: Name (letters only, min 2 chars)
+    if (!name || typeof name !== "string" || !/^[A-Za-z\s]{2,60}$/.test(name.trim())) {
+      return res.status(400).json({
+        error: "Please enter a valid full name containing letters only (min 2 characters).",
+      });
+    }
+
+    // Strict validation: Phone (exactly 10 digits, starts with 6-9)
+    const cleanPhone = (phone || "").replace(/\D/g, "");
+    if (!cleanPhone || !/^[6-9]\d{9}$/.test(cleanPhone)) {
+      return res.status(400).json({
+        error: "Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.",
+      });
+    }
+
+    const cleanService = (service || "General Inquiry").trim();
+    const cleanMessage = (message || "").trim();
+
+    const inquiryId = `INQ-${Date.now().toString().slice(-6)}`;
+    const newInquiry = await db.createInquiry({
+      id: inquiryId,
+      name: name.trim(),
+      phone: cleanPhone,
+      service: cleanService,
+      message: cleanMessage,
+      status: "New",
+      createdAt: new Date().toISOString(),
+    });
+
+    // Optionally send Admin Notification (Email & WhatsApp alert)
+    try {
+      const mailer = require("./utils/mailer");
+      if (typeof mailer.sendAdminInquiryEmail === "function") {
+        await mailer.sendAdminInquiryEmail(newInquiry);
+      }
+    } catch (e) {
+      console.warn("Could not send admin email for inquiry:", e.message);
+    }
+
+    return res.json({
+      ok: true,
+      id: inquiryId,
+      message: "Your inquiry has been received! Our team will contact you within 15 minutes.",
+      inquiry: newInquiry,
+    });
+  } catch (err) {
+    console.error("Error creating inquiry:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/inquiries", async (req, res) => {
+  try {
+    const list = await db.getInquiries();
+    return res.json(list || []);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch("/api/inquiries/:id", async (req, res) => {
+  try {
+    const { status } = req.body;
+    await db.updateInquiryStatus(req.params.id, status || "Contacted");
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/inquiries/:id", async (req, res) => {
+  try {
+    await db.deleteInquiry(req.params.id);
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 });
 

@@ -135,10 +135,20 @@ function LoginComponent() {
         return;
       }
 
-      setIsLoading(true);
-
       const normEmail = email.trim().toLowerCase();
       const normPhone = phone.trim().replace(/\D/g, "");
+
+      if (!/^[A-Za-z\s]{2,60}$/.test(name.trim())) {
+        setError("Full Name must contain letters and spaces only (min 2 characters).");
+        return;
+      }
+
+      if (!/^[6-9]\d{9}$/.test(normPhone)) {
+        setError("Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.");
+        return;
+      }
+
+      setIsLoading(true);
 
       try {
         const res = await fetch(`${ADMIN_API_URL}/api/auth/register`, {
@@ -364,28 +374,28 @@ function LoginComponent() {
   return (
     <div className="flex min-h-screen text-white font-sans overflow-hidden bg-navy relative">
       {/* Decorative luxury glows */}
-      <div className="absolute top-0 right-0 h-[600px] w-[600px] rounded-full bg-[#cb9f5a]/5 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 h-[600px] w-[600px] rounded-full bg-[#cb9f5a]/5 blur-3xl pointer-events-none" />
+      <div className="absolute top-0 right-0 h-[600px] w-[600px] rounded-full bg-emerald-500/5 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 h-[600px] w-[600px] rounded-full bg-emerald-500/5 blur-3xl pointer-events-none" />
 
       {/* Left Column: Visual Luxe Brand Panel */}
       <div
         className="hidden md:flex md:w-1/2 relative flex-col justify-between p-12 overflow-hidden bg-cover bg-center"
         style={{ backgroundImage: "url('/images/login-bg.png')" }}
       >
-        {/* Dark overlay with signature gold/navy gradients */}
+        {/* Dark overlay with signature emerald/navy gradients */}
         <div className="absolute inset-0 bg-gradient-to-tr from-navy via-navy/95 to-navy/70 opacity-95" />
         <div className="absolute inset-0 noise-overlay opacity-20" />
 
         {/* Top brand header */}
         <div className="relative z-10 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 backdrop-blur-md">
-            <Sparkles className="h-5 w-5 text-[#cb9f5a]" />
+            <Sparkles className="h-5 w-5 text-emerald-400" />
           </div>
           <div>
             <span className="font-display text-base font-extrabold tracking-wide text-cream">
               TheDeep CleanerZ
             </span>
-            <span className="block text-[8px] font-extrabold uppercase tracking-[0.25em] text-[#cb9f5a]">
+            <span className="block text-[8px] font-extrabold uppercase tracking-[0.25em] text-emerald-400">
               Pristine Luxury
             </span>
           </div>
@@ -393,7 +403,7 @@ function LoginComponent() {
 
         {/* Central luxury message */}
         <div className="relative z-10 max-w-md my-auto space-y-6">
-          <span className="inline-block text-[9px] font-extrabold uppercase tracking-[0.3em] text-[#cb9f5a] bg-[#cb9f5a]/10 px-3 py-1 rounded-full border border-[#cb9f5a]/20">
+          <span className="inline-block text-[9px] font-extrabold uppercase tracking-[0.3em] text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
             Now Serving 25+ Luxury Hubs
           </span>
           <h1 className="font-display text-4xl lg:text-5xl font-bold leading-[1.1] text-cream">
@@ -413,8 +423,8 @@ function LoginComponent() {
               "100% Satisfaction Checked Guarantee",
             ].map((text, idx) => (
               <div key={idx} className="flex items-center gap-3">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#cb9f5a]/10 border border-[#cb9f5a]/30">
-                  <CheckCircle2 className="h-3 w-3 text-[#cb9f5a]" />
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-400" />
                 </div>
                 <span className="text-xs font-bold text-cream/85">{text}</span>
               </div>
@@ -431,16 +441,16 @@ function LoginComponent() {
       {/* Right Column: Interaction Form Card */}
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-6 sm:p-12 bg-[#001c17] relative">
         {/* Subtle mesh pattern */}
-        <div className="absolute inset-0 bg-[radial-gradient(#cb9f5a_0.03_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none opacity-10" />
+        <div className="absolute inset-0 bg-[radial-gradient(#007A48_0.05_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none opacity-10" />
 
-        {/* Soft gold backdrop glow behind card */}
-        <div className="absolute h-96 w-96 rounded-full bg-[#cb9f5a]/5 blur-3xl pointer-events-none" />
+        {/* Soft emerald backdrop glow behind card */}
+        <div className="absolute h-96 w-96 rounded-full bg-[#007A48]/10 blur-3xl pointer-events-none" />
 
-        <div className="relative w-full max-w-md overflow-hidden rounded-3xl glass-dark p-8 sm:p-10 shadow-2xl border border-[#cb9f5a]/20 text-white animate-fade-up">
+        <div className="relative w-full max-w-md overflow-hidden rounded-3xl glass-dark p-8 sm:p-10 shadow-2xl border border-emerald-800/40 text-white animate-fade-up">
           <Link
             to="/"
             search={{ category: undefined, cart: undefined }}
-            className="inline-flex items-center gap-2 text-xs font-bold text-cream/60 hover:text-[#cb9f5a] transition-colors mb-8 group"
+            className="inline-flex items-center gap-2 text-xs font-bold text-cream/60 hover:text-emerald-400 transition-colors mb-8 group"
           >
             <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
             Back to Home
@@ -450,7 +460,7 @@ function LoginComponent() {
             <h2 className="font-display text-3xl font-bold tracking-tight text-cream">
               {isRegister ? "Begin Your Journey" : "Welcome Back"}
             </h2>
-            <p className="mt-2 text-xs font-semibold text-[#cb9f5a]">
+            <p className="mt-2 text-xs font-semibold text-emerald-400">
               {isRegister
                 ? "Register a client account for customized premium bookings."
                 : "Sign in to access your luxury cleaning dashboard."}
@@ -467,7 +477,7 @@ function LoginComponent() {
             <form onSubmit={handleOtpVerify} className="space-y-5 font-sans animate-fade-in">
               <div>
                 <label className="text-[10px] font-extrabold uppercase tracking-wider text-cream/50 flex items-center gap-1.5 mb-1.5 font-sans">
-                  <ShieldCheck className="h-3.5 w-3.5 text-[#cb9f5a]/75" />
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
                   Enter 6-Digit OTP Code
                 </label>
                 <p className="text-[10px] text-cream/60 mb-3 font-semibold font-sans leading-relaxed">
@@ -481,17 +491,17 @@ function LoginComponent() {
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="e.g. 123456"
-                  className="w-full text-center tracking-[0.5em] text-lg font-bold rounded-xl border border-[#cb9f5a]/20 bg-black/40 px-4 py-3.5 text-white placeholder:text-slate-650 placeholder:tracking-normal outline-none focus:border-[#cb9f5a] focus:ring-1 focus:ring-[#cb9f5a] transition-all font-mono"
+                  className="w-full text-center tracking-[0.5em] text-lg font-bold rounded-xl border border-emerald-800/40 bg-black/40 px-4 py-3.5 text-white placeholder:text-slate-650 placeholder:tracking-normal outline-none focus:border-[#007A48] focus:ring-1 focus:ring-[#007A48] transition-all font-mono"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full rounded-xl gradient-gold py-3.5 text-xs font-bold text-navy shadow-gold active:scale-[0.98] hover:brightness-115 transition-all disabled:opacity-70 disabled:pointer-events-none flex justify-center items-center gap-2 cursor-pointer font-sans shine"
+                className="w-full rounded-xl bg-[#007A48] hover:bg-[#005B36] py-3.5 text-xs font-bold text-white shadow-lg shadow-[#007A48]/30 active:scale-[0.98] transition-all disabled:opacity-70 disabled:pointer-events-none flex justify-center items-center gap-2 cursor-pointer font-sans"
               >
                 {isLoading ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-navy border-t-transparent" />
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 ) : (
                   "Verify & Log In"
                 )}
@@ -502,7 +512,7 @@ function LoginComponent() {
                   type="button"
                   onClick={handleResendOtp}
                   disabled={isLoading}
-                  className="text-xs text-[#cb9f5a] hover:text-[#cb9f5a]/80 hover:underline font-bold transition-colors cursor-pointer disabled:opacity-50"
+                  className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline font-bold transition-colors cursor-pointer disabled:opacity-50"
                 >
                   Resend Verification Code
                 </button>
@@ -525,7 +535,7 @@ function LoginComponent() {
               <form onSubmit={handleResetPassword} className="space-y-5 font-sans animate-fade-in">
                 <div>
                   <label className="text-[10px] font-extrabold uppercase tracking-wider text-cream/50 flex items-center gap-1.5 mb-1.5 font-sans">
-                    <ShieldCheck className="h-3.5 w-3.5 text-[#cb9f5a]/75" />
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
                     Enter 6-Digit OTP Code
                   </label>
                   <p className="text-[10px] text-cream/60 mb-3 font-semibold font-sans leading-relaxed">
@@ -538,13 +548,13 @@ function LoginComponent() {
                     value={forgotOtp}
                     onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="e.g. 123456"
-                    className="w-full text-center tracking-[0.5em] text-lg font-bold rounded-xl border border-[#cb9f5a]/20 bg-black/40 px-4 py-3.5 text-white placeholder:text-slate-650 placeholder:tracking-normal outline-none focus:border-[#cb9f5a] focus:ring-1 focus:ring-[#cb9f5a] transition-all font-mono"
+                    className="w-full text-center tracking-[0.5em] text-lg font-bold rounded-xl border border-emerald-800/40 bg-black/40 px-4 py-3.5 text-white placeholder:text-slate-650 placeholder:tracking-normal outline-none focus:border-[#007A48] focus:ring-1 focus:ring-[#007A48] transition-all font-mono"
                   />
                 </div>
 
                 <div>
                   <label className="text-[10px] font-extrabold uppercase tracking-wider text-cream/50 flex items-center gap-1.5 mb-1.5 font-sans">
-                    <Lock className="h-3.5 w-3.5 text-[#cb9f5a]/75" />
+                    <Lock className="h-3.5 w-3.5 text-emerald-400" />
                     New Password
                   </label>
                   <div className="relative">
@@ -554,12 +564,12 @@ function LoginComponent() {
                       value={forgotNewPassword}
                       onChange={(e) => setForgotNewPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full rounded-xl border border-[#cb9f5a]/20 bg-black/40 pl-4 pr-10 py-3.5 text-xs text-white placeholder:text-slate-650 outline-none focus:border-[#cb9f5a] focus:ring-1 focus:ring-[#cb9f5a] transition-all font-semibold"
+                      className="w-full rounded-xl border border-emerald-800/40 bg-black/40 pl-4 pr-10 py-3.5 text-xs text-white placeholder:text-slate-650 outline-none focus:border-[#007A48] focus:ring-1 focus:ring-[#007A48] transition-all font-semibold"
                     />
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-cream/40 hover:text-[#cb9f5a] transition-colors p-1"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-cream/40 hover:text-emerald-400 transition-colors p-1"
                     >
                       {showNewPassword ? (
                         <EyeOff className="h-4.5 w-4.5" />
@@ -573,10 +583,10 @@ function LoginComponent() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full rounded-xl gradient-gold py-3.5 text-xs font-bold text-navy shadow-gold active:scale-[0.98] hover:brightness-115 transition-all disabled:opacity-70 disabled:pointer-events-none flex justify-center items-center gap-2 cursor-pointer font-sans shine"
+                  className="w-full rounded-xl bg-[#007A48] hover:bg-[#005B36] py-3.5 text-xs font-bold text-white shadow-lg shadow-[#007A48]/30 active:scale-[0.98] transition-all disabled:opacity-70 disabled:pointer-events-none flex justify-center items-center gap-2 cursor-pointer font-sans"
                 >
                   {isLoading ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-navy border-t-transparent" />
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   ) : (
                     "Reset Password"
                   )}
@@ -587,7 +597,7 @@ function LoginComponent() {
                     type="button"
                     onClick={handleSendForgotOtp}
                     disabled={isLoading}
-                    className="text-xs text-[#cb9f5a] hover:text-[#cb9f5a]/80 hover:underline font-bold transition-colors cursor-pointer disabled:opacity-50"
+                    className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline font-bold transition-colors cursor-pointer disabled:opacity-50"
                   >
                     Resend Verification Code
                   </button>
@@ -611,7 +621,7 @@ function LoginComponent() {
               <form onSubmit={handleSendForgotOtp} className="space-y-5 font-sans animate-fade-in">
                 <div>
                   <label className="text-[10px] font-extrabold uppercase tracking-wider text-cream/50 flex items-center gap-1.5 mb-1.5 font-sans">
-                    <Mail className="h-3.5 w-3.5 text-[#cb9f5a]/75" />
+                    <Mail className="h-3.5 w-3.5 text-emerald-400" />
                     Enter Registered Email Address
                   </label>
                   <input
@@ -620,17 +630,17 @@ function LoginComponent() {
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     placeholder="e.g. user@example.com"
-                    className="w-full rounded-xl border border-[#cb9f5a]/20 bg-black/40 px-4 py-3.5 text-xs text-white placeholder:text-slate-650 outline-none focus:border-[#cb9f5a] focus:ring-1 focus:ring-[#cb9f5a] transition-all font-semibold"
+                    className="w-full rounded-xl border border-emerald-800/40 bg-black/40 px-4 py-3.5 text-xs text-white placeholder:text-slate-650 outline-none focus:border-[#007A48] focus:ring-1 focus:ring-[#007A48] transition-all font-semibold"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full rounded-xl gradient-gold py-3.5 text-xs font-bold text-navy shadow-gold active:scale-[0.98] hover:brightness-115 transition-all disabled:opacity-70 disabled:pointer-events-none flex justify-center items-center gap-2 cursor-pointer font-sans shine"
+                  className="w-full rounded-xl bg-[#007A48] hover:bg-[#005B36] py-3.5 text-xs font-bold text-white shadow-lg shadow-[#007A48]/30 active:scale-[0.98] transition-all disabled:opacity-70 disabled:pointer-events-none flex justify-center items-center gap-2 cursor-pointer font-sans"
                 >
                   {isLoading ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-navy border-t-transparent" />
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   ) : (
                     "Send Verification OTP"
                   )}
@@ -643,7 +653,7 @@ function LoginComponent() {
                       setIsForgotPassword(false);
                       setError("");
                     }}
-                    className="text-xs text-[#cb9f5a] hover:text-[#cb9f5a]/80 hover:underline font-bold transition-colors cursor-pointer"
+                    className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline font-bold transition-colors cursor-pointer"
                   >
                     Go Back to Login
                   </button>
@@ -658,23 +668,23 @@ function LoginComponent() {
                     {/* Full name input */}
                     <div>
                       <label className="text-[10px] font-extrabold uppercase tracking-wider text-cream/50 flex items-center gap-1.5 mb-1.5 font-sans">
-                        <User className="h-3.5 w-3.5 text-[#cb9f5a]/75" />
+                        <User className="h-3.5 w-3.5 text-emerald-400" />
                         Full Name
                       </label>
                       <input
                         type="text"
                         required
                         value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        onChange={(e) => setName(e.target.value.replace(/[^a-zA-Z\s]/g, ""))}
                         placeholder="e.g. Priya Sharma"
-                        className="w-full rounded-xl border border-[#cb9f5a]/20 bg-black/40 px-4 py-3.5 text-xs text-white placeholder:text-slate-650 outline-none focus:border-[#cb9f5a] focus:ring-1 focus:ring-[#cb9f5a] transition-all font-semibold"
+                        className="w-full rounded-xl border border-emerald-800/40 bg-black/40 px-4 py-3.5 text-xs text-white placeholder:text-slate-650 outline-none focus:border-[#007A48] focus:ring-1 focus:ring-[#007A48] transition-all font-semibold"
                       />
                     </div>
 
                     {/* Mobile number input */}
                     <div>
                       <label className="text-[10px] font-extrabold uppercase tracking-wider text-cream/50 flex items-center gap-1.5 mb-1.5 font-sans">
-                        <Phone className="h-3.5 w-3.5 text-[#cb9f5a]/75" />
+                        <Phone className="h-3.5 w-3.5 text-emerald-400" />
                         Mobile Number
                       </label>
                       <input
@@ -683,7 +693,7 @@ function LoginComponent() {
                         value={phone}
                         onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                         placeholder="e.g. 99663 46347"
-                        className="w-full rounded-xl border border-[#cb9f5a]/20 bg-black/40 px-4 py-3.5 text-xs text-white placeholder:text-slate-650 outline-none focus:border-[#cb9f5a] focus:ring-1 focus:ring-[#cb9f5a] transition-all font-semibold"
+                        className="w-full rounded-xl border border-emerald-800/40 bg-black/40 px-4 py-3.5 text-xs text-white placeholder:text-slate-650 outline-none focus:border-[#007A48] focus:ring-1 focus:ring-[#007A48] transition-all font-semibold"
                       />
                     </div>
                   </>
@@ -692,7 +702,7 @@ function LoginComponent() {
                 {/* Email input */}
                 <div>
                   <label className="text-[10px] font-extrabold uppercase tracking-wider text-cream/50 flex items-center gap-1.5 mb-1.5 font-sans">
-                    <Mail className="h-3.5 w-3.5 text-[#cb9f5a]/75" />
+                    <Mail className="h-3.5 w-3.5 text-emerald-400" />
                     {isRegister ? "Email Address" : "Email / Mobile Number"}
                   </label>
                   <input
@@ -703,14 +713,14 @@ function LoginComponent() {
                     placeholder={
                       isRegister ? "e.g. user@example.com" : "e.g. user@example.com or 9966346347"
                     }
-                    className="w-full rounded-xl border border-[#cb9f5a]/20 bg-black/40 px-4 py-3.5 text-xs text-white placeholder:text-slate-650 outline-none focus:border-[#cb9f5a] focus:ring-1 focus:ring-[#cb9f5a] transition-all font-semibold"
+                    className="w-full rounded-xl border border-emerald-800/40 bg-black/40 px-4 py-3.5 text-xs text-white placeholder:text-slate-650 outline-none focus:border-[#007A48] focus:ring-1 focus:ring-[#007A48] transition-all font-semibold"
                   />
                 </div>
 
                 {/* Password input with visibility toggle */}
                 <div>
                   <label className="text-[10px] font-extrabold uppercase tracking-wider text-cream/50 flex items-center gap-1.5 mb-1.5 font-sans">
-                    <Lock className="h-3.5 w-3.5 text-[#cb9f5a]/75" />
+                    <Lock className="h-3.5 w-3.5 text-emerald-400" />
                     Password
                   </label>
                   <div className="relative">
@@ -720,12 +730,12 @@ function LoginComponent() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full rounded-xl border border-[#cb9f5a]/20 bg-black/40 pl-4 pr-10 py-3.5 text-xs text-white placeholder:text-slate-650 outline-none focus:border-[#cb9f5a] focus:ring-1 focus:ring-[#cb9f5a] transition-all font-semibold"
+                      className="w-full rounded-xl border border-emerald-800/40 bg-black/40 pl-4 pr-10 py-3.5 text-xs text-white placeholder:text-slate-650 outline-none focus:border-[#007A48] focus:ring-1 focus:ring-[#007A48] transition-all font-semibold"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-cream/40 hover:text-[#cb9f5a] transition-colors p-1"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-cream/40 hover:text-emerald-400 transition-colors p-1"
                     >
                       {showPassword ? (
                         <EyeOff className="h-4.5 w-4.5" />
@@ -744,7 +754,7 @@ function LoginComponent() {
                         setIsForgotPassword(true);
                         setError("");
                       }}
-                      className="text-[10px] text-[#cb9f5a]/85 hover:text-[#cb9f5a] hover:underline font-bold transition-colors cursor-pointer"
+                      className="text-[10px] text-emerald-400/85 hover:text-emerald-400 hover:underline font-bold transition-colors cursor-pointer"
                     >
                       Forgot Password?
                     </button>
@@ -754,10 +764,10 @@ function LoginComponent() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full rounded-xl gradient-gold py-3.5 text-xs font-bold text-navy shadow-gold active:scale-[0.98] hover:brightness-115 transition-all disabled:opacity-70 disabled:pointer-events-none flex justify-center items-center gap-2 cursor-pointer font-sans shine"
+                  className="w-full rounded-xl bg-[#007A48] hover:bg-[#005B36] py-3.5 text-xs font-bold text-white shadow-lg shadow-[#007A48]/30 active:scale-[0.98] transition-all disabled:opacity-70 disabled:pointer-events-none flex justify-center items-center gap-2 cursor-pointer font-sans"
                 >
                   {isLoading ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-navy border-t-transparent" />
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   ) : isRegister ? (
                     "Create Free Account"
                   ) : (
@@ -774,7 +784,7 @@ function LoginComponent() {
                       setIsRegister(false);
                       setError("");
                     }}
-                    className="text-[#cb9f5a] hover:text-[#cb9f5a]/80 hover:underline font-bold transition-colors cursor-pointer"
+                    className="text-emerald-400 hover:text-emerald-300 hover:underline font-bold transition-colors cursor-pointer"
                   >
                     Already have an account? Sign In
                   </button>
@@ -785,7 +795,7 @@ function LoginComponent() {
                       setIsRegister(true);
                       setError("");
                     }}
-                    className="text-[#cb9f5a] hover:text-[#cb9f5a]/80 hover:underline font-bold transition-colors cursor-pointer"
+                    className="text-emerald-400 hover:text-emerald-300 hover:underline font-bold transition-colors cursor-pointer"
                   >
                     Don't have an account? Register Now
                   </button>
@@ -794,9 +804,9 @@ function LoginComponent() {
             </>
           )}
 
-          <div className="mt-6 pt-5 border-t border-[#cb9f5a]/15 text-center">
+          <div className="mt-6 pt-5 border-t border-emerald-800/40 text-center">
             <div className="flex justify-center items-center gap-1.5 text-[9px] text-cream/40 font-bold uppercase tracking-wider">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#cb9f5a]" />
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
               <span>Secure 256-bit encryption protocol</span>
             </div>
           </div>
