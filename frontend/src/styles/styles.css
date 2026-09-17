@@ -551,3 +551,110 @@ input[type="number"] {
   animation-play-state: paused;
 }
 
+/* ============================================================
+   ULTRA-PREMIUM LUXURY TOAST & NOTIFICATION SYSTEM (TheDeep CleanerZ)
+   ============================================================ */
+[data-sonner-toaster] {
+  --normal-bg: #ffffff !important;
+  --normal-border: rgba(226, 232, 240, 0.9) !important;
+  --normal-text: #0f172a !important;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  z-index: 999999 !important;
+}
+
+[data-sonner-toast] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-radius: 18px !important;
+  padding: 14px 18px !important;
+  box-shadow: 0 20px 45px -10px rgba(0, 42, 34, 0.18), 0 4px 16px -2px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid rgba(226, 232, 240, 0.95) !important;
+  border-left: 5px solid #0B6B46 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  letter-spacing: -0.01em !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+[data-sonner-toast]:hover {
+  transform: translateY(-2px) scale(1.01) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 42, 34, 0.24), 0 6px 18px -2px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Success Toasts (Cart added, Saved, Confirmed, OTP Sent) */
+[data-sonner-toast][data-type="success"] {
+  border-left-color: #0B6B46 !important;
+  background: linear-gradient(135deg, #ffffff 0%, #F4FAF7 100%) !important;
+}
+[data-sonner-toast][data-type="success"] [data-icon] {
+  color: #0B6B46 !important;
+}
+
+/* Error Toasts (Validation failed, Blocked Date, OTP Mismatch) */
+[data-sonner-toast][data-type="error"] {
+  border-left-color: #E11D48 !important;
+  background: linear-gradient(135deg, #ffffff 0%, #FFF5F7 100%) !important;
+}
+[data-sonner-toast][data-type="error"] [data-icon] {
+  color: #E11D48 !important;
+}
+[data-sonner-toast][data-type="error"] [data-title] {
+  color: #9F1239 !important;
+}
+
+/* Warning Toasts */
+[data-sonner-toast][data-type="warning"] {
+  border-left-color: #D97706 !important;
+  background: linear-gradient(135deg, #ffffff 0%, #FFFBEB 100%) !important;
+}
+[data-sonner-toast][data-type="warning"] [data-icon] {
+  color: #D97706 !important;
+}
+
+/* Info & Loading Toasts (Sending OTP, Syncing, Please wait...) */
+[data-sonner-toast][data-type="info"],
+[data-sonner-toast][data-type="loading"] {
+  border-left-color: #002A22 !important;
+  background: linear-gradient(135deg, #ffffff 0%, #F8FAF9 100%) !important;
+}
+[data-sonner-toast][data-type="info"] [data-icon],
+[data-sonner-toast][data-type="loading"] [data-icon] {
+  color: #002A22 !important;
+}
+
+/* Toast Title & Content */
+[data-sonner-toast] [data-title] {
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  color: #002A22 !important;
+}
+
+[data-sonner-toast] [data-description] {
+  color: #64748B !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  margin-top: 2px !important;
+}
+
+/* Close Button */
+[data-sonner-toast] [data-close-button] {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #64748b !important;
+  border-radius: 9999px !important;
+  top: 10px !important;
+  right: 10px !important;
+  width: 20px !important;
+  height: 20px !important;
+  transition: all 0.15s ease !important;
+}
+[data-sonner-toast] [data-close-button]:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+

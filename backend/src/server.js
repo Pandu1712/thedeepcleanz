@@ -584,7 +584,7 @@ app.post("/api/bookings", async (req, res) => {
         });
       }
       const blocked = await db.isDateBlocked(bookingDate);
-      if (blocked) {
+      if (blocked && !req.body.overrideBlockedDate && !req.body.isAdmin) {
         return res.status(400).json({
           error: `Selected date (${bookingDate}) is blocked: ${blocked.reason || "Unavailable for bookings"}. Please choose another date.`,
         });
@@ -621,8 +621,16 @@ app.post("/api/bookings", async (req, res) => {
       paymentStatus: paymentStatus || "Pending",
       paymentId: paymentId || null,
       userId: userId || null,
+      technicianId: req.body.technicianId || null,
     };
     await db.addBooking(booking);
+    if (req.body.technicianId) {
+      try {
+        await db.updateBookingTechnician(booking.id, req.body.technicianId);
+      } catch (tErr) {
+        console.warn("Could not set technicianId during booking creation:", tErr.message);
+      }
+    }
 
     // Resolve registered user's email if userId is present
     if (userId) {

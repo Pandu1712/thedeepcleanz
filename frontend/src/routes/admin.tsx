@@ -54,6 +54,11 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarOff,
+  UserPlus,
+  Receipt,
+  CreditCard,
+  AlertTriangle,
+  CheckCircle,
 } from "lucide-react";
 
 import {
@@ -108,6 +113,9 @@ import {
   fetchBlockedDates,
   addBlockedDate,
   deleteBlockedDate,
+  postAdminBooking,
+  fetchBookedSlots,
+  normalizeTimeSlot,
   type BlockedDate,
   type RecentTransformation,
   type AdminCategory,
@@ -144,6 +152,21 @@ const EMOJI_OPTIONS = [
   "🧼",
   "🚗",
   "🧴",
+];
+
+const ADMIN_TIME_SLOTS = [
+  "08:00 AM",
+  "09:00 AM",
+  "10:00 AM",
+  "11:00 AM",
+  "12:00 PM",
+  "01:00 PM",
+  "02:00 PM",
+  "03:00 PM",
+  "04:00 PM",
+  "05:00 PM",
+  "06:00 PM",
+  "07:00 PM",
 ];
 
 function AdminDashboardRoute() {
@@ -222,6 +245,36 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [blockDateInput, setBlockDateInput] = useState("");
   const [blockReasonInput, setBlockReasonInput] = useState("");
   const [isSavingBlockDate, setIsSavingBlockDate] = useState(false);
+
+  // Manual / Offline Booking & Slot Lock States
+  const [manualBookingModalOpen, setManualBookingModalOpen] = useState(false);
+  const [isSubmittingManualBooking, setIsSubmittingManualBooking] = useState(false);
+  const [mbCustomerName, setMbCustomerName] = useState("");
+  const [mbCustomerPhone, setMbCustomerPhone] = useState("");
+  const [mbCustomerEmail, setMbCustomerEmail] = useState("");
+  const [mbAddress, setMbAddress] = useState("");
+  const [mbLandmark, setMbLandmark] = useState("");
+  const [mbCity, setMbCity] = useState("Guntur");
+  const [mbPincode, setMbPincode] = useState("522002");
+  const [mbBookingSource, setMbBookingSource] = useState<"Phone Call" | "WhatsApp" | "Walk-in" | "Admin Direct">("Phone Call");
+  const [mbDate, setMbDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  });
+  const [mbTime, setMbTime] = useState("10:00 AM");
+  const [mbServiceMode, setMbServiceMode] = useState<"catalog" | "custom">("catalog");
+  const [mbSelectedServiceId, setMbSelectedServiceId] = useState("");
+  const [mbSelectedPlanName, setMbSelectedPlanName] = useState("");
+  const [mbCustomTitle, setMbCustomTitle] = useState("");
+  const [mbPrice, setMbPrice] = useState<number>(1499);
+  const [mbQty, setMbQty] = useState<number>(1);
+  const [mbPaymentStatus, setMbPaymentStatus] = useState<"Paid In Full" | "Deposit Paid (25%)" | "Pending COD" | "Comp / Free">("Paid In Full");
+  const [mbPaymentMode, setMbPaymentMode] = useState<"Cash" | "UPI / GPay / PhonePe" | "Bank Transfer" | "Pending Collection">("UPI / GPay / PhonePe");
+  const [mbPaymentRef, setMbPaymentRef] = useState("");
+  const [mbTechnicianId, setMbTechnicianId] = useState("");
+  const [mbNotes, setMbNotes] = useState("");
+  const [mbBookedSlotsOnDate, setMbBookedSlotsOnDate] = useState<string[]>([]);
+  const [mbLoadingSlots, setMbLoadingSlots] = useState(false);
 
   // Reschedule states
   const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
@@ -830,6 +883,189 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     );
 
     return clash ? `⚠️ Booked (${clash.id.substring(0, 4).toUpperCase()})` : "🟢 Free";
+  };
+
+  // Query booked slots whenever mbDate or modal open state changes
+  useEffect(() => {
+    if (!manualBookingModalOpen || !mbDate) return;
+    let isMounted = true;
+    setMbLoadingSlots(true);
+    fetchBookedSlots(mbDate)
+      .then((res) => {
+        if (isMounted) {
+          setMbBookedSlotsOnDate(res.normalizedSlots || []);
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to check booked slots for date:", err);
+      })
+      .finally(() => {
+        if (isMounted) setMbLoadingSlots(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [manualBookingModalOpen, mbDate]);
+
+  // Open Manual Booking modal with optional prefilled date
+  const handleOpenManualBooking = (prefilledDate?: string) => {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const targetDate = prefilledDate || todayStr;
+    
+    setMbDate(targetDate);
+    setMbTime("10:00 AM");
+    setMbCustomerName("");
+    setMbCustomerPhone("");
+    setMbCustomerEmail("");
+    setMbAddress("");
+    setMbLandmark("");
+    setMbCity("Guntur");
+    setMbPincode("522002");
+    setMbBookingSource("Phone Call");
+    setMbServiceMode("catalog");
+    
+    if (services.length > 0) {
+      setMbSelectedServiceId(services[0].id);
+      const firstPlan = services[0].plans && services[0].plans.length > 0 ? services[0].plans[0].name : "";
+      setMbSelectedPlanName(firstPlan);
+      const initialPrice = services[0].plans && services[0].plans.length > 0 ? services[0].plans[0].price : services[0].price || 1499;
+      setMbPrice(initialPrice);
+    } else {
+      setMbSelectedServiceId("");
+      setMbCustomTitle("Full House Deep Cleaning");
+      setMbPrice(1999);
+    }
+    setMbQty(1);
+    setMbPaymentStatus("Paid In Full");
+    setMbPaymentMode("UPI / GPay / PhonePe");
+    setMbPaymentRef("");
+    setMbTechnicianId("");
+    setMbNotes("");
+    setManualBookingModalOpen(true);
+  };
+
+  // When catalog service changes in manual booking form
+  const handleMbServiceChange = (svcId: string) => {
+    setMbSelectedServiceId(svcId);
+    const found = services.find((s) => s.id === svcId);
+    if (found) {
+      if (found.plans && found.plans.length > 0) {
+        setMbSelectedPlanName(found.plans[0].name);
+        setMbPrice(found.plans[0].price);
+      } else {
+        setMbSelectedPlanName("");
+        setMbPrice(found.price || 1499);
+      }
+    }
+  };
+
+  // When catalog plan changes in manual booking form
+  const handleMbPlanChange = (planName: string) => {
+    setMbSelectedPlanName(planName);
+    const found = services.find((s) => s.id === mbSelectedServiceId);
+    if (found && found.plans) {
+      const p = found.plans.find((pl) => pl.name === planName);
+      if (p) setMbPrice(p.price);
+    }
+  };
+
+  // Submit manual / offline booking and lock slot
+  const handleCreateManualBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mbCustomerName.trim()) {
+      toast.error("Please enter the customer's full name.", { icon: "👤" });
+      return;
+    }
+    const cleanPhone = mbCustomerPhone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      toast.error("Please enter a valid 10-digit mobile phone number.", { icon: "📱" });
+      return;
+    }
+    if (!mbAddress.trim()) {
+      toast.error("Please enter the customer's service address.", { icon: "📍" });
+      return;
+    }
+    if (!mbDate) {
+      toast.error("Please select a service date.", { icon: "📅" });
+      return;
+    }
+    if (!mbTime) {
+      toast.error("Please select a time slot.", { icon: "⏰" });
+      return;
+    }
+
+    let itemTitle = "";
+    if (mbServiceMode === "catalog") {
+      const selectedSvc = services.find((s) => s.id === mbSelectedServiceId);
+      itemTitle = selectedSvc ? selectedSvc.title : "Deep Cleaning Service";
+      if (mbSelectedPlanName) {
+        itemTitle += ` (${mbSelectedPlanName})`;
+      }
+    } else {
+      itemTitle = mbCustomTitle.trim() || "Custom Deep Cleaning Package";
+    }
+
+    const itemPrice = Math.max(0, Number(mbPrice) || 0);
+    const itemQty = Math.max(1, Number(mbQty) || 1);
+    const grandTotal = itemPrice * itemQty;
+
+    const payload = {
+      customer: {
+        name: mbCustomerName.trim(),
+        phone: cleanPhone,
+        email: mbCustomerEmail.trim() || undefined,
+        address: mbAddress.trim(),
+        landmark: mbLandmark.trim() || undefined,
+        city: mbCity.trim() || "Guntur",
+        pincode: mbPincode.trim() || "522002",
+        bookingSource: mbBookingSource,
+        notes: mbNotes.trim() || undefined,
+      },
+      schedule: {
+        date: mbDate,
+        time: mbTime,
+      },
+      items: [
+        {
+          id: mbServiceMode === "catalog" ? mbSelectedServiceId : `custom-${Date.now()}`,
+          title: itemTitle,
+          price: itemPrice,
+          qty: itemQty,
+          plan: mbSelectedPlanName || undefined,
+        },
+      ],
+      total: grandTotal,
+      discount: 0,
+      paymentStatus: mbPaymentStatus,
+      paymentId: mbPaymentRef.trim() || `OFFLINE-${Date.now().toString(36).toUpperCase()}`,
+      technicianId: mbTechnicianId || null,
+      notes: `${mbBookingSource} Booking • Mode: ${mbPaymentMode}${mbNotes.trim() ? ` • Notes: ${mbNotes.trim()}` : ""}`,
+      isAdmin: true,
+      overrideBlockedDate: true,
+    };
+
+    setIsSubmittingManualBooking(true);
+    try {
+      const result = await postAdminBooking(payload);
+      if (result.ok) {
+        toast.success("Offline Booking Created & Slot Locked!", {
+          description: `Appointment for ${mbCustomerName} on ${mbDate} at ${mbTime} is locked and recorded in database.`,
+          icon: "🔒",
+        });
+        setManualBookingModalOpen(false);
+        await refreshData();
+      } else {
+        throw new Error("Server returned an unsuccessful response.");
+      }
+    } catch (err: any) {
+      console.error("Failed to create manual booking:", err);
+      toast.error(err.message || "Failed to create offline booking. Please try again.", {
+        icon: "⚠️",
+      });
+    } finally {
+      setIsSubmittingManualBooking(false);
+    }
   };
 
   const selectCustomized = (s: any) => {
@@ -1940,7 +2176,15 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                onClick={() => handleOpenManualBooking()}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#002a22] via-[#013b2f] to-[#002a22] hover:from-[#01382c] hover:to-[#001f19] border border-[#cb9f5a]/40 px-4 h-10 text-xs font-bold text-white shadow-sm hover:shadow-md active:scale-95 transition-all cursor-pointer"
+              >
+                <Plus className="h-4 w-4 text-[#cb9f5a]" />
+                <span>+ OFFLINE BOOKING & LOCK SLOT</span>
+              </button>
+
               <button
                 onClick={refreshData}
                 disabled={isRefreshing}
@@ -4296,13 +4540,23 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           {/* BOOKINGS TAB CONTROLS */}
           {activeTab === "bookings" && (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="mb-4">
-                <h3 className="font-display text-lg font-bold text-slate-900">
-                  All Client Bookings
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Cancel or manage cleaning appointments registered in the database.
-                </p>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-display text-lg font-bold text-slate-900">
+                    All Client Bookings
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Cancel or manage cleaning appointments registered in the database.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => handleOpenManualBooking()}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#002a22] via-[#013b2f] to-[#002a22] hover:from-[#01382c] hover:to-[#001f19] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer border border-emerald-600/30 active:scale-95"
+                >
+                  <Plus className="h-4 w-4 text-[#cb9f5a]" />
+                  <span>+ Offline / Phone Booking & Lock Slot</span>
+                </button>
               </div>
 
               {/* Filter Controls Panel */}
@@ -4726,6 +4980,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
               blockedDates={blockedDatesList}
               onAssignTechnician={handleAssignTechnician}
               onTriggerReschedule={triggerRescheduleFromCalendar}
+              onOpenManualBooking={handleOpenManualBooking}
             />
           )}
 
@@ -6762,6 +7017,637 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           </div>
         </div>
       )}
+
+      {/* Manual / Offline Booking & Slot Lock Modal */}
+      {manualBookingModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-fade-in font-sans">
+          <div className="bg-white border border-[#cb9f5a]/40 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden relative text-slate-800 my-auto">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-[#002a22] via-[#01352b] to-[#001f18] px-6 py-5 text-white flex items-center justify-between border-b border-[#cb9f5a]/30 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#cb9f5a] to-[#997335] text-slate-900 flex items-center justify-center font-bold shadow-md shadow-black/20 shrink-0">
+                  <Lock className="h-5 w-5 text-slate-950" />
+                </div>
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#cb9f5a]/20 border border-[#cb9f5a]/40 text-[#cb9f5a] text-[10px] font-black uppercase tracking-wider mb-1">
+                    <Sparkles className="h-3 w-3" /> VIP OFFLINE BOOKING & SLOT LOCK
+                  </div>
+                  <h3 className="font-display text-lg font-bold text-white leading-tight">
+                    New Offline Appointment & Slot Lock
+                  </h3>
+                  <p className="text-xs text-emerald-200/80 font-medium">
+                    Register phone/WhatsApp clients and immediately reserve the date & time to prevent double-booking.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setManualBookingModalOpen(false)}
+                className="h-9 w-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all cursor-pointer"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <form onSubmit={handleCreateManualBooking} className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/60">
+              {/* 1. Customer & Channel Details Card */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center text-xs font-bold">
+                      1
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-900">Customer & Booking Channel</h4>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Required Client Info</span>
+                </div>
+
+                {/* Booking Channel Selection */}
+                <div>
+                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1.5">
+                    Booking Channel / Source
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { id: "Phone Call", label: "📞 Phone Call", desc: "Customer called directly" },
+                      { id: "WhatsApp", label: "💬 WhatsApp", desc: "Direct chat inquiry" },
+                      { id: "Walk-in", label: "🏢 Office Walk-in", desc: "In-person booking" },
+                      { id: "Admin Direct", label: "🔒 Admin Direct", desc: "Direct calendar lock" },
+                    ].map((ch) => (
+                      <button
+                        key={ch.id}
+                        type="button"
+                        onClick={() => setMbBookingSource(ch.id as any)}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          mbBookingSource === ch.id
+                            ? "bg-[#002a22] text-white border-[#cb9f5a] ring-2 ring-[#cb9f5a]/30 shadow-xs"
+                            : "bg-slate-50/60 border-slate-200 text-slate-700 hover:bg-slate-100/60"
+                        }`}
+                      >
+                        <div className="text-xs font-bold">{ch.label}</div>
+                        <div className={`text-[9px] truncate ${mbBookingSource === ch.id ? "text-emerald-200" : "text-slate-400"}`}>{ch.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Customer Name & Phone */}
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                      Customer Full Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={mbCustomerName}
+                      onChange={(e) => setMbCustomerName(e.target.value)}
+                      placeholder="e.g. Ramesh Varma"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                      Mobile Phone Number <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="flex rounded-xl border border-slate-200 bg-white overflow-hidden focus-within:border-[#cb9f5a]">
+                      <span className="bg-slate-100 text-slate-600 px-3 py-2.5 text-xs font-bold border-r border-slate-200 flex items-center">
+                        +91
+                      </span>
+                      <input
+                        type="tel"
+                        required
+                        maxLength={10}
+                        value={mbCustomerPhone}
+                        onChange={(e) => setMbCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                        placeholder="10-digit mobile number"
+                        className="w-full px-3 py-2.5 text-xs text-slate-800 outline-none font-mono font-medium"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email & Address */}
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-1">
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                      Email Address (Optional)
+                    </label>
+                    <input
+                      type="email"
+                      value={mbCustomerEmail}
+                      onChange={(e) => setMbCustomerEmail(e.target.value)}
+                      placeholder="e.g. client@gmail.com"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a]"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                      Service Address (Flat/Door, Street, Area) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={mbAddress}
+                      onChange={(e) => setMbAddress(e.target.value)}
+                      placeholder="e.g. Flat 302, Green Meadows, 4th Lane, Arundelpet"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-medium"
+                    />
+                  </div>
+                </div>
+
+                {/* Landmark, City, Pincode */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                      Landmark (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={mbLandmark}
+                      onChange={(e) => setMbLandmark(e.target.value)}
+                      placeholder="e.g. Near Apollo Pharmacy"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                      City / Region
+                    </label>
+                    <select
+                      value={mbCity}
+                      onChange={(e) => setMbCity(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-semibold cursor-pointer"
+                    >
+                      <option value="Guntur">Guntur (Headquarters)</option>
+                      <option value="Vijayawada">Vijayawada</option>
+                      <option value="Mangalagiri">Mangalagiri</option>
+                      <option value="Tenali">Tenali</option>
+                      <option value="Amaravati">Amaravati</option>
+                      <option value="Other">Other Region</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                      Pincode
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={mbPincode}
+                      onChange={(e) => setMbPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="522002"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Service & Package Selection Card */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-xl bg-amber-50 text-amber-800 flex items-center justify-center text-xs font-bold">
+                      2
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-900">Service, Package & Pricing</h4>
+                  </div>
+                  {/* Mode switcher tabs */}
+                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setMbServiceMode("catalog")}
+                      className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                        mbServiceMode === "catalog"
+                          ? "bg-white text-slate-900 shadow-2xs font-extrabold"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      📦 Live Catalog
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMbServiceMode("custom")}
+                      className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                        mbServiceMode === "custom"
+                          ? "bg-white text-slate-900 shadow-2xs font-extrabold"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      ✍️ Custom Quote
+                    </button>
+                  </div>
+                </div>
+
+                {mbServiceMode === "catalog" ? (
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                        Select Service From Catalog ({services.length} services)
+                      </label>
+                      <select
+                        value={mbSelectedServiceId}
+                        onChange={(e) => handleMbServiceChange(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-medium cursor-pointer"
+                      >
+                        {services.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.title} — (From ₹{s.price})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Plan selection if service has plans */}
+                    <div>
+                      <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                        Package Plan / Tier
+                      </label>
+                      {(() => {
+                        const currentSvc = services.find((s) => s.id === mbSelectedServiceId);
+                        if (currentSvc && currentSvc.plans && currentSvc.plans.length > 0) {
+                          return (
+                            <select
+                              value={mbSelectedPlanName}
+                              onChange={(e) => handleMbPlanChange(e.target.value)}
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-semibold cursor-pointer"
+                            >
+                              {currentSvc.plans.map((pl) => (
+                                <option key={pl.name} value={pl.name}>
+                                  {pl.name} — ₹{pl.price} ({pl.duration || "Standard"})
+                                </option>
+                              ))}
+                            </select>
+                          );
+                        }
+                        return (
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-500 font-medium">
+                            Standard single-tier service package
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                      Custom Service Package Title <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={mbCustomTitle}
+                      onChange={(e) => setMbCustomTitle(e.target.value)}
+                      placeholder="e.g. Full Villa 3-Floor Post-Renovation Deep Clean"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-medium"
+                    />
+                  </div>
+                )}
+
+                {/* Price & Quantity & Subtotal Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100 items-end">
+                  <div>
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                      Agreed Rate / Price (₹) <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="flex rounded-xl border border-slate-200 bg-white overflow-hidden focus-within:border-[#cb9f5a]">
+                      <span className="bg-slate-100 text-slate-600 px-3 py-2.5 text-xs font-bold border-r border-slate-200">
+                        ₹
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={mbPrice}
+                        onChange={(e) => setMbPrice(Number(e.target.value))}
+                        className="w-full px-3 py-2.5 text-xs text-slate-800 outline-none font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                      Quantity (Units / Rooms Cleaned)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMbQty(Math.max(1, mbQty - 1))}
+                        className="h-10 w-10 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 transition-all cursor-pointer active:scale-95"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <input
+                        type="number"
+                        min={1}
+                        value={mbQty}
+                        onChange={(e) => setMbQty(Math.max(1, Number(e.target.value)))}
+                        className="h-10 w-16 text-center font-black text-xs rounded-xl border border-slate-200 bg-white outline-none focus:border-[#cb9f5a]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMbQty(mbQty + 1)}
+                        className="h-10 w-10 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 transition-all cursor-pointer active:scale-95"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex flex-col justify-center">
+                    <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
+                      Item Subtotal
+                    </span>
+                    <span className="text-lg font-black text-[#002a22]">
+                      ₹{(Number(mbPrice) || 0) * (Number(mbQty) || 1)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Schedule & Slot Locking Card (Core Lock Feature) */}
+              <div className="bg-white border-2 border-[#cb9f5a]/40 rounded-2xl p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-xl bg-[#002a22] text-[#cb9f5a] flex items-center justify-center text-xs font-bold">
+                      3
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">Schedule & Real-Time Slot Locking</h4>
+                      <p className="text-[10px] text-slate-500">
+                        Select appointment date and lock the time slot against double-bookings.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-black uppercase">
+                    <Lock className="h-3 w-3 text-emerald-700" /> SLOT LOCK ENABLED
+                  </span>
+                </div>
+
+                {/* Date Selection */}
+                <div>
+                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                    Select Appointment Date <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    min={new Date().toISOString().split("T")[0]}
+                    value={mbDate}
+                    onChange={(e) => setMbDate(e.target.value)}
+                    className="w-full sm:w-72 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-bold cursor-pointer"
+                  />
+                  {blockedDatesList.some((b) => b.date === mbDate) && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                      <span>
+                        <strong>Public Notice:</strong> This date ({mbDate}) is blocked for general website users ({blockedDatesList.find((b) => b.date === mbDate)?.reason || "Holiday"}). Your admin offline booking will lock the slot successfully.
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Time Slots Grid with Real-time Collision Status */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                      Select Time Slot To Lock ({mbLoadingSlots ? "Checking slot availability..." : "Live availability checked"})
+                    </label>
+                    <div className="flex items-center gap-3 text-[10px] font-bold">
+                      <span className="flex items-center gap-1 text-emerald-700">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" /> Free Slot
+                      </span>
+                      <span className="flex items-center gap-1 text-rose-700">
+                        <span className="h-2 w-2 rounded-full bg-rose-500" /> Occupied
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                    {ADMIN_TIME_SLOTS.map((slot) => {
+                      const normSlot = normalizeTimeSlot(slot);
+                      const isOccupied =
+                        mbBookedSlotsOnDate.includes(normSlot) ||
+                        bookings.some(
+                          (b) =>
+                            b.schedule?.date === mbDate &&
+                            normalizeTimeSlot(b.schedule?.time) === normSlot &&
+                            b.jobStatus !== "Cancelled",
+                        );
+                      const isSelected = mbTime === slot;
+
+                      return (
+                        <button
+                          key={slot}
+                          type="button"
+                          onClick={() => setMbTime(slot)}
+                          className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer select-none ${
+                            isSelected
+                              ? "bg-[#002a22] text-white border-[#cb9f5a] ring-2 ring-[#cb9f5a] shadow-md"
+                              : isOccupied
+                                ? "bg-rose-50/70 border-rose-200/80 text-rose-800 hover:bg-rose-100"
+                                : "bg-white border-slate-200/80 text-slate-700 hover:border-emerald-500/50 hover:bg-emerald-50/30"
+                          }`}
+                        >
+                          <span className="text-[11px]">{slot}</span>
+                          <span
+                            className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${
+                              isSelected
+                                ? "bg-[#cb9f5a] text-slate-900"
+                                : isOccupied
+                                  ? "bg-rose-200 text-rose-900"
+                                  : "bg-emerald-100 text-emerald-800"
+                            }`}
+                          >
+                            {isSelected ? "🔒 Selected" : isOccupied ? "Occupied" : "🟢 Free"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Slot Lock Callout Guarantee */}
+                <div className="p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50/40 to-amber-50/30 border border-emerald-200/80 rounded-2xl flex items-start gap-3">
+                  <div className="h-6 w-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                    <Lock className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="text-xs text-slate-700 leading-relaxed">
+                    <span className="font-extrabold text-[#002a22]">Instant Double-Booking Protection: </span>
+                    Upon saving, this date (<strong>{mbDate}</strong>) at <strong>{mbTime}</strong> is immediately reserved in the database. Website and mobile app visitors attempting to select this slot will see it as <strong>"Booked / Unavailable"</strong>.
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Payment Settlement & Technician Assignment Card */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-xl bg-purple-50 text-purple-800 flex items-center justify-center text-xs font-bold">
+                      4
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-900">Payment Status & Technician Assignment</h4>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Settlement & Staff</span>
+                </div>
+
+                {/* Payment Status Chips */}
+                <div>
+                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1.5">
+                    Payment Status
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { id: "Paid In Full", label: "Paid In Full (100%)", color: "emerald" },
+                      { id: "Deposit Paid (25%)", label: "Deposit Paid (25%)", color: "teal" },
+                      { id: "Pending COD", label: "Pending COD / Pay Later", color: "amber" },
+                      { id: "Comp / Free", label: "Admin Comp / Free", color: "purple" },
+                    ].map((ps) => (
+                      <button
+                        key={ps.id}
+                        type="button"
+                        onClick={() => setMbPaymentStatus(ps.id as any)}
+                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                          mbPaymentStatus === ps.id
+                            ? "bg-[#002a22] text-white border-[#cb9f5a] ring-2 ring-[#cb9f5a]/30 font-bold"
+                            : "bg-slate-50/60 border-slate-200 text-slate-700 hover:bg-slate-100/60 font-semibold"
+                        }`}
+                      >
+                        <div className="text-xs">{ps.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Payment Mode & Reference */}
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                      Payment Mode
+                    </label>
+                    <select
+                      value={mbPaymentMode}
+                      onChange={(e) => setMbPaymentMode(e.target.value as any)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-semibold cursor-pointer"
+                    >
+                      <option value="UPI / GPay / PhonePe">UPI (GPay / PhonePe / Paytm)</option>
+                      <option value="Cash">Cash (Direct Collection)</option>
+                      <option value="Bank Transfer">Bank Transfer / NEFT / IMPS</option>
+                      <option value="Pending Collection">Pending Collection After Service</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                      Payment Reference / UPI Ref (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={mbPaymentRef}
+                      onChange={(e) => setMbPaymentRef(e.target.value)}
+                      placeholder="e.g. UPI Ref #40291039401"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Technician Assignment */}
+                <div>
+                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                    Assign Technician (Optional)
+                  </label>
+                  <select
+                    value={mbTechnicianId}
+                    onChange={(e) => setMbTechnicianId(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-medium cursor-pointer"
+                  >
+                    <option value="">-- Assign Technician Later --</option>
+                    {technicians.map((t) => {
+                      const clash = bookings.some(
+                        (other) =>
+                          other.technicianId === t.id &&
+                          other.schedule?.date === mbDate &&
+                          normalizeTimeSlot(other.schedule?.time) === normalizeTimeSlot(mbTime) &&
+                          other.jobStatus !== "Completed" &&
+                          other.jobStatus !== "Cancelled",
+                      );
+                      return (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({t.specialty || "Cleaner"}) {clash ? "[⚠️ Already Booked on this slot]" : "[🟢 Available]"}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                {/* Internal Notes */}
+                <div>
+                  <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                    Special Client Notes / Equipment Instructions
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={mbNotes}
+                    onChange={(e) => setMbNotes(e.target.value)}
+                    placeholder="e.g. Customer requested high-pressure jet wash, key with security on 3rd floor."
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Sticky Footer Actions */}
+              <div className="sticky bottom-0 bg-white/95 backdrop-blur-md border-t border-slate-200 -mx-6 -mb-6 p-4 px-6 flex flex-wrap items-center justify-between gap-4 shadow-lg rounded-b-3xl">
+                <div className="flex items-center gap-4">
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                      Total Booking Amount
+                    </span>
+                    <span className="text-xl font-black text-[#002a22]">
+                      ₹{(Number(mbPrice) || 0) * (Number(mbQty) || 1)}
+                    </span>
+                  </div>
+                  <div className="h-8 w-px bg-slate-200 hidden sm:block" />
+                  <div className="hidden sm:block text-xs font-semibold text-slate-600">
+                    <div>Locked Slot: <span className="font-bold text-[#cb9f5a]">{mbDate}</span> at <span className="font-bold text-[#cb9f5a]">{mbTime}</span></div>
+                    <div className="text-[10px] text-slate-400">Payment: {mbPaymentStatus} ({mbPaymentMode})</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setManualBookingModalOpen(false)}
+                    className="rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 px-4 py-2.5 text-xs font-bold text-slate-700 transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingManualBooking}
+                    className="rounded-xl bg-gradient-to-r from-[#002a22] via-[#013b2f] to-[#002a22] hover:from-[#01382c] hover:to-[#001f19] border border-[#cb9f5a]/40 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isSubmittingManualBooking ? (
+                      <>
+                        <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        <span>Locking Slot & Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-4 w-4 text-[#cb9f5a]" />
+                        <span>Confirm Booking & Lock Slot</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -6775,6 +7661,7 @@ interface BookingCalendarTabProps {
   blockedDates?: BlockedDate[];
   onAssignTechnician: (bookingId: string, technicianId: string | null) => Promise<void>;
   onTriggerReschedule: (bookingId: string, currentDate: string, currentTime: string) => void;
+  onOpenManualBooking?: (prefilledDate?: string) => void;
 }
 
 export function BookingCalendarTab({
@@ -6783,6 +7670,7 @@ export function BookingCalendarTab({
   blockedDates = [],
   onAssignTechnician,
   onTriggerReschedule,
+  onOpenManualBooking,
 }: BookingCalendarTabProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
@@ -6871,25 +7759,37 @@ export function BookingCalendarTab({
           </p>
         </div>
 
-        {/* Month Navigation */}
-        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1.5 shadow-2xs">
-          <button
-            onClick={prevMonth}
-            className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-600 cursor-pointer active:scale-95"
-            title="Previous Month"
-          >
-            <ChevronLeft className="h-4.5 w-4.5" />
-          </button>
-          <span className="text-xs font-bold text-slate-800 px-3 min-w-[120px] text-center">
-            {monthName} {year}
-          </span>
-          <button
-            onClick={nextMonth}
-            className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-600 cursor-pointer active:scale-95"
-            title="Next Month"
-          >
-            <ChevronRight className="h-4.5 w-4.5" />
-          </button>
+        {/* Month Navigation & Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {onOpenManualBooking && (
+            <button
+              onClick={() => onOpenManualBooking(selectedDateStr || undefined)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#002a22] to-[#014738] hover:from-[#01382c] hover:to-[#002a22] text-white text-xs font-bold shadow-sm hover:shadow-md transition-all cursor-pointer border border-emerald-600/30 active:scale-95"
+            >
+              <Plus className="h-3.5 w-3.5 text-[#cb9f5a]" />
+              <span>+ Offline / Phone Booking</span>
+            </button>
+          )}
+
+          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1.5 shadow-2xs">
+            <button
+              onClick={prevMonth}
+              className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-600 cursor-pointer active:scale-95"
+              title="Previous Month"
+            >
+              <ChevronLeft className="h-4.5 w-4.5" />
+            </button>
+            <span className="text-xs font-bold text-slate-800 px-3 min-w-[120px] text-center">
+              {monthName} {year}
+            </span>
+            <button
+              onClick={nextMonth}
+              className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-600 cursor-pointer active:scale-95"
+              title="Next Month"
+            >
+              <ChevronRight className="h-4.5 w-4.5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -7045,6 +7945,17 @@ export function BookingCalendarTab({
               </p>
             )}
           </div>
+
+          {/* Quick Book / Lock Slot button for Selected Date */}
+          {onOpenManualBooking && selectedDateStr && (
+            <button
+              onClick={() => onOpenManualBooking(selectedDateStr)}
+              className="w-full py-2.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#002a22] border border-emerald-200 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs group"
+            >
+              <Plus className="h-4 w-4 text-emerald-700 group-hover:scale-110 transition-transform" />
+              <span>+ Book & Lock Slot for {selectedDateStr}</span>
+            </button>
+          )}
 
           {/* Blocked Date Alert Banner in Selected Day Panel */}
           {selectedDateStr && blockedDates.some((b) => b.date === selectedDateStr) && (

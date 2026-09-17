@@ -460,9 +460,13 @@ function RootComponent() {
 
       <Toaster
         position="top-center"
+        closeButton
+        richColors
+        expand
+        duration={3500}
+        offset={16}
         toastOptions={{
-          className:
-            "!bg-[oklch(0.32_0.07_165)] !text-[oklch(0.98_0.015_90)] !border !border-[oklch(0.78_0.13_85)]/40 !rounded-2xl",
+          className: "font-sans",
         }}
       />
     </QueryClientProvider>
