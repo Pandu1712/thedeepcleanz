@@ -38,6 +38,8 @@ import {
   fetchCustomizedServices,
   rescheduleBooking,
   updateBookingJobStatus,
+  fetchBlockedDates,
+  type BlockedDate,
 } from "@/api/admin-api";
 import { BookingModal, CartItem } from "./index";
 import Header from "@/components/Header";
@@ -267,6 +269,13 @@ function MyBookingsPage() {
   const [rescheduleBookingId, setRescheduleBookingId] = useState("");
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
+  const [blockedDatesList, setBlockedDatesList] = useState<BlockedDate[]>([]);
+
+  useEffect(() => {
+    fetchBlockedDates()
+      .then((d) => setBlockedDatesList(d || []))
+      .catch(() => {});
+  }, []);
 
   const submitReschedule = async () => {
     if (!newDate || !newTime) {
@@ -276,6 +285,13 @@ function MyBookingsPage() {
     const todayStr = new Date().toISOString().slice(0, 10);
     if (newDate < todayStr) {
       toast.error("Cannot reschedule to a past date. Please select today or a future date.");
+      return;
+    }
+    const isBlocked = blockedDatesList.find((b) => b.date === newDate);
+    if (isBlocked) {
+      toast.error(
+        `⚠️ Selected date (${newDate}) is blocked for bookings: ${isBlocked.reason || "Holiday / No Orders"}. Please choose another date.`,
+      );
       return;
     }
     try {
@@ -1772,9 +1788,30 @@ function MyBookingsPage() {
                   type="date"
                   min={new Date().toISOString().slice(0, 10)}
                   value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-[#cb9f5a]"
+                  onChange={(e) => {
+                    const picked = e.target.value;
+                    const isBlocked = blockedDatesList.find((b) => b.date === picked);
+                    if (isBlocked) {
+                      toast.error(
+                        `⚠️ Selected date (${picked}) is blocked: ${isBlocked.reason || "Holiday / No Orders"}. Please choose another date.`,
+                      );
+                    }
+                    setNewDate(picked);
+                  }}
+                  className={`w-full rounded-xl border px-3.5 py-2 text-xs outline-none ${
+                    newDate && blockedDatesList.some((b) => b.date === newDate)
+                      ? "border-red-400 bg-red-50 text-red-700 font-bold"
+                      : "border-slate-200 bg-white text-slate-800 focus:border-[#cb9f5a]"
+                  }`}
                 />
+                {newDate && blockedDatesList.some((b) => b.date === newDate) && (
+                  <p className="text-[10px] text-red-600 font-bold mt-1 flex items-center gap-1">
+                    <span>⚠️</span>
+                    <span>
+                      Blocked: {blockedDatesList.find((b) => b.date === newDate)?.reason || "Holiday"}
+                    </span>
+                  </p>
+                )}
               </div>
 
               <div>

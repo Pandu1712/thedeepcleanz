@@ -5106,6 +5106,105 @@ export function BookingModal({
 
   const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
+  const [calendarViewMonth, setCalendarViewMonth] = useState<Date>(() => new Date());
+
+  // Sync calendarViewMonth when form.date changes if valid
+  useEffect(() => {
+    if (form.date) {
+      const parts = form.date.split("-");
+      if (parts.length === 3) {
+        const y = Number(parts[0]);
+        const m = Number(parts[1]) - 1;
+        if (!isNaN(y) && !isNaN(m)) {
+          setCalendarViewMonth(new Date(y, m, 1));
+        }
+      }
+    }
+  }, [form.date]);
+
+  const calendarYear = calendarViewMonth.getFullYear();
+  const calendarMonthIndex = calendarViewMonth.getMonth();
+  const calendarMonthLabel = calendarViewMonth.toLocaleString("en-IN", { month: "long", year: "numeric" });
+
+  const calendarGrid = useMemo(() => {
+    const y = calendarYear;
+    const m = calendarMonthIndex;
+    const firstDayIndex = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const prevMonthDays = new Date(y, m, 0).getDate();
+
+    const todayObj = new Date();
+    const todayFormatted = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, "0")}-${String(todayObj.getDate()).padStart(2, "0")}`;
+
+    const cells: Array<{
+      day: number;
+      isCurrentMonth: boolean;
+      dateStr: string;
+      isPast: boolean;
+      isBlocked: boolean;
+      blockedReason?: string;
+      isSelected: boolean;
+      isToday: boolean;
+    }> = [];
+
+    // Prev month padding
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      const dayNum = prevMonthDays - i;
+      const prevM = m === 0 ? 12 : m;
+      const prevY = m === 0 ? y - 1 : y;
+      const dStr = `${prevY}-${String(prevM).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
+      cells.push({
+        day: dayNum,
+        isCurrentMonth: false,
+        dateStr: dStr,
+        isPast: true,
+        isBlocked: false,
+        isSelected: false,
+        isToday: false,
+      });
+    }
+
+    // Current month days
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dStr = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const isBlocked = blockedDates.some((b) => b.date === dStr);
+      const blockedInfo = blockedDates.find((b) => b.date === dStr);
+      const isPast = dStr < todayFormatted;
+      const isSelected = form.date === dStr;
+      const isToday = dStr === todayFormatted;
+
+      cells.push({
+        day: d,
+        isCurrentMonth: true,
+        dateStr: dStr,
+        isPast,
+        isBlocked,
+        blockedReason: blockedInfo?.reason,
+        isSelected,
+        isToday,
+      });
+    }
+
+    // Next month padding to fill full weeks (multiples of 7)
+    const remaining = (7 - (cells.length % 7)) % 7;
+    for (let i = 1; i <= remaining; i++) {
+      const nextM = m === 11 ? 1 : m + 2;
+      const nextY = m === 11 ? y + 1 : y;
+      const dStr = `${nextY}-${String(nextM).padStart(2, "0")}-${String(i).padStart(2, "0")}`;
+      cells.push({
+        day: i,
+        isCurrentMonth: false,
+        dateStr: dStr,
+        isPast: false,
+        isBlocked: false,
+        isSelected: false,
+        isToday: false,
+      });
+    }
+
+    return { cells, todayFormatted };
+  }, [calendarYear, calendarMonthIndex, blockedDates, form.date]);
+
   const [showOtpVerification, setShowOtpVerification] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
@@ -6596,33 +6695,184 @@ export function BookingModal({
                   </span>
                 </div>
 
-                <div className="space-y-2.5">
-                  <div className="flex items-center rounded-xl border border-slate-200 bg-[#F8FAF9] px-3.5 py-2.5 text-xs">
-                    <Calendar className="h-4 w-4 text-emerald-700 mr-2 shrink-0" />
-                    <input
-                      type="date"
-                      value={form.date}
-                      min={new Date().toISOString().slice(0, 10)}
-                      onChange={(e) => {
-                        const picked = e.target.value;
-                        const todayStr = new Date().toISOString().slice(0, 10);
-                        if (picked && picked < todayStr) {
-                          toast.error("Cannot select past dates.");
-                          return;
+                <div className="space-y-3">
+                  {/* Interactive Visual Calendar with Red Circle Blocked Indicators */}
+                  <div className="rounded-2xl border border-slate-200 bg-[#F8FAF9] p-3.5 space-y-3 shadow-3xs">
+                    {/* Month Navigator Header */}
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200/70">
+                      <div className="flex items-center gap-2">
+                        <div className="h-7 w-7 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                          <Calendar className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <span className="font-display font-extrabold text-xs text-[#002A22] block">
+                            {calendarMonthLabel}
+                          </span>
+                          <span className="text-[9px] font-semibold text-slate-400 block">
+                            Click any available date to schedule
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setCalendarViewMonth(new Date(calendarYear, calendarMonthIndex - 1, 1))}
+                          className="h-7 w-7 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center text-slate-700 transition-colors cursor-pointer shadow-3xs"
+                          title="Previous Month"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCalendarViewMonth(new Date(calendarYear, calendarMonthIndex + 1, 1))}
+                          className="h-7 w-7 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center text-slate-700 transition-colors cursor-pointer shadow-3xs"
+                          title="Next Month"
+                        >
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 7-column Weekday Row */}
+                    <div className="grid grid-cols-7 gap-1 text-center">
+                      {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d, i) => (
+                        <div
+                          key={d}
+                          className={`text-[10px] font-black uppercase tracking-wider py-0.5 ${
+                            i === 0 ? "text-rose-500" : "text-slate-400"
+                          }`}
+                        >
+                          {d}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 7-column Calendar Cells */}
+                    <div className="grid grid-cols-7 gap-1">
+                      {calendarGrid.cells.map((cell, idx) => {
+                        if (!cell.isCurrentMonth) {
+                          return (
+                            <div
+                              key={`pad-${cell.dateStr}-${idx}`}
+                              className="h-10 sm:h-11 flex flex-col items-center justify-center opacity-20 select-none"
+                            >
+                              <span className="text-[11px] text-slate-400 font-medium">{cell.day}</span>
+                            </div>
+                          );
                         }
-                        const isBlocked = blockedDates.find((b) => b.date === picked);
-                        if (isBlocked) {
-                          toast.error(`⚠️ Selected date (${picked}) is unavailable for bookings: ${isBlocked.reason || "Holiday / No Orders"}. Please choose another date.`);
-                          setForm({ ...form, date: "" });
-                          return;
+
+                        if (cell.isPast) {
+                          return (
+                            <div
+                              key={cell.dateStr}
+                              className="h-10 sm:h-11 flex flex-col items-center justify-center opacity-30 cursor-not-allowed select-none"
+                              title="Past date unavailable"
+                            >
+                              <span className="text-[11px] text-slate-400 font-medium line-through">
+                                {cell.day}
+                              </span>
+                            </div>
+                          );
                         }
-                        setForm({ ...form, date: picked });
-                      }}
-                      className="w-full bg-transparent font-bold text-[#002A22] outline-none cursor-pointer"
-                    />
+
+                        // ADMIN BLOCKED DATE - PROMINENT RED CIRCLE
+                        if (cell.isBlocked) {
+                          return (
+                            <button
+                              key={cell.dateStr}
+                              type="button"
+                              onClick={() => {
+                                toast.error(
+                                  `⚠️ ${cell.dateStr} is blocked for bookings: ${cell.blockedReason || "Holiday / No Orders"}. Please choose another date.`,
+                                );
+                              }}
+                              title={`Admin Blocked: ${cell.blockedReason || "Holiday / No Orders"}`}
+                              className="h-10 sm:h-11 flex flex-col items-center justify-center p-0.5 cursor-pointer group select-none relative"
+                            >
+                              {/* RED CIRCLE BADGE */}
+                              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full border-2 border-red-500 bg-red-50 text-red-600 font-black text-xs flex items-center justify-center shadow-xs ring-2 ring-red-300/80 group-hover:scale-110 transition-transform">
+                                {cell.day}
+                              </div>
+                              <span className="text-[7px] font-black text-red-600 uppercase tracking-tighter leading-none mt-0.5 max-w-[38px] truncate">
+                                Blocked
+                              </span>
+                            </button>
+                          );
+                        }
+
+                        // SELECTED DATE - DEEP EMERALD CIRCLE
+                        if (cell.isSelected) {
+                          return (
+                            <button
+                              key={cell.dateStr}
+                              type="button"
+                              className="h-10 sm:h-11 flex flex-col items-center justify-center p-0.5 cursor-pointer select-none"
+                            >
+                              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-[#002A22] text-white font-black text-xs flex items-center justify-center shadow-md ring-2 ring-emerald-600/50 scale-105 transition-all">
+                                {cell.day}
+                              </div>
+                              <span className="text-[7px] font-extrabold text-emerald-800 uppercase tracking-tighter leading-none mt-0.5">
+                                Selected ✓
+                              </span>
+                            </button>
+                          );
+                        }
+
+                        // TODAY (if not selected)
+                        if (cell.isToday) {
+                          return (
+                            <button
+                              key={cell.dateStr}
+                              type="button"
+                              onClick={() => setForm({ ...form, date: cell.dateStr })}
+                              className="h-10 sm:h-11 flex flex-col items-center justify-center p-0.5 cursor-pointer group select-none"
+                            >
+                              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full border-2 border-[#cb9f5a] bg-amber-50/70 text-[#002A22] font-black text-xs flex items-center justify-center group-hover:bg-[#cb9f5a] group-hover:text-white transition-all">
+                                {cell.day}
+                              </div>
+                              <span className="text-[7px] font-bold text-[#cb9f5a] uppercase tracking-tighter leading-none mt-0.5">
+                                Today
+                              </span>
+                            </button>
+                          );
+                        }
+
+                        // AVAILABLE DATE
+                        return (
+                          <button
+                            key={cell.dateStr}
+                            type="button"
+                            onClick={() => setForm({ ...form, date: cell.dateStr })}
+                            className="h-10 sm:h-11 flex flex-col items-center justify-center p-0.5 cursor-pointer group select-none"
+                          >
+                            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-white border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center group-hover:border-emerald-600 group-hover:bg-emerald-50 group-hover:text-emerald-900 transition-all shadow-3xs">
+                              {cell.day}
+                            </div>
+                            <span className="text-[7px] text-transparent leading-none mt-0.5">&nbsp;</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Calendar Legend */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/80 text-[10px] text-slate-500 font-semibold">
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#002A22]" />
+                        <span>Selected Date</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full border-2 border-red-500 bg-red-50 ring-1 ring-red-200" />
+                        <span className="text-red-600 font-bold">Admin Blocked Date (Red Circle)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full border-2 border-[#cb9f5a] bg-amber-50" />
+                        <span>Today</span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Quick Select Upcoming Dates */}
+                  {/* Quick Select Upcoming Dates Chips */}
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
                       Quick Pick Date:
@@ -6635,7 +6885,16 @@ export function BookingModal({
                           const d = new Date(today);
                           d.setDate(today.getDate() + i);
                           const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-                          const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+                          const label =
+                            i === 0
+                              ? "Today"
+                              : i === 1
+                                ? "Tomorrow"
+                                : d.toLocaleDateString("en-IN", {
+                                    weekday: "short",
+                                    day: "numeric",
+                                    month: "short",
+                                  });
                           const isBlocked = blockedDates.some((b) => b.date === dStr);
                           const blockInfo = blockedDates.find((b) => b.date === dStr);
                           chips.push({ dStr, label, isBlocked, blockInfo });
@@ -6644,24 +6903,33 @@ export function BookingModal({
                           <button
                             key={c.dStr}
                             type="button"
-                            disabled={c.isBlocked}
                             onClick={() => {
                               if (c.isBlocked) {
-                                toast.error(`⚠️ ${c.dStr} is blocked for bookings: ${c.blockInfo?.reason || "Holiday"}`);
+                                toast.error(
+                                  `⚠️ ${c.dStr} is blocked for bookings: ${c.blockInfo?.reason || "Holiday / No Orders"}`,
+                                );
                                 return;
                               }
                               setForm({ ...form, date: c.dStr });
                             }}
-                            className={`py-1.5 px-2.5 rounded-xl text-[10px] font-bold transition-all border whitespace-nowrap shrink-0 cursor-pointer ${
+                            className={`py-1.5 px-2.5 rounded-xl text-[10px] font-bold transition-all border whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
                               c.isBlocked
-                                ? "bg-rose-50/80 text-rose-400 border-rose-200 line-through opacity-60 cursor-not-allowed"
+                                ? "bg-red-50 text-red-600 border-red-300 ring-1 ring-red-200"
                                 : form.date === c.dStr
                                   ? "bg-[#002A22] text-white border-[#002A22] shadow-xs"
                                   : "bg-[#F8FAF9] border-slate-200 text-slate-700 hover:bg-slate-100"
                             }`}
-                            title={c.isBlocked ? `Blocked: ${c.blockInfo?.reason || "Holiday"}` : c.dStr}
+                            title={
+                              c.isBlocked
+                                ? `Admin Blocked: ${c.blockInfo?.reason || "Holiday / No Orders"}`
+                                : c.dStr
+                            }
                           >
-                            {c.label} {c.isBlocked && "🚫"}
+                            {c.isBlocked && (
+                              <span className="h-2 w-2 rounded-full bg-red-500 ring-1 ring-red-300 animate-pulse" />
+                            )}
+                            <span>{c.label}</span>
+                            {c.isBlocked && <span className="text-red-500 font-black">🚫</span>}
                           </button>
                         ));
                       })()}
@@ -6670,10 +6938,12 @@ export function BookingModal({
 
                   {/* Blocked Date Inline Warning Banner */}
                   {form.date && blockedDates.some((b) => b.date === form.date) && (
-                    <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-2xs font-bold flex items-center gap-2">
+                    <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-2xs font-bold flex items-center gap-2 animate-in fade-in">
                       <span className="text-rose-600 text-xs">⚠️</span>
                       <span>
-                        This date ({form.date}) is blocked: {blockedDates.find((b) => b.date === form.date)?.reason || "Holiday / No Orders"}. Please choose another date.
+                        This date ({form.date}) is blocked by Admin:{" "}
+                        {blockedDates.find((b) => b.date === form.date)?.reason || "Holiday / No Orders"}.
+                        Please select another date.
                       </span>
                     </div>
                   )}
