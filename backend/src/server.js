@@ -611,11 +611,11 @@ app.post("/api/bookings", async (req, res) => {
       }
     }
 
-    // Past time slot check for today
-    if (bookingDate && bookingTime && !req.body.overrideBlockedDate && !req.body.isAdmin) {
-      if (isSlotInPastBackend(bookingTime, bookingDate, 15)) {
+    // Past time slot check for today (strictly prevent booking past time slots)
+    if (bookingDate && bookingTime) {
+      if (isSlotInPastBackend(bookingTime, bookingDate, 0)) {
         return res.status(400).json({
-          error: `Selected time slot (${bookingTime} on ${bookingDate}) has already passed for today. Please choose an upcoming time slot or date.`,
+          error: `Selected time slot (${bookingTime} on ${bookingDate}) has already passed. Please choose an upcoming time slot or a future date.`,
         });
       }
     }
@@ -1900,9 +1900,9 @@ app.put("/api/bookings/:id/reschedule", async (req, res) => {
       });
     }
 
-    if (rescheduledBy !== "Admin" && isSlotInPastBackend(time, date, 15)) {
+    if (isSlotInPastBackend(time, date, 0)) {
       return res.status(400).json({
-        error: `Selected time slot (${time} on ${date}) has already passed for today. Please choose an upcoming time slot.`,
+        error: `Selected time slot (${time} on ${date}) has already passed. Please choose an upcoming time slot or future date.`,
       });
     }
 

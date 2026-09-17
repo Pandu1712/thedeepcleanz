@@ -199,7 +199,7 @@ export function getFirstAvailableSlot(
       return slot;
     }
   }
-  return STANDARD_TIME_SLOTS[0];
+  return "";
 }
 
 export async function fetchBookedSlots(date: string): Promise<BookedSlotsResponse> {

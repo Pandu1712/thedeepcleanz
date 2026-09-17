@@ -250,9 +250,15 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [mbBookingSource, setMbBookingSource] = useState<"Phone Call" | "WhatsApp" | "Walk-in" | "Admin Direct">("Phone Call");
   const [mbDate, setMbDate] = useState(() => {
     const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    if (areAllSlotsPassedToday(todayStr, 0)) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+    }
+    return todayStr;
   });
-  const [mbTime, setMbTime] = useState("10:00 AM");
+  const [mbTime, setMbTime] = useState("");
   const [mbServiceMode, setMbServiceMode] = useState<"catalog" | "custom">("catalog");
   const [mbSelectedServiceId, setMbSelectedServiceId] = useState("");
   const [mbSelectedPlanName, setMbSelectedPlanName] = useState("");
@@ -795,6 +801,10 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       toast.error("Cannot reschedule to a past date. Please pick today or a future date.");
       return;
     }
+    if (isSlotInPast(newTime, newDate, 0)) {
+      toast.error(`The slot (${newTime} on ${newDate}) has already passed. Please select an upcoming available time slot.`);
+      return;
+    }
     try {
       await rescheduleBooking(rescheduleBookingId, newDate, newTime, "Admin");
       toast.success("Appointment rescheduled successfully!");
@@ -884,7 +894,16 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     fetchBookedSlots(mbDate)
       .then((res) => {
         if (isMounted) {
-          setMbBookedSlotsOnDate(res.normalizedSlots || []);
+          const booked = res.normalizedSlots || [];
+          setMbBookedSlotsOnDate(booked);
+          setMbTime((prev) => {
+            const isPrevPast = isSlotInPast(prev, mbDate, 0);
+            const isPrevBooked = booked.includes(normalizeTimeSlot(prev));
+            if (!prev || isPrevPast || isPrevBooked) {
+              return getFirstAvailableSlot(mbDate, booked, 0);
+            }
+            return prev;
+          });
         }
       })
       .catch((err) => {
@@ -902,7 +921,12 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const handleOpenManualBooking = (prefilledDate?: string) => {
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    const targetDate = prefilledDate || todayStr;
+    let targetDate = prefilledDate || todayStr;
+    if (!prefilledDate && areAllSlotsPassedToday(todayStr, 0)) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      targetDate = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+    }
     const initialSlot = getFirstAvailableSlot(targetDate, [], 0);
     
     setMbDate(targetDate);
@@ -983,7 +1007,16 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       return;
     }
     if (!mbTime) {
-      toast.error("Please select a time slot.", { icon: "⏰" });
+      toast.error("Please select an available time slot.", { icon: "⏰" });
+      return;
+    }
+    if (isSlotInPast(mbTime, mbDate, 0)) {
+      toast.error(`The slot (${mbTime} on ${mbDate}) has already passed. Please select an upcoming available time slot.`, { icon: "⏰" });
+      return;
+    }
+    const normSelected = normalizeTimeSlot(mbTime);
+    if (mbBookedSlotsOnDate.includes(normSelected)) {
+      toast.error(`The slot (${mbTime} on ${mbDate}) is already booked. Please choose another slot.`, { icon: "🚫" });
       return;
     }
 
@@ -6885,21 +6918,24 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                 <div className="grid grid-cols-3 gap-2">
                   {STANDARD_TIME_SLOTS.map((s) => {
                     const isPast = isSlotInPast(s, newDate, 0);
-                    const isSelected = newTime === s || normalizeTimeSlot(newTime) === normalizeTimeSlot(s);
+                    const isSelected = (newTime === s || normalizeTimeSlot(newTime) === normalizeTimeSlot(s)) && !isPast;
                     return (
                       <button
                         key={s}
                         type="button"
-                        onClick={() => setNewTime(s)}
-                        className={`py-2 px-1.5 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
-                          isSelected
-                            ? "bg-[#002a22] text-white border-[#cb9f5a] ring-2 ring-[#cb9f5a]/40 shadow-xs"
-                            : isPast
-                              ? "bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100"
-                              : "bg-white border-slate-200 text-slate-700 hover:border-emerald-500 hover:bg-emerald-50/30"
+                        disabled={isPast}
+                        onClick={() => {
+                          if (!isPast) setNewTime(s);
+                        }}
+                        className={`py-2 px-1.5 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-0.5 ${
+                          isPast
+                            ? "bg-slate-100 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed"
+                            : isSelected
+                              ? "bg-[#002a22] text-white border-[#cb9f5a] ring-2 ring-[#cb9f5a]/40 shadow-xs cursor-pointer"
+                              : "bg-white border-slate-200 text-slate-700 hover:border-emerald-500 hover:bg-emerald-50/30 cursor-pointer"
                         }`}
                       >
-                        <span className="text-[11px]">{s}</span>
+                        <span className={`text-[11px] ${isPast ? "line-through text-slate-400" : ""}`}>{s}</span>
                         <span className={`text-[8px] font-black uppercase ${isSelected ? "text-[#cb9f5a]" : isPast ? "text-slate-400" : "text-emerald-700"}`}>
                           {isSelected ? "Selected ✓" : isPast ? "Past" : "Standard"}
                         </span>
@@ -7453,24 +7489,28 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                             b.jobStatus !== "Cancelled",
                         );
                       const isPast = isSlotInPast(slot, mbDate, 0);
-                      const isSelected = mbTime === slot;
+                      const isDisabled = isPast || isOccupied;
+                      const isSelected = mbTime === slot && !isDisabled;
 
                       return (
                         <button
                           key={slot}
                           type="button"
-                          onClick={() => setMbTime(slot)}
-                          className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer select-none ${
+                          disabled={isDisabled}
+                          onClick={() => {
+                            if (!isDisabled) setMbTime(slot);
+                          }}
+                          className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all select-none ${
                             isSelected
-                              ? "bg-[#002a22] text-white border-[#cb9f5a] ring-2 ring-[#cb9f5a] shadow-md"
+                              ? "bg-[#002a22] text-white border-[#cb9f5a] ring-2 ring-[#cb9f5a] shadow-md cursor-pointer"
                               : isOccupied
-                                ? "bg-rose-50/70 border-rose-200/80 text-rose-800 hover:bg-rose-100"
+                                ? "bg-rose-50/70 border-rose-200/80 text-rose-800 cursor-not-allowed opacity-75"
                                 : isPast
-                                  ? "bg-amber-50/60 border-amber-200/70 text-amber-800 hover:bg-amber-100/60"
-                                  : "bg-white border-slate-200/80 text-slate-700 hover:border-emerald-500/50 hover:bg-emerald-50/30"
+                                  ? "bg-amber-50/50 border-amber-200/60 text-amber-700/80 cursor-not-allowed opacity-60"
+                                  : "bg-white border-slate-200/80 text-slate-700 hover:border-emerald-500/50 hover:bg-emerald-50/30 cursor-pointer"
                           }`}
                         >
-                          <span className="text-[11px]">{slot}</span>
+                          <span className={`text-[11px] ${isPast ? "line-through text-slate-400" : ""}`}>{slot}</span>
                           <span
                             className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${
                               isSelected
@@ -7494,6 +7534,11 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                       );
                     })}
                   </div>
+                  {areAllSlotsPassedToday(mbDate, 0) && (
+                    <div className="mt-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center gap-2">
+                      <span>⚠️ All time slots for today have already passed. Please select tomorrow or an upcoming date to reserve a slot.</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Slot Lock Callout Guarantee */}
