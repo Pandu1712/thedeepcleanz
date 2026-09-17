@@ -521,28 +521,65 @@ async function initDb() {
       console.log("Altered customized_services table to add payment_type column.");
     }
 
-    // Seed default data if categories table is empty or has old demo seed records
-    const cats = await query("SELECT COUNT(*) as count FROM categories");
-    const hasOldSeed =
-      cats[0].count > 0 &&
-      (await query("SELECT id FROM categories WHERE id = 'cat-1'")).length > 0;
-
-    if (hasOldSeed) {
-      console.log(
-        "Old demo seed detected. Clearing tables for new unified database catalog...",
+    // Check if initial database seeding has already been completed.
+    // If completed, we NEVER re-insert missing categories, services, reviews or transformations on restart/redeploy,
+    // so any deletions or modifications made in the Admin Dashboard are 100% permanent.
+    let isAlreadySeeded = false;
+    try {
+      const seedFlag = await query(
+        "SELECT key_value FROM settings WHERE key_name = 'initial_seed_completed'",
       );
-      await query("SET FOREIGN_KEY_CHECKS = 0");
-      await query("TRUNCATE TABLE services");
-      await query("TRUNCATE TABLE categories");
-      await query("SET FOREIGN_KEY_CHECKS = 1");
+      if (seedFlag && seedFlag.length > 0 && seedFlag[0].key_value === "1") {
+        isAlreadySeeded = true;
+      } else {
+        const existingCats = await query("SELECT COUNT(*) as count FROM categories");
+        const existingSvcs = await query("SELECT COUNT(*) as count FROM services");
+        if (
+          (existingCats && existingCats[0]?.count > 0) ||
+          (existingSvcs && existingSvcs[0]?.count > 0)
+        ) {
+          isAlreadySeeded = true;
+          await query(
+            "INSERT INTO settings (key_name, key_value) VALUES ('initial_seed_completed', '1') ON DUPLICATE KEY UPDATE key_value = '1'",
+          );
+          console.log(
+            "Existing database catalog detected. Initial seed marked completed to preserve admin deletions.",
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("Could not check initial_seed_completed setting:", e.message);
     }
 
-    // Dynamic Seeding from data/db.json has been removed to prevent database overrides and preserve admin modifications.
+    if (isAlreadySeeded) {
+      console.log(
+        "Database catalog is already initialized. Skipping default category & service seeding to preserve admin deletions and modifications.",
+      );
+    } else {
+      console.log("Blank database detected. Performing one-time initial catalog seeding...");
 
-    // Ensure default categories exist in database (including Full House sub-categories)
-    const defaultCategories = [
-      {
-        id: "full-house",
+      // Seed default data if categories table is empty or has old demo seed records
+      const cats = await query("SELECT COUNT(*) as count FROM categories");
+      const hasOldSeed =
+        cats[0].count > 0 &&
+        (await query("SELECT id FROM categories WHERE id = 'cat-1'")).length > 0;
+
+      if (hasOldSeed) {
+        console.log(
+          "Old demo seed detected. Clearing tables for new unified database catalog...",
+        );
+        await query("SET FOREIGN_KEY_CHECKS = 0");
+        await query("TRUNCATE TABLE services");
+        await query("TRUNCATE TABLE categories");
+        await query("SET FOREIGN_KEY_CHECKS = 1");
+      }
+
+      // Dynamic Seeding from data/db.json has been removed to prevent database overrides and preserve admin modifications.
+
+      // Ensure default categories exist in database (including Full House sub-categories)
+      const defaultCategories = [
+        {
+          id: "full-house",
         title: "Full House Deep Cleaning",
         tagline: "Top-to-bottom premium clean for the entire home",
         emoji: "🏠",
@@ -2926,6 +2963,17 @@ async function initDb() {
       }
     } catch (e) {
       console.warn("Could not seed default recent transformations:", e.message);
+    }
+
+      // Mark initial seed as permanently completed in settings table
+      try {
+        await query(
+          "INSERT INTO settings (key_name, key_value) VALUES ('initial_seed_completed', '1') ON DUPLICATE KEY UPDATE key_value = '1'",
+        );
+        console.log("Initial seed marked permanently completed in settings table.");
+      } catch (e) {
+        console.warn("Could not save initial_seed_completed flag:", e.message);
+      }
     }
   } catch (err) {
     console.error("MySQL database initialization failed:", err.message);

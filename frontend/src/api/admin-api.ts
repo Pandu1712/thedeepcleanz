@@ -99,6 +99,17 @@ export interface BookedSlotsResponse {
   normalizedSlots: string[];
 }
 
+export const STANDARD_TIME_SLOTS = [
+  "08:00 AM",
+  "10:00 AM",
+  "12:00 PM",
+  "02:00 PM",
+  "04:00 PM",
+  "06:00 PM",
+] as const;
+
+export type StandardTimeSlot = typeof STANDARD_TIME_SLOTS[number];
+
 export function normalizeTimeSlot(t: string): string {
   if (!t) return "";
   let str = String(t).trim().toUpperCase();
@@ -118,6 +129,77 @@ export function normalizeTimeSlot(t: string): string {
     return `${String(hour).padStart(2, "0")}:${min}`;
   }
   return str;
+}
+
+/**
+ * Check whether a specific time slot on a target date has already passed.
+ * @param slotStr e.g. "08:00 AM", "10:00 AM", "02:00 PM", "06:00 PM"
+ * @param selectedDateStr "YYYY-MM-DD"
+ * @param bufferMinutes Buffer required before service start (default 30 mins)
+ */
+export function isSlotInPast(
+  slotStr: string,
+  selectedDateStr: string,
+  bufferMinutes: number = 30,
+): boolean {
+  if (!slotStr || !selectedDateStr) return false;
+
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const todayFormatted = `${y}-${m}-${d}`;
+
+  // If the date itself is before today, all slots are in the past
+  if (selectedDateStr < todayFormatted) return true;
+  // If the date is in the future, slots cannot be in the past
+  if (selectedDateStr > todayFormatted) return false;
+
+  // For today: parse slot time and compare with current clock + buffer
+  const norm = normalizeTimeSlot(slotStr); // "HH:MM" in 24-hr format
+  const [slotH, slotM] = norm.split(":").map(Number);
+  if (isNaN(slotH) || isNaN(slotM)) return false;
+
+  const slotMinutes = slotH * 60 + slotM;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes() + bufferMinutes;
+
+  return slotMinutes <= currentMinutes;
+}
+
+/**
+ * Returns true if all standard slots for a given date have elapsed.
+ */
+export function areAllSlotsPassedToday(
+  dateStr: string,
+  bufferMinutes: number = 30,
+): boolean {
+  if (!dateStr) return false;
+  const now = new Date();
+  const todayFormatted = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  if (dateStr < todayFormatted) return true;
+  if (dateStr > todayFormatted) return false;
+
+  return STANDARD_TIME_SLOTS.every((slot) =>
+    isSlotInPast(slot, dateStr, bufferMinutes),
+  );
+}
+
+/**
+ * Finds the first available non-passed and non-booked slot for a given date.
+ */
+export function getFirstAvailableSlot(
+  dateStr: string,
+  bookedNormalizedSlots: string[] = [],
+  bufferMinutes: number = 30,
+): string {
+  for (const slot of STANDARD_TIME_SLOTS) {
+    const isPast = isSlotInPast(slot, dateStr, bufferMinutes);
+    const isBooked = bookedNormalizedSlots.includes(normalizeTimeSlot(slot));
+    if (!isPast && !isBooked) {
+      return slot;
+    }
+  }
+  return STANDARD_TIME_SLOTS[0];
 }
 
 export async function fetchBookedSlots(date: string): Promise<BookedSlotsResponse> {

@@ -524,6 +524,26 @@ function normalizeTimeSlot(t) {
   return str;
 }
 
+function isSlotInPastBackend(slotStr, dateStr, bufferMinutes = 15) {
+  if (!slotStr || !dateStr) return false;
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const todayFormatted = `${y}-${m}-${d}`;
+
+  if (dateStr < todayFormatted) return true;
+  if (dateStr > todayFormatted) return false;
+
+  const norm = normalizeTimeSlot(slotStr);
+  const [slotH, slotM] = norm.split(":").map(Number);
+  if (isNaN(slotH) || isNaN(slotM)) return false;
+
+  const slotMinutes = slotH * 60 + slotM;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes() + bufferMinutes;
+  return slotMinutes <= currentMinutes;
+}
+
 // Fetch occupied/booked time slots for a given date (to enforce 1 booking per slot)
 app.get("/api/bookings/booked-slots", async (req, res) => {
   try {
@@ -587,6 +607,15 @@ app.post("/api/bookings", async (req, res) => {
       if (blocked && !req.body.overrideBlockedDate && !req.body.isAdmin) {
         return res.status(400).json({
           error: `Selected date (${bookingDate}) is blocked: ${blocked.reason || "Unavailable for bookings"}. Please choose another date.`,
+        });
+      }
+    }
+
+    // Past time slot check for today
+    if (bookingDate && bookingTime && !req.body.overrideBlockedDate && !req.body.isAdmin) {
+      if (isSlotInPastBackend(bookingTime, bookingDate, 15)) {
+        return res.status(400).json({
+          error: `Selected time slot (${bookingTime} on ${bookingDate}) has already passed for today. Please choose an upcoming time slot or date.`,
         });
       }
     }
@@ -1868,6 +1897,12 @@ app.put("/api/bookings/:id/reschedule", async (req, res) => {
     if (blocked) {
       return res.status(400).json({
         error: `Selected date (${date}) is blocked: ${blocked.reason || "Unavailable for bookings"}. Please choose another date.`,
+      });
+    }
+
+    if (rescheduledBy !== "Admin" && isSlotInPastBackend(time, date, 15)) {
+      return res.status(400).json({
+        error: `Selected time slot (${time} on ${date}) has already passed for today. Please choose an upcoming time slot.`,
       });
     }
 

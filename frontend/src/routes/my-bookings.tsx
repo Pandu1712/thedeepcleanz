@@ -39,6 +39,9 @@ import {
   rescheduleBooking,
   updateBookingJobStatus,
   fetchBlockedDates,
+  STANDARD_TIME_SLOTS,
+  isSlotInPast,
+  normalizeTimeSlot,
   type BlockedDate,
 } from "@/api/admin-api";
 import { BookingModal, CartItem } from "./index";
@@ -292,6 +295,10 @@ function MyBookingsPage() {
       toast.error(
         `⚠️ Selected date (${newDate}) is blocked for bookings: ${isBlocked.reason || "Holiday / No Orders"}. Please choose another date.`,
       );
+      return;
+    }
+    if (isSlotInPast(newTime, newDate, 15)) {
+      toast.error(`⚠️ The slot (${newTime} on ${newDate}) has already passed for today. Please select an upcoming slot.`);
       return;
     }
     try {
@@ -1815,15 +1822,35 @@ function MyBookingsPage() {
               </div>
 
               <div>
-                <label className="text-2xs font-extrabold uppercase tracking-wider block mb-1 text-[#cb9f5a]">
-                  Select Time
+                <label className="text-2xs font-extrabold uppercase tracking-wider block mb-1.5 text-[#cb9f5a]">
+                  Select Time Slot
                 </label>
-                <input
-                  type="time"
-                  value={newTime}
-                  onChange={(e) => setNewTime(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-[#cb9f5a]"
-                />
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {STANDARD_TIME_SLOTS.map((s) => {
+                    const isPast = isSlotInPast(s, newDate, 30);
+                    const isSelected = newTime === s || normalizeTimeSlot(newTime) === normalizeTimeSlot(s);
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        disabled={isPast}
+                        onClick={() => setNewTime(s)}
+                        className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-0.5 ${
+                          isPast
+                            ? "bg-slate-100 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed"
+                            : isSelected
+                              ? "bg-[#002a22] text-white border-[#cb9f5a] ring-2 ring-[#cb9f5a]/40 shadow-xs cursor-pointer"
+                              : "bg-white border-slate-200 text-slate-700 hover:border-emerald-500 hover:bg-emerald-50/30 cursor-pointer"
+                        }`}
+                      >
+                        <span className={isPast ? "line-through text-slate-400" : ""}>{s}</span>
+                        <span className={`text-[8px] font-black uppercase ${isPast ? "text-slate-400" : isSelected ? "text-[#cb9f5a]" : "text-emerald-700"}`}>
+                          {isPast ? "Passed" : isSelected ? "Selected ✓" : "Available"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 

@@ -116,6 +116,10 @@ import {
   postAdminBooking,
   fetchBookedSlots,
   normalizeTimeSlot,
+  STANDARD_TIME_SLOTS,
+  isSlotInPast,
+  areAllSlotsPassedToday,
+  getFirstAvailableSlot,
   type BlockedDate,
   type RecentTransformation,
   type AdminCategory,
@@ -154,20 +158,7 @@ const EMOJI_OPTIONS = [
   "🧴",
 ];
 
-const ADMIN_TIME_SLOTS = [
-  "08:00 AM",
-  "09:00 AM",
-  "10:00 AM",
-  "11:00 AM",
-  "12:00 PM",
-  "01:00 PM",
-  "02:00 PM",
-  "03:00 PM",
-  "04:00 PM",
-  "05:00 PM",
-  "06:00 PM",
-  "07:00 PM",
-];
+const ADMIN_TIME_SLOTS = STANDARD_TIME_SLOTS;
 
 function AdminDashboardRoute() {
   const navigate = useNavigate();
@@ -912,9 +903,10 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     const targetDate = prefilledDate || todayStr;
+    const initialSlot = getFirstAvailableSlot(targetDate, [], 0);
     
     setMbDate(targetDate);
-    setMbTime("10:00 AM");
+    setMbTime(initialSlot);
     setMbCustomerName("");
     setMbCustomerPhone("");
     setMbCustomerEmail("");
@@ -6887,15 +6879,34 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
               </div>
 
               <div>
-                <label className="text-2xs font-extrabold uppercase tracking-wider block mb-1 text-[#cb9f5a]">
-                  Select Time
+                <label className="text-2xs font-extrabold uppercase tracking-wider block mb-1.5 text-[#cb9f5a]">
+                  Select Time Slot
                 </label>
-                <input
-                  type="time"
-                  value={newTime}
-                  onChange={(e) => setNewTime(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-[#cb9f5a]"
-                />
+                <div className="grid grid-cols-3 gap-2">
+                  {STANDARD_TIME_SLOTS.map((s) => {
+                    const isPast = isSlotInPast(s, newDate, 0);
+                    const isSelected = newTime === s || normalizeTimeSlot(newTime) === normalizeTimeSlot(s);
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setNewTime(s)}
+                        className={`py-2 px-1.5 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
+                          isSelected
+                            ? "bg-[#002a22] text-white border-[#cb9f5a] ring-2 ring-[#cb9f5a]/40 shadow-xs"
+                            : isPast
+                              ? "bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100"
+                              : "bg-white border-slate-200 text-slate-700 hover:border-emerald-500 hover:bg-emerald-50/30"
+                        }`}
+                      >
+                        <span className="text-[11px]">{s}</span>
+                        <span className={`text-[8px] font-black uppercase ${isSelected ? "text-[#cb9f5a]" : isPast ? "text-slate-400" : "text-emerald-700"}`}>
+                          {isSelected ? "Selected ✓" : isPast ? "Past" : "Standard"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -7421,13 +7432,16 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                       <span className="flex items-center gap-1 text-emerald-700">
                         <span className="h-2 w-2 rounded-full bg-emerald-500" /> Free Slot
                       </span>
+                      <span className="flex items-center gap-1 text-amber-700">
+                        <span className="h-2 w-2 rounded-full bg-amber-500" /> Past
+                      </span>
                       <span className="flex items-center gap-1 text-rose-700">
                         <span className="h-2 w-2 rounded-full bg-rose-500" /> Occupied
                       </span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                     {ADMIN_TIME_SLOTS.map((slot) => {
                       const normSlot = normalizeTimeSlot(slot);
                       const isOccupied =
@@ -7438,6 +7452,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                             normalizeTimeSlot(b.schedule?.time) === normSlot &&
                             b.jobStatus !== "Cancelled",
                         );
+                      const isPast = isSlotInPast(slot, mbDate, 0);
                       const isSelected = mbTime === slot;
 
                       return (
@@ -7450,7 +7465,9 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                               ? "bg-[#002a22] text-white border-[#cb9f5a] ring-2 ring-[#cb9f5a] shadow-md"
                               : isOccupied
                                 ? "bg-rose-50/70 border-rose-200/80 text-rose-800 hover:bg-rose-100"
-                                : "bg-white border-slate-200/80 text-slate-700 hover:border-emerald-500/50 hover:bg-emerald-50/30"
+                                : isPast
+                                  ? "bg-amber-50/60 border-amber-200/70 text-amber-800 hover:bg-amber-100/60"
+                                  : "bg-white border-slate-200/80 text-slate-700 hover:border-emerald-500/50 hover:bg-emerald-50/30"
                           }`}
                         >
                           <span className="text-[11px]">{slot}</span>
@@ -7460,10 +7477,18 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                                 ? "bg-[#cb9f5a] text-slate-900"
                                 : isOccupied
                                   ? "bg-rose-200 text-rose-900"
-                                  : "bg-emerald-100 text-emerald-800"
+                                  : isPast
+                                    ? "bg-amber-200 text-amber-900"
+                                    : "bg-emerald-100 text-emerald-800"
                             }`}
                           >
-                            {isSelected ? "🔒 Selected" : isOccupied ? "Occupied" : "🟢 Free"}
+                            {isSelected
+                              ? "🔒 Selected"
+                              : isOccupied
+                                ? "Occupied"
+                                : isPast
+                                  ? "⏳ Past"
+                                  : "🟢 Free"}
                           </span>
                         </button>
                       );

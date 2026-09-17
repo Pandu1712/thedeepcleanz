@@ -98,6 +98,10 @@ import {
   fetchBlockedDates,
   fetchBookedSlots,
   normalizeTimeSlot,
+  STANDARD_TIME_SLOTS,
+  isSlotInPast,
+  areAllSlotsPassedToday,
+  getFirstAvailableSlot,
   type BlockedDate,
   type BookedSlotsResponse,
   type RecentTransformation,
@@ -5051,7 +5055,7 @@ export function BookingModal({
   removeItem?: (id: string) => void;
   onAddItem?: (item: { id: string; title: string; price: number; img: string }) => void;
 }) {
-  const slots = ["08:00 AM", "10:00 AM", "12:00 PM", "02:00 PM", "04:00 PM", "06:00 PM"];
+  const slots = STANDARD_TIME_SLOTS;
 
   const [form, setForm] = useState({
     name: "",
@@ -5062,7 +5066,7 @@ export function BookingModal({
     city: "Guntur",
     pincode: "",
     date: "",
-    time: "10:00 AM",
+    time: "08:00 AM",
     notes: "",
     coupon: "",
     houseType: "Flat / Apartment",
@@ -5361,6 +5365,11 @@ export function BookingModal({
     const blockedInfo = blockedDates.find((b) => b.date === form.date);
     if (blockedInfo) {
       toast.error(`⚠️ Selected date (${form.date}) is unavailable for bookings: ${blockedInfo.reason || "Holiday"}. Please select another date.`);
+      return;
+    }
+
+    if (isSlotInPast(form.time, form.date, 15)) {
+      toast.error(`⚠️ The slot (${form.time} on ${form.date}) has already passed for today. Please select an upcoming available time slot.`);
       return;
     }
 
@@ -5821,17 +5830,36 @@ export function BookingModal({
         .then((bData) => {
           const list = Array.isArray(bData) ? bData : [];
           setBlockedDates(list);
-          // If tomorrow or today is blocked, pick earliest non-blocked date
+          
+          const now = new Date();
+          const todayY = now.getFullYear();
+          const todayM = String(now.getMonth() + 1).padStart(2, "0");
+          const todayD = String(now.getDate()).padStart(2, "0");
+          const todayStr = `${todayY}-${todayM}-${todayD}`;
+
           const isDateBlocked = (d: string) => list.some((b) => b.date === d);
-          let targetDate = tomorrow;
-          let checkD = new Date(Date.now() + 86400000);
+          
+          // Determine best initial target date:
+          // If today is NOT blocked and has remaining valid slots, start with today.
+          // Otherwise, start with tomorrow (or next non-blocked date).
+          let targetDate = todayStr;
+          let checkD = new Date();
           let attempts = 0;
-          while (isDateBlocked(targetDate) && attempts < 30) {
+
+          const isDateInvalid = (d: string) => {
+            if (isDateBlocked(d)) return true;
+            if (d === todayStr && areAllSlotsPassedToday(todayStr, 30)) return true;
+            return false;
+          };
+
+          while (isDateInvalid(targetDate) && attempts < 30) {
             checkD.setDate(checkD.getDate() + 1);
             targetDate = `${checkD.getFullYear()}-${String(checkD.getMonth() + 1).padStart(2, "0")}-${String(checkD.getDate()).padStart(2, "0")}`;
             attempts++;
           }
-          setForm((f) => ({ ...f, date: targetDate }));
+
+          const initialSlot = getFirstAvailableSlot(targetDate, [], 30);
+          setForm((f) => ({ ...f, date: targetDate, time: initialSlot }));
         })
         .catch(() => {});
 
@@ -5850,10 +5878,13 @@ export function BookingModal({
       .then((res) => {
         if (!active) return;
         setBookedSlotsInfo(res);
-        // If the currently chosen slot is booked, auto-select the first unbooked slot
+        // If current slot is booked OR is in the past for today, auto-select the first available valid slot
         const currentNorm = normalizeTimeSlot(form.time);
-        if (res.normalizedSlots.includes(currentNorm)) {
-          const firstFree = slots.find((s) => !res.normalizedSlots.includes(normalizeTimeSlot(s)));
+        const isCurrentBooked = res.normalizedSlots.includes(currentNorm);
+        const isCurrentPast = isSlotInPast(form.time, form.date, 30);
+
+        if (isCurrentBooked || isCurrentPast) {
+          const firstFree = getFirstAvailableSlot(form.date, res.normalizedSlots, 30);
           if (firstFree) {
             setForm((f) => ({ ...f, time: firstFree }));
           }
@@ -6881,13 +6912,22 @@ export function BookingModal({
                       {(() => {
                         const chips = [];
                         const today = new Date();
+                        const todayY = today.getFullYear();
+                        const todayM = String(today.getMonth() + 1).padStart(2, "0");
+                        const todayD = String(today.getDate()).padStart(2, "0");
+                        const todayFormatted = `${todayY}-${todayM}-${todayD}`;
+
                         for (let i = 0; i < 7; i++) {
                           const d = new Date(today);
                           d.setDate(today.getDate() + i);
                           const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                          const isToday = dStr === todayFormatted;
+                          const isTodayClosed = isToday && areAllSlotsPassedToday(dStr, 30);
                           const label =
                             i === 0
-                              ? "Today"
+                              ? isTodayClosed
+                                ? "Today (Closed)"
+                                : "Today"
                               : i === 1
                                 ? "Tomorrow"
                                 : d.toLocaleDateString("en-IN", {
@@ -6897,7 +6937,7 @@ export function BookingModal({
                                   });
                           const isBlocked = blockedDates.some((b) => b.date === dStr);
                           const blockInfo = blockedDates.find((b) => b.date === dStr);
-                          chips.push({ dStr, label, isBlocked, blockInfo });
+                          chips.push({ dStr, label, isBlocked, blockInfo, isTodayClosed });
                         }
                         return chips.map((c) => (
                           <button
@@ -6915,14 +6955,20 @@ export function BookingModal({
                             className={`py-1.5 px-2.5 rounded-xl text-[10px] font-bold transition-all border whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
                               c.isBlocked
                                 ? "bg-red-50 text-red-600 border-red-300 ring-1 ring-red-200"
-                                : form.date === c.dStr
-                                  ? "bg-[#002A22] text-white border-[#002A22] shadow-xs"
-                                  : "bg-[#F8FAF9] border-slate-200 text-slate-700 hover:bg-slate-100"
+                                : c.isTodayClosed
+                                  ? form.date === c.dStr
+                                    ? "bg-amber-100 text-amber-900 border-amber-300 ring-1 ring-amber-200"
+                                    : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-150"
+                                  : form.date === c.dStr
+                                    ? "bg-[#002A22] text-white border-[#002A22] shadow-xs"
+                                    : "bg-[#F8FAF9] border-slate-200 text-slate-700 hover:bg-slate-100"
                             }`}
                             title={
                               c.isBlocked
                                 ? `Admin Blocked: ${c.blockInfo?.reason || "Holiday / No Orders"}`
-                                : c.dStr
+                                : c.isTodayClosed
+                                  ? "Today's service booking slots have concluded"
+                                  : c.dStr
                             }
                           >
                             {c.isBlocked && (
@@ -6930,6 +6976,7 @@ export function BookingModal({
                             )}
                             <span>{c.label}</span>
                             {c.isBlocked && <span className="text-red-500 font-black">🚫</span>}
+                            {c.isTodayClosed && <span className="text-amber-700 font-black text-[9px]">⏳</span>}
                           </button>
                         ));
                       })()}
@@ -6961,34 +7008,61 @@ export function BookingModal({
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                       {slots.map((s) => {
+                        const isPast = isSlotInPast(s, form.date, 30);
                         const isBooked = bookedSlotsInfo.normalizedSlots.includes(normalizeTimeSlot(s));
-                        const isSelected = form.time === s;
+                        const isDisabled = isPast || isBooked;
+                        const isSelected = form.time === s && !isDisabled;
+
                         return (
                           <button
                             key={s}
                             type="button"
-                            disabled={isBooked}
+                            disabled={isDisabled}
                             onClick={() => {
+                              if (isPast) {
+                                toast.error(`Slot ${s} has already passed for today. Please select an upcoming available slot.`);
+                                return;
+                              }
                               if (isBooked) {
                                 toast.error(`Slot ${s} is already booked on ${form.date}. Please pick an available slot.`);
                                 return;
                               }
                               setForm({ ...form, time: s });
                             }}
-                            title={isBooked ? `Slot ${s} is already booked on this date` : `Select ${s}`}
+                            title={
+                              isPast
+                                ? `Slot ${s} has already passed for today`
+                                : isBooked
+                                  ? `Slot ${s} is already booked on this date`
+                                  : `Select ${s}`
+                            }
                             className={`py-2 px-1.5 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center justify-center gap-0.5 ${
-                              isBooked
-                                ? "bg-slate-100/90 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed"
-                                : isSelected
-                                  ? "bg-[#002A22] text-white border-[#002A22] shadow-sm cursor-pointer ring-2 ring-emerald-600/30"
-                                  : "bg-[#F8FAF9] border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300 cursor-pointer"
+                              isPast
+                                ? "bg-slate-100 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed"
+                                : isBooked
+                                  ? "bg-rose-50/70 border-rose-200 text-rose-400 opacity-65 cursor-not-allowed"
+                                  : isSelected
+                                    ? "bg-[#002A22] text-white border-[#002A22] shadow-sm cursor-pointer ring-2 ring-emerald-600/30"
+                                    : "bg-[#F8FAF9] border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300 cursor-pointer"
                             }`}
                           >
-                            <span className={`${isBooked ? "line-through text-slate-400" : isSelected ? "text-white font-extrabold" : "text-slate-800"}`}>
+                            <span
+                              className={`${
+                                isDisabled
+                                  ? "line-through text-slate-400"
+                                  : isSelected
+                                    ? "text-white font-extrabold"
+                                    : "text-slate-800"
+                              }`}
+                            >
                               {s}
                             </span>
-                            {isBooked ? (
-                              <span className="text-[8px] font-extrabold text-rose-600 uppercase tracking-tighter bg-rose-50 px-1 rounded">
+                            {isPast ? (
+                              <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter bg-slate-200 px-1 rounded">
+                                Passed
+                              </span>
+                            ) : isBooked ? (
+                              <span className="text-[8px] font-extrabold text-rose-600 uppercase tracking-tighter bg-rose-100 px-1 rounded">
                                 Booked
                               </span>
                             ) : isSelected ? (
@@ -7005,12 +7079,12 @@ export function BookingModal({
                       })}
                     </div>
 
-                    {/* All Slots Occupied Warning */}
-                    {form.date && slots.length > 0 && slots.every((s) => bookedSlotsInfo.normalizedSlots.includes(normalizeTimeSlot(s))) && (
-                      <div className="p-2.5 mt-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-2xs font-bold flex items-center gap-2">
-                        <span className="text-amber-600 text-xs">⚠️</span>
+                    {/* Today's slots passed notice */}
+                    {form.date && areAllSlotsPassedToday(form.date, 30) && (
+                      <div className="p-2.5 mt-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-2xs font-bold flex items-center gap-2">
+                        <span className="text-amber-600 text-xs">⏳</span>
                         <span>
-                          All time slots for {form.date} are fully booked by other customers. Please pick another date.
+                          Today's booking slots have concluded. Please select Tomorrow or an upcoming date to reserve your service.
                         </span>
                       </div>
                     )}
