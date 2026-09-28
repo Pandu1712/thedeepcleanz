@@ -149,16 +149,19 @@ function getServiceDetailImage(s: any): string {
   return s.image || s.img || imgHouse;
 }
 
-/**
- * Cleans any legacy third-party naming
- */
 function cleanServiceDescription(desc?: string): string {
   if (!desc) {
     return "Clinical-grade interior & exterior deep cleaning, surface degreasing, and food-safe steam disinfection by The Deep CleanerZ certified specialists.";
   }
   return desc
-    .replace(/safsafaiwala['’s]*\s*/gi, "The Deep CleanerZ ")
-    .replace(/safsafaiwala/gi, "The Deep CleanerZ ");
+    .replace(/saf+s*a[fi]walas?['’s]*/gi, "The Deep CleanerZ ")
+    .replace(/saf+s*a[fi]walas?/gi, "The Deep CleanerZ")
+    .replace(/safsafaiwalas?['’s]*/gi, "The Deep CleanerZ ")
+    .replace(/safsafaiwalas?/gi, "The Deep CleanerZ")
+    .replace(/safaiwalas?['’s]*/gi, "The Deep CleanerZ ")
+    .replace(/safaiwalas?/gi, "The Deep CleanerZ")
+    .replace(/safsaiwalas?['’s]*/gi, "The Deep CleanerZ ")
+    .replace(/safsaiwalas?/gi, "The Deep CleanerZ");
 }
 
 /**
@@ -528,12 +531,17 @@ function ServiceDetailPage() {
     } catch {}
   }, [cart]);
 
+  const [rawAdminServices, setRawAdminServices] = useState<any[]>([]);
+
   // Load Admin Catalog seamlessly in background
   useEffect(() => {
     fetchAdminCatalog()
       .then((data) => {
         if (data && Array.isArray(data.categories) && data.categories.length > 0) {
           setCategories(mergeAdminCatalog(data));
+        }
+        if (data && Array.isArray(data.services) && data.services.length > 0) {
+          setRawAdminServices(data.services);
         }
       })
       .catch((err) => console.warn("Catalog background sync note:", err))
@@ -551,6 +559,14 @@ function ServiceDetailPage() {
   // Find target service with resilient matching across all aliases
   const service = useMemo(() => {
     const rawId = (serviceId || "").toLowerCase().trim();
+
+    // 0. Direct match from rawAdminServices (contains complete plans from MySQL database / API)
+    if (Array.isArray(rawAdminServices) && rawAdminServices.length > 0) {
+      const directAdminMatch = rawAdminServices.find(
+        (s) => s && (s.id?.toLowerCase() === rawId || s.title?.toLowerCase() === rawId)
+      );
+      if (directAdminMatch) return directAdminMatch;
+    }
 
     // 1. Exact ID or Title match in catalog categories
     if (Array.isArray(categories)) {
@@ -575,7 +591,19 @@ function ServiceDetailPage() {
     );
     if (foundInSubs) return foundInSubs;
 
-    // 3. Prefix / substring match in catalog categories (e.g. "house" matches "full-house-deep-cleaning" and vice versa)
+    // 3. Substring match in rawAdminServices
+    if (rawId && Array.isArray(rawAdminServices)) {
+      const foundSubAdmin = rawAdminServices.find(
+        (s) =>
+          s &&
+          (s.id?.toLowerCase().includes(rawId) ||
+            rawId.includes(s.id?.toLowerCase()) ||
+            s.title?.toLowerCase().includes(rawId))
+      );
+      if (foundSubAdmin) return foundSubAdmin;
+    }
+
+    // 4. Prefix / substring match in catalog categories
     if (rawId && Array.isArray(categories)) {
       for (const cat of categories) {
         if (cat && Array.isArray(cat.services)) {
@@ -591,7 +619,7 @@ function ServiceDetailPage() {
       }
     }
 
-    // 4. Check customized services
+    // 5. Check customized services
     if (Array.isArray(customizedServices)) {
       const foundCustom = customizedServices.find(
         (s) =>
@@ -604,7 +632,7 @@ function ServiceDetailPage() {
       if (foundCustom) return foundCustom;
     }
 
-    // 5. Direct match from static SERVICES definition
+    // 6. Direct match from static SERVICES definition
     if (Array.isArray(SERVICES)) {
       const directFound = SERVICES.find(
         (s) =>
@@ -617,9 +645,9 @@ function ServiceDetailPage() {
       if (directFound) return directFound;
     }
 
-    // 6. Safe ultimate fallback
+    // 7. Safe ultimate fallback
     return categories[0]?.services?.[0] || FURNISHED_SERVICES[0] || SERVICES[0] || null;
-  }, [categories, customizedServices, serviceId]);
+  }, [categories, rawAdminServices, customizedServices, serviceId]);
 
   // Dynamic SEO & Structured Data Injection for Search Engines
   useEffect(() => {
@@ -1092,7 +1120,6 @@ function ServiceDetailPage() {
                           onClick={() => {
                             setSelectedPlanIdx(idx);
                             setModalPlan(p);
-                            setPlanDetailsModalOpen(true);
                           }}
                           className={`relative rounded-2xl p-3.5 sm:p-4 cursor-pointer transition-all duration-200 border-2 text-left flex flex-col justify-between active:scale-[0.99] group ${
                             isSelected

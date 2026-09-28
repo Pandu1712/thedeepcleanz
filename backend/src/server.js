@@ -89,6 +89,27 @@ app.use(express.static(path.join(__dirname, "..", "public"), {
   maxAge: "1d",
   etag: true,
 }));
+// Smart Stylesheet Fallback:
+// If an incoming request asks for /assets/styles-*.css and the exact hash is not on disk (e.g. after a rebuild),
+// seamlessly serve the active compiled styles-*.css file so clients NEVER experience unstyled HTML or 404s!
+app.get("/assets/styles-*.css", (req, res, next) => {
+  const assetsDir = path.join(__dirname, "../../frontend/dist/client/assets");
+  const exactFile = path.join(assetsDir, path.basename(req.path));
+  if (fs.existsSync(exactFile)) {
+    return next();
+  }
+  if (fs.existsSync(assetsDir)) {
+    const files = fs.readdirSync(assetsDir);
+    const cssFile = files.find((f) => f.startsWith("styles-") && f.endsWith(".css"));
+    if (cssFile) {
+      res.setHeader("Content-Type", "text/css; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      return res.sendFile(path.join(assetsDir, cssFile));
+    }
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, "../../frontend/dist/client"), {
   maxAge: "7d",
   etag: true,
@@ -605,8 +626,12 @@ app.post("/api/bookings", async (req, res) => {
       }
       const blocked = await db.isDateBlocked(bookingDate);
       if (blocked && !req.body.overrideBlockedDate && !req.body.isAdmin) {
+        const isToday = bookingDate === todayStr;
+        const cleanReason = (blocked.reason && !/^admin\s*blocked/i.test(blocked.reason) && !/^blocked/i.test(blocked.reason)) ? blocked.reason : "Holiday";
         return res.status(400).json({
-          error: `Selected date (${bookingDate}) is blocked: ${blocked.reason || "Unavailable for bookings"}. Please choose another date.`,
+          error: isToday
+            ? `Today is a Holiday (${cleanReason}). Bookings are unavailable today. Please choose an upcoming available date.`
+            : `Selected date (${bookingDate}) is a Holiday (${cleanReason}). Please choose another date.`,
         });
       }
     }
@@ -1730,6 +1755,49 @@ app.get("/api/technicians/:id/bookings", async (req, res) => {
   }
 });
 
+// Broadcast Open Leads for Technicians (First-Come-First-Serve Job Claiming)
+app.get("/api/technicians/:id/available-jobs", async (req, res) => {
+  try {
+    const jobs = await db.getAvailableBookings();
+    res.json(jobs || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/technicians/:id/claim-booking", async (req, res) => {
+  try {
+    const { bookingId } = req.body;
+    const technicianId = req.params.id;
+    if (!bookingId) {
+      return res.status(400).json({ error: "Booking ID is required to claim job." });
+    }
+
+    const technician = await db.getTechnicianById(technicianId);
+    if (!technician) {
+      return res.status(404).json({ error: "Technician profile not found." });
+    }
+
+    const claimed = await db.claimBooking(bookingId, technicianId);
+    if (!claimed) {
+      return res.status(409).json({
+        ok: false,
+        error: "This cleaning lead has already been claimed by another staff member or assigned by admin.",
+      });
+    }
+
+    console.log(`[Job Claim] Booking #${bookingId} claimed successfully by ${technician.name} (${technicianId})`);
+    res.json({
+      ok: true,
+      message: `Job #${bookingId} successfully claimed by ${technician.name}!`,
+      bookingId,
+      technicianId,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete("/api/technicians/:id", async (req, res) => {
   try {
     await db.deleteTechnician(req.params.id);
@@ -1895,8 +1963,12 @@ app.put("/api/bookings/:id/reschedule", async (req, res) => {
 
     const blocked = await db.isDateBlocked(date);
     if (blocked) {
+      const isToday = date === todayStr;
+      const cleanReason = (blocked.reason && !/^admin\s*blocked/i.test(blocked.reason) && !/^blocked/i.test(blocked.reason)) ? blocked.reason : "Holiday";
       return res.status(400).json({
-        error: `Selected date (${date}) is blocked: ${blocked.reason || "Unavailable for bookings"}. Please choose another date.`,
+        error: isToday
+          ? `Today is a Holiday (${cleanReason}). Bookings are unavailable today. Please choose an upcoming available date.`
+          : `Selected date (${date}) is a Holiday (${cleanReason}). Please choose another date.`,
       });
     }
 

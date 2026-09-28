@@ -555,6 +555,28 @@ export async function fetchTechnicianBookings(id: string): Promise<any[]> {
   return (await res.json()) as any[];
 }
 
+export async function fetchAvailableTechnicianJobs(id: string): Promise<any[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/technicians/${id}/available-jobs`);
+  if (!res.ok) throw new Error(`Available jobs request failed: ${res.status}`);
+  return (await res.json()) as any[];
+}
+
+export async function claimTechnicianJob(
+  technicianId: string,
+  bookingId: string,
+): Promise<{ ok: boolean; message: string }> {
+  const res = await fetch(`${ADMIN_API_URL}/api/technicians/${technicianId}/claim-booking`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bookingId }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    throw new Error(data.error || `Claim job failed: ${res.status}`);
+  }
+  return data;
+}
+
 export async function createTechnician(
   tech: Omit<AdminTechnician, "id"> & { id?: string },
 ): Promise<AdminTechnician> {

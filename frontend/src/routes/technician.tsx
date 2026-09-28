@@ -18,9 +18,14 @@ import {
   User,
   ShoppingBag,
   ExternalLink,
+  Zap,
+  Radio,
+  Lock,
 } from "lucide-react";
 import {
   fetchTechnicianBookings,
+  fetchAvailableTechnicianJobs,
+  claimTechnicianJob,
   updateBookingJobStatus,
   rescheduleBooking,
   updateTechnician,
@@ -42,9 +47,11 @@ function TechnicianPortal() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<AdminTechnician | null>(null);
   const [bookings, setBookings] = useState<any[]>([]);
+  const [availableJobs, setAvailableJobs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<"assigned" | "completed" | "profile">("assigned");
+  const [isClaimingJobId, setIsClaimingJobId] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<"available" | "assigned" | "completed" | "profile">("assigned");
 
   // Profile edit states
   const [editName, setEditName] = useState("");
@@ -138,11 +145,29 @@ function TechnicianPortal() {
     };
   }, [profile?.id, bookings]);
 
+  // Auto-refresh available open leads in background every 12 seconds
+  useEffect(() => {
+    if (!profile?.id) return;
+    const interval = setInterval(async () => {
+      try {
+        const openLeads = await fetchAvailableTechnicianJobs(profile.id);
+        setAvailableJobs(openLeads || []);
+      } catch (e) {
+        // silent background poll
+      }
+    }, 12000);
+    return () => clearInterval(interval);
+  }, [profile?.id]);
+
   const loadBookings = async (techId: string) => {
     setIsLoading(true);
     try {
-      const data = await fetchTechnicianBookings(techId);
-      setBookings(data || []);
+      const [assignedData, availableData] = await Promise.all([
+        fetchTechnicianBookings(techId),
+        fetchAvailableTechnicianJobs(techId),
+      ]);
+      setBookings(assignedData || []);
+      setAvailableJobs(availableData || []);
     } catch (err: any) {
       toast.error(`Failed to fetch bookings: ${err.message}`);
     } finally {
@@ -154,13 +179,48 @@ function TechnicianPortal() {
     if (!profile) return;
     setIsRefreshing(true);
     try {
-      const data = await fetchTechnicianBookings(profile.id);
-      setBookings(data || []);
-      toast.success("Assigned tasks updated!");
+      const [assignedData, availableData] = await Promise.all([
+        fetchTechnicianBookings(profile.id),
+        fetchAvailableTechnicianJobs(profile.id),
+      ]);
+      setBookings(assignedData || []);
+      setAvailableJobs(availableData || []);
+      toast.success("Tasks & Open Leads refreshed!");
     } catch (err: any) {
       toast.error(`Failed to sync task sheet: ${err.message}`);
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleClaimJob = async (bookingId: string) => {
+    if (!profile?.id) return;
+    setIsClaimingJobId(bookingId);
+    try {
+      await claimTechnicianJob(profile.id, bookingId);
+      toast.success("🎉 మీరు ఈ పనిని విజయవంతంగా స్వీకరించారు! (Job claimed & assigned to your queue!)", {
+        duration: 5000,
+        icon: "⚡",
+      });
+      // Refresh both lists immediately
+      const [assignedData, availableData] = await Promise.all([
+        fetchTechnicianBookings(profile.id),
+        fetchAvailableTechnicianJobs(profile.id),
+      ]);
+      setBookings(assignedData || []);
+      setAvailableJobs(availableData || []);
+      setActiveFilter("assigned");
+    } catch (err: any) {
+      toast.error(err.message || "ఈ పనిని ఇప్పటికే వేరొకరు స్వీకరించారు (Job already claimed).", {
+        duration: 5000,
+        icon: "⚠️",
+      });
+      // Refresh available jobs list to remove taken lead
+      if (profile?.id) {
+        fetchAvailableTechnicianJobs(profile.id).then((data) => setAvailableJobs(data || []));
+      }
+    } finally {
+      setIsClaimingJobId(null);
     }
   };
 
@@ -360,11 +420,21 @@ function TechnicianPortal() {
           <div className="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-3">
             <div>
               <h2 className="text-xl font-bold text-[#002a22] font-display">
-                {activeFilter === "profile" ? "Profile Settings" : "Assigned Cleaning Tasks"}
+                {activeFilter === "available"
+                  ? "⚡ Open Cleaning Leads (కొత్త పనులు)"
+                  : activeFilter === "profile"
+                  ? "Profile Settings"
+                  : activeFilter === "completed"
+                  ? "Completed Cleaning Tasks"
+                  : "Assigned Cleaning Tasks"}
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                {activeFilter === "profile"
+                {activeFilter === "available"
+                  ? "First-come, first-serve job broadcast. Accept any open booking instantly to claim it exclusively."
+                  : activeFilter === "profile"
                   ? "Manage your display name, specialty description, and phone details."
+                  : activeFilter === "completed"
+                  ? "Review past completed cleaning orders and uploaded service photos."
                   : "Review dates, schedules, cleaning items, and location markers for your current duty bookings."}
               </p>
             </div>
@@ -372,34 +442,65 @@ function TechnicianPortal() {
             {/* Desktop Filter Tabs */}
             <div className="hidden md:flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
               <button
-                onClick={() => setActiveFilter("assigned")}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                  activeFilter === "assigned"
-                    ? "bg-white text-[#002a22] shadow-xs"
+                onClick={() => setActiveFilter("available")}
+                className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeFilter === "available"
+                    ? "bg-amber-500 text-white shadow-xs font-black"
                     : "text-slate-600 hover:text-slate-800"
                 }`}
               >
-                Assigned ({assignedBookings.length})
+                <Zap className="h-3.5 w-3.5" />
+                <span>Available Leads</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                    activeFilter === "available"
+                      ? "bg-amber-600 text-white"
+                      : availableJobs.length > 0
+                      ? "bg-amber-100 text-amber-900 animate-pulse border border-amber-300"
+                      : "bg-slate-200 text-slate-600"
+                  }`}
+                >
+                  {availableJobs.length}
+                </span>
               </button>
+
+              <button
+                onClick={() => setActiveFilter("assigned")}
+                className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeFilter === "assigned"
+                    ? "bg-white text-[#002a22] shadow-xs font-black"
+                    : "text-slate-600 hover:text-slate-800"
+                }`}
+              >
+                <span>Assigned</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black">
+                  {assignedBookings.length}
+                </span>
+              </button>
+
               <button
                 onClick={() => setActiveFilter("completed")}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                   activeFilter === "completed"
-                    ? "bg-white text-[#002a22] shadow-xs"
+                    ? "bg-white text-[#002a22] shadow-xs font-black"
                     : "text-slate-600 hover:text-slate-800"
                 }`}
               >
-                Completed ({completedBookings.length})
+                <span>Completed</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black">
+                  {completedBookings.length}
+                </span>
               </button>
+
               <button
                 onClick={() => setActiveFilter("profile")}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
                   activeFilter === "profile"
-                    ? "bg-white text-[#002a22] shadow-xs"
+                    ? "bg-white text-[#002a22] shadow-xs font-black"
                     : "text-slate-600 hover:text-slate-800"
                 }`}
               >
-                👤 Profile Settings
+                👤 Profile
               </button>
             </div>
           </div>
@@ -555,6 +656,180 @@ function TechnicianPortal() {
                     {isSavingProfile ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
+              </div>
+            )
+          ) : activeFilter === "available" ? (
+            isLoading ? (
+              <div className="flex h-64 items-center justify-center">
+                <span className="h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+              </div>
+            ) : availableJobs.length === 0 ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-3xs">
+                <div className="h-14 w-14 rounded-full bg-amber-50 flex items-center justify-center border border-amber-200">
+                  <Radio className="h-7 w-7 text-amber-600 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">
+                    No Open Leads Available Right Now
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                    All customer booking requests in Guntur are currently claimed or assigned. New incoming bookings will broadcast here automatically in real-time.
+                  </p>
+                </div>
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+                  <span>Check for New Jobs</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5 text-amber-900">
+                    <Zap className="h-4.5 w-4.5 text-amber-600 shrink-0" />
+                    <span className="font-semibold leading-relaxed">
+                      <strong>First-Come, First-Serve Broadcast:</strong> Click <strong>"Accept Job"</strong> below to claim any task exclusively before other technicians accept it.
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    className="self-end sm:self-auto text-2xs font-extrabold uppercase text-amber-800 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-xl border border-amber-300 transition-all cursor-pointer shrink-0"
+                  >
+                    Refresh Leads
+                  </button>
+                </div>
+
+                {availableJobs.map((b) => {
+                  const customer =
+                    typeof b.customer === "string" ? JSON.parse(b.customer) : b.customer;
+                  const schedule =
+                    typeof b.schedule === "string" ? JSON.parse(b.schedule) : b.schedule;
+                  const items =
+                    typeof b.items === "string" ? JSON.parse(b.items) : b.items;
+                  const isClaiming = isClaimingJobId === b.id;
+
+                  return (
+                    <div
+                      key={b.id}
+                      className="bg-white border-2 border-amber-200 hover:border-amber-400 transition-all rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col md:flex-row justify-between gap-6 relative overflow-hidden"
+                    >
+                      {/* Top Right Live Tag */}
+                      <div className="absolute top-0 right-0 bg-amber-500 text-white text-[9px] font-black uppercase px-3 py-1 rounded-bl-xl tracking-wider shadow-xs flex items-center gap-1">
+                        <Radio className="h-2.5 w-2.5 animate-pulse" /> Open Broadcast
+                      </div>
+
+                      {/* Job Metadata */}
+                      <div className="space-y-4 flex-1">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-black text-amber-900 bg-amber-50 px-2.5 py-1 rounded border border-amber-200 uppercase">
+                              #{b.id.substring(0, 8).toUpperCase()}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" /> Instant Accept
+                            </span>
+                          </div>
+                          <div className="flex items-center flex-wrap gap-2 text-xs font-semibold text-slate-600 sm:mr-28">
+                            <span className="inline-flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-lg">
+                              <Calendar className="h-3.5 w-3.5 text-slate-500" />
+                              <span>{schedule?.date || "Date: TBD"}</span>
+                            </span>
+                            <span className="inline-flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-lg">
+                              <Clock className="h-3.5 w-3.5 text-slate-500" />
+                              <span>{schedule?.time || "Anytime"}</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Location / Area Masked Info */}
+                        <div className="bg-slate-50 border border-slate-200/80 p-3.5 sm:p-4 rounded-xl space-y-2.5 font-sans">
+                          <div className="flex items-start gap-2.5">
+                            <MapPin className="h-4.5 w-4.5 text-rose-500 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                Target Area / Locality
+                              </span>
+                              <span className="font-bold text-slate-800 text-sm block">
+                                {b.locality || customer?.locality || customer?.landmark || customer?.city || "Guntur (Central Area)"}
+                              </span>
+                              <span className="text-2xs text-slate-500 font-medium block mt-0.5">
+                                Full house/door address will unlock immediately when you accept the job.
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between border-t border-slate-200/60 pt-2 text-xs flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
+                              <User className="h-3.5 w-3.5 text-slate-400" />
+                              <span className="text-2xs font-bold text-slate-400 uppercase">Customer:</span>
+                              <span className="font-bold text-slate-700">{customer?.name || "Verified Customer"}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-2xs text-slate-400 font-mono">
+                              <Lock className="h-3 w-3 text-slate-400" />
+                              <span>Contact: {customer?.phone || "+91 ••••• •••••"}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Service checklist */}
+                        <div>
+                          <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                            Cleaning Services & Packages Checklist
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {items?.map((item: any, idx: number) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center gap-1.5 bg-white text-slate-800 font-bold px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-3xs"
+                              >
+                                <ShoppingBag className="h-3.5 w-3.5 text-amber-600" />
+                                <span>{item.title}</span>
+                                <span className="text-[#002a22] font-black bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
+                                  x{item.qty}
+                                </span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Accept Button & Direct Notice */}
+                      <div className="flex flex-col justify-between items-stretch md:items-end gap-4 md:border-l md:border-slate-100 md:pl-6 shrink-0 min-w-[220px]">
+                        <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-2xs text-slate-500 space-y-1 w-full font-sans">
+                          <div className="flex items-center gap-1 text-slate-700 font-bold">
+                            <Shield className="h-3.5 w-3.5 text-emerald-600" />
+                            <span>Direct Company Booking</span>
+                          </div>
+                          <p className="leading-relaxed text-[11px]">
+                            Booking amount & invoices are managed directly by HQ.
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => handleClaimJob(b.id)}
+                          disabled={isClaiming}
+                          className="w-full py-3.5 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-black text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                        >
+                          {isClaiming ? (
+                            <>
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                              <span>Claiming Job...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="h-4 w-4 fill-white" />
+                              <span>⚡ Accept Job (పనిని స్వీకరించు)</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )
           ) : isLoading ? (
@@ -984,11 +1259,28 @@ function TechnicianPortal() {
         </div>
       )}
       {/* Sticky Bottom Navigation Bar for Mobile */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 py-2.5 px-6 flex justify-around items-center md:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 py-2 px-3 flex justify-around items-center md:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+        <button
+          onClick={() => setActiveFilter("available")}
+          className={`flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${
+            activeFilter === "available" ? "text-amber-600 font-black" : "text-slate-400"
+          }`}
+        >
+          <span className="relative text-sm">
+            ⚡
+            {availableJobs.length > 0 && (
+              <span className="absolute -top-1.5 -right-2.5 bg-amber-500 text-white text-[8px] font-black rounded-full h-4 w-4 flex items-center justify-center border border-white animate-pulse">
+                {availableJobs.length}
+              </span>
+            )}
+          </span>
+          <span>Leads ({availableJobs.length})</span>
+        </button>
+
         <button
           onClick={() => setActiveFilter("assigned")}
-          className={`flex flex-col items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-            activeFilter === "assigned" ? "text-[#002a22]" : "text-slate-400"
+          className={`flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${
+            activeFilter === "assigned" ? "text-[#002a22] font-black" : "text-slate-400"
           }`}
         >
           <span className="relative text-sm">
@@ -1004,8 +1296,8 @@ function TechnicianPortal() {
 
         <button
           onClick={() => setActiveFilter("completed")}
-          className={`flex flex-col items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-            activeFilter === "completed" ? "text-emerald-700" : "text-slate-400"
+          className={`flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${
+            activeFilter === "completed" ? "text-emerald-700 font-black" : "text-slate-400"
           }`}
         >
           <span className="relative text-sm">
@@ -1021,7 +1313,7 @@ function TechnicianPortal() {
 
         <button
           onClick={() => setActiveFilter("profile")}
-          className={`flex flex-col items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+          className={`flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${
             activeFilter === "profile" ? "text-slate-800 font-black" : "text-slate-400"
           }`}
         >

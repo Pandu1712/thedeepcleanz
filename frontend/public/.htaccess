@@ -2,11 +2,45 @@
   RewriteEngine On
   RewriteBase /
 
-  # Proxy API calls to local Node Express server running on port 4000
+  # Proxy API calls to backend Node server running on port 4000
   RewriteRule ^api/(.*)$ http://127.0.0.1:4000/api/$1 [P,L]
 
-  # SPA Routing: Fallback all HTML requests to index.html
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
+  # Don't rewrite existing files, directories, or assets
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Fallback all other routes to index.html for SPA Client Routing
   RewriteRule ^ index.html [L]
+</IfModule>
+
+# Ensure accurate MIME types for modern CSS, ES Modules, Fonts & Images
+<IfModule mod_mime.c>
+  AddType text/css .css
+  AddType application/javascript .js .mjs
+  AddType image/webp .webp
+  AddType image/svg+xml .svg
+  AddType font/woff2 .woff2
+  AddType font/woff .woff
+  AddType application/json .json
+  AddType application/manifest+json .webmanifest
+</IfModule>
+
+# Cache headers: Immutable for hashed assets, No-cache for index.html & Service Worker
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
+  <FilesMatch "(sw\.js|manifest\.json)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
+  <FilesMatch "\.(css|js|woff2|woff|ttf|png|jpg|jpeg|webp|svg|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
 </IfModule>

@@ -5,12 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "node scripts/build.js",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "cap:sync": "node scripts/sync.js",
     "cap:open": "npx @capacitor/cli open android",
-    "build:mobile": "vite build && node scripts/sync.js",
+    "build:mobile": "node scripts/build.js && node scripts/sync.js",
     "postinstall": "node scripts/patch-capacitor.js",
     "lint": "eslint .",
     "format": "prettier --write ."

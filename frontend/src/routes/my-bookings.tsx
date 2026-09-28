@@ -292,8 +292,13 @@ function MyBookingsPage() {
     }
     const isBlocked = blockedDatesList.find((b) => b.date === newDate);
     if (isBlocked) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const isToday = newDate === todayStr;
+      const cleanReason = (isBlocked.reason && !/^admin\s*blocked/i.test(isBlocked.reason) && !/^blocked/i.test(isBlocked.reason)) ? isBlocked.reason : "Holiday";
       toast.error(
-        `⚠️ Selected date (${newDate}) is blocked for bookings: ${isBlocked.reason || "Holiday / No Orders"}. Please choose another date.`,
+        isToday
+          ? `🏖️ Today is a Holiday (${cleanReason}). Please choose an upcoming available date.`
+          : `🏖️ Selected date (${newDate}) is a Holiday (${cleanReason}). Please choose another date.`,
       );
       return;
     }
@@ -1799,8 +1804,13 @@ function MyBookingsPage() {
                     const picked = e.target.value;
                     const isBlocked = blockedDatesList.find((b) => b.date === picked);
                     if (isBlocked) {
+                      const todayStr = new Date().toISOString().slice(0, 10);
+                      const isToday = picked === todayStr;
+                      const cleanReason = (isBlocked.reason && !/^admin\s*blocked/i.test(isBlocked.reason) && !/^blocked/i.test(isBlocked.reason)) ? isBlocked.reason : "Holiday";
                       toast.error(
-                        `⚠️ Selected date (${picked}) is blocked: ${isBlocked.reason || "Holiday / No Orders"}. Please choose another date.`,
+                        isToday
+                          ? `🏖️ Today is a Holiday (${cleanReason}). Please choose an upcoming available date.`
+                          : `🏖️ Selected date (${picked}) is a Holiday (${cleanReason}). Please choose another date.`,
                       );
                     }
                     setNewDate(picked);
@@ -1815,7 +1825,7 @@ function MyBookingsPage() {
                   <p className="text-[10px] text-red-600 font-bold mt-1 flex items-center gap-1">
                     <span>⚠️</span>
                     <span>
-                      Blocked: {blockedDatesList.find((b) => b.date === newDate)?.reason || "Holiday"}
+                      Holiday: {((r) => (!r || /^admin\s*blocked/i.test(r) || /^blocked/i.test(r)) ? "Holiday" : r)(blockedDatesList.find((b) => b.date === newDate)?.reason)}
                     </span>
                   </p>
                 )}

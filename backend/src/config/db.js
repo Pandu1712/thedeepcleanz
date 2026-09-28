@@ -3551,9 +3551,15 @@ module.exports = {
     return { code: c.code, discount: c.discount };
   },
 
-  // Technicians methods
   async getTechnicians() {
     return await query("SELECT * FROM technicians ORDER BY name ASC");
+  },
+  async getTechnicianById(id) {
+    const res = await query(
+      "SELECT * FROM technicians WHERE id = ? LIMIT 1",
+      [id],
+    );
+    return res && res.length > 0 ? res[0] : null;
   },
   async getTechnicianByEmail(email) {
     const res = await query(
@@ -3568,6 +3574,61 @@ module.exports = {
       [phone.trim()],
     );
     return res && res.length > 0 ? res[0] : null;
+  },
+  async getAvailableBookings() {
+    const rows = await query(
+      "SELECT * FROM bookings WHERE (technicianId IS NULL OR technicianId = '') AND (jobStatus IS NULL OR (jobStatus != 'Cancelled' AND jobStatus != 'Completed')) ORDER BY id DESC",
+    );
+    return (rows || []).map((b) => {
+      let customer = {};
+      let schedule = {};
+      let items = [];
+      try {
+        customer = typeof b.customer === "string" ? JSON.parse(b.customer) : b.customer || {};
+      } catch (e) {}
+      try {
+        schedule = typeof b.schedule === "string" ? JSON.parse(b.schedule) : b.schedule || {};
+      } catch (e) {}
+      try {
+        items = typeof b.items === "string" ? JSON.parse(b.items) : b.items || [];
+      } catch (e) {}
+
+      // MASK PRIVATE BUSINESS DATA (Prices, amounts, full customer phone)
+      // Only include area, city, landmark, date, time, service names, and clean inclusions
+      const sanitizedItems = items.map((it) => ({
+        title: it.title || it.serviceTitle || "Cleaning Service",
+        category: it.category || it.categoryTitle || "",
+        selectedPlan: it.selectedPlan ? {
+          name: it.selectedPlan.name,
+          duration: it.selectedPlan.duration,
+          includes: it.selectedPlan.includes || [],
+        } : null,
+      }));
+
+      return {
+        id: b.id,
+        createdAt: b.createdAt,
+        schedule: {
+          date: schedule.date || "",
+          time: schedule.time || "",
+        },
+        location: {
+          area: customer.address || customer.locality || "Customer Locality",
+          city: customer.city || "Guntur",
+          landmark: customer.landmark || "",
+        },
+        items: sanitizedItems,
+        jobStatus: b.jobStatus || "Open",
+        technicianId: null,
+      };
+    });
+  },
+  async claimBooking(bookingId, technicianId) {
+    const res = await query(
+      "UPDATE bookings SET technicianId = ?, jobStatus = 'Assigned' WHERE id = ? AND (technicianId IS NULL OR technicianId = '')",
+      [technicianId, bookingId],
+    );
+    return res && res.affectedRows > 0;
   },
   async getTechnicianBookings(technicianId) {
     const rows = await query(
