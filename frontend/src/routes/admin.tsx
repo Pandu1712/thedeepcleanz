@@ -525,12 +525,34 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const refreshData = async () => {
     setIsRefreshing(true);
     try {
-      const catalog = await fetchAdminCatalog();
-      const bData = await fetchBookings();
-      const uData = await fetchUsers();
-      const custData = await fetchCustomizedServices();
-      const coupData = await fetchCoupons();
-      const adminList = await fetchAdmins();
+      const [
+        catalog,
+        bData,
+        uData,
+        custData,
+        coupData,
+        adminList,
+        techData,
+        rlogs,
+        transData,
+        blkData,
+        settingsRes,
+      ] = await Promise.all([
+        fetchAdminCatalog().catch(() => ({ categories: [], services: [] })),
+        fetchBookings().catch(() => []),
+        fetchUsers().catch(() => []),
+        fetchCustomizedServices().catch(() => []),
+        fetchCoupons().catch(() => []),
+        fetchAdmins().catch(() => []),
+        fetchTechnicians().catch(() => []),
+        fetchRescheduleLogs().catch(() => []),
+        fetchRecentTransformations().catch(() => []),
+        fetchBlockedDates().catch(() => []),
+        fetch(`${ADMIN_API_URL}/api/settings`)
+          .then((r) => (r.ok ? r.json() : {}))
+          .catch(() => ({})),
+      ]);
+
       setCategories(catalog.categories || []);
       setServices(catalog.services || []);
       setBookings(bData || []);
@@ -538,54 +560,39 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       setCustomizedServices(custData || []);
       setCoupons(coupData || []);
       setAdmins(adminList || []);
-
-      const techData = await fetchTechnicians();
       setTechnicians(techData || []);
-
-      const rlogs = await fetchRescheduleLogs();
       setRescheduleLogsList(rlogs || []);
-
-      const transData = await fetchRecentTransformations();
       setTransformations(transData || []);
-
-      const blkData = await fetchBlockedDates();
       setBlockedDatesList(blkData || []);
 
-      // Fetch travel distance pricing configurations
-      try {
-        const sRes = await fetch(`${ADMIN_API_URL}/api/settings`);
-        if (sRes.ok) {
-          const settings = await sRes.json();
-          if (settings.travel_rate_per_km !== undefined) {
-            setAdmTravelRate(parseFloat(settings.travel_rate_per_km));
-          }
-          if (settings.travel_free_radius_km !== undefined) {
-            setAdmFreeRadius(parseFloat(settings.travel_free_radius_km));
-          }
-          if (settings.referral_reward_amount !== undefined) {
-            setAdmReferralReward(parseFloat(settings.referral_reward_amount));
-          }
-          if (settings.referral_enabled !== undefined) {
-            setAdmReferralEnabled(settings.referral_enabled !== "0");
-          }
-          if (settings.header_promo_text !== undefined) {
-            setAdmPromoText(settings.header_promo_text);
-          }
-          if (settings.header_promo_code !== undefined) {
-            setAdmPromoCode(settings.header_promo_code);
-          }
-          if (settings.whatsapp_enabled !== undefined) {
-            setAdmWhatsappEnabled(settings.whatsapp_enabled !== "0");
-          }
-          if (settings.whatsapp_admin_phone !== undefined) {
-            setAdmWhatsappPhone(settings.whatsapp_admin_phone);
-          }
-          if (settings.whatsapp_api_key !== undefined) {
-            setAdmWhatsappApiKey(settings.whatsapp_api_key);
-          }
+      if (settingsRes) {
+        if (settingsRes.travel_rate_per_km !== undefined) {
+          setAdmTravelRate(parseFloat(settingsRes.travel_rate_per_km));
         }
-      } catch (err) {
-        console.warn("Failed to fetch settings:", err);
+        if (settingsRes.travel_free_radius_km !== undefined) {
+          setAdmFreeRadius(parseFloat(settingsRes.travel_free_radius_km));
+        }
+        if (settingsRes.referral_reward_amount !== undefined) {
+          setAdmReferralReward(parseFloat(settingsRes.referral_reward_amount));
+        }
+        if (settingsRes.referral_enabled !== undefined) {
+          setAdmReferralEnabled(settingsRes.referral_enabled !== "0");
+        }
+        if (settingsRes.header_promo_text !== undefined) {
+          setAdmPromoText(settingsRes.header_promo_text);
+        }
+        if (settingsRes.header_promo_code !== undefined) {
+          setAdmPromoCode(settingsRes.header_promo_code);
+        }
+        if (settingsRes.whatsapp_enabled !== undefined) {
+          setAdmWhatsappEnabled(settingsRes.whatsapp_enabled !== "0");
+        }
+        if (settingsRes.whatsapp_admin_phone !== undefined) {
+          setAdmWhatsappPhone(settingsRes.whatsapp_admin_phone);
+        }
+        if (settingsRes.whatsapp_api_key !== undefined) {
+          setAdmWhatsappApiKey(settingsRes.whatsapp_api_key);
+        }
       }
 
       // Pre-select category/service if empty
@@ -615,7 +622,6 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       setSyncTime(
         now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
       );
-      toast.success("Dashboard data synchronized!");
     } catch (err) {
       console.warn("Backend API endpoint offline or static mode active:", err);
       const now = new Date();
@@ -748,16 +754,26 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
 
       if (activeTechnicianId.startsWith("new-")) {
         const created = await createTechnician(payload);
-        setTechnicians((prev) => [...prev, created]);
-        setActiveTechnicianId(created.id);
+        if (created) {
+          setTechnicians((prev) => {
+            const exists = prev.some((t) => t.id === created.id);
+            return exists ? prev.map((t) => (t.id === created.id ? created : t)) : [...prev, created];
+          });
+          selectTechnician(created);
+        }
         toast.success("Technician added successfully!");
       } else {
         const updated = await updateTechnician(activeTechnicianId, payload);
-        setTechnicians((prev) => prev.map((t) => (t.id === activeTechnicianId ? updated : t)));
+        if (updated) {
+          setTechnicians((prev) => prev.map((t) => (t.id === activeTechnicianId ? updated : t)));
+          selectTechnician(updated);
+        }
         toast.success("Technician details updated!");
       }
       setTechPassword("");
-      refreshData();
+      fetchTechnicians().then((list) => {
+        if (list && Array.isArray(list)) setTechnicians(list);
+      }).catch(() => {});
     } catch (err: any) {
       toast.error(`Save failed: ${err.message}`);
     }
@@ -770,7 +786,9 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       setTechnicians((prev) => prev.filter((t) => t.id !== id));
       setActiveTechnicianId("");
       toast.success("Technician deleted.");
-      refreshData();
+      fetchTechnicians().then((list) => {
+        if (list && Array.isArray(list)) setTechnicians(list);
+      }).catch(() => {});
     } catch (err: any) {
       toast.error(`Delete failed: ${err.message}`);
     }

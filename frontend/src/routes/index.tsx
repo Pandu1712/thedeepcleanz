@@ -4305,7 +4305,7 @@ function Index() {
           <div className="rounded-3xl overflow-hidden border border-[#f1ede6] shadow-md hover:shadow-lg transition-all duration-300 h-80 w-full relative group">
             {/* Absolute overlay visual hint */}
             <div className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3.5 py-1.5 bg-[#002a22] border border-[#cb9f5a]/30 rounded-full text-[10px] font-bold text-white shadow-md">
-              <Map className="h-3.5 w-3.5 text-[#cb9f5a]" />
+              <MapIcon className="h-3.5 w-3.5 text-[#cb9f5a]" />
               <span>Headquarters Location Map</span>
             </div>
 
