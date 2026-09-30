@@ -68,6 +68,12 @@
       gtag('js', new Date());
 
       gtag('config', 'G-KCXSZYY046');
+
+      // Auto-recover seamlessly when a dynamic chunk fails due to a live version update
+      window.addEventListener('vite:preloadError', (event) => {
+        console.warn('New app version detected. Seamlessly refreshing...');
+        window.location.reload();
+      });
     </script>
 
     <!-- Preconnect & Fonts -->

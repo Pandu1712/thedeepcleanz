@@ -40,19 +40,19 @@ function NotFoundComponent() {
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error("Application error:", error);
-  const router = useRouter();
 
   useEffect(() => {
-    const msg = error?.message || "";
+    const msg = (error?.message || "").toLowerCase();
     if (
-      msg.includes("Failed to fetch dynamically imported module") ||
-      msg.includes("Importing a module script failed") ||
-      msg.includes("Loading chunk") ||
-      msg.includes("dynamically imported")
+      msg.includes("failed to fetch dynamically imported module") ||
+      msg.includes("importing a module script failed") ||
+      msg.includes("loading chunk") ||
+      msg.includes("dynamically imported") ||
+      msg.includes("error loading dynamic import")
     ) {
       const now = Date.now();
       const lastReload = Number(sessionStorage.getItem("last_chunk_reload") || "0");
-      if (now - lastReload > 10000) {
+      if (now - lastReload > 3000) {
         sessionStorage.setItem("last_chunk_reload", String(now));
         window.location.reload();
       }
