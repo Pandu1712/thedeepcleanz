@@ -857,6 +857,19 @@ function ServiceDetailPage() {
     setBookingOpen(true);
   }, [handleAddToCart]);
 
+  const handleCloseBooking = useCallback(() => {
+    setBookingOpen(false);
+  }, []);
+
+  const handleCloseCart = useCallback(() => {
+    setCartOpen(false);
+  }, []);
+
+  const handleCartCheckout = useCallback(() => {
+    setCartOpen(false);
+    setBookingOpen(true);
+  }, []);
+
   const handleConfirmBooking = useCallback(() => {
     setCart([]);
     setBookingOpen(false);
@@ -1915,15 +1928,12 @@ function ServiceDetailPage() {
       {/* DRAWERS & MODALS */}
       <CartDrawer
         open={cartOpen}
-        onClose={() => setCartOpen(false)}
+        onClose={handleCloseCart}
         cart={cart}
         total={cartTotal}
         updateQty={updateQty}
         removeItem={removeItem}
-        onCheckout={() => {
-          setCartOpen(false);
-          setBookingOpen(true);
-        }}
+        onCheckout={handleCartCheckout}
         onAddItem={addRawItemToCart}
         allServices={categories.flatMap((c) => c.services || [])}
         customizedServices={customizedServices}
@@ -1931,7 +1941,7 @@ function ServiceDetailPage() {
 
       <BookingModal
         open={bookingOpen}
-        onClose={() => setBookingOpen(false)}
+        onClose={handleCloseBooking}
         cart={cart}
         total={cartTotal}
         onConfirm={handleConfirmBooking}

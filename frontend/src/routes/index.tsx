@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
+import { useState, useMemo, useEffect, useRef, memo, useCallback, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   Sparkles,
@@ -5954,7 +5954,7 @@ const BOOKING_ADD_ON_SERVICES = [
   },
 ];
 
-export function BookingModal({
+export const BookingModal = memo(function BookingModal({
   open,
   onClose,
   cart,
@@ -6061,30 +6061,30 @@ export function BookingModal({
     return r;
   };
 
-  // Sync calendarViewMonth only when year or month changes
+  // Sync calendarViewMonth only when year or month changes and modal is open
   useEffect(() => {
-    if (form.date) {
-      const parts = form.date.split("-");
-      if (parts.length === 3) {
-        const y = Number(parts[0]);
-        const m = Number(parts[1]) - 1;
-        if (!isNaN(y) && !isNaN(m)) {
-          setCalendarViewMonth((prev) => {
-            if (prev.getFullYear() === y && prev.getMonth() === m) {
-              return prev;
-            }
-            return new Date(y, m, 1);
-          });
-        }
+    if (!open || !form.date) return;
+    const parts = form.date.split("-");
+    if (parts.length === 3) {
+      const y = Number(parts[0]);
+      const m = Number(parts[1]) - 1;
+      if (!isNaN(y) && !isNaN(m)) {
+        setCalendarViewMonth((prev) => {
+          if (prev.getFullYear() === y && prev.getMonth() === m) {
+            return prev;
+          }
+          return new Date(y, m, 1);
+        });
       }
     }
-  }, [form.date]);
+  }, [open, form.date]);
 
   const calendarYear = calendarViewMonth.getFullYear();
   const calendarMonthIndex = calendarViewMonth.getMonth();
   const calendarMonthLabel = calendarViewMonth.toLocaleString("en-IN", { month: "long", year: "numeric" });
 
   const calendarGrid = useMemo(() => {
+    if (!open) return { cells: [], todayFormatted: "" };
     const y = calendarYear;
     const m = calendarMonthIndex;
     const firstDayIndex = new Date(y, m, 1).getDay();
@@ -6093,6 +6093,11 @@ export function BookingModal({
 
     const todayObj = new Date();
     const todayFormatted = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, "0")}-${String(todayObj.getDate()).padStart(2, "0")}`;
+
+    const blockedMap = new Map<string, string | undefined>();
+    for (const b of blockedDates) {
+      if (b && b.date) blockedMap.set(b.date, b.reason);
+    }
 
     const cells: Array<{
       day: number;
@@ -6125,8 +6130,8 @@ export function BookingModal({
     // Current month days
     for (let d = 1; d <= daysInMonth; d++) {
       const dStr = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const isBlocked = blockedDates.some((b) => b.date === dStr);
-      const blockedInfo = blockedDates.find((b) => b.date === dStr);
+      const isBlocked = blockedMap.has(dStr);
+      const blockedReason = blockedMap.get(dStr);
       const isPast = dStr < todayFormatted;
       const isSelected = form.date === dStr;
       const isToday = dStr === todayFormatted;
@@ -6137,7 +6142,7 @@ export function BookingModal({
         dateStr: dStr,
         isPast,
         isBlocked,
-        blockedReason: blockedInfo?.reason,
+        blockedReason,
         isSelected,
         isToday,
       });
@@ -6161,10 +6166,11 @@ export function BookingModal({
     }
 
     return { cells, todayFormatted };
-  }, [calendarYear, calendarMonthIndex, blockedDates, form.date]);
+  }, [open, calendarYear, calendarMonthIndex, blockedDates, form.date]);
 
   // Pre-calculated upcoming date chips to prevent render churn
   const quickPickDateChips = useMemo(() => {
+    if (!open) return [];
     const chips = [];
     const today = new Date();
     const todayY = today.getFullYear();
@@ -6172,14 +6178,20 @@ export function BookingModal({
     const todayD = String(today.getDate()).padStart(2, "0");
     const todayFormatted = `${todayY}-${todayM}-${todayD}`;
 
+    const blockedMap = new Map<string, string | undefined>();
+    for (const b of blockedDates) {
+      if (b && b.date) blockedMap.set(b.date, b.reason);
+    }
+
+    const todayAllPassed = areAllSlotsPassedToday(todayFormatted, 30);
+
     for (let i = 0; i < 7; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
+      const d = new Date(today.getTime() + i * 86400000);
       const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       const isToday = dStr === todayFormatted;
-      const isTodayClosed = isToday && areAllSlotsPassedToday(dStr, 30);
-      const isBlocked = blockedDates.some((b) => b.date === dStr);
-      const blockInfo = blockedDates.find((b) => b.date === dStr);
+      const isTodayClosed = isToday && todayAllPassed;
+      const isBlocked = blockedMap.has(dStr);
+      const blockReason = blockedMap.get(dStr);
       const label =
         i === 0
           ? isBlocked
@@ -6202,10 +6214,10 @@ export function BookingModal({
                   day: "numeric",
                   month: "short",
                 });
-      chips.push({ dStr, label, isBlocked, blockInfo, isTodayClosed });
+      chips.push({ dStr, label, isBlocked, blockInfo: { reason: blockReason }, isTodayClosed });
     }
     return chips;
-  }, [blockedDates]);
+  }, [open, blockedDates]);
 
   const [showOtpVerification, setShowOtpVerification] = useState(false);
   const [otpInput, setOtpInput] = useState("");
@@ -6683,172 +6695,173 @@ export function BookingModal({
   };
 
   useEffect(() => {
-    if (open) {
-      setSuccess(false);
-      setDiscount(0);
-      setPayMethod("razorpay");
-      setIsPaying(false);
-      setShowAuthGate(false);
-      setAuthIsRegister(false);
-      setShowOtpVerification(false);
-      setOtpInput("");
+    if (!open) return;
+    let isMounted = true;
 
-      const defaultDate = getDefaultBookingDate();
-      let initName = "";
-      let initPhone = "";
-      let initEmail = "";
-      let initAddress = "";
-      let initLandmark = "";
-      let initCity = "Guntur";
-      let initPincode = "";
-      let loadedAddresses: any[] = [];
+    setSuccess(false);
+    setDiscount(0);
+    setPayMethod("razorpay");
+    setIsPaying(false);
+    setShowAuthGate(false);
+    setAuthIsRegister(false);
+    setShowOtpVerification(false);
+    setOtpInput("");
 
-      try {
-        // 1. Check logged-in user profile from session or local storage
-        const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
-        if (prof) {
-          const u = JSON.parse(prof);
-          if (u.name) initName = u.name;
-          if (u.phone) {
-            initPhone = u.phone;
-          }
-          if (u.email && !u.email.endsWith("@thedeepcleanerz.com")) {
-            initEmail = u.email;
-          }
-          if (Array.isArray(u.addresses) && u.addresses.length > 0) {
-            loadedAddresses = u.addresses;
+    const defaultDate = getDefaultBookingDate();
+    let initName = "";
+    let initPhone = "";
+    let initEmail = "";
+    let initAddress = "";
+    let initLandmark = "";
+    let initCity = "Guntur";
+    let initPincode = "";
+    let loadedAddresses: any[] = [];
+
+    try {
+      // 1. Check logged-in user profile from session or local storage
+      const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
+      if (prof) {
+        const u = JSON.parse(prof);
+        if (u.name) initName = u.name;
+        if (u.phone) {
+          initPhone = u.phone;
+        }
+        if (u.email && !u.email.endsWith("@thedeepcleanerz.com")) {
+          initEmail = u.email;
+        }
+        if (Array.isArray(u.addresses) && u.addresses.length > 0) {
+          loadedAddresses = u.addresses;
+        }
+      }
+
+      if (!initEmail) {
+        const se = sessionStorage.getItem("user_email") || localStorage.getItem("user_email");
+        if (se && !se.endsWith("@thedeepcleanerz.com")) {
+          initEmail = se;
+        }
+      }
+
+      // 2. Check local saved contact
+      const savedContact = localStorage.getItem("thedeepcleanz_saved_contact");
+      if (savedContact) {
+        const sc = JSON.parse(savedContact);
+        if (sc.name && !initName) initName = sc.name;
+        if (sc.phone && !initPhone) initPhone = sc.phone;
+        if (sc.email && !initEmail && !sc.email.endsWith("@thedeepcleanerz.com")) initEmail = sc.email;
+      }
+
+      // 3. Check local saved addresses
+      if (loadedAddresses.length === 0) {
+        const savedLocAddrs = localStorage.getItem("thedeepcleanz_saved_addresses");
+        if (savedLocAddrs) {
+          const parsed = JSON.parse(savedLocAddrs);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            loadedAddresses = parsed;
           }
         }
+      }
 
-        if (!initEmail) {
-          const se = sessionStorage.getItem("user_email") || localStorage.getItem("user_email");
-          if (se && !se.endsWith("@thedeepcleanerz.com")) {
-            initEmail = se;
-          }
-        }
-
-        // 2. Check local saved contact
-        const savedContact = localStorage.getItem("thedeepcleanz_saved_contact");
-        if (savedContact) {
-          const sc = JSON.parse(savedContact);
-          if (sc.name && !initName) initName = sc.name;
-          if (sc.phone && !initPhone) initPhone = sc.phone;
-          if (sc.email && !initEmail && !sc.email.endsWith("@thedeepcleanerz.com")) initEmail = sc.email;
-        }
-
-        // 3. Check local saved addresses
-        if (loadedAddresses.length === 0) {
-          const savedLocAddrs = localStorage.getItem("thedeepcleanz_saved_addresses");
-          if (savedLocAddrs) {
-            const parsed = JSON.parse(savedLocAddrs);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              loadedAddresses = parsed;
-            }
-          }
-        }
-
-        if (loadedAddresses.length > 0) {
-          setSavedAddresses(loadedAddresses);
-          const defaultAddr = loadedAddresses.find((a: any) => a.isDefault) || loadedAddresses[0];
-          initAddress = defaultAddr.address || "";
-          initLandmark = defaultAddr.landmark || "";
-          initCity = defaultAddr.city || "Guntur";
-          initPincode = defaultAddr.pincode || "";
-          setShowCheckoutAddressForm(false);
-        } else {
-          setSavedAddresses([]);
-          initAddress = "";
-          initLandmark = "";
-          initCity = "Guntur";
-          initPincode = "";
-          setShowCheckoutAddressForm(true);
-        }
-      } catch (e) {
+      if (loadedAddresses.length > 0) {
+        setSavedAddresses(loadedAddresses);
+        const defaultAddr = loadedAddresses.find((a: any) => a.isDefault) || loadedAddresses[0];
+        initAddress = defaultAddr.address || "";
+        initLandmark = defaultAddr.landmark || "";
+        initCity = defaultAddr.city || "Guntur";
+        initPincode = defaultAddr.pincode || "";
+        setShowCheckoutAddressForm(false);
+      } else {
         setSavedAddresses([]);
+        initAddress = "";
+        initLandmark = "";
+        initCity = "Guntur";
+        initPincode = "";
         setShowCheckoutAddressForm(true);
       }
+    } catch (e) {
+      setSavedAddresses([]);
+      setShowCheckoutAddressForm(true);
+    }
 
-      setOtpVerified(false);
+    setOtpVerified(false);
 
-      // If name or phone is missing, open contact editor
-      if (!initName.trim() || initPhone.replace(/\D/g, "").length < 10) {
-        setEditingContact(true);
-      } else {
-        setEditingContact(false);
-      }
+    // If name or phone is missing, open contact editor
+    if (!initName.trim() || initPhone.replace(/\D/g, "").length < 10) {
+      setEditingContact(true);
+    } else {
+      setEditingContact(false);
+    }
 
-      setForm((f) => ({
-        ...f,
-        name: initName || f.name,
-        phone: initPhone || f.phone,
-        email: initEmail || f.email,
-        date: f.date || defaultDate,
-        address: initAddress || f.address,
-        landmark: initLandmark || f.landmark,
-        city: initCity || f.city,
-        pincode: initPincode || f.pincode,
-      }));
+    setForm((f) => ({
+      ...f,
+      name: initName || f.name,
+      phone: initPhone || f.phone,
+      email: initEmail || f.email,
+      date: f.date || defaultDate,
+      address: initAddress || f.address,
+      landmark: initLandmark || f.landmark,
+      city: initCity || f.city,
+      pincode: initPincode || f.pincode,
+    }));
 
-      // Async live lookup of profile & address if phone number is present
-      if (initPhone && initPhone.replace(/\D/g, "").length === 10) {
-        fetch(`${ADMIN_API_URL}/api/auth/profile-by-phone?phone=${initPhone.replace(/\D/g, "")}`)
-          .then((r) => (r.ok ? r.json() : null))
-          .then((data) => {
-            if (data?.user) {
-              if (data.user.name && (!initName || initName === "Customer")) {
-                setForm((f) => ({ ...f, name: data.user.name }));
-              }
-              if (data.user.email && !data.user.email.endsWith("@thedeepcleanerz.com")) {
-                setForm((f) => ({ ...f, email: data.user.email }));
-              }
-              if (Array.isArray(data.user.addresses) && data.user.addresses.length > 0 && loadedAddresses.length === 0) {
-                setSavedAddresses(data.user.addresses);
-              }
-            }
-          })
-          .catch(() => {});
-      }
-
-      fetchBlockedDates()
-        .then((bData) => {
-          const list = Array.isArray(bData) ? bData : [];
-          setBlockedDates(list);
-
-          setForm((f) => {
-            const isDateBlocked = (d: string) => list.some((b) => b.date === d);
-            let target = f.date || defaultDate;
-            if (isDateBlocked(target)) {
-              let dObj = new Date(target + "T00:00:00");
-              for (let i = 0; i < 30; i++) {
-                dObj.setDate(dObj.getDate() + 1);
-                const dStr = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, "0")}-${String(dObj.getDate()).padStart(2, "0")}`;
-                if (!isDateBlocked(dStr)) {
-                  const slot = getFirstAvailableSlot(dStr, [], 30) || "08:00 AM";
-                  return { ...f, date: dStr, time: slot };
-                }
-              }
-            }
-            return f;
-          });
+    // Async live lookup of profile & address if phone number is present
+    if (initPhone && initPhone.replace(/\D/g, "").length === 10) {
+      fetch(`${ADMIN_API_URL}/api/auth/profile-by-phone?phone=${initPhone.replace(/\D/g, "")}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!isMounted || !data?.user) return;
+          if (data.user.name && (!initName || initName === "Customer")) {
+            setForm((f) => ({ ...f, name: data.user.name }));
+          }
+          if (data.user.email && !data.user.email.endsWith("@thedeepcleanerz.com")) {
+            setForm((f) => ({ ...f, email: data.user.email }));
+          }
+          if (Array.isArray(data.user.addresses) && data.user.addresses.length > 0 && loadedAddresses.length === 0) {
+            setSavedAddresses(data.user.addresses);
+          }
         })
         .catch(() => {});
-
-      fetchCoupons()
-        .then(setAvailableCoupons)
-        .catch(() => {});
     }
+
+    Promise.all([fetchBlockedDates(), fetchCoupons()])
+      .then(([bData, cData]) => {
+        if (!isMounted) return;
+        const list = Array.isArray(bData) ? bData : [];
+        setBlockedDates(list);
+        if (Array.isArray(cData)) setAvailableCoupons(cData);
+
+        setForm((f) => {
+          const isDateBlocked = (d: string) => list.some((b) => b && b.date === d);
+          let target = f.date || defaultDate;
+          if (isDateBlocked(target)) {
+            let dObj = new Date(target + "T00:00:00");
+            for (let i = 0; i < 30; i++) {
+              dObj.setDate(dObj.getDate() + 1);
+              const dStr = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, "0")}-${String(dObj.getDate()).padStart(2, "0")}`;
+              if (!isDateBlocked(dStr)) {
+                const slot = getFirstAvailableSlot(dStr, [], 30) || "08:00 AM";
+                return { ...f, date: dStr, time: slot };
+              }
+            }
+          }
+          return f;
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
   }, [open]);
 
   // Fetch occupied slots whenever selected date changes
   useEffect(() => {
     if (!open || !form.date) return;
-    let active = true;
+    let isMounted = true;
     setIsLoadingSlots(true);
     fetchBookedSlots(form.date)
       .then((res) => {
-        if (!active) return;
+        if (!isMounted) return;
         setBookedSlotsInfo(res);
-        // If current slot is booked OR is in the past for today, auto-select the first available valid slot
         const currentNorm = normalizeTimeSlot(form.time);
         const isCurrentBooked = res.normalizedSlots.includes(currentNorm);
         const isCurrentPast = isSlotInPast(form.time, form.date, 30);
@@ -6862,23 +6875,67 @@ export function BookingModal({
       })
       .catch(() => {})
       .finally(() => {
-        if (active) setIsLoadingSlots(false);
+        if (isMounted) setIsLoadingSlots(false);
       });
     return () => {
-      active = false;
+      isMounted = false;
     };
   }, [open, form.date]);
 
   const filteredGuntur = useMemo(() => {
-    const query = form.landmark.toLowerCase();
+    if (!open || !form.landmark || form.landmark.trim().length < 2) return [];
+    const query = form.landmark.toLowerCase().trim();
     return GUNTUR_LOCATIONS.filter(
       (loc) =>
         loc.area.toLowerCase().includes(query) ||
         loc.landmark.toLowerCase().includes(query) ||
         loc.city.toLowerCase().includes(query) ||
         loc.pincode.includes(query),
-    );
-  }, [form.landmark]);
+    ).slice(0, 8);
+  }, [open, form.landmark]);
+
+  const userWalletBalance = useMemo(() => {
+    if (!open) return 0;
+    try {
+      const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
+      if (prof) {
+        const u = JSON.parse(prof);
+        return u.walletBalance || 0;
+      }
+    } catch (e) {}
+    return 0;
+  }, [open]);
+
+  // Calculations matching video payment breakdown:
+  // Item Total + Taxes & Fees (5%) - Discount - Wallet = Total Amount
+  // Advance Payment (~15-20%) | Remaining Amount (Pay after service)
+  const itemTotal = useMemo(() => {
+    return cart.reduce((sum, i) => sum + i.price * i.qty, 0) || total;
+  }, [cart, total]);
+
+  const isCustomQuote = useMemo(() => {
+    return itemTotal === 0 || (cart.length > 0 && cart.every((i) => i.price === 0));
+  }, [itemTotal, cart]);
+
+  const taxesAndFees = useMemo(() => {
+    return isCustomQuote ? 0 : Math.round(itemTotal * 0.05); // 5% Safety & Platform charges
+  }, [isCustomQuote, itemTotal]);
+
+  const totalBeforeDiscounts = itemTotal + taxesAndFees;
+  const totalAfterDiscount = Math.max(0, totalBeforeDiscounts - discount);
+  const appliedWalletCredit = useWalletCredit
+    ? Math.min(userWalletBalance, totalAfterDiscount)
+    : 0;
+  const grandTotal = Math.max(0, totalAfterDiscount - appliedWalletCredit);
+  
+  // Advance payment is standard ~15% (min ₹299, rounded) or full if item is small
+  const isFreeAdvance = isCustomQuote || cart.some((i) => i.paymentType === "free_advance");
+  const upfrontPayAmount = isFreeAdvance 
+    ? 0 
+    : grandTotal > 1500 
+      ? Math.round((grandTotal * 0.18) / 5) * 5 // Clean rounded 18% advance
+      : grandTotal;
+  const payLaterAmount = Math.max(0, grandTotal - upfrontPayAmount);
 
   if (!open) return null;
 
@@ -6983,39 +7040,6 @@ export function BookingModal({
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
     );
   };
-
-  const userWalletBalance = (() => {
-    try {
-      const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
-      if (prof) {
-        const u = JSON.parse(prof);
-        return u.walletBalance || 0;
-      }
-    } catch (e) {}
-    return 0;
-  })();
-
-  // Calculations matching video payment breakdown:
-  // Item Total + Taxes & Fees (5%) - Discount - Wallet = Total Amount
-  // Advance Payment (~15-20%) | Remaining Amount (Pay after service)
-  const itemTotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0) || total;
-  const isCustomQuote = itemTotal === 0 || (cart.length > 0 && cart.every((i) => i.price === 0));
-  const taxesAndFees = isCustomQuote ? 0 : Math.round(itemTotal * 0.05); // 5% Safety & Platform charges
-  const totalBeforeDiscounts = itemTotal + taxesAndFees;
-  const totalAfterDiscount = Math.max(0, totalBeforeDiscounts - discount);
-  const appliedWalletCredit = useWalletCredit
-    ? Math.min(userWalletBalance, totalAfterDiscount)
-    : 0;
-  const grandTotal = Math.max(0, totalAfterDiscount - appliedWalletCredit);
-  
-  // Advance payment is standard ~15% (min ₹299, rounded) or full if item is small
-  const isFreeAdvance = isCustomQuote || cart.some((i) => i.paymentType === "free_advance");
-  const upfrontPayAmount = isFreeAdvance 
-    ? 0 
-    : grandTotal > 1500 
-      ? Math.round((grandTotal * 0.18) / 5) * 5 // Clean rounded 18% advance
-      : grandTotal;
-  const payLaterAmount = Math.max(0, grandTotal - upfrontPayAmount);
 
   const handleConfirm = async () => {
     if (!form.name.trim() || form.phone.replace(/\D/g, "").length < 10) {
@@ -8418,7 +8442,7 @@ export function BookingModal({
       </div>
     </div>
   );
-}
+});
 
 function Field({
   label,
