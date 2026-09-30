@@ -6316,13 +6316,8 @@ export const BookingModal = memo(function BookingModal({
           throw new Error(data?.error || "Failed to send verification OTP.");
         }
         setConfirmationResult(null); // Backend OTP session
-        setOtpSentMessage(data.message || `Verification code sent to +91 ${cleanPhone}.`);
-        if (data.devOtp) {
-          console.log("Development OTP:", data.devOtp);
-          toast.info(`OTP Code: ${data.devOtp}`, { icon: "🔑", duration: 7000 });
-        } else {
-          toast.success("Verification code sent to your phone!", { icon: "📨" });
-        }
+        setOtpSentMessage(data?.message || `Verification code sent to +91 ${cleanPhone}.`);
+        toast.success("Verification code sent to your mobile phone via SMS!", { icon: "📨" });
         setShowOtpVerification(true);
       } catch (err: any) {
         toast.error(err.message || "Failed to send OTP code. Please try again.");
