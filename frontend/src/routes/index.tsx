@@ -5978,9 +5978,27 @@ export function BookingModal({
   const [form, setForm] = useState(() => {
     const defaultDate = getDefaultBookingDate();
     const defaultSlot = getFirstAvailableSlot(defaultDate, [], 30) || "08:00 AM";
+    let initEmail = "";
+    try {
+      const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
+      if (prof) {
+        const u = JSON.parse(prof);
+        if (u.email && !u.email.endsWith("@thedeepcleanerz.com")) {
+          initEmail = u.email;
+        }
+      }
+      if (!initEmail) {
+        const se = sessionStorage.getItem("user_email") || localStorage.getItem("user_email");
+        if (se && !se.endsWith("@thedeepcleanerz.com")) {
+          initEmail = se;
+        }
+      }
+    } catch (e) {}
+
     return {
       name: "",
       phone: "",
+      email: initEmail,
       address: "",
       landmark: "",
       mapsLink: "",
@@ -6327,11 +6345,16 @@ export function BookingModal({
     }
 
     const cleanCustomerPhone = (currentPhone || form.phone).replace(/\D/g, "");
+    const finalCustomerEmail =
+      form.email.trim() ||
+      currentUserEmail ||
+      sessionStorage.getItem("user_email") ||
+      `${cleanCustomerPhone}@thedeepcleanerz.com`;
 
     const customerPayload = {
       name: currentName || "Customer",
       phone: cleanCustomerPhone,
-      email: currentUserEmail || sessionStorage.getItem("user_email") || `${cleanCustomerPhone}@thedeepcleanerz.com`,
+      email: finalCustomerEmail,
       address: form.address,
       landmark: form.landmark,
       mapsLink: form.mapsLink,
@@ -6396,6 +6419,7 @@ export function BookingModal({
           prefill: {
             name: currentName,
             contact: cleanCustomerPhone,
+            email: finalCustomerEmail.endsWith("@thedeepcleanerz.com") ? "" : finalCustomerEmail,
           },
           theme: {
             color: "#0B6B46",
@@ -6672,6 +6696,7 @@ export function BookingModal({
       const defaultDate = getDefaultBookingDate();
       let initName = "";
       let initPhone = "";
+      let initEmail = "";
       let initAddress = "";
       let initLandmark = "";
       let initCity = "Guntur";
@@ -6687,19 +6712,28 @@ export function BookingModal({
           if (u.phone) {
             initPhone = u.phone;
           }
+          if (u.email && !u.email.endsWith("@thedeepcleanerz.com")) {
+            initEmail = u.email;
+          }
           if (Array.isArray(u.addresses) && u.addresses.length > 0) {
             loadedAddresses = u.addresses;
           }
         }
 
-        // 2. Check local saved contact
-        if (!initName || !initPhone) {
-          const savedContact = localStorage.getItem("thedeepcleanz_saved_contact");
-          if (savedContact) {
-            const sc = JSON.parse(savedContact);
-            if (sc.name && !initName) initName = sc.name;
-            if (sc.phone && !initPhone) initPhone = sc.phone;
+        if (!initEmail) {
+          const se = sessionStorage.getItem("user_email") || localStorage.getItem("user_email");
+          if (se && !se.endsWith("@thedeepcleanerz.com")) {
+            initEmail = se;
           }
+        }
+
+        // 2. Check local saved contact
+        const savedContact = localStorage.getItem("thedeepcleanz_saved_contact");
+        if (savedContact) {
+          const sc = JSON.parse(savedContact);
+          if (sc.name && !initName) initName = sc.name;
+          if (sc.phone && !initPhone) initPhone = sc.phone;
+          if (sc.email && !initEmail && !sc.email.endsWith("@thedeepcleanerz.com")) initEmail = sc.email;
         }
 
         // 3. Check local saved addresses
@@ -6747,6 +6781,7 @@ export function BookingModal({
         ...f,
         name: initName || f.name,
         phone: initPhone || f.phone,
+        email: initEmail || f.email,
         date: f.date || defaultDate,
         address: initAddress || f.address,
         landmark: initLandmark || f.landmark,
@@ -6762,6 +6797,9 @@ export function BookingModal({
             if (data?.user) {
               if (data.user.name && (!initName || initName === "Customer")) {
                 setForm((f) => ({ ...f, name: data.user.name }));
+              }
+              if (data.user.email && !data.user.email.endsWith("@thedeepcleanerz.com")) {
+                setForm((f) => ({ ...f, email: data.user.email }));
               }
               if (Array.isArray(data.user.addresses) && data.user.addresses.length > 0 && loadedAddresses.length === 0) {
                 setSavedAddresses(data.user.addresses);
@@ -7254,8 +7292,22 @@ export function BookingModal({
                 {isCustomQuote ? "Our verified supervisor will visit on " : "Our verified cleaning crew will arrive on "}
                 <strong className="text-emerald-800">{form.date} at {form.time}</strong>.
               </p>
-              <div className="mt-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 font-bold">
-                ✓ {isCustomQuote ? "Inspection confirmation" : "Booking confirmation"} &amp; updates sent to +91 {form.phone}
+              <div className="mt-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 font-bold space-y-1 text-left max-w-sm">
+                <div className="flex items-center gap-1.5">
+                  <span>📱</span>
+                  <span>Booking updates &amp; crew contact: <strong>+91 {form.phone}</strong></span>
+                </div>
+                {form.email ? (
+                  <div className="flex items-center gap-1.5 text-emerald-800">
+                    <span>✉️</span>
+                    <span>Tax invoice &amp; confirmation emailed to: <strong>{form.email}</strong></span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-emerald-800">
+                    <span>✉️</span>
+                    <span>Official confirmation sent from <strong>thedeepcleanerz.info@gmail.com</strong></span>
+                  </div>
+                )}
               </div>
               <div className="mt-5 w-full max-w-xs">
                 <button
@@ -7278,7 +7330,7 @@ export function BookingModal({
                       👤
                     </div>
                     <span className="text-xs font-extrabold text-[#002A22]">
-                      Send booking details to
+                      Send booking details &amp; invoice to
                     </span>
                   </div>
 
@@ -7294,17 +7346,26 @@ export function BookingModal({
                 </div>
 
                 {!editingContact && form.name && form.phone ? (
-                  <div className="bg-[#F8FAF9] rounded-xl p-3 border border-slate-150 flex items-center justify-between text-xs">
-                    <div>
-                      <span className="font-bold text-[#002A22] block">{form.name}</span>
-                      <span className="text-slate-500 font-semibold">+91 {form.phone}</span>
+                  <div className="bg-[#F8FAF9] rounded-xl p-3.5 border border-slate-150 space-y-2 text-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="font-extrabold text-[#002A22] text-sm block">{form.name}</span>
+                        <span className="text-slate-600 font-semibold block mt-0.5">📱 +91 {form.phone}</span>
+                        <span className="text-slate-600 font-medium block mt-0.5">
+                          📧 {form.email ? form.email : <span className="text-amber-700 italic">No email added (Click edit to add email for invoice)</span>}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
+                        ✓ Primary Contact
+                      </span>
                     </div>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                      ✓ Primary Contact
-                    </span>
+                    <div className="pt-2 border-t border-slate-200/70 text-[10px] text-emerald-800 font-semibold flex items-center gap-1.5">
+                      <span>✉️</span>
+                      <span>Booking confirmation &amp; official tax invoice will be sent directly to your email</span>
+                    </div>
                   </div>
                 ) : (
-                  <div className="space-y-2.5 pt-1">
+                  <div className="space-y-3 pt-1">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
@@ -7314,7 +7375,7 @@ export function BookingModal({
                           type="text"
                           value={form.name}
                           onChange={(e) => setForm({ ...form, name: e.target.value })}
-                          placeholder="Enter your name"
+                          placeholder="Enter your full name"
                           className="w-full rounded-xl border border-slate-200 bg-[#F8FAF9] px-3 py-2 text-xs font-bold text-[#002A22] outline-none focus:border-emerald-600"
                         />
                       </div>
@@ -7334,19 +7395,46 @@ export function BookingModal({
                         </div>
                       </div>
                     </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                        Email Address (For Tax Invoice &amp; Booking Confirmation)
+                      </label>
+                      <div className="flex items-center rounded-xl border border-slate-200 bg-[#F8FAF9] px-3 py-2 text-xs">
+                        <span className="text-slate-400 mr-1.5">✉️</span>
+                        <input
+                          type="email"
+                          value={form.email}
+                          onChange={(e) => setForm({ ...form, email: e.target.value })}
+                          placeholder="e.g. yourname@gmail.com"
+                          className="w-full bg-transparent font-bold text-[#002A22] outline-none"
+                        />
+                      </div>
+                      <span className="text-[9px] text-slate-400 font-medium block mt-1">
+                        We will email your official GST invoice and booking confirmation directly from admin.
+                      </span>
+                    </div>
+
                     {form.name.trim() && form.phone.replace(/\D/g, "").length === 10 && (
-                      <div className="flex justify-end">
+                      <div className="flex justify-end pt-1">
                         <button
                           type="button"
                           onClick={() => {
                             try {
-                              localStorage.setItem("thedeepcleanz_saved_contact", JSON.stringify({ name: form.name.trim(), phone: form.phone.trim() }));
+                              localStorage.setItem(
+                                "thedeepcleanz_saved_contact",
+                                JSON.stringify({
+                                  name: form.name.trim(),
+                                  phone: form.phone.trim(),
+                                  email: form.email.trim(),
+                                }),
+                              );
                             } catch (e) {}
                             setEditingContact(false);
                           }}
                           className="px-4 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold cursor-pointer border-0 shadow-xs"
                         >
-                          Save Contact
+                          Save Contact Details
                         </button>
                       </div>
                     )}

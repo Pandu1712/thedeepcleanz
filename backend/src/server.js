@@ -686,22 +686,25 @@ app.post("/api/bookings", async (req, res) => {
       }
     }
 
-    // Resolve registered user's email if userId is present
-    if (userId) {
-      try {
-        const registeredUser = await db.getUserById(userId);
-        if (registeredUser && registeredUser.email) {
-          const customerObj =
-            typeof booking.customer === "string"
-              ? JSON.parse(booking.customer)
-              : booking.customer;
-          customerObj.email = registeredUser.email;
-          booking.customer = customerObj;
+    // Resolve registered user's email if customer email is missing or placeholder
+    const customerObj =
+      typeof booking.customer === "string"
+        ? JSON.parse(booking.customer)
+        : booking.customer || {};
+
+    if (!customerObj.email || customerObj.email.endsWith("@thedeepcleanerz.com")) {
+      if (userId) {
+        try {
+          const registeredUser = await db.getUserById(userId);
+          if (registeredUser && registeredUser.email) {
+            customerObj.email = registeredUser.email;
+          }
+        } catch (err) {
+          console.error("[Booking] Error fetching registered user email:", err);
         }
-      } catch (err) {
-        console.error("[Booking] Error fetching registered user email:", err);
       }
     }
+    booking.customer = customerObj;
 
     // Send confirmation emails asynchronously
     sendBookingEmails(booking).catch((err) =>
