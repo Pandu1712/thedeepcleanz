@@ -6997,6 +6997,14 @@ export function BookingModal({
       localStorage.setItem("thedeepcleanz_saved_contact", JSON.stringify({ name: form.name.trim(), phone: form.phone.trim() }));
     } catch (e) {}
 
+    // MANDATORY OTP GATE: Mobile OTP verification required before payment!
+    if (!otpVerified) {
+      setShowAuthGate(true);
+      setShowOtpVerification(false);
+      await handleSendMobileOtp();
+      return;
+    }
+
     let currentProfile: any = null;
     try {
       const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
@@ -7005,7 +7013,7 @@ export function BookingModal({
       }
     } catch (e) {}
 
-    // Seamlessly proceed directly to payment & booking
+    // Seamlessly proceed directly to payment & booking after OTP verification
     return executePaymentAndBooking(currentProfile);
   };
 
