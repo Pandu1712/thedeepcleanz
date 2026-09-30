@@ -505,12 +505,21 @@ function ServiceDetailPage() {
 
       try {
         const savedCart = localStorage.getItem("thedeepcleanerz_cart_v1");
-        if (savedCart) setCart(JSON.parse(savedCart));
+        if (savedCart) {
+          const parsed = JSON.parse(savedCart);
+          if (Array.isArray(parsed)) {
+            const valid = parsed.filter((i) => i && typeof i === "object" && typeof i.id === "string");
+            setCart(valid);
+          }
+        }
       } catch (e) {}
 
       try {
         const f = localStorage.getItem("thedeepcleanerz_favs_v1");
-        if (f) setFavs(JSON.parse(f));
+        if (f) {
+          const parsedFavs = JSON.parse(f);
+          if (Array.isArray(parsedFavs)) setFavs(parsedFavs);
+        }
       } catch (e) {}
 
       const handleLocationSync = () => {
@@ -799,27 +808,32 @@ function ServiceDetailPage() {
   }, [reviews]);
 
   const cartTotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+    if (!Array.isArray(cart)) return 0;
+    return cart.reduce((sum, item) => sum + ((item?.price || 0) * (item?.qty || 1)), 0);
   }, [cart]);
 
   const updateQty = useCallback((id: string, d: number) => {
+    if (!id) return;
     setCart((c) =>
-      c
-        .map((i) => (i.id === id ? { ...i, qty: i.qty + d } : i))
-        .filter((i) => i.qty > 0),
+      (Array.isArray(c) ? c : [])
+        .map((i) => (i && i.id === id ? { ...i, qty: (i.qty || 1) + d } : i))
+        .filter((i) => i && (i.qty || 0) > 0),
     );
   }, []);
 
   const removeItem = useCallback((id: string) => {
-    setCart((c) => c.filter((i) => i.id !== id));
+    if (!id) return;
+    setCart((c) => (Array.isArray(c) ? c.filter((i) => i && i.id !== id) : []));
     toast.success("Item removed from cart");
   }, []);
 
   const addRawItemToCart = useCallback((item: { id: string; title: string; price: number; img: string }) => {
+    if (!item || !item.id) return;
     setCart((c) => {
-      const ex = c.find((i) => i.id === item.id);
-      if (ex) return c.map((i) => (i.id === item.id ? { ...i, qty: i.qty + 1 } : i));
-      return [...c, { id: item.id, title: item.title, price: item.price, img: item.img, qty: 1 }];
+      const safeCart = Array.isArray(c) ? c : [];
+      const ex = safeCart.find((i) => i && i.id === item.id);
+      if (ex) return safeCart.map((i) => (i && i.id === item.id ? { ...i, qty: (i.qty || 1) + 1 } : i));
+      return [...safeCart, { id: item.id, title: item.title, price: item.price || 0, img: item.img || "", qty: 1 }];
     });
     toast.success(`${item.title} added to cart!`, { icon: "🛒" });
   }, []);
@@ -1986,11 +2000,13 @@ function PlanDetailsModal({
 }) {
   if (!open || !plan) return null;
 
-  const planPrice = typeof plan.price === "number" ? plan.price : service?.price || 0;
-  const cartItemId = `${service.id}-${plan.name.toLowerCase().replace(/\s+/g, "-")}`;
-  const cartItem = cart.find((i) => i.id === cartItemId);
-  const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
-  const cartTotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const planName = plan?.name || service?.title || "Standard Plan";
+  const planPrice = typeof plan?.price === "number" ? plan.price : (service?.price || 0);
+  const cartItemId = `${service?.id || "svc"}-${planName.toLowerCase().replace(/\s+/g, "-")}`;
+  const safeCart = Array.isArray(cart) ? cart : [];
+  const cartItem = safeCart.find((i) => i && i.id === cartItemId);
+  const cartCount = safeCart.reduce((sum, i) => sum + (i?.qty || 1), 0);
+  const cartTotal = safeCart.reduce((sum, i) => sum + ((i?.price || 0) * (i?.qty || 1)), 0);
 
   const { inclusions, exclusions } = getPlanInclusionsAndExclusions(service, plan);
 

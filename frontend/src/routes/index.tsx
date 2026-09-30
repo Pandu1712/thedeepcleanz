@@ -62,7 +62,7 @@ import {
   ArrowLeft,
   Locate,
   User,
-  Map,
+  Map as MapIcon,
   Smartphone,
   Loader2,
 } from "lucide-react";
@@ -5712,7 +5712,7 @@ export function CartDrawer({
             </div>
             <h3 className="font-display text-xl font-bold text-[#002a22]">Your Cart</h3>
             <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-2xs font-extrabold text-[#007A48] border border-emerald-200">
-              {cart.length} {cart.length === 1 ? "Item" : "Items"}
+              {Array.isArray(cart) ? cart.length : 0} {(Array.isArray(cart) && cart.length === 1) ? "Item" : "Items"}
             </span>
           </div>
           <button
@@ -5724,7 +5724,7 @@ export function CartDrawer({
         </div>
 
         <div className="flex-1 overflow-y-auto min-h-0 p-5 space-y-6">
-          {cart.length === 0 ? (
+          {(!Array.isArray(cart) || cart.length === 0) ? (
             <div className="grid h-28 place-items-center text-center py-12">
               <div>
                 <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 border border-dashed border-emerald-300/80">
@@ -5738,9 +5738,13 @@ export function CartDrawer({
             </div>
           ) : (
             <ul className="space-y-3">
-              {cart.map((i) => (
+              {Array.isArray(cart) && cart.map((i) => {
+                if (!i) return null;
+                const itemPrice = typeof i.price === "number" ? i.price : 0;
+                const itemQty = typeof i.qty === "number" ? i.qty : 1;
+                return (
                 <li
-                  key={i.id}
+                  key={i.id || `cart-item-${Math.random()}`}
                   className="flex gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-xs hover:border-emerald-300 transition-colors"
                 >
                   <img
@@ -5751,46 +5755,46 @@ export function CartDrawer({
                   <div className="flex flex-1 flex-col">
                     <div className="flex items-start justify-between gap-2">
                       <div className="font-bold text-xs text-[#002a22] leading-tight">
-                        {i.title}
+                        {i.title || "Service"}
                       </div>
                       <button
-                        onClick={() => removeItem(i.id)}
+                        onClick={() => i.id && removeItem && removeItem(i.id)}
                         className="text-slate-400 hover:text-red-500 hover:scale-105 transition-transform cursor-pointer p-1"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
-                    <div className="text-xs text-[#007A48] font-black mt-1">₹{i.price}</div>
+                    <div className="text-xs text-[#007A48] font-black mt-1">₹{itemPrice}</div>
                     <div className="mt-auto flex items-center justify-between">
                       <div className="inline-flex items-center rounded-xl border border-slate-200 bg-slate-50">
                         <button
-                          onClick={() => updateQty(i.id, -1)}
+                          onClick={() => i.id && updateQty && updateQty(i.id, -1)}
                           className="grid h-7 w-7 place-items-center text-[#002a22] hover:bg-slate-200 rounded-l-xl cursor-pointer"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
                         <span className="w-7 text-center text-xs font-black text-[#002a22]">
-                          {i.qty}
+                          {itemQty}
                         </span>
                         <button
-                          onClick={() => updateQty(i.id, 1)}
+                          onClick={() => i.id && updateQty && updateQty(i.id, 1)}
                           className="grid h-7 w-7 place-items-center text-[#002a22] hover:bg-slate-200 rounded-r-xl cursor-pointer"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
                       </div>
                       <div className="text-xs font-black text-[#002a22]">
-                        {i.price > 0 ? `₹${i.price * i.qty}` : "Custom Quote"}
+                        {itemPrice > 0 ? `₹${itemPrice * itemQty}` : "Custom Quote"}
                       </div>
                     </div>
                   </div>
                 </li>
-              ))}
+              );})}
             </ul>
           )}
 
           {/* Suggestions / Cross selling */}
-          {cart.length > 0 && recommendations.length > 0 && (
+          {Array.isArray(cart) && cart.length > 0 && recommendations.length > 0 && (
             <div className="border-t border-slate-200/80 pt-5">
               <h4 className="font-display text-2xs font-extrabold uppercase tracking-wider text-[#002a22] flex items-center gap-1.5 mb-3.5">
                 <Sparkles className="h-3.5 w-3.5 text-[#007A48] animate-pulse" />
@@ -5798,7 +5802,7 @@ export function CartDrawer({
               </h4>
               <div className="space-y-2.5">
                 {recommendations.map((rec) => {
-                  const isInCart = cart.some((item) => item.id === rec.id);
+                  const isInCart = Array.isArray(cart) && cart.some((item) => item && item.id === rec.id);
                   return (
                     <div
                       key={rec.id}

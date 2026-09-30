@@ -39,7 +39,7 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error("Application error:", error);
+  console.error("Application error caught by root error boundary:", error);
 
   useEffect(() => {
     const msg = (error?.message || "").toLowerCase();
@@ -71,9 +71,23 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <p className="mt-2 text-sm text-slate-500 font-medium leading-relaxed">
           The app was updated with a new version or your connection experienced a momentary interruption.
         </p>
+        {error && (
+          <div className="mt-4 text-left">
+            <details className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3" open>
+              <summary className="font-bold cursor-pointer mb-1">Error details:</summary>
+              <pre className="font-mono text-[11px] whitespace-pre-wrap break-all">{error?.message || String(error)}</pre>
+              {error?.stack && (
+                <pre className="font-mono text-[9px] text-slate-500 mt-2 max-h-32 overflow-auto whitespace-pre-wrap">{error.stack}</pre>
+              )}
+            </details>
+          </div>
+        )}
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button
             onClick={() => {
+              if (reset) {
+                try { reset(); } catch (e) {}
+              }
               window.location.reload();
             }}
             className="inline-flex items-center justify-center rounded-xl bg-[#007A48] px-5 py-2.5 text-sm font-bold text-white transition-transform hover:scale-[1.02] shadow-md cursor-pointer"
