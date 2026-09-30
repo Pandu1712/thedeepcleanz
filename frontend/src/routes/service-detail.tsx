@@ -658,10 +658,16 @@ function ServiceDetailPage() {
     return categories[0]?.services?.[0] || FURNISHED_SERVICES[0] || SERVICES[0] || null;
   }, [categories, rawAdminServices, customizedServices, serviceId]);
 
+  const activeCity = useMemo(() => {
+    if (!userLocation) return "Guntur";
+    const firstPart = userLocation.split(",")[0]?.trim();
+    return firstPart || "Guntur";
+  }, [userLocation]);
+
   // Dynamic SEO & Structured Data Injection for Search Engines
   useEffect(() => {
     if (typeof window !== "undefined" && service) {
-      document.title = `${service.title} in Guntur | TheDeep CleanerZ`;
+      document.title = `${service.title} in ${activeCity} | TheDeep CleanerZ`;
 
       // Inject or update dynamic Service JSON-LD Schema
       const schemaId = "dynamic-service-schema";
@@ -1305,7 +1311,7 @@ function ServiceDetailPage() {
                 <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 right-3 sm:right-4 flex items-center justify-between text-white">
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                    <span className="text-xs font-bold drop-shadow-md">Available Today in Guntur</span>
+                    <span className="text-xs font-bold drop-shadow-md">Available Today in {activeCity}</span>
                   </div>
                   <span className="text-[10px] bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full font-bold border border-white/30">
                     Verified Crew
