@@ -1,13 +1,30 @@
 const nodemailer = require("nodemailer");
 
-// Create Gmail transport using app password
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER || "admin@thedeepcleanerz.com",
-    pass: process.env.EMAIL_PASS || "oare nefw mkpa pwbj",
-  },
-});
+// Create dynamic transport using app password or SMTP settings
+function getTransporter() {
+  const user = process.env.EMAIL_USER || "thedeepcleanerz.info@gmail.com";
+  const pass = process.env.EMAIL_PASS || "sqjl xwma qhga dkmy";
+  const host = process.env.SMTP_HOST;
+  const port = process.env.SMTP_PORT;
+
+  if (host) {
+    return nodemailer.createTransport({
+      host,
+      port: Number(port) || 587,
+      secure: Number(port) === 465,
+      auth: { user, pass },
+    });
+  }
+
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user,
+      pass,
+    },
+  });
+}
+
 
 /**
  * Sends HTML confirmation emails to the customer and the admin.
@@ -317,11 +334,14 @@ async function sendBookingEmails(booking) {
     </html>
   `;
 
+  const transporter = getTransporter();
+  const senderEmail = process.env.EMAIL_USER || "thedeepcleanerz.info@gmail.com";
+
   // Send Email to Customer
   if (customerEmail) {
     try {
       await transporter.sendMail({
-        from: `"TheDeep CleanerZ" <${transporter.options.auth.user}>`,
+        from: `"TheDeep CleanerZ" <${senderEmail}>`,
         to: customerEmail,
         subject: `Your Booking is Confirmed! #${booking.id.toUpperCase()}`,
         html: customerHtml,
@@ -331,7 +351,7 @@ async function sendBookingEmails(booking) {
       );
     } catch (err) {
       console.error(
-        `[Mailer] Failed to send email to customer: ${err.message}`,
+        `[Mailer] Failed to send email to customer (${customerEmail}): ${err.message}`,
       );
     }
   }
@@ -339,7 +359,7 @@ async function sendBookingEmails(booking) {
   // Send Email to Admin
   try {
     await transporter.sendMail({
-      from: `"TheDeep CleanerZ Alerts" <${transporter.options.auth.user}>`,
+      from: `"TheDeep CleanerZ Alerts" <${senderEmail}>`,
       to: adminEmail,
       subject: `[New Booking] #${booking.id.toUpperCase()} - ${customer.name}`,
       html: adminHtml,
@@ -347,7 +367,7 @@ async function sendBookingEmails(booking) {
     console.log(`[Mailer] Admin booking alert email sent to: ${adminEmail}`);
   } catch (err) {
     console.error(
-      `[Mailer] Failed to send alert email to admin: ${err.message}`,
+      `[Mailer] Failed to send alert email to admin (${adminEmail}): ${err.message}`,
     );
   }
 }
@@ -412,13 +432,21 @@ async function sendAdminOtpEmail(email, otp) {
     </html>
   `;
 
-  await transporter.sendMail({
-    from: `"TheDeep CleanerZ Security" <${transporter.options.auth.user}>`,
-    to: email,
-    subject: `Verification Code: ${otp}`,
-    html: otpHtml,
-  });
-  console.log(`[Mailer] OTP verification email sent successfully to admin: ${email}`);
+  try {
+    const transporter = getTransporter();
+    const senderEmail = process.env.EMAIL_USER || "thedeepcleanerz.info@gmail.com";
+    const info = await transporter.sendMail({
+      from: `"TheDeep CleanerZ Security" <${senderEmail}>`,
+      to: email,
+      subject: `Admin Verification Code: ${otp} - TheDeep CleanerZ`,
+      html: otpHtml,
+    });
+    console.log(`[Mailer] OTP verification email sent successfully to admin: ${email} (Message ID: ${info.messageId})`);
+    return { success: true, messageId: info.messageId };
+  } catch (err) {
+    console.error(`[Mailer] Failed to send admin OTP email to ${email}:`, err.message);
+    return { success: false, error: err.message };
+  }
 }
 
 /**
@@ -482,13 +510,21 @@ async function sendMobileOtpEmail(email, otp, phone) {
     </html>
   `;
 
-  await transporter.sendMail({
-    from: `"TheDeep CleanerZ Security" <${transporter.options.auth.user}>`,
-    to: email,
-    subject: `Mobile Verification Code: ${otp}`,
-    html: otpHtml,
-  });
-  console.log(`[Mailer] Mobile OTP verification email sent successfully to: ${email}`);
+  try {
+    const transporter = getTransporter();
+    const senderEmail = process.env.EMAIL_USER || "thedeepcleanerz.info@gmail.com";
+    const info = await transporter.sendMail({
+      from: `"TheDeep CleanerZ Security" <${senderEmail}>`,
+      to: email,
+      subject: `Mobile Verification Code: ${otp} - TheDeep CleanerZ`,
+      html: otpHtml,
+    });
+    console.log(`[Mailer] Mobile OTP verification email sent successfully to: ${email}`);
+    return { success: true, messageId: info.messageId };
+  } catch (err) {
+    console.error(`[Mailer] Failed to send mobile OTP email to ${email}:`, err.message);
+    return { success: false, error: err.message };
+  }
 }
 
 /**
@@ -551,13 +587,21 @@ async function sendForgotPasswordOtpEmail(email, otp) {
     </html>
   `;
 
-  await transporter.sendMail({
-    from: `"TheDeep CleanerZ Security" <${transporter.options.auth.user}>`,
-    to: email,
-    subject: `Password Reset Verification Code: ${otp}`,
-    html: otpHtml,
-  });
-  console.log(`[Mailer] Password reset OTP verification email sent successfully to: ${email}`);
+  try {
+    const transporter = getTransporter();
+    const senderEmail = process.env.EMAIL_USER || "thedeepcleanerz.info@gmail.com";
+    const info = await transporter.sendMail({
+      from: `"TheDeep CleanerZ Security" <${senderEmail}>`,
+      to: email,
+      subject: `Password Reset Verification Code: ${otp} - TheDeep CleanerZ`,
+      html: otpHtml,
+    });
+    console.log(`[Mailer] Password reset OTP verification email sent successfully to: ${email}`);
+    return { success: true, messageId: info.messageId };
+  } catch (err) {
+    console.error(`[Mailer] Failed to send password reset OTP to ${email}:`, err.message);
+    return { success: false, error: err.message };
+  }
 }
 
 module.exports = {
@@ -566,3 +610,4 @@ module.exports = {
   sendMobileOtpEmail,
   sendForgotPasswordOtpEmail,
 };
+

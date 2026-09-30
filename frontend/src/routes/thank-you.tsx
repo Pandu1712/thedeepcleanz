@@ -88,7 +88,7 @@ function ThankYouPage() {
         cartCount={cartCount}
         favsCount={0}
         userLocation={userLocation}
-        onOpenCart={() => navigate({ to: "/" })}
+        onOpenCart={() => navigate({ to: "/", search: { category: undefined, cart: undefined } })}
         onOpenLocation={() => {}}
         isSubPage={true}
       />

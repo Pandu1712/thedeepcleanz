@@ -7865,7 +7865,7 @@ export function BookingModal({
                     <div className="p-3 bg-amber-50/90 border border-amber-200 rounded-xl text-amber-900 text-xs font-bold flex items-center gap-2.5 animate-in fade-in shadow-xs">
                       <span className="text-amber-700 text-base">🏖️</span>
                       <span>
-                        {form.date === todayFormatted ? "Today is a Holiday" : `Notice for ${form.date}`}:{" "}
+                        {form.date === new Date().toISOString().split("T")[0] ? "Today is a Holiday" : `Notice for ${form.date}`}:{" "}
                         <strong className="text-[#002A22]">{formatHolidayReason(blockedDates.find((b) => b.date === form.date)?.reason)}</strong>.
                         {" "}Bookings are unavailable on this date. Please select an upcoming available date.
                       </span>

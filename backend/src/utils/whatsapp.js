@@ -147,7 +147,68 @@ async function sendTestWhatsAppAlert(phone, apiKey) {
   });
 }
 
+/**
+ * Send Admin Login OTP via WhatsApp (CallMeBot API)
+ */
+async function sendAdminOtpWhatsApp(otp, phone) {
+  try {
+    const settings = await db.getSettings().catch(() => ({}));
+    const isEnabled =
+      settings.whatsapp_enabled !== undefined
+        ? settings.whatsapp_enabled !== "0"
+        : process.env.WHATSAPP_NOTIFICATIONS_ENABLED !== "false";
+
+    if (!isEnabled) {
+      return { success: false, reason: "disabled" };
+    }
+
+    const adminPhone =
+      phone ||
+      settings.whatsapp_admin_phone ||
+      process.env.ADMIN_WHATSAPP_PHONE ||
+      "919154351636";
+    const apiKey =
+      settings.whatsapp_api_key || process.env.CALLMEBOT_API_KEY || "";
+
+    if (!adminPhone || !apiKey) {
+      return { success: false, reason: "missing_credentials" };
+    }
+
+    const messageText = `🔐 *TheDeep CleanerZ — Admin Login OTP*\n\nYour 6-digit verification code is: *${otp}*\n\nThis code expires in 5 minutes.\nDo not share this code with anyone.`;
+
+    const cleanPhone = adminPhone.replace(/\D/g, "");
+    const encodedText = encodeURIComponent(messageText);
+    const url = `https://api.callmebot.com/whatsapp.php?phone=${cleanPhone}&text=${encodedText}&apikey=${apiKey}`;
+
+    return new Promise((resolve) => {
+      https
+        .get(url, (res) => {
+          let data = "";
+          res.on("data", (chunk) => (data += chunk));
+          res.on("end", () => {
+            if (res.statusCode === 200) {
+              console.log(`[WhatsApp] Admin OTP sent successfully to +${cleanPhone}`);
+              resolve({ success: true, response: data });
+            } else {
+              console.warn(`[WhatsApp] CallMeBot returned status ${res.statusCode}: ${data}`);
+              resolve({ success: false, status: res.statusCode, response: data });
+            }
+          });
+        })
+        .on("error", (err) => {
+          console.error("[WhatsApp] Error sending admin OTP:", err.message);
+          resolve({ success: false, error: err.message });
+        });
+    });
+  } catch (err) {
+    console.error("[WhatsApp] Admin OTP unexpected error:", err);
+    return { success: false, error: err.message };
+  }
+}
+
 module.exports = {
   sendAdminWhatsAppAlert,
   sendTestWhatsAppAlert,
+  sendAdminOtpWhatsApp,
 };
+
