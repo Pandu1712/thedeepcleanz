@@ -6301,6 +6301,12 @@ export const BookingModal = memo(function BookingModal({
         sentViaFirebase = true;
       } catch (err: any) {
         console.warn("Firebase Phone Auth failed, trying backend SMS gateway fallback:", err.message);
+        try {
+          if ((window as any).recaptchaVerifier) {
+            (window as any).recaptchaVerifier.clear();
+            (window as any).recaptchaVerifier = null;
+          }
+        } catch (e) {}
       }
     }
 
@@ -6833,12 +6839,12 @@ export const BookingModal = memo(function BookingModal({
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
           if (!isMounted || !data?.user) return;
-          if (data.user.name && (!initName || initName === "Customer")) {
-            setForm((f) => ({ ...f, name: data.user.name }));
-          }
-          if (data.user.email && !data.user.email.endsWith("@thedeepcleanerz.com")) {
-            setForm((f) => ({ ...f, email: data.user.email }));
-          }
+          setForm((f) => {
+            const nextName = data.user.name && (!initName || initName === "Customer") ? data.user.name : f.name;
+            const nextEmail = data.user.email && !data.user.email.endsWith("@thedeepcleanerz.com") ? data.user.email : f.email;
+            if (nextName === f.name && nextEmail === f.email) return f;
+            return { ...f, name: nextName, email: nextEmail };
+          });
           if (Array.isArray(data.user.addresses) && data.user.addresses.length > 0 && loadedAddresses.length === 0) {
             setSavedAddresses(data.user.addresses);
           }
@@ -6863,6 +6869,7 @@ export const BookingModal = memo(function BookingModal({
               const dStr = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, "0")}-${String(dObj.getDate()).padStart(2, "0")}`;
               if (!isDateBlocked(dStr)) {
                 const slot = getFirstAvailableSlot(dStr, [], 30) || "08:00 AM";
+                if (f.date === dStr && f.time === slot) return f;
                 return { ...f, date: dStr, time: slot };
               }
             }
@@ -6886,16 +6893,19 @@ export const BookingModal = memo(function BookingModal({
       .then((res) => {
         if (!isMounted) return;
         setBookedSlotsInfo(res);
-        const currentNorm = normalizeTimeSlot(form.time);
-        const isCurrentBooked = res.normalizedSlots.includes(currentNorm);
-        const isCurrentPast = isSlotInPast(form.time, form.date, 30);
+        setForm((currentForm) => {
+          const currentNorm = normalizeTimeSlot(currentForm.time);
+          const isCurrentBooked = res.normalizedSlots.includes(currentNorm);
+          const isCurrentPast = isSlotInPast(currentForm.time, currentForm.date, 30);
 
-        if (isCurrentBooked || isCurrentPast) {
-          const firstFree = getFirstAvailableSlot(form.date, res.normalizedSlots, 30);
-          if (firstFree && firstFree !== form.time) {
-            setForm((f) => (f.time === firstFree ? f : { ...f, time: firstFree }));
+          if (isCurrentBooked || isCurrentPast) {
+            const firstFree = getFirstAvailableSlot(currentForm.date, res.normalizedSlots, 30);
+            if (firstFree && firstFree !== currentForm.time) {
+              return { ...currentForm, time: firstFree };
+            }
           }
-        }
+          return currentForm;
+        });
       })
       .catch(() => {})
       .finally(() => {
@@ -7201,7 +7211,7 @@ export const BookingModal = memo(function BookingModal({
                     <input
                       type="tel"
                       value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                      onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                       placeholder="Enter mobile number"
                       className="w-full bg-transparent font-bold text-[#002A22] outline-none"
                     />
@@ -7422,7 +7432,7 @@ export const BookingModal = memo(function BookingModal({
                         <input
                           type="text"
                           value={form.name}
-                          onChange={(e) => setForm({ ...form, name: e.target.value })}
+                          onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                           placeholder="Enter your full name"
                           className="w-full rounded-xl border border-slate-200 bg-[#F8FAF9] px-3 py-2 text-xs font-bold text-[#002A22] outline-none focus:border-emerald-600"
                         />
@@ -7436,7 +7446,7 @@ export const BookingModal = memo(function BookingModal({
                           <input
                             type="tel"
                             value={form.phone}
-                            onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                            onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                             placeholder="10-digit mobile number"
                             className="w-full bg-transparent font-bold text-[#002A22] outline-none"
                           />
@@ -7453,7 +7463,7 @@ export const BookingModal = memo(function BookingModal({
                         <input
                           type="email"
                           value={form.email}
-                          onChange={(e) => setForm({ ...form, email: e.target.value })}
+                          onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
                           placeholder="e.g. yourname@gmail.com"
                           className="w-full bg-transparent font-bold text-[#002A22] outline-none"
                         />
@@ -7706,7 +7716,7 @@ export const BookingModal = memo(function BookingModal({
                         rows={2}
                         placeholder="e.g. Flat 101, Sri Krishna Towers, 4th Cross..."
                         value={form.address}
-                        onChange={(e) => setForm({ ...form, address: e.target.value })}
+                        onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
                         className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:border-emerald-600 resize-none font-medium"
                       />
                     </div>
@@ -7719,7 +7729,7 @@ export const BookingModal = memo(function BookingModal({
                         <input
                           placeholder="e.g. Near Hindu Pharmacy College"
                           value={form.landmark}
-                          onChange={(e) => setForm({ ...form, landmark: e.target.value })}
+                          onChange={(e) => setForm((prev) => ({ ...prev, landmark: e.target.value }))}
                           className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-600 font-medium"
                         />
                       </div>
@@ -7730,7 +7740,7 @@ export const BookingModal = memo(function BookingModal({
                         <input
                           placeholder="e.g. 522002"
                           value={form.pincode}
-                          onChange={(e) => setForm({ ...form, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                          onChange={(e) => setForm((prev) => ({ ...prev, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
                           className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-600 font-medium"
                         />
                       </div>
@@ -7928,7 +7938,7 @@ export const BookingModal = memo(function BookingModal({
                             <button
                               key={cell.dateStr}
                               type="button"
-                              onClick={() => setForm({ ...form, date: cell.dateStr })}
+                              onClick={() => setForm((prev) => ({ ...prev, date: cell.dateStr }))}
                               className="h-10 sm:h-11 flex flex-col items-center justify-center p-0.5 cursor-pointer group select-none"
                             >
                               <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full border-2 border-[#cb9f5a] bg-amber-50/70 text-[#002A22] font-black text-xs flex items-center justify-center group-hover:bg-[#cb9f5a] group-hover:text-white transition-all">
@@ -7946,7 +7956,7 @@ export const BookingModal = memo(function BookingModal({
                           <button
                             key={cell.dateStr}
                             type="button"
-                            onClick={() => setForm({ ...form, date: cell.dateStr })}
+                            onClick={() => setForm((prev) => ({ ...prev, date: cell.dateStr }))}
                             className="h-10 sm:h-11 flex flex-col items-center justify-center p-0.5 cursor-pointer group select-none"
                           >
                             <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-white border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center group-hover:border-emerald-600 group-hover:bg-emerald-50 group-hover:text-emerald-900 transition-all shadow-3xs">
@@ -7983,13 +7993,14 @@ export const BookingModal = memo(function BookingModal({
                     <div className="flex overflow-x-auto no-scrollbar gap-1.5 py-1">
                       {quickPickDateChips.map((c) => {
                         const isSelected = form.date === c.dStr;
+                        const todayFormatted = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
                         return (
                           <button
                             key={c.dStr}
                             type="button"
                             onClick={() => {
                               if (c.isBlocked) {
-                                const isToday = c.dStr === c.dStr;
+                                const isToday = c.dStr === todayFormatted;
                                 const reasonText = formatHolidayReason(c.blockInfo?.reason);
                                 toast.error(
                                   isToday
@@ -8075,7 +8086,7 @@ export const BookingModal = memo(function BookingModal({
                                 toast.error(`Slot ${s} is already booked on ${form.date}. Please pick an available slot.`);
                                 return;
                               }
-                              setForm({ ...form, time: s });
+                              setForm((prev) => ({ ...prev, time: s }));
                             }}
                             title={
                               isPast
@@ -8297,7 +8308,7 @@ export const BookingModal = memo(function BookingModal({
                     rows={2}
                     placeholder="Specify any additional instructions (e.g. ring twice, pets at home)..."
                     value={form.notes}
-                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
                     className="w-full bg-[#F8FAF9] border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:border-emerald-600 resize-none font-medium"
                   />
                 </div>
@@ -8389,7 +8400,7 @@ export const BookingModal = memo(function BookingModal({
                     <input
                       placeholder="Coupon code (e.g. WELCOME500)"
                       value={form.coupon}
-                      onChange={(e) => setForm({ ...form, coupon: e.target.value.toUpperCase() })}
+                      onChange={(e) => setForm((prev) => ({ ...prev, coupon: e.target.value.toUpperCase() }))}
                       className="flex-1 bg-[#F8FAF9] border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-[#002A22] outline-none"
                     />
                     <button
