@@ -6061,6 +6061,23 @@ export const BookingModal = memo(function BookingModal({
     return r;
   };
 
+  const formatDisplayDate = (dateStr: string): string => {
+    if (!dateStr) return "Select Date";
+    try {
+      const parts = dateStr.split("-");
+      if (parts.length === 3) {
+        const y = Number(parts[0]);
+        const m = Number(parts[1]) - 1;
+        const d = Number(parts[2]);
+        const dObj = new Date(y, m, d);
+        if (!isNaN(dObj.getTime())) {
+          return dObj.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+        }
+      }
+    } catch (e) {}
+    return dateStr;
+  };
+
   // Sync calendarViewMonth only when year or month changes and modal is open
   useEffect(() => {
     if (!open || !form.date) return;
@@ -6070,7 +6087,7 @@ export const BookingModal = memo(function BookingModal({
       const m = Number(parts[1]) - 1;
       if (!isNaN(y) && !isNaN(m)) {
         setCalendarViewMonth((prev) => {
-          if (prev.getFullYear() === y && prev.getMonth() === m) {
+          if (prev && !isNaN(prev.getTime()) && prev.getFullYear() === y && prev.getMonth() === m) {
             return prev;
           }
           return new Date(y, m, 1);
@@ -6079,9 +6096,16 @@ export const BookingModal = memo(function BookingModal({
     }
   }, [open, form.date]);
 
-  const calendarYear = calendarViewMonth.getFullYear();
-  const calendarMonthIndex = calendarViewMonth.getMonth();
-  const calendarMonthLabel = calendarViewMonth.toLocaleString("en-IN", { month: "long", year: "numeric" });
+  const calendarYear = calendarViewMonth && !isNaN(calendarViewMonth.getTime()) ? calendarViewMonth.getFullYear() : new Date().getFullYear();
+  const calendarMonthIndex = calendarViewMonth && !isNaN(calendarViewMonth.getTime()) ? calendarViewMonth.getMonth() : new Date().getMonth();
+  const calendarMonthLabel = useMemo(() => {
+    try {
+      if (calendarViewMonth && !isNaN(calendarViewMonth.getTime())) {
+        return calendarViewMonth.toLocaleString("en-IN", { month: "long", year: "numeric" });
+      }
+    } catch (e) {}
+    return "Select Month";
+  }, [calendarViewMonth]);
 
   const calendarGrid = useMemo(() => {
     if (!open) return { cells: [], todayFormatted: "" };
@@ -7770,7 +7794,7 @@ export const BookingModal = memo(function BookingModal({
                     <span className="text-xs font-extrabold text-[#002A22]">Date &amp; Time</span>
                   </div>
                   <span className="text-[10px] font-bold text-slate-400">
-                    {form.date ? new Date(form.date + "T00:00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }) : "Select Date"}
+                    {formatDisplayDate(form.date)}
                   </span>
                 </div>
 
@@ -8031,9 +8055,9 @@ export const BookingModal = memo(function BookingModal({
                       )}
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-                      {slots.map((s) => {
+                      {Array.isArray(slots) && slots.map((s) => {
                         const isPast = isSlotInPast(s, form.date, 30);
-                        const isBooked = bookedSlotsInfo.normalizedSlots.includes(normalizeTimeSlot(s));
+                        const isBooked = Array.isArray(bookedSlotsInfo?.normalizedSlots) && bookedSlotsInfo.normalizedSlots.includes(normalizeTimeSlot(s));
                         const isDisabled = isPast || isBooked;
                         const isSelected = form.time === s && !isDisabled;
 
@@ -8121,66 +8145,71 @@ export const BookingModal = memo(function BookingModal({
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <span className="text-xs font-extrabold text-[#002A22]">Selected Services</span>
                   <span className="text-[10px] font-bold text-slate-400 uppercase">
-                    {cart.length} Item(s)
+                    {Array.isArray(cart) ? cart.length : 0} Item(s)
                   </span>
                 </div>
 
                 <div className="space-y-2.5">
-                  {cart.map((i) => (
-                    <div
-                      key={i.id}
-                      className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#F8FAF9] border border-slate-150"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <span className="text-xs font-bold text-[#002A22] block truncate">
-                          {i.title}
-                        </span>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 rounded">
-                            {i.paymentType === "free_advance" ? "Express" : "Deep Clean"}
+                  {Array.isArray(cart) && cart.map((i) => {
+                    if (!i) return null;
+                    const itemPrice = typeof i.price === "number" ? i.price : 0;
+                    const itemQty = typeof i.qty === "number" ? i.qty : 1;
+                    return (
+                      <div
+                        key={i.id || `cart-${Math.random()}`}
+                        className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#F8FAF9] border border-slate-150"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className="text-xs font-bold text-[#002A22] block truncate">
+                            {i.title || "Service"}
                           </span>
-                          <span className="text-xs font-extrabold text-[#002A22]">
-                            ₹{i.price * i.qty}
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 rounded">
+                              {i.paymentType === "free_advance" ? "Express" : "Deep Clean"}
+                            </span>
+                            <span className="text-xs font-extrabold text-[#002A22]">
+                              ₹{itemPrice * itemQty}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Quantity Stepper */}
+                        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-2 py-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (updateQty && i.id) {
+                                updateQty(i.id, -1);
+                              } else if (i.qty > 1) {
+                                i.qty -= 1;
+                              } else if (removeItem && i.id) {
+                                removeItem(i.id);
+                              }
+                            }}
+                            className="h-5 w-5 rounded bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 cursor-pointer font-bold text-xs"
+                          >
+                            −
+                          </button>
+                          <span className="text-xs font-black text-[#002A22] min-w-[14px] text-center">
+                            {itemQty}
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (updateQty && i.id) {
+                                updateQty(i.id, 1);
+                              } else {
+                                i.qty = itemQty + 1;
+                              }
+                            }}
+                            className="h-5 w-5 rounded bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 cursor-pointer font-bold text-xs"
+                          >
+                            +
+                          </button>
                         </div>
                       </div>
-
-                      {/* Quantity Stepper */}
-                      <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-2 py-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (updateQty) {
-                              updateQty(i.id, -1);
-                            } else if (i.qty > 1) {
-                              i.qty -= 1;
-                            } else if (removeItem) {
-                              removeItem(i.id);
-                            }
-                          }}
-                          className="h-5 w-5 rounded bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 cursor-pointer font-bold text-xs"
-                        >
-                          −
-                        </button>
-                        <span className="text-xs font-black text-[#002A22] min-w-[14px] text-center">
-                          {i.qty}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (updateQty) {
-                              updateQty(i.id, 1);
-                            } else {
-                              i.qty += 1;
-                            }
-                          }}
-                          className="h-5 w-5 rounded bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 cursor-pointer font-bold text-xs"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -8194,8 +8223,8 @@ export const BookingModal = memo(function BookingModal({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {BOOKING_ADD_ON_SERVICES.map((addon) => {
-                    const isInCart = cart.some((item) => item.id.includes(addon.id));
+                  {Array.isArray(BOOKING_ADD_ON_SERVICES) && BOOKING_ADD_ON_SERVICES.map((addon) => {
+                    const isInCart = Array.isArray(cart) && cart.some((item) => item?.id && typeof item.id === "string" && item.id.includes(addon.id));
                     return (
                       <div
                         key={addon.id}

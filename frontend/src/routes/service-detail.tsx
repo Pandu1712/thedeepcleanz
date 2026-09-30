@@ -824,22 +824,26 @@ function ServiceDetailPage() {
     toast.success(`${item.title} added to cart!`, { icon: "🛒" });
   }, []);
 
-  const handleAddToCart = useCallback((plan: ServicePlan) => {
+  const handleAddToCart = useCallback((plan?: ServicePlan) => {
     if (!service) return;
-    const computedPrice = getServicePrice(plan.price || service.price || 0);
-    const cartItemId = `${service.id}-${plan.name.toLowerCase().replace(/\s+/g, "-")}`;
-    const cartItemTitle = `${service.title} (${plan.name})`;
+    const targetPlan = plan || activePlan || plans[0] || { name: service.title || "Standard", price: service.price || 0 };
+    const pName = targetPlan?.name || service.title || "Standard";
+    const pPrice = typeof targetPlan?.price === "number" ? targetPlan.price : (service.price || 0);
+    const computedPrice = getServicePrice(pPrice);
+    const cartItemId = `${service.id || "svc"}-${pName.toLowerCase().replace(/\s+/g, "-")}`;
+    const cartItemTitle = `${service.title || "Service"} (${pName})`;
     const cartItemImg = getServiceDetailImage(service);
 
     setCart((prev) => {
-      const existing = prev.find((i) => i.id === cartItemId);
+      const safePrev = Array.isArray(prev) ? prev : [];
+      const existing = safePrev.find((i) => i && i.id === cartItemId);
       if (existing) {
-        return prev.map((i) =>
-          i.id === cartItemId ? { ...i, qty: i.qty + 1 } : i
+        return safePrev.map((i) =>
+          i && i.id === cartItemId ? { ...i, qty: (i.qty || 1) + 1 } : i
         );
       }
       return [
-        ...prev,
+        ...safePrev,
         {
           id: cartItemId,
           title: cartItemTitle,
@@ -849,10 +853,10 @@ function ServiceDetailPage() {
         },
       ];
     });
-    toast.success(`Added ${service.title} - ${plan.name} to cart!`, { icon: "🛒" });
-  }, [service, getServicePrice]);
+    toast.success(`Added ${service.title || "Service"} - ${pName} to cart!`, { icon: "🛒" });
+  }, [service, activePlan, plans, getServicePrice]);
 
-  const handleDirectBookNow = useCallback((plan: ServicePlan) => {
+  const handleDirectBookNow = useCallback((plan?: ServicePlan) => {
     handleAddToCart(plan);
     setBookingOpen(true);
   }, [handleAddToCart]);
