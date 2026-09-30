@@ -202,10 +202,15 @@ export function getFirstAvailableSlot(
   return "";
 }
 
-export async function fetchBookedSlots(date: string): Promise<BookedSlotsResponse> {
+export async function fetchBookedSlots(date: string, signal?: AbortSignal): Promise<BookedSlotsResponse> {
   if (!date) return { date: "", bookedSlots: [], normalizedSlots: [] };
   try {
-    const res = await fetch(`${ADMIN_API_URL}/api/bookings/booked-slots?date=${encodeURIComponent(date)}`);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3500);
+    const res = await fetch(`${ADMIN_API_URL}/api/bookings/booked-slots?date=${encodeURIComponent(date)}`, {
+      signal: signal || ctrl.signal,
+    });
+    clearTimeout(timer);
     if (!res.ok) return { date, bookedSlots: [], normalizedSlots: [] };
     const data = await res.json();
     return {

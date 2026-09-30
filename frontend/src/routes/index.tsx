@@ -5901,6 +5901,59 @@ const loadRazorpayScript = () => {
 
 // GUNTUR_LOCATIONS removed to prevent redundancy as it is declared globally.
 
+// Helper to determine the best initial booking date without recalculating on every render
+function getDefaultBookingDate(): string {
+  const now = new Date();
+  const todayY = now.getFullYear();
+  const todayM = String(now.getMonth() + 1).padStart(2, "0");
+  const todayD = String(now.getDate()).padStart(2, "0");
+  const todayStr = `${todayY}-${todayM}-${todayD}`;
+  if (!areAllSlotsPassedToday(todayStr, 30)) {
+    return todayStr;
+  }
+  const tomorrow = new Date(now.getTime() + 86400000);
+  return `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+}
+
+// Static Suggested Add-on Services
+const BOOKING_ADD_ON_SERVICES = [
+  {
+    id: "addon-mattress-cleaning",
+    title: "Mattress Deep Shampooing",
+    price: 349,
+    img: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=200&q=80",
+    desc: "Dustmite removal & antibacterial foam",
+  },
+  {
+    id: "addon-ceiling-fan-wash",
+    title: "Ceiling Fan Deep Scrub",
+    price: 99,
+    img: "https://images.unsplash.com/photo-1527018601619-a508a2be00cd?auto=format&fit=crop&w=200&q=80",
+    desc: "Grease and dust removal with shine polish",
+  },
+  {
+    id: "addon-fridge-interior",
+    title: "Refrigerator Sanitization",
+    price: 349,
+    img: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=200&q=80",
+    desc: "Shelf scrub, odor neutralizer & fungus wipe",
+  },
+  {
+    id: "addon-chimney-degrease",
+    title: "Kitchen Chimney Degreasing",
+    price: 499,
+    img: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=200&q=80",
+    desc: "Deep carbon & oil filter wash",
+  },
+  {
+    id: "addon-balcony-scrub",
+    title: "Balcony Power Scrub",
+    price: 299,
+    img: "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=200&q=80",
+    desc: "High-pressure washer for tiles",
+  },
+];
+
 export function BookingModal({
   open,
   onClose,
@@ -5922,21 +5975,25 @@ export function BookingModal({
 }) {
   const slots = STANDARD_TIME_SLOTS;
 
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    address: "",
-    landmark: "",
-    mapsLink: "",
-    city: "Guntur",
-    pincode: "",
-    date: "",
-    time: "08:00 AM",
-    notes: "",
-    coupon: "",
-    houseType: "Flat / Apartment",
-    houseSize: "2 BHK",
-    gpsCoords: "",
+  const [form, setForm] = useState(() => {
+    const defaultDate = getDefaultBookingDate();
+    const defaultSlot = getFirstAvailableSlot(defaultDate, [], 30) || "08:00 AM";
+    return {
+      name: "",
+      phone: "",
+      address: "",
+      landmark: "",
+      mapsLink: "",
+      city: "Guntur",
+      pincode: "",
+      date: defaultDate,
+      time: defaultSlot,
+      notes: "",
+      coupon: "",
+      houseType: "Flat / Apartment",
+      houseSize: "2 BHK",
+      gpsCoords: "",
+    };
   });
 
   const [bookedSlotsInfo, setBookedSlotsInfo] = useState<BookedSlotsResponse>({
@@ -5986,7 +6043,7 @@ export function BookingModal({
     return r;
   };
 
-  // Sync calendarViewMonth when form.date changes if valid
+  // Sync calendarViewMonth only when year or month changes
   useEffect(() => {
     if (form.date) {
       const parts = form.date.split("-");
@@ -5994,7 +6051,12 @@ export function BookingModal({
         const y = Number(parts[0]);
         const m = Number(parts[1]) - 1;
         if (!isNaN(y) && !isNaN(m)) {
-          setCalendarViewMonth(new Date(y, m, 1));
+          setCalendarViewMonth((prev) => {
+            if (prev.getFullYear() === y && prev.getMonth() === m) {
+              return prev;
+            }
+            return new Date(y, m, 1);
+          });
         }
       }
     }
@@ -6083,6 +6145,50 @@ export function BookingModal({
     return { cells, todayFormatted };
   }, [calendarYear, calendarMonthIndex, blockedDates, form.date]);
 
+  // Pre-calculated upcoming date chips to prevent render churn
+  const quickPickDateChips = useMemo(() => {
+    const chips = [];
+    const today = new Date();
+    const todayY = today.getFullYear();
+    const todayM = String(today.getMonth() + 1).padStart(2, "0");
+    const todayD = String(today.getDate()).padStart(2, "0");
+    const todayFormatted = `${todayY}-${todayM}-${todayD}`;
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const isToday = dStr === todayFormatted;
+      const isTodayClosed = isToday && areAllSlotsPassedToday(dStr, 30);
+      const isBlocked = blockedDates.some((b) => b.date === dStr);
+      const blockInfo = blockedDates.find((b) => b.date === dStr);
+      const label =
+        i === 0
+          ? isBlocked
+            ? "Today (Holiday)"
+            : isTodayClosed
+              ? "Today (Closed)"
+              : "Today"
+          : i === 1
+            ? isBlocked
+              ? "Tomorrow (Holiday)"
+              : "Tomorrow"
+            : isBlocked
+              ? `${d.toLocaleDateString("en-IN", {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                })} (Holiday)`
+              : d.toLocaleDateString("en-IN", {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                });
+      chips.push({ dStr, label, isBlocked, blockInfo, isTodayClosed });
+    }
+    return chips;
+  }, [blockedDates]);
+
   const [showOtpVerification, setShowOtpVerification] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
@@ -6091,45 +6197,6 @@ export function BookingModal({
   const [otpSentMessage, setOtpSentMessage] = useState("");
   const [confirmationResult, setConfirmationResult] = useState<any>(null);
   const [otpProvider, setOtpProvider] = useState<"firebase" | "backend">("firebase");
-
-  // Suggested Add-on Services (matching reference video)
-  const ADD_ON_SERVICES = [
-    {
-      id: "addon-mattress-cleaning",
-      title: "Mattress Deep Shampooing",
-      price: 349,
-      img: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=200&q=80",
-      desc: "Dustmite removal & antibacterial foam"
-    },
-    {
-      id: "addon-ceiling-fan-wash",
-      title: "Ceiling Fan Deep Scrub",
-      price: 99,
-      img: "https://images.unsplash.com/photo-1527018601619-a508a2be00cd?auto=format&fit=crop&w=200&q=80",
-      desc: "Grease and dust removal with shine polish"
-    },
-    {
-      id: "addon-fridge-interior",
-      title: "Refrigerator Sanitization",
-      price: 349,
-      img: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=200&q=80",
-      desc: "Shelf scrub, odor neutralizer & fungus wipe"
-    },
-    {
-      id: "addon-chimney-degrease",
-      title: "Kitchen Chimney Degreasing",
-      price: 499,
-      img: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=200&q=80",
-      desc: "Deep carbon & oil filter wash"
-    },
-    {
-      id: "addon-balcony-scrub",
-      title: "Balcony Power Scrub",
-      price: 299,
-      img: "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=200&q=80",
-      desc: "High-pressure washer for tiles"
-    },
-  ];
 
   const handleSendMobileOtp = async () => {
     if (!form.phone) {
@@ -6602,7 +6669,7 @@ export function BookingModal({
       setShowOtpVerification(false);
       setOtpInput("");
 
-      const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+      const defaultDate = getDefaultBookingDate();
       let initName = "";
       let initPhone = "";
       let initAddress = "";
@@ -6610,7 +6677,6 @@ export function BookingModal({
       let initCity = "Guntur";
       let initPincode = "";
       let loadedAddresses: any[] = [];
-      let isUserAlreadyAuthed = false;
 
       try {
         // 1. Check logged-in user profile from session or local storage
@@ -6620,7 +6686,6 @@ export function BookingModal({
           if (u.name) initName = u.name;
           if (u.phone) {
             initPhone = u.phone;
-            isUserAlreadyAuthed = true;
           }
           if (Array.isArray(u.addresses) && u.addresses.length > 0) {
             loadedAddresses = u.addresses;
@@ -6682,7 +6747,7 @@ export function BookingModal({
         ...f,
         name: initName || f.name,
         phone: initPhone || f.phone,
-        date: tomorrow,
+        date: f.date || defaultDate,
         address: initAddress || f.address,
         landmark: initLandmark || f.landmark,
         city: initCity || f.city,
@@ -6692,7 +6757,7 @@ export function BookingModal({
       // Async live lookup of profile & address if phone number is present
       if (initPhone && initPhone.replace(/\D/g, "").length === 10) {
         fetch(`${ADMIN_API_URL}/api/auth/profile-by-phone?phone=${initPhone.replace(/\D/g, "")}`)
-          .then((r) => r.ok ? r.json() : null)
+          .then((r) => (r.ok ? r.json() : null))
           .then((data) => {
             if (data?.user) {
               if (data.user.name && (!initName || initName === "Customer")) {
@@ -6710,36 +6775,23 @@ export function BookingModal({
         .then((bData) => {
           const list = Array.isArray(bData) ? bData : [];
           setBlockedDates(list);
-          
-          const now = new Date();
-          const todayY = now.getFullYear();
-          const todayM = String(now.getMonth() + 1).padStart(2, "0");
-          const todayD = String(now.getDate()).padStart(2, "0");
-          const todayStr = `${todayY}-${todayM}-${todayD}`;
 
-          const isDateBlocked = (d: string) => list.some((b) => b.date === d);
-          
-          // Determine best initial target date:
-          // If today is NOT blocked and has remaining valid slots, start with today.
-          // Otherwise, start with tomorrow (or next non-blocked date).
-          let targetDate = todayStr;
-          let checkD = new Date();
-          let attempts = 0;
-
-          const isDateInvalid = (d: string) => {
-            if (isDateBlocked(d)) return true;
-            if (d === todayStr && areAllSlotsPassedToday(todayStr, 30)) return true;
-            return false;
-          };
-
-          while (isDateInvalid(targetDate) && attempts < 30) {
-            checkD.setDate(checkD.getDate() + 1);
-            targetDate = `${checkD.getFullYear()}-${String(checkD.getMonth() + 1).padStart(2, "0")}-${String(checkD.getDate()).padStart(2, "0")}`;
-            attempts++;
-          }
-
-          const initialSlot = getFirstAvailableSlot(targetDate, [], 30);
-          setForm((f) => ({ ...f, date: targetDate, time: initialSlot }));
+          setForm((f) => {
+            const isDateBlocked = (d: string) => list.some((b) => b.date === d);
+            let target = f.date || defaultDate;
+            if (isDateBlocked(target)) {
+              let dObj = new Date(target + "T00:00:00");
+              for (let i = 0; i < 30; i++) {
+                dObj.setDate(dObj.getDate() + 1);
+                const dStr = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, "0")}-${String(dObj.getDate()).padStart(2, "0")}`;
+                if (!isDateBlocked(dStr)) {
+                  const slot = getFirstAvailableSlot(dStr, [], 30) || "08:00 AM";
+                  return { ...f, date: dStr, time: slot };
+                }
+              }
+            }
+            return f;
+          });
         })
         .catch(() => {});
 
@@ -6765,8 +6817,8 @@ export function BookingModal({
 
         if (isCurrentBooked || isCurrentPast) {
           const firstFree = getFirstAvailableSlot(form.date, res.normalizedSlots, 30);
-          if (firstFree) {
-            setForm((f) => ({ ...f, time: firstFree }));
+          if (firstFree && firstFree !== form.time) {
+            setForm((f) => (f.time === firstFree ? f : { ...f, time: firstFree }));
           }
         }
       })
@@ -7785,53 +7837,15 @@ export function BookingModal({
                       Quick Pick Date:
                     </span>
                     <div className="flex overflow-x-auto no-scrollbar gap-1.5 py-1">
-                      {(() => {
-                        const chips = [];
-                        const today = new Date();
-                        const todayY = today.getFullYear();
-                        const todayM = String(today.getMonth() + 1).padStart(2, "0");
-                        const todayD = String(today.getDate()).padStart(2, "0");
-                        const todayFormatted = `${todayY}-${todayM}-${todayD}`;
-
-                        for (let i = 0; i < 7; i++) {
-                          const d = new Date(today);
-                          d.setDate(today.getDate() + i);
-                          const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-                          const isToday = dStr === todayFormatted;
-                          const isTodayClosed = isToday && areAllSlotsPassedToday(dStr, 30);
-                          const isBlocked = blockedDates.some((b) => b.date === dStr);
-                          const blockInfo = blockedDates.find((b) => b.date === dStr);
-                          const label =
-                            i === 0
-                              ? isBlocked
-                                ? "Today (Holiday)"
-                                : isTodayClosed
-                                  ? "Today (Closed)"
-                                  : "Today"
-                              : i === 1
-                                ? isBlocked
-                                  ? "Tomorrow (Holiday)"
-                                  : "Tomorrow"
-                                : isBlocked
-                                  ? `${d.toLocaleDateString("en-IN", {
-                                      weekday: "short",
-                                      day: "numeric",
-                                      month: "short",
-                                    })} (Holiday)`
-                                  : d.toLocaleDateString("en-IN", {
-                                      weekday: "short",
-                                      day: "numeric",
-                                      month: "short",
-                                    });
-                          chips.push({ dStr, label, isBlocked, blockInfo, isTodayClosed });
-                        }
-                        return chips.map((c) => (
+                      {quickPickDateChips.map((c) => {
+                        const isSelected = form.date === c.dStr;
+                        return (
                           <button
                             key={c.dStr}
                             type="button"
                             onClick={() => {
                               if (c.isBlocked) {
-                                const isToday = c.dStr === todayFormatted;
+                                const isToday = c.dStr === c.dStr;
                                 const reasonText = formatHolidayReason(c.blockInfo?.reason);
                                 toast.error(
                                   isToday
@@ -7840,16 +7854,16 @@ export function BookingModal({
                                 );
                                 return;
                               }
-                              setForm({ ...form, date: c.dStr });
+                              setForm((prev) => (prev.date === c.dStr ? prev : { ...prev, date: c.dStr }));
                             }}
                             className={`py-1.5 px-2.5 rounded-xl text-[10px] font-bold transition-all border whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
                               c.isBlocked
                                 ? "bg-red-50 text-red-600 border-red-300 ring-1 ring-red-200"
                                 : c.isTodayClosed
-                                  ? form.date === c.dStr
+                                  ? isSelected
                                     ? "bg-amber-100 text-amber-900 border-amber-300 ring-1 ring-amber-200"
                                     : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-150"
-                                  : form.date === c.dStr
+                                  : isSelected
                                     ? "bg-[#002A22] text-white border-[#002A22] shadow-xs"
                                     : "bg-[#F8FAF9] border-slate-200 text-slate-700 hover:bg-slate-100"
                             }`}
@@ -7868,8 +7882,8 @@ export function BookingModal({
                             {c.isBlocked && <span className="text-red-500 font-black">🚫</span>}
                             {c.isTodayClosed && <span className="text-amber-700 font-black text-[9px]">⏳</span>}
                           </button>
-                        ));
-                      })()}
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -8060,7 +8074,7 @@ export function BookingModal({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {ADD_ON_SERVICES.map((addon) => {
+                  {BOOKING_ADD_ON_SERVICES.map((addon) => {
                     const isInCart = cart.some((item) => item.id.includes(addon.id));
                     return (
                       <div

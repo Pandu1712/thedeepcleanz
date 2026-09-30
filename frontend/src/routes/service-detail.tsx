@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import {
   Sparkles,
@@ -372,7 +372,7 @@ function ServiceDetailPage() {
   const serviceId = search.id || "bathroom-express";
 
   // Location & Smart Pricing Engine
-  const getServicePrice = (basePrice: number): number => {
+  const getServicePrice = useCallback((basePrice: number): number => {
     if (typeof window === "undefined") return basePrice;
     try {
       const locStr = (sessionStorage.getItem("user_location_address") || sessionStorage.getItem("user_location") || "").toLowerCase();
@@ -421,7 +421,7 @@ function ServiceDetailPage() {
     } catch (e) {
       return basePrice;
     }
-  };
+  }, []);
 
   // Catalog state (defaults to pre-bundled DEFAULT_CATEGORIES so data renders instantly with 0ms delay)
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
@@ -802,28 +802,29 @@ function ServiceDetailPage() {
     return cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   }, [cart]);
 
-  const updateQty = (id: string, d: number) =>
+  const updateQty = useCallback((id: string, d: number) => {
     setCart((c) =>
       c
         .map((i) => (i.id === id ? { ...i, qty: i.qty + d } : i))
         .filter((i) => i.qty > 0),
     );
+  }, []);
 
-  const removeItem = (id: string) => {
+  const removeItem = useCallback((id: string) => {
     setCart((c) => c.filter((i) => i.id !== id));
     toast.success("Item removed from cart");
-  };
+  }, []);
 
-  const addRawItemToCart = (item: { id: string; title: string; price: number; img: string }) => {
+  const addRawItemToCart = useCallback((item: { id: string; title: string; price: number; img: string }) => {
     setCart((c) => {
       const ex = c.find((i) => i.id === item.id);
       if (ex) return c.map((i) => (i.id === item.id ? { ...i, qty: i.qty + 1 } : i));
       return [...c, { id: item.id, title: item.title, price: item.price, img: item.img, qty: 1 }];
     });
     toast.success(`${item.title} added to cart!`, { icon: "🛒" });
-  };
+  }, []);
 
-  const handleAddToCart = (plan: ServicePlan) => {
+  const handleAddToCart = useCallback((plan: ServicePlan) => {
     if (!service) return;
     const computedPrice = getServicePrice(plan.price || service.price || 0);
     const cartItemId = `${service.id}-${plan.name.toLowerCase().replace(/\s+/g, "-")}`;
@@ -849,12 +850,22 @@ function ServiceDetailPage() {
       ];
     });
     toast.success(`Added ${service.title} - ${plan.name} to cart!`, { icon: "🛒" });
-  };
+  }, [service, getServicePrice]);
 
-  const handleDirectBookNow = (plan: ServicePlan) => {
+  const handleDirectBookNow = useCallback((plan: ServicePlan) => {
     handleAddToCart(plan);
     setBookingOpen(true);
-  };
+  }, [handleAddToCart]);
+
+  const handleConfirmBooking = useCallback(() => {
+    setCart([]);
+    setBookingOpen(false);
+    toast.success("Booking confirmed! Redirecting to your bookings...", {
+      icon: "🎉",
+      duration: 4000,
+    });
+    navigate({ to: "/my-bookings" });
+  }, [navigate]);
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1923,15 +1934,7 @@ function ServiceDetailPage() {
         onClose={() => setBookingOpen(false)}
         cart={cart}
         total={cartTotal}
-        onConfirm={() => {
-          setCart([]);
-          setBookingOpen(false);
-          toast.success("Booking confirmed! Redirecting to your bookings...", {
-            icon: "🎉",
-            duration: 4000,
-          });
-          navigate({ to: "/my-bookings" });
-        }}
+        onConfirm={handleConfirmBooking}
         updateQty={updateQty}
         removeItem={removeItem}
         onAddItem={addRawItemToCart}
