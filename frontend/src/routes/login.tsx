@@ -346,7 +346,7 @@ function LoginComponent() {
 
   const handleResendOtp = async () => {
     setError("");
-    setOtp(["", "", "", "", "", ""]);
+    setOtpCode("");
     setForgotOtp("");
     setIsLoading(true);
     try {

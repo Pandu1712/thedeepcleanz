@@ -549,8 +549,8 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
         fetchRecentTransformations().catch(() => []),
         fetchBlockedDates().catch(() => []),
         fetch(`${ADMIN_API_URL}/api/settings`)
-          .then((r) => (r.ok ? r.json() : {}))
-          .catch(() => ({})),
+          .then((r) => (r.ok ? r.json() : ({} as any)))
+          .catch(() => ({} as any)) as Promise<any>,
       ]);
 
       setCategories(catalog.categories || []);
