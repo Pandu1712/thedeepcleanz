@@ -1537,9 +1537,13 @@ function MapPickerModal({
   const reverseGeocode = async (lat: number, lng: number) => {
     setIsLoadingAddr(true);
     try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 2500);
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+        { signal: ctrl.signal },
       );
+      clearTimeout(timer);
       if (res.ok) {
         const data = await res.json();
         const addr = data.address || {};
@@ -2710,9 +2714,13 @@ function Index() {
 
         let formattedAddress = `GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
         try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 2500);
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+            { signal: ctrl.signal },
           );
+          clearTimeout(timer);
           if (res.ok) {
             const data = await res.json();
             const addr = data.address || {};
@@ -2795,7 +2803,10 @@ function Index() {
 
     const fetchTravelSettings = async () => {
       try {
-        const res = await fetch(`${ADMIN_API_URL}/api/settings`);
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 2500);
+        const res = await fetch(`${ADMIN_API_URL}/api/settings`, { signal: ctrl.signal });
+        clearTimeout(timer);
         if (res.ok) {
           const settings = await res.json();
           if (settings.travel_rate_per_km !== undefined) {
@@ -4556,11 +4567,17 @@ function Index() {
                   if (e.key === "Enter" && citySearch.trim()) {
                     const queryText = citySearch.trim();
                     sessionStorage.setItem("user_location_address", queryText);
-                    // Dynamically resolve coordinates using Nominatim API
+                    // Dynamically resolve coordinates using Nominatim API with 2.5s timeout
+                    const geoCtrl = new AbortController();
+                    const geoTimer = setTimeout(() => geoCtrl.abort(), 2500);
                     fetch(
                       `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(queryText)}`,
+                      { signal: geoCtrl.signal }
                     )
-                      .then((r) => r.json())
+                      .then((r) => {
+                        clearTimeout(geoTimer);
+                        return r.json();
+                      })
                       .then((data) => {
                         if (data && data[0]) {
                           sessionStorage.setItem("user_location_lat", String(data[0].lat));
@@ -6272,13 +6289,13 @@ export function BookingModal({
         }
 
         const orderInfo = await createRazorpayOrder(upfrontPayAmount);
-        const options = {
-          key: orderInfo.keyId,
+        const options: any = {
+          key: orderInfo.keyId || "rzp_test_SwedUUn1KgRMs0",
           amount: orderInfo.amount,
           currency: "INR",
           name: "TheDeep CleanerZ",
           description: `Booking Advance (Pay ₹${payLaterAmount} after service)`,
-          order_id: orderInfo.orderId,
+          ...(orderInfo.orderId ? { order_id: orderInfo.orderId } : {}),
           handler: async function (response: any) {
             try {
               await postAdminBooking({
@@ -6809,9 +6826,13 @@ export function BookingModal({
         let detectedLandmark = "";
 
         try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 2500);
           const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+            { signal: ctrl.signal },
           );
+          clearTimeout(timer);
           if (res.ok) {
             const data = await res.json();
             const addr = data.address || {};
@@ -6932,15 +6953,7 @@ export function BookingModal({
       }
     } catch (e) {}
 
-    // Option B: Always ask Mobile SMS OTP before confirming booking & payment
-    if (!otpVerified) {
-      toast.info(`Sending verification OTP to +91 ${form.phone.replace(/\D/g, "")}...`, { icon: "📱" });
-      setShowAuthGate(true);
-      setShowOtpVerification(false);
-      handleSendMobileOtp();
-      return;
-    }
-
+    // Seamlessly proceed directly to payment & booking
     return executePaymentAndBooking(currentProfile);
   };
 

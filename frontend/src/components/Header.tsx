@@ -67,7 +67,10 @@ export default function Header({
   useEffect(() => {
     const fetchPromoSettings = async () => {
       try {
-        const res = await fetch(`${ADMIN_API_URL}/api/settings`);
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 2500);
+        const res = await fetch(`${ADMIN_API_URL}/api/settings`, { signal: ctrl.signal });
+        clearTimeout(timer);
         if (res.ok) {
           const settings = await res.json();
           if (settings.header_promo_text) {
@@ -78,12 +81,10 @@ export default function Header({
           }
         }
       } catch (e) {
-        console.warn("Failed to fetch header promo settings:", e);
+        // silent fallback to default promo banner
       }
     };
     fetchPromoSettings();
-    window.addEventListener("storage", fetchPromoSettings);
-    return () => window.removeEventListener("storage", fetchPromoSettings);
   }, []);
 
   useEffect(() => {

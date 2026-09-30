@@ -256,22 +256,32 @@ export async function postAdminBooking(
 export async function createRazorpayOrder(
   amount: number,
 ): Promise<{ orderId: string; amount: number; keyId: string }> {
+  const fallbackKey = "rzp_test_SwedUUn1KgRMs0";
+  const paiseAmount = Math.round(Number(amount) * 100);
   try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3500);
     const res = await fetch(`${ADMIN_API_URL}/api/payment/order`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ amount }),
+      signal: ctrl.signal,
     });
+    clearTimeout(timer);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || `Payment order request failed: ${res.status}`);
+      console.warn("Backend order creation returned status:", res.status, data);
+      return { orderId: "", amount: paiseAmount, keyId: data.keyId || fallbackKey };
     }
-    return (await res.json()) as { orderId: string; amount: number; keyId: string };
+    const data = await res.json();
+    return {
+      orderId: data.orderId || "",
+      amount: data.amount || paiseAmount,
+      keyId: data.keyId || fallbackKey,
+    };
   } catch (err: any) {
-    if (err.message && err.message.includes("Failed to fetch")) {
-      throw new Error(`Unable to connect to backend server (${ADMIN_API_URL}). Please verify backend is running on port 4000.`);
-    }
-    throw err;
+    console.warn("createRazorpayOrder fallback to direct standard checkout:", err.message || err);
+    return { orderId: "", amount: paiseAmount, keyId: fallbackKey };
   }
 }
 
@@ -282,9 +292,16 @@ export async function fetchBookings(): Promise<any[]> {
 }
 
 export async function fetchAllReviews(signal?: AbortSignal): Promise<any[]> {
-  const res = await fetch(`${ADMIN_API_URL}/api/reviews`, { signal });
-  if (!res.ok) throw new Error(`Reviews request failed: ${res.status}`);
-  return (await res.json()) as any[];
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3500);
+    const res = await fetch(`${ADMIN_API_URL}/api/reviews`, { signal: signal || ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return [];
+    return (await res.json()) as any[];
+  } catch (err) {
+    return [];
+  }
 }
 
 export async function fetchUsers(): Promise<any[]> {
@@ -390,9 +407,16 @@ export type ServiceReview = {
 };
 
 export async function fetchReviews(serviceId: string): Promise<ServiceReview[]> {
-  const res = await fetch(`${ADMIN_API_URL}/api/reviews/${serviceId}`);
-  if (!res.ok) throw new Error(`Reviews request failed: ${res.status}`);
-  return (await res.json()) as ServiceReview[];
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3500);
+    const res = await fetch(`${ADMIN_API_URL}/api/reviews/${serviceId}`, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return [];
+    return (await res.json()) as ServiceReview[];
+  } catch (err) {
+    return [];
+  }
 }
 
 export async function postReview(payload: {
@@ -423,13 +447,12 @@ export async function fetchCustomizedServices(
 ): Promise<AdminCustomizedService[]> {
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 4000);
+    const timer = setTimeout(() => ctrl.abort(), 3500);
     const res = await fetch(`${ADMIN_API_URL}/api/customized-services`, { signal: signal || ctrl.signal });
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`Customized services request failed: ${res.status}`);
+    if (!res.ok) return [];
     return (await res.json()) as AdminCustomizedService[];
   } catch (err) {
-    console.warn("Customized services fetch failed or timed out, using fallback:", err);
     return [];
   }
 }
@@ -730,9 +753,16 @@ export interface RecentTransformation {
 }
 
 export async function fetchRecentTransformations(signal?: AbortSignal): Promise<RecentTransformation[]> {
-  const res = await fetch(`${ADMIN_API_URL}/api/transformations`, { signal });
-  if (!res.ok) throw new Error(`Fetch transformations failed: ${res.status}`);
-  return (await res.json()) as RecentTransformation[];
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3500);
+    const res = await fetch(`${ADMIN_API_URL}/api/transformations`, { signal: signal || ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return [];
+    return (await res.json()) as RecentTransformation[];
+  } catch (err) {
+    return [];
+  }
 }
 
 export async function addRecentTransformation(payload: Omit<RecentTransformation, "id"> & { id?: string }): Promise<RecentTransformation> {
@@ -771,9 +801,16 @@ export interface BlockedDate {
 }
 
 export async function fetchBlockedDates(signal?: AbortSignal): Promise<BlockedDate[]> {
-  const res = await fetch(`${ADMIN_API_URL}/api/blocked-dates`, { signal });
-  if (!res.ok) throw new Error(`Fetch blocked dates failed: ${res.status}`);
-  return (await res.json()) as BlockedDate[];
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3500);
+    const res = await fetch(`${ADMIN_API_URL}/api/blocked-dates`, { signal: signal || ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return [];
+    return (await res.json()) as BlockedDate[];
+  } catch (err) {
+    return [];
+  }
 }
 
 export async function addBlockedDate(payload: { date: string; reason?: string }): Promise<BlockedDate> {

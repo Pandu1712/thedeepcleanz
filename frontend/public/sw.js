@@ -7,7 +7,7 @@
  * - Auto-purges all legacy caches on activation
  */
 
-const API_CACHE_NAME = "thedeepcleanz-api-v5";
+const API_CACHE_NAME = "thedeepcleanz-api-v6";
 
 // Install: Activate immediately
 self.addEventListener("install", () => {
@@ -36,6 +36,22 @@ self.addEventListener("activate", (event) => {
     }).then(() => self.clients.claim())
   );
 });
+
+// Helper for fast network fetch with 2.5s timeout
+function fetchWithTimeout(request, timeoutMs = 2500) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("SW Network Timeout")), timeoutMs);
+    fetch(request)
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
 
 // Fetch Interception
 self.addEventListener("fetch", (event) => {
@@ -66,10 +82,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 4. API Endpoints: Network-First with safe offline JSON fallback
+  // 4. API Endpoints: Network-First with safe fast timeout & offline JSON fallback
   if (url.pathname.startsWith("/api/catalog") || url.pathname.startsWith("/api/customized-services") || url.pathname.startsWith("/api/transformations") || url.pathname.startsWith("/api/coupons") || url.pathname.startsWith("/api/reviews")) {
     event.respondWith(
-      fetch(req)
+      fetchWithTimeout(req, 2500)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const copy = networkResponse.clone();

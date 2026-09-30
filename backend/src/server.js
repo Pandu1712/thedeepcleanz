@@ -2832,7 +2832,15 @@ app.all("*", async (req, res, next) => {
     }
 
     const webReq = new Request(url, requestOptions);
-    const webRes = await startHandler.fetch(webReq);
+    
+    // Race SSR against a 2500ms timeout to guarantee instant client response under load
+    const ssrTimeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("SSR Timeout (2500ms exceeded)")), 2500)
+    );
+    const webRes = await Promise.race([
+      startHandler.fetch(webReq),
+      ssrTimeoutPromise,
+    ]);
 
     // If SSR returned 404 or an error, fallback to client SPA index.html so client router can resolve
     if (webRes.status === 404 && req.method === "GET" && fs.existsSync(clientIndexPath)) {
@@ -2848,7 +2856,7 @@ app.all("*", async (req, res, next) => {
     const bodyText = await webRes.text();
     res.send(bodyText);
   } catch (err) {
-    console.error("Error in TanStack Start SSR handler:", err);
+    console.warn("SSR handler bypass (serving fast client SPA):", err.message || err);
     if (fs.existsSync(clientIndexPath)) {
       return res.sendFile(clientIndexPath);
     }

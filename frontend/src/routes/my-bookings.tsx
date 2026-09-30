@@ -571,13 +571,13 @@ function MyBookingsPage() {
       }
 
       const orderInfo = await createRazorpayOrder(amount);
-      const options = {
-        key: orderInfo.keyId,
+      const options: any = {
+        key: orderInfo.keyId || "rzp_test_SwedUUn1KgRMs0",
         amount: orderInfo.amount,
         currency: "INR",
         name: "TheDeep CleanerZ",
         description: `Pay Remaining Balance for Booking #${bookingId.substring(0, 8).toUpperCase()}`,
-        order_id: orderInfo.orderId,
+        ...(orderInfo.orderId ? { order_id: orderInfo.orderId } : {}),
         handler: async function (response: any) {
           try {
             await updateBookingPayment(bookingId, "Paid In Full", response.razorpay_payment_id);

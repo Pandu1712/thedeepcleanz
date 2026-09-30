@@ -301,12 +301,10 @@ function RootShell({ children }: { children: ReactNode }) {
         />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
-        />
-        <script
-          type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
         />
+        {/* Razorpay Standard Checkout Gateway */}
+        <script defer src="https://checkout.razorpay.com/v1/checkout.js" />
       </head>
       <body>
         {children}
@@ -320,9 +318,14 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const [isOnline, setIsOnline] = useState(true);
 
-  // Prompt user for location on site visit and store in database
-  const getLiveLocation = () => {
+  // Prompt user for location on site visit and store in database (non-blocking)
+  const getLiveLocation = (force = false) => {
     if (typeof window !== "undefined" && navigator.geolocation) {
+      // If we already have user location stored, avoid aggressive background re-prompting unless forced
+      if (!force && sessionStorage.getItem("user_location_address")) {
+        return;
+      }
+
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
@@ -335,54 +338,69 @@ function RootComponent() {
             }
           } catch (e) { }
 
-          // 1. Log to database
+          // 1. Non-blocking log to database with 2.5s abort timeout
           try {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 2500);
             await fetch(`${ADMIN_API_URL}/api/locations`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ userId, latitude, longitude }),
+              signal: ctrl.signal,
             });
+            clearTimeout(timer);
           } catch (err) {
             console.warn("Failed to report live visitor location:", err);
           }
 
-          // 2. Reverse geocode location using OpenStreetMap Nominatim
+          // 2. Reverse geocode location using OpenStreetMap Nominatim with 2.5s abort timeout
           try {
+            const geoCtrl = new AbortController();
+            const geoTimer = setTimeout(() => geoCtrl.abort(), 2500);
             const geoRes = await fetch(
               `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+              { signal: geoCtrl.signal }
             );
-            const geoData = await geoRes.json();
-            if (geoData && geoData.address) {
-              const city =
-                geoData.address.city ||
-                geoData.address.town ||
-                geoData.address.village ||
-                geoData.address.suburb ||
-                "";
-              const state = geoData.address.state || "";
-              const addressText =
-                city && state ? `${city}, ${state}` : city || state || "Detected Location";
-              sessionStorage.setItem("user_location_address", addressText);
-              sessionStorage.setItem("user_location_lat", String(latitude));
-              sessionStorage.setItem("user_location_lng", String(longitude));
-              window.dispatchEvent(new Event("location-updated"));
+            clearTimeout(geoTimer);
+            if (geoRes.ok) {
+              const geoData = await geoRes.json();
+              if (geoData && geoData.address) {
+                const city =
+                  geoData.address.city ||
+                  geoData.address.town ||
+                  geoData.address.village ||
+                  geoData.address.suburb ||
+                  "";
+                const state = geoData.address.state || "";
+                const addressText =
+                  city && state ? `${city}, ${state}` : city || state || "Detected Location";
+                sessionStorage.setItem("user_location_address", addressText);
+                sessionStorage.setItem("user_location_lat", String(latitude));
+                sessionStorage.setItem("user_location_lng", String(longitude));
+                window.dispatchEvent(new Event("location-updated"));
+              }
             }
           } catch (geoErr) {
-            console.error("Reverse geocoding failed:", geoErr);
+            console.warn("Reverse geocoding timed out or failed:", geoErr);
           }
         },
         (error) => {
           console.warn("Location permission denied or lookup failed:", error);
         },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+        { enableHighAccuracy: false, timeout: 4000, maximumAge: 300000 },
       );
     }
   };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      (window as any).requestLiveLocation = getLiveLocation;
-      getLiveLocation();
+      (window as any).requestLiveLocation = () => getLiveLocation(true);
+      // Run lazily after idle to keep page load snappy
+      if ("requestIdleCallback" in window) {
+        (window as any).requestIdleCallback(() => getLiveLocation(false));
+      } else {
+        setTimeout(() => getLiveLocation(false), 1200);
+      }
 
       const handleAuth = () => {
         getLiveLocation();
