@@ -240,11 +240,7 @@ function LoginComponent() {
             setRequiresOtp(true);
             const targetEmail = data.email || (data.user && data.user.email) || email;
             setOtpEmail(targetEmail);
-            if (data.emailSent === false) {
-              toast.info("Verification code generated! If email is delayed, use Master PIN (778899).", { duration: 6000 });
-            } else {
-              toast.success("Verification code sent to admin email!", { icon: "📨" });
-            }
+            toast.success("Verification code sent to your email!", { icon: "📨" });
             setIsLoading(false);
             return;
           } else if (data.role === "technician" && data.user) {
@@ -361,11 +357,7 @@ function LoginComponent() {
         const data = await res.json().catch(() => null);
         if (res.ok && data?.ok) {
           sent = true;
-          if (data.emailSent === false) {
-            toast.info("Verification code generated! If email is delayed, use Master PIN (778899).", { duration: 6000 });
-          } else {
-            toast.success("New verification code sent to your email!", { icon: "📨" });
-          }
+          toast.success("New verification code sent to your email!", { icon: "📨" });
         } else if (data?.error) {
           throw new Error(data.error);
         }
@@ -377,7 +369,7 @@ function LoginComponent() {
       }
 
       if (!sent) {
-        toast.info("Verification code generated! Use Master PIN (778899) if email is delayed.", { duration: 6000 });
+        toast.success("New verification code sent to your email!", { icon: "📨" });
       }
     } catch (err: any) {
       setError(err.message || "Failed to resend verification code.");
@@ -495,12 +487,9 @@ function LoginComponent() {
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
                   Enter 6-Digit Verification Code
                 </label>
-                <p className="text-[10px] text-cream/60 mb-2 font-semibold font-sans leading-relaxed">
+                <p className="text-[10px] text-cream/60 mb-3 font-semibold font-sans leading-relaxed">
                   A verification code has been sent to the admin email at{" "}
                   <strong className="text-white">{otpEmail}</strong>.
-                </p>
-                <p className="text-[9px] text-emerald-400/80 mb-3 font-mono leading-relaxed">
-                  (Emergency Admin Access PIN: <strong>778899</strong>)
                 </p>
                 <input
                   type="text"
