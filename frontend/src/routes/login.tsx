@@ -55,6 +55,7 @@ function LoginComponent() {
       return;
     }
 
+    setForgotOtp("");
     setIsLoading(true);
     try {
       const res = await fetch(`${ADMIN_API_URL}/api/auth/forgot-password/send-otp`, {
@@ -345,6 +346,8 @@ function LoginComponent() {
 
   const handleResendOtp = async () => {
     setError("");
+    setOtp(["", "", "", "", "", ""]);
+    setForgotOtp("");
     setIsLoading(true);
     try {
       let sent = false;

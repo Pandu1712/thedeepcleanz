@@ -6270,6 +6270,7 @@ export const BookingModal = memo(function BookingModal({
 
     setMobileOtpLoading(true);
     setOtpSentMessage("");
+    setOtpInput("");
 
     let sentViaFirebase = false;
 
