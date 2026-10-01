@@ -1075,48 +1075,6 @@ function ServiceDetailPage() {
     }
   }, [service?.id]);
 
-  // Sibling services in the same category (e.g. 1 BHK, 2 BHK, 3 BHK, 4 BHK, 5 BHK, Villa)
-  const siblingServices = useMemo(() => {
-    if (!service) return [];
-    const sId = (service.id || "").toLowerCase();
-    const sTitle = (service.title || "").toLowerCase();
-
-    // 1. Check parent categories & child categories in catalog
-    if (Array.isArray(categories)) {
-      for (const cat of categories) {
-        if (cat && Array.isArray(cat.services)) {
-          const match = cat.services.some(
-            (s) => s && (s.id?.toLowerCase() === sId || s.title?.toLowerCase() === sTitle)
-          );
-          if (match && cat.services.length > 1) {
-            return cat.services;
-          }
-        }
-      }
-    }
-
-    // 2. Check rawAdminServices
-    if (Array.isArray(rawAdminServices) && rawAdminServices.length > 0) {
-      if (service.categoryId) {
-        const byCat = rawAdminServices.filter((s) => s && s.categoryId === service.categoryId);
-        if (byCat.length > 1) return byCat;
-      }
-    }
-
-    // 3. Fallback to built-in collections
-    if (sId.includes("vacant") || sTitle.includes("vacant")) {
-      return VACANT_SERVICES;
-    }
-    if (sId.includes("furnished") || sTitle.includes("furnished")) {
-      return FURNISHED_SERVICES;
-    }
-    if (sId.includes("villa") || sTitle.includes("villa")) {
-      return VILLA_SERVICES;
-    }
-
-    return [];
-  }, [service, categories, rawAdminServices]);
-
   // Dynamic Multi-Tier Plans State (Express Clean, Classic Deep Clean, Premium Sanitized)
   const plans: ServicePlan[] = useMemo(() => {
     return resolveServicePlans(service);
@@ -1490,74 +1448,17 @@ function ServiceDetailPage() {
               </div>
 
               {/* ===================================================
-                  STEP 1: SELECT APARTMENT SIZE / CONFIGURATION (IF MULTIPLE)
-                 =================================================== */}
-              {siblingServices.length > 1 && (
-                <div className="pt-2 sm:pt-3 space-y-2.5 bg-[#F6FAF8] border border-[#DCEEE6] p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-extrabold uppercase tracking-wider text-[#002A22] flex items-center gap-1.5">
-                      <span className="flex h-5 w-5 rounded-full bg-[#0B6B46] text-white text-[10px] font-black items-center justify-center">1</span>
-                      Select Home Size / Configuration
-                    </label>
-                    <span className="text-[10px] sm:text-[11px] text-emerald-800 font-bold">
-                      {siblingServices.length} Sizes Available
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 pt-0.5">
-                    {siblingServices.map((sib: any) => {
-                      const isCurrent = (sib.id || "").toLowerCase() === (service?.id || "").toLowerCase() ||
-                        (sib.title || "").toLowerCase() === (service?.title || "").toLowerCase();
-                      const cleanShortTitle = (sib.title || "")
-                        .replace(/\s*(Vacant|\/|Empty|Flat|Deep|Cleaning|Furnished|Apartment|Services?)\s*/gi, " ")
-                        .trim()
-                        .replace(/\s+/g, " ") || sib.title;
-
-                      return (
-                        <button
-                          key={sib.id || sib.title}
-                          type="button"
-                          onClick={() => {
-                            if (!isCurrent) {
-                              navigate({
-                                to: "/service-detail",
-                                search: { id: sib.id || sib.title },
-                              });
-                            }
-                          }}
-                          className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center gap-2 active:scale-95 shadow-3xs ${
-                            isCurrent
-                              ? "bg-[#002A22] text-white border-[#002A22] shadow-sm ring-2 ring-[#0B6B46]/30"
-                              : "bg-white text-slate-700 border-slate-200 hover:border-emerald-600 hover:bg-emerald-50/60"
-                          }`}
-                        >
-                          <span>{cleanShortTitle}</span>
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                            isCurrent ? "bg-emerald-800/80 text-emerald-200" : "bg-slate-100 text-emerald-800"
-                          }`}>
-                            ₹{sib.price}/-
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* ===================================================
-                  STEP 2: SELECT CLEANING PACKAGE TIER (EXPRESS / CLASSIC / PREMIUM)
+                  STEP 1: SELECT APPLIANCE OR PACKAGE OPTION
                  =================================================== */}
               {plans.length > 0 && (
                 <div className="pt-2 sm:pt-3 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-extrabold uppercase tracking-wider text-[#002A22] flex items-center gap-1.5">
-                      <span className="flex h-5 w-5 rounded-full bg-[#0B6B46] text-white text-[10px] font-black items-center justify-center">
-                        {siblingServices.length > 1 ? "2" : "1"}
-                      </span>
-                      Select Cleaning Package Tier
+                      <span className="flex h-5 w-5 rounded-full bg-[#0B6B46] text-white text-[10px] font-black items-center justify-center">1</span>
+                      Select Appliance or Package Option
                     </label>
                     <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
-                      {plans.length} tiers available
+                      {plans.length} options available
                     </span>
                   </div>
 
