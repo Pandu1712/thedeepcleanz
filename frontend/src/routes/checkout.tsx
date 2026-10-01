@@ -80,53 +80,19 @@ const formatHolidayReason = (reason?: string): string => {
 
 export function CheckoutPage() {
   const navigate = useNavigate();
+  const [isClientMounted, setIsClientMounted] = useState(false);
 
   // Cart & Pricing State
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const saved = localStorage.getItem("thedeepcleanerz_cart_v1");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed.filter((i) => i && i.id);
-      }
-    } catch (e) {}
-    return [];
-  });
+  const [cart, setCart] = useState<CartItem[]>([]);
 
   const [form, setForm] = useState(() => {
     const defaultDate = getDefaultBookingDate();
     const defaultSlot = getFirstAvailableSlot(defaultDate, [], 30) || "08:00 AM";
-    let initName = "";
-    let initPhone = "";
-    let initEmail = "";
-
-    try {
-      if (typeof window !== "undefined") {
-        const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
-        if (prof) {
-          const u = JSON.parse(prof);
-          if (u.name) initName = u.name;
-          if (u.phone) initPhone = u.phone;
-          if (u.email && !u.email.endsWith("@thedeepcleanerz.com")) initEmail = u.email;
-        }
-
-        if (!initName || !initPhone) {
-          const savedContact = localStorage.getItem("thedeepcleanz_saved_contact");
-          if (savedContact) {
-            const sc = JSON.parse(savedContact);
-            if (sc.name && !initName) initName = sc.name;
-            if (sc.phone && !initPhone) initPhone = sc.phone;
-            if (sc.email && !initEmail && !sc.email.endsWith("@thedeepcleanerz.com")) initEmail = sc.email;
-          }
-        }
-      }
-    } catch (e) {}
 
     return {
-      name: initName,
-      phone: initPhone,
-      email: initEmail,
+      name: "",
+      phone: "",
+      email: "",
       address: "",
       landmark: "",
       city: "Guntur",
@@ -140,18 +106,7 @@ export function CheckoutPage() {
     };
   });
 
-  const [savedAddresses, setSavedAddresses] = useState<any[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const saved = localStorage.getItem("thedeepcleanz_saved_addresses");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {}
-    return [];
-  });
-
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [newAddrType, setNewAddrType] = useState("Home");
@@ -182,31 +137,84 @@ export function CheckoutPage() {
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [calendarViewMonth, setCalendarViewMonth] = useState<Date>(() => new Date());
 
-  // Save cart to local storage whenever updated
+  // Client Mount Initialization (Safe from SSR Hydration Error #418 & Freeze)
   useEffect(() => {
+    setIsClientMounted(true);
+
+    try {
+      // 1. Load Cart
+      const savedCart = localStorage.getItem("thedeepcleanerz_cart_v1");
+      if (savedCart) {
+        const parsed = JSON.parse(savedCart);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCart(parsed.filter((i) => i && i.id));
+        }
+      }
+
+      // 2. Load User Profile / Contact
+      let initName = "";
+      let initPhone = "";
+      let initEmail = "";
+
+      const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
+      if (prof) {
+        const u = JSON.parse(prof);
+        if (u.name) initName = u.name;
+        if (u.phone) initPhone = u.phone;
+        if (u.email && !u.email.endsWith("@thedeepcleanerz.com")) initEmail = u.email;
+      }
+
+      if (!initName || !initPhone) {
+        const savedContact = localStorage.getItem("thedeepcleanz_saved_contact");
+        if (savedContact) {
+          const sc = JSON.parse(savedContact);
+          if (sc.name && !initName) initName = sc.name;
+          if (sc.phone && !initPhone) initPhone = sc.phone;
+          if (sc.email && !initEmail && !sc.email.endsWith("@thedeepcleanerz.com")) initEmail = sc.email;
+        }
+      }
+
+      // 3. Load Saved Addresses
+      const rawAddrs = localStorage.getItem("thedeepcleanz_saved_addresses");
+      let loadedAddrs: any[] = [];
+      if (rawAddrs) {
+        const parsed = JSON.parse(rawAddrs);
+        if (Array.isArray(parsed)) loadedAddrs = parsed;
+      }
+      setSavedAddresses(loadedAddrs);
+
+      let defaultAddr = loadedAddrs.length > 0
+        ? (loadedAddrs.find((a: any) => a.isDefault) || loadedAddrs[0])
+        : null;
+
+      setForm((prev) => ({
+        ...prev,
+        ...(initName ? { name: initName } : {}),
+        ...(initPhone ? { phone: initPhone } : {}),
+        ...(initEmail ? { email: initEmail } : {}),
+        ...(defaultAddr ? {
+          address: defaultAddr.address || "",
+          landmark: defaultAddr.landmark || "",
+          city: defaultAddr.city || "Guntur",
+          pincode: defaultAddr.pincode || "",
+          gpsCoords: defaultAddr.gpsCoords || "",
+          mapsLink: defaultAddr.mapsLink || "",
+        } : {}),
+      }));
+
+      setShowAddressForm(loadedAddrs.length === 0);
+    } catch (e) {
+      console.warn("Checkout initialization error:", e);
+    }
+  }, []);
+
+  // Save cart to local storage whenever updated (only after client mounted)
+  useEffect(() => {
+    if (!isClientMounted) return;
     try {
       localStorage.setItem("thedeepcleanerz_cart_v1", JSON.stringify(cart));
     } catch (e) {}
-  }, [cart]);
-
-  // Initial address selection from saved
-  useEffect(() => {
-    if (savedAddresses.length > 0 && !form.address) {
-      const defaultAddr = savedAddresses.find((a: any) => a.isDefault) || savedAddresses[0];
-      setForm((f) => ({
-        ...f,
-        address: defaultAddr.address || "",
-        landmark: defaultAddr.landmark || "",
-        city: defaultAddr.city || "Guntur",
-        pincode: defaultAddr.pincode || "",
-        gpsCoords: defaultAddr.gpsCoords || "",
-        mapsLink: defaultAddr.mapsLink || "",
-      }));
-      setShowAddressForm(false);
-    } else if (savedAddresses.length === 0) {
-      setShowAddressForm(true);
-    }
-  }, [savedAddresses]);
+  }, [cart, isClientMounted]);
 
   // Load Blocked Dates & Coupons
   useEffect(() => {
