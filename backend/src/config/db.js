@@ -3433,6 +3433,27 @@ module.exports = {
     await query("UPDATE users SET addresses = ? WHERE id = ?", [JSON.stringify(addresses), userId]);
     return true;
   },
+  async updateUserProfile(userId, { name, email, phone }) {
+    const updates = [];
+    const params = [];
+    if (name) {
+      updates.push("name = ?");
+      params.push(name);
+    }
+    if (email) {
+      updates.push("email = ?");
+      params.push(email);
+    }
+    if (phone) {
+      updates.push("phone = ?");
+      params.push(phone);
+    }
+    if (updates.length > 0) {
+      params.push(userId);
+      await query(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`, params);
+    }
+    return true;
+  },
 
   async createUser({ id, name, phone, email, password, referral_code, wallet_balance }) {
     const createdAt = new Date().toISOString();

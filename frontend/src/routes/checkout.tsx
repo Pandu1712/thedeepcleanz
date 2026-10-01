@@ -657,7 +657,18 @@ export function CheckoutPage() {
       const res = await fetch(`${ADMIN_API_URL}/api/auth/mobile-otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: cleanPhone, otp: cleanOtp, name: form.name }),
+        body: JSON.stringify({
+          phone: cleanPhone,
+          otp: cleanOtp,
+          name: form.name,
+          email: form.email,
+          address: form.address,
+          landmark: form.landmark,
+          city: form.city,
+          pincode: form.pincode,
+          gpsCoords: form.gpsCoords,
+          mapsLink: form.mapsLink,
+        }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok && !verifiedSuccessfully) {
@@ -669,22 +680,62 @@ export function CheckoutPage() {
         name: form.name.trim() || "Customer",
         phone: cleanPhone,
         email: form.email.trim() || `${cleanPhone}@thedeepcleanerz.com`,
+        role: "user",
+        addresses: [],
       };
 
-      // Save user session
+      const finalName = verifiedUser.name || form.name.trim() || "Customer";
+      const finalEmail = verifiedUser.email || form.email.trim() || `${cleanPhone}@thedeepcleanerz.com`;
+      const finalPhone = verifiedUser.phone || cleanPhone;
+      const finalRole = verifiedUser.role || "user";
+
+      // Save complete user auth session across sessionStorage and localStorage
       sessionStorage.setItem("user_authenticated", "true");
+      sessionStorage.setItem("user_email", finalEmail);
+      sessionStorage.setItem("user_name", finalName);
+      sessionStorage.setItem("user_phone", finalPhone);
+      sessionStorage.setItem("user_role", finalRole);
       sessionStorage.setItem("user_profile", JSON.stringify(verifiedUser));
+
       localStorage.setItem("user_authenticated", "true");
+      localStorage.setItem("user_email", finalEmail);
+      localStorage.setItem("user_name", finalName);
+      localStorage.setItem("user_phone", finalPhone);
+      localStorage.setItem("user_role", finalRole);
       localStorage.setItem("user_profile", JSON.stringify(verifiedUser));
       localStorage.setItem(
         "thedeepcleanz_saved_contact",
-        JSON.stringify({ name: form.name.trim(), phone: cleanPhone, email: form.email.trim() }),
+        JSON.stringify({ name: finalName, phone: finalPhone, email: finalEmail }),
       );
+
+      if (verifiedUser.addresses && Array.isArray(verifiedUser.addresses) && verifiedUser.addresses.length > 0) {
+        localStorage.setItem("thedeepcleanz_saved_addresses", JSON.stringify(verifiedUser.addresses));
+        setSavedAddresses(verifiedUser.addresses);
+      } else if (form.address) {
+        const newAddr = {
+          id: `addr-${Date.now()}`,
+          type: newAddrType || "Home",
+          address: form.address,
+          landmark: form.landmark,
+          city: form.city,
+          pincode: form.pincode,
+          gpsCoords: form.gpsCoords,
+          mapsLink: form.mapsLink,
+          isDefault: true,
+        };
+        const updatedAddrs = [newAddr, ...savedAddresses.filter((a) => a.address !== form.address)];
+        localStorage.setItem("thedeepcleanz_saved_addresses", JSON.stringify(updatedAddrs));
+        setSavedAddresses(updatedAddrs);
+      }
+
+      // Notify Header & all components immediately of authentication state change!
+      window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new Event("auth-state-change"));
 
       setOtpVerified(true);
       setVerifiedPhone(cleanPhone);
       setShowOtpModal(false);
-      toast.success(`Mobile +91 ${cleanPhone} verified successfully!`, { icon: "✅" });
+      toast.success(`Mobile +91 ${cleanPhone} verified & logged in successfully!`, { icon: "✅" });
 
       // Automatically proceed to launch payment & booking confirmation
       await executePaymentAndBooking(verifiedUser);

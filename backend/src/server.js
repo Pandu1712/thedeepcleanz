@@ -1385,7 +1385,7 @@ app.post("/api/auth/mobile-otp/send", async (req, res) => {
 // Verify Mobile OTP Endpoint
 app.post("/api/auth/mobile-otp/verify", async (req, res) => {
   try {
-    const { phone, otp, name } = req.body;
+    const { phone, otp, name, email, address, landmark, city, pincode, gpsCoords, mapsLink } = req.body;
     if (!phone || !otp) {
       return res.status(400).json({ error: "Mobile number and verification code are required." });
     }
@@ -1410,12 +1410,84 @@ app.post("/api/auth/mobile-otp/verify", async (req, res) => {
 
     // Look up or auto-create user profile
     let user = await db.getUserByPhone(cleanPhone);
-    if (!user) {
+    const providedName = (name && name.trim()) || "";
+    const providedEmail = (email && email.trim()) || "";
+
+    if (user) {
+      // If user exists, update their name if provided, and update email if provided
+      const updates = {};
+      if (providedName && (user.name === "Customer" || !user.name || user.name !== providedName)) {
+        updates.name = providedName;
+        user.name = providedName;
+      }
+      if (providedEmail && !providedEmail.endsWith("@thedeepcleanerz.com") && (!user.email || user.email.endsWith("@thedeepcleanerz.com"))) {
+        updates.email = providedEmail;
+        user.email = providedEmail;
+      }
+      if (Object.keys(updates).length > 0) {
+        try {
+          await db.updateUserProfile(user.id, updates);
+        } catch (uErr) {
+          console.warn("Could not update user profile fields:", uErr.message);
+        }
+      }
+
+      // If address is provided, add it to user's saved addresses
+      if (address && address.trim()) {
+        let currentAddresses = [];
+        try {
+          if (user.addresses) {
+            currentAddresses = typeof user.addresses === "string" ? JSON.parse(user.addresses) : user.addresses;
+          }
+        } catch (e) {}
+        if (!Array.isArray(currentAddresses)) currentAddresses = [];
+
+        const hasExactAddr = currentAddresses.some(
+          (a) => a.address && a.address.trim().toLowerCase() === address.trim().toLowerCase()
+        );
+        if (!hasExactAddr) {
+          const newAddr = {
+            id: `addr-${Date.now()}`,
+            type: "Home",
+            address: address.trim(),
+            landmark: landmark ? landmark.trim() : "",
+            city: city ? city.trim() : "Guntur",
+            pincode: pincode ? pincode.trim() : "",
+            gpsCoords: gpsCoords || "",
+            mapsLink: mapsLink || "",
+            isDefault: currentAddresses.length === 0,
+          };
+          currentAddresses.push(newAddr);
+          try {
+            await db.updateUserAddresses(user.id, currentAddresses);
+            user.addresses = currentAddresses;
+          } catch (aErr) {
+            console.warn("Could not save address to user:", aErr.message);
+          }
+        }
+      }
+    } else {
+      // Create new user profile
       const userId = "usr_" + (typeof nanoid === "function" ? nanoid(10) : Math.random().toString(36).substring(2, 12));
-      const userName = (name && name.trim()) || "Customer";
-      const userEmail = `${cleanPhone}@thedeepcleanerz.com`;
+      const userName = providedName || "Customer";
+      const userEmail = providedEmail || `${cleanPhone}@thedeepcleanerz.com`;
       const cleanInitName = userName.replace(/[^a-zA-Z]/g, "").slice(0, 4).toUpperCase() || "USER";
       const userRefCode = `CLEAN-${cleanInitName}${Math.floor(100 + Math.random() * 900)}`;
+
+      let initialAddresses = [];
+      if (address && address.trim()) {
+        initialAddresses.push({
+          id: `addr-${Date.now()}`,
+          type: "Home",
+          address: address.trim(),
+          landmark: landmark ? landmark.trim() : "",
+          city: city ? city.trim() : "Guntur",
+          pincode: pincode ? pincode.trim() : "",
+          gpsCoords: gpsCoords || "",
+          mapsLink: mapsLink || "",
+          isDefault: true,
+        });
+      }
 
       try {
         user = await db.createUser({
@@ -1427,6 +1499,10 @@ app.post("/api/auth/mobile-otp/verify", async (req, res) => {
           referral_code: userRefCode,
           wallet_balance: 0,
         });
+        if (initialAddresses.length > 0) {
+          await db.updateUserAddresses(userId, initialAddresses);
+          user.addresses = initialAddresses;
+        }
       } catch (createErr) {
         user = {
           id: userId,
@@ -1435,6 +1511,7 @@ app.post("/api/auth/mobile-otp/verify", async (req, res) => {
           email: userEmail,
           referral_code: userRefCode,
           wallet_balance: 0,
+          addresses: initialAddresses,
         };
       }
     }
@@ -1445,6 +1522,7 @@ app.post("/api/auth/mobile-otp/verify", async (req, res) => {
         parsedAddresses = typeof user.addresses === "string" ? JSON.parse(user.addresses) : user.addresses;
       }
     } catch (e) {}
+    if (!Array.isArray(parsedAddresses)) parsedAddresses = [];
 
     res.json({
       ok: true,

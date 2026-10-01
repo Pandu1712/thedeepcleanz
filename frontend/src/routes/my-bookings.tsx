@@ -458,22 +458,33 @@ function MyBookingsPage() {
 
   useEffect(() => {
     const checkAuth = () => {
-      const isAuth = sessionStorage.getItem("user_authenticated");
+      const isAuth =
+        sessionStorage.getItem("user_authenticated") === "true" ||
+        localStorage.getItem("user_authenticated") === "true";
       if (!isAuth) {
         toast.error("Please login to view your bookings.");
         navigate({ to: "/login" });
         return null;
       }
 
-      const email = sessionStorage.getItem("user_email");
-      let profile: any = { email };
+      const email = sessionStorage.getItem("user_email") || localStorage.getItem("user_email");
+      const phone = sessionStorage.getItem("user_phone") || localStorage.getItem("user_phone");
+      const name = sessionStorage.getItem("user_name") || localStorage.getItem("user_name");
+      const profileStr = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
 
-      try {
-        const prof = sessionStorage.getItem("user_profile");
-        if (prof) {
-          profile = JSON.parse(prof);
-        }
-      } catch (e) {}
+      let profile: any = { email, phone, name };
+      if (profileStr) {
+        try {
+          profile = JSON.parse(profileStr);
+        } catch (e) {}
+      }
+
+      // Ensure sessionStorage is hydrated for this tab session
+      sessionStorage.setItem("user_authenticated", "true");
+      if (profile.email || email) sessionStorage.setItem("user_email", profile.email || email);
+      if (profile.phone || phone) sessionStorage.setItem("user_phone", profile.phone || phone);
+      if (profile.name || name) sessionStorage.setItem("user_name", profile.name || name);
+      sessionStorage.setItem("user_profile", JSON.stringify(profile));
 
       setUserEmail(profile.email || email);
       setUserProfile(profile);
@@ -486,17 +497,25 @@ function MyBookingsPage() {
   const loadBookings = () => {
     if (userProfile) {
       setIsLoading(true);
+      const cleanUserPhone = (userProfile.phone || localStorage.getItem("user_phone") || "").replace(/\D/g, "");
+      const cleanUserEmail = (userProfile.email || localStorage.getItem("user_email") || "").toLowerCase().trim();
+      const currentUserId = userProfile.id || localStorage.getItem("user_id");
+
       fetch(`${ADMIN_API_URL}/api/bookings`)
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data)) {
-            const filtered = data.filter(
-              (b: any) =>
-                b.userId === userProfile.id ||
-                (b.customer &&
-                  ((userProfile.phone && b.customer.phone === userProfile.phone) ||
-                    (userProfile.email && b.customer.email === userProfile.email))),
-            );
+            const filtered = data.filter((b: any) => {
+              const bUserId = b.userId;
+              const bPhone = b.customer?.phone ? b.customer.phone.replace(/\D/g, "") : "";
+              const bEmail = b.customer?.email ? b.customer.email.toLowerCase().trim() : "";
+
+              return (
+                (currentUserId && bUserId === currentUserId) ||
+                (cleanUserPhone && bPhone === cleanUserPhone) ||
+                (cleanUserEmail && bEmail === cleanUserEmail && !bEmail.endsWith("@thedeepcleanerz.com"))
+              );
+            });
             setBookings(filtered.slice().reverse());
           }
         })

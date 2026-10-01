@@ -157,11 +157,25 @@ export default function Header({
         const email = sessionStorage.getItem("user_email") || localStorage.getItem("user_email");
         const role = sessionStorage.getItem("user_role") || localStorage.getItem("user_role");
         const profileStr = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
-        
+        const isAuth =
+          sessionStorage.getItem("user_authenticated") === "true" ||
+          localStorage.getItem("user_authenticated") === "true";
+        const savedPhone = sessionStorage.getItem("user_phone") || localStorage.getItem("user_phone");
+        const savedName = sessionStorage.getItem("user_name") || localStorage.getItem("user_name");
+
         setUserEmail(email);
         setIsAdmin(role === "admin");
         if (profileStr) {
-          setUserProfile(JSON.parse(profileStr));
+          const parsed = JSON.parse(profileStr);
+          setUserProfile(parsed);
+        } else if (isAuth && (email || savedPhone || savedName)) {
+          setUserProfile({
+            id: `usr_${savedPhone || "guest"}`,
+            name: savedName || "Customer",
+            phone: savedPhone || "",
+            email: email || "",
+            role: role || "user",
+          });
         } else {
           setUserProfile(null);
         }
@@ -540,19 +554,19 @@ export default function Header({
             </button>
 
             {/* User Profile / Login Button (hidden on tiny mobile, visible sm+) */}
-            {userEmail || isAdmin ? (
+            {userEmail || userProfile || isAdmin ? (
               <button
                 type="button"
                 onClick={() => setProfileMenuOpen(true)}
                 className="hidden sm:flex h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-[#007A48]/30 hover:border-[#007A48] bg-[#007A48]/10 text-[#007A48] items-center justify-center font-bold text-xs shadow-xs transition-all cursor-pointer relative shrink-0"
-                title={`Logged in as ${userProfile?.name || userEmail}`}
+                title={`Logged in as ${userProfile?.name || userEmail || "User"}`}
               >
                 <span>
                   {userProfile?.name
-                    ? userProfile.name.substring(0, 2).toUpperCase()
+                    ? userProfile.name.trim().substring(0, 2).toUpperCase()
                     : userEmail
                       ? userEmail.substring(0, 2).toUpperCase()
-                      : "AD"}
+                      : "US"}
                 </span>
                 <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
               </button>
@@ -826,7 +840,7 @@ export default function Header({
                 </button>
               )}
 
-              {userEmail ? (
+              {userEmail || userProfile ? (
                 <div className="flex flex-col gap-2 mt-2">
                   <button
                     onClick={() => {
