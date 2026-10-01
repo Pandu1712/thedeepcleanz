@@ -145,13 +145,22 @@ function TechnicianPortal() {
     };
   }, [profile?.id, bookings]);
 
+  const isExcludedCommercialQuote = (b: any) => {
+    return (
+      b?.isCommercialQuote === true ||
+      b?.paymentStatus === "quote_pending" ||
+      b?.serviceType === "commercial_quote" ||
+      b?.paymentMethod === "custom_quote"
+    );
+  };
+
   // Auto-refresh available open leads in background every 12 seconds
   useEffect(() => {
     if (!profile?.id) return;
     const interval = setInterval(async () => {
       try {
         const openLeads = await fetchAvailableTechnicianJobs(profile.id);
-        setAvailableJobs(openLeads || []);
+        setAvailableJobs((openLeads || []).filter((b: any) => !isExcludedCommercialQuote(b)));
       } catch (e) {
         // silent background poll
       }
@@ -166,8 +175,8 @@ function TechnicianPortal() {
         fetchTechnicianBookings(techId),
         fetchAvailableTechnicianJobs(techId),
       ]);
-      setBookings(assignedData || []);
-      setAvailableJobs(availableData || []);
+      setBookings((assignedData || []).filter((b: any) => !isExcludedCommercialQuote(b)));
+      setAvailableJobs((availableData || []).filter((b: any) => !isExcludedCommercialQuote(b)));
     } catch (err: any) {
       toast.error(`Failed to fetch bookings: ${err.message}`);
     } finally {
@@ -183,8 +192,8 @@ function TechnicianPortal() {
         fetchTechnicianBookings(profile.id),
         fetchAvailableTechnicianJobs(profile.id),
       ]);
-      setBookings(assignedData || []);
-      setAvailableJobs(availableData || []);
+      setBookings((assignedData || []).filter((b: any) => !isExcludedCommercialQuote(b)));
+      setAvailableJobs((availableData || []).filter((b: any) => !isExcludedCommercialQuote(b)));
       toast.success("Tasks & Open Leads refreshed!");
     } catch (err: any) {
       toast.error(`Failed to sync task sheet: ${err.message}`);
@@ -307,8 +316,8 @@ function TechnicianPortal() {
     }
   };
 
-  const assignedBookings = bookings.filter((b) => (b.jobStatus || "Pending") !== "Completed");
-  const completedBookings = bookings.filter((b) => (b.jobStatus || "Pending") === "Completed");
+  const assignedBookings = bookings.filter((b) => !isExcludedCommercialQuote(b) && (b.jobStatus || "Pending") !== "Completed");
+  const completedBookings = bookings.filter((b) => !isExcludedCommercialQuote(b) && (b.jobStatus || "Pending") === "Completed");
   const displayBookings = activeFilter === "assigned" ? assignedBookings : completedBookings;
 
   if (!profile) {

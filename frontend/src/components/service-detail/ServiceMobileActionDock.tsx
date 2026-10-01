@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Zap, Phone } from "lucide-react";
+import { Plus, Zap, Phone, Sparkles } from "lucide-react";
 import { type ServicePlan } from "@/api/admin-api";
 
 interface ServiceMobileActionDockProps {
@@ -11,6 +11,7 @@ interface ServiceMobileActionDockProps {
   handleAddToCart: (plan: ServicePlan) => void;
   handleDirectBookNow: (plan: ServicePlan) => void;
   setQuoteModalOpen: (val: boolean) => void;
+  isCommercial?: boolean;
 }
 
 export const ServiceMobileActionDock: React.FC<ServiceMobileActionDockProps> = ({
@@ -22,8 +23,40 @@ export const ServiceMobileActionDock: React.FC<ServiceMobileActionDockProps> = (
   handleAddToCart,
   handleDirectBookNow,
   setQuoteModalOpen,
+  isCommercial = false,
 }) => {
   if (cartOpen || quoteModalOpen || planDetailsModalOpen) return null;
+
+  if (isCommercial) {
+    return (
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-10px_30px_rgba(0,0,0,0.12)] px-3.5 pt-2.5 pb-[max(env(safe-area-inset-bottom,0px),12px)] font-sans">
+        <div className="flex items-center justify-between gap-3 max-w-md mx-auto">
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] font-extrabold text-[#0B6B46] uppercase tracking-wider block">
+              🏢 Commercial Facility
+            </span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-sm font-black text-[#002A22] leading-none">
+                Free Inspection
+              </span>
+              <span className="text-[9px] font-bold text-slate-500">
+                (₹0 Upfront)
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setQuoteModalOpen(true)}
+            className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#005B36] to-[#007A48] hover:from-[#002A22] hover:to-[#005B36] text-white text-xs font-extrabold uppercase tracking-wide transition-all shadow-md shadow-emerald-950/20 active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+            <span>Request Free Quote</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-[0_-10px_30px_rgba(0,0,0,0.12)] px-3 pt-2 pb-[max(env(safe-area-inset-bottom,0px),12px)] font-sans">

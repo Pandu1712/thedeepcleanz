@@ -41,6 +41,7 @@ import {
   type CartItem,
   getServiceIcon,
   mergeAdminCatalog,
+  isCommercialService,
 } from "@/data/servicesData";
 import Header from "@/components/Header";
 import CartDrawer from "@/components/CartDrawer";
@@ -470,6 +471,10 @@ function ServiceDetailPage() {
     return firstPart || "Guntur";
   }, [userLocation]);
 
+  const isCommercial = useMemo(() => {
+    return isCommercialService(service);
+  }, [service]);
+
   // Dynamic SEO & Structured Data Injection for Search Engines
   useEffect(() => {
     if (typeof window !== "undefined" && service) {
@@ -892,159 +897,229 @@ function ServiceDetailPage() {
               </div>
 
               {/* ===================================================
-                  STEP 1: SELECT APPLIANCE OR PACKAGE OPTION
+                  STEP 1 & 2: COMMERCIAL QUOTE BANNER OR STANDARD PLANS
                  =================================================== */}
-              {plans.length > 0 && (
-                <div className="pt-2 sm:pt-3 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-extrabold uppercase tracking-wider text-[#002A22] flex items-center gap-1.5">
-                      <span className="flex h-5 w-5 rounded-full bg-[#0B6B46] text-white text-[10px] font-black items-center justify-center">1</span>
-                      Select Appliance or Package Option
-                    </label>
-                    <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
-                      {plans.length} options available
-                    </span>
+              {isCommercial ? (
+                <div className="pt-2 sm:pt-3">
+                  <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#00241B] via-[#003B2B] to-[#005B36] text-white p-5 sm:p-7 shadow-lg border border-emerald-600/30 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-11 w-11 rounded-2xl bg-white/10 backdrop-blur-md text-emerald-300 flex items-center justify-center font-bold text-xl shadow-inner">
+                          🏢
+                        </div>
+                        <div>
+                          <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-[#A3E5C2] block">
+                            Commercial &amp; Corporate Facility
+                          </span>
+                          <h3 className="text-base sm:text-lg font-black text-white leading-tight">
+                            Custom Quotation &amp; Free On-Site Inspection
+                          </h3>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 whitespace-nowrap">
+                        ₹0 Upfront • Free Survey
+                      </span>
+                    </div>
+
+                    <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed font-normal">
+                      Corporate offices, hotels, commercial properties, and post-interior facilities require customized scope assessment. Our commercial cleaning supervisor will visit your site for a comprehensive inspection and provide an itemized corporate quotation with GST invoicing.
+                    </p>
+
+                    {/* Key Corporate Benefits */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                      <div className="bg-white/10 rounded-xl p-2.5 border border-white/10 text-left">
+                        <span className="text-emerald-300 text-xs block font-bold">✓ 100% Free Survey</span>
+                        <span className="text-[10px] text-slate-300">No obligation quote</span>
+                      </div>
+                      <div className="bg-white/10 rounded-xl p-2.5 border border-white/10 text-left">
+                        <span className="text-emerald-300 text-xs block font-bold">✓ GST Invoicing</span>
+                        <span className="text-[10px] text-slate-300">Corporate tax input</span>
+                      </div>
+                      <div className="bg-white/10 rounded-xl p-2.5 border border-white/10 text-left">
+                        <span className="text-emerald-300 text-xs block font-bold">✓ Verified Crew</span>
+                        <span className="text-[10px] text-slate-300">Background checked</span>
+                      </div>
+                      <div className="bg-white/10 rounded-xl p-2.5 border border-white/10 text-left">
+                        <span className="text-emerald-300 text-xs block font-bold">✓ Flexible Timing</span>
+                        <span className="text-[10px] text-slate-300">After-hours service</span>
+                      </div>
+                    </div>
+
+                    {/* CTA Action Row */}
+                    <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setQuoteModalOpen(true)}
+                        className="flex-1 py-3.5 px-6 rounded-2xl bg-[#00A86B] hover:bg-[#00915C] text-white text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all duration-200 shadow-lg shadow-emerald-950/30 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                      >
+                        <Sparkles className="h-4 w-4 text-amber-200" />
+                        <span>Request Free Quote &amp; Inspection</span>
+                      </button>
+
+                      <a
+                        href="tel:+919966346347"
+                        className="py-3.5 px-5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 whitespace-nowrap"
+                      >
+                        <Phone className="h-4 w-4 text-emerald-300" />
+                        <span>Call Desk: +91 99663 46347</span>
+                      </a>
+                    </div>
                   </div>
+                </div>
+              ) : (
+                <>
+                  {/* STEP 1: SELECT APPLIANCE OR PACKAGE OPTION */}
+                  {plans.length > 0 && (
+                    <div className="pt-2 sm:pt-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-extrabold uppercase tracking-wider text-[#002A22] flex items-center gap-1.5">
+                          <span className="flex h-5 w-5 rounded-full bg-[#0B6B46] text-white text-[10px] font-black items-center justify-center">1</span>
+                          Select Appliance or Package Option
+                        </label>
+                        <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
+                          {plans.length} options available
+                        </span>
+                      </div>
 
-                  {/* Clean Radio Option Cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {plans.map((p, idx) => {
-                      const isSelected = selectedPlanIdx === idx;
-                      const planPrice = getServicePrice(p.price || service.price || 0);
+                      {/* Clean Radio Option Cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {plans.map((p, idx) => {
+                          const isSelected = selectedPlanIdx === idx;
+                          const planPrice = getServicePrice(p.price || service.price || 0);
 
-                      return (
-                        <div
-                          key={idx}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => {
-                            setSelectedPlanIdx(idx);
-                            setModalPlan(p);
-                          }}
-                          className={`relative rounded-2xl p-3.5 sm:p-4 cursor-pointer transition-all duration-200 border-2 text-left flex flex-col justify-between active:scale-[0.99] group ${
-                            isSelected
-                              ? "border-[#0B6B46] bg-[#002A22] text-white shadow-md ring-2 ring-[#0B6B46]/20"
-                              : "border-slate-200 bg-white hover:border-[#0B6B46]/40 hover:bg-[#FDFDFD] text-slate-800"
-                          }`}
-                        >
-                          <div>
-                            {/* Selected Checkmark Badge */}
-                            <div className="flex items-start justify-between gap-2">
-                              <h3 className={`text-xs sm:text-sm font-extrabold uppercase tracking-wide leading-snug ${
-                                isSelected ? "text-white" : "text-[#002A22]"
-                              }`}>
-                                {p.name}
-                              </h3>
-                              <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                                isSelected ? "border-[#0B6B46] bg-[#0B6B46] text-white scale-105" : "border-slate-300 bg-white"
-                              }`}>
-                                {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
-                              </div>
-                            </div>
-
-                            <p className={`text-[11px] line-clamp-2 mt-2 leading-relaxed ${
-                              isSelected ? "text-slate-300" : "text-slate-500"
-                            }`}>
-                              {p.description || "Inside-out clinical sanitization, tray scrub & odor removal."}
-                            </p>
-                          </div>
-
-                          <div className="mt-3 space-y-2">
-                            <div className={`pt-2.5 border-t flex items-center justify-between ${
-                              isSelected ? "border-white/15" : "border-slate-100"
-                            }`}>
-                              <div>
-                                <span className={`text-sm sm:text-base font-black ${
-                                  isSelected ? "text-white" : "text-[#002A22]"
-                                }`}>
-                                  {planPrice > 0 ? `₹${planPrice}` : "Custom Quote"}
-                                </span>
-                              </div>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                isSelected ? "bg-white/15 text-white" : "bg-slate-100 text-slate-600"
-                              }`}>
-                                ⏱️ {p.duration || "45m"}
-                              </span>
-                            </div>
-
-                            {/* View Inclusions & Exclusions Button (Triggers Popup) */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
+                          return (
+                            <div
+                              key={idx}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => {
                                 setSelectedPlanIdx(idx);
                                 setModalPlan(p);
-                                setPlanDetailsModalOpen(true);
                               }}
-                              className={`w-full py-1.5 px-2.5 rounded-xl text-[10px] sm:text-[11px] font-extrabold tracking-wide flex items-center justify-center gap-1.5 transition-all cursor-pointer border-0 active:scale-95 ${
+                              className={`relative rounded-2xl p-3.5 sm:p-4 cursor-pointer transition-all duration-200 border-2 text-left flex flex-col justify-between active:scale-[0.99] group ${
                                 isSelected
-                                  ? "bg-white/20 hover:bg-white/30 text-white"
-                                  : "bg-[#0B6B46]/10 hover:bg-[#0B6B46]/20 text-[#0B6B46]"
+                                  ? "border-[#0B6B46] bg-[#002A22] text-white shadow-md ring-2 ring-[#0B6B46]/20"
+                                  : "border-slate-200 bg-white hover:border-[#0B6B46]/40 hover:bg-[#FDFDFD] text-slate-800"
                               }`}
                             >
-                              <Sparkles className="h-3 w-3 shrink-0" />
-                              <span>View What's Included &amp; Excluded</span>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                              <div>
+                                {/* Selected Checkmark Badge */}
+                                <div className="flex items-start justify-between gap-2">
+                                  <h3 className={`text-xs sm:text-sm font-extrabold uppercase tracking-wide leading-snug ${
+                                    isSelected ? "text-white" : "text-[#002A22]"
+                                  }`}>
+                                    {p.name}
+                                  </h3>
+                                  <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                                    isSelected ? "border-[#0B6B46] bg-[#0B6B46] text-white scale-105" : "border-slate-300 bg-white"
+                                  }`}>
+                                    {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                                  </div>
+                                </div>
 
-              {/* ===================================================
-                  STEP 2: TRANSPARENT PRICING & DIRECT ACTION CTA
-                 =================================================== */}
-              <div className="mt-4 sm:mt-5 rounded-2xl bg-gradient-to-br from-[#F6FAF8] to-[#EDF6F2] border border-[#CBE2D8] p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-xs">
-                <div>
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                    Total All-Inclusive Price ({activePlan.name})
-                  </span>
-                  <div className="flex flex-wrap items-baseline gap-2 mt-0.5">
-                    <span className="text-xl sm:text-2xl font-black text-[#002A22] tracking-tight">
-                      {activePlanPrice > 0 ? `₹${activePlanPrice}` : "Customized Price"}
-                    </span>
-                    <span className="text-[10px] sm:text-xs font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-200/80">
-                      {activePlanPrice > 0 ? "Standard Rate" : "Custom Quote"}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                    ✓ All eco-friendly chemicals, high-grade tools &amp; GST included. No surprise fees.
-                  </p>
-                </div>
+                                <p className={`text-[11px] line-clamp-2 mt-2 leading-relaxed ${
+                                  isSelected ? "text-slate-300" : "text-slate-500"
+                                }`}>
+                                  {p.description || "Inside-out clinical sanitization, tray scrub & odor removal."}
+                                </p>
+                              </div>
 
-                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0 w-full sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={() => handleAddToCart(activePlan)}
-                    className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-[#002A22] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
-                  >
-                    <ShoppingCart className="h-3.5 w-3.5" />
-                    <span>Add To Cart</span>
-                  </button>
+                              <div className="mt-3 space-y-2">
+                                <div className={`pt-2.5 border-t flex items-center justify-between ${
+                                  isSelected ? "border-white/15" : "border-slate-100"
+                                }`}>
+                                  <div>
+                                    <span className={`text-sm sm:text-base font-black ${
+                                      isSelected ? "text-white" : "text-[#002A22]"
+                                    }`}>
+                                      {planPrice > 0 ? `₹${planPrice}` : "Custom Quote"}
+                                    </span>
+                                  </div>
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    isSelected ? "bg-white/15 text-white" : "bg-slate-100 text-slate-600"
+                                  }`}>
+                                    ⏱️ {p.duration || "45m"}
+                                  </span>
+                                </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleDirectBookNow(activePlan)}
-                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#00241B] via-[#005B36] to-[#007A48] hover:from-[#001712] hover:to-[#005B36] text-white text-xs font-extrabold uppercase tracking-wide transition-all cursor-pointer border-0 shadow-md shadow-emerald-950/20 active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap"
-                  >
-                    <Zap className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
-                    <span>{activePlanPrice > 0 ? "Book Now" : "Book Slot with OTP"}</span>
-                  </button>
-
-                  {activePlanPrice === 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setQuoteModalOpen(true)}
-                      className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl border border-emerald-700/50 bg-white hover:bg-emerald-50 text-[#002A22] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
-                    >
-                      <Phone className="h-3.5 w-3.5 text-[#007A48]" />
-                      <span>Request Quote</span>
-                    </button>
+                                {/* View Inclusions & Exclusions Button (Triggers Popup) */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedPlanIdx(idx);
+                                    setModalPlan(p);
+                                    setPlanDetailsModalOpen(true);
+                                  }}
+                                  className={`w-full py-1.5 px-2.5 rounded-xl text-[10px] sm:text-[11px] font-extrabold tracking-wide flex items-center justify-center gap-1.5 transition-all cursor-pointer border-0 active:scale-95 ${
+                                    isSelected
+                                      ? "bg-white/20 hover:bg-white/30 text-white"
+                                      : "bg-[#0B6B46]/10 hover:bg-[#0B6B46]/20 text-[#0B6B46]"
+                                  }`}
+                                >
+                                  <Sparkles className="h-3 w-3 shrink-0" />
+                                  <span>View What's Included &amp; Excluded</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   )}
-                </div>
-              </div>
+
+                  {/* STEP 2: TRANSPARENT PRICING & DIRECT ACTION CTA */}
+                  <div className="mt-4 sm:mt-5 rounded-2xl bg-gradient-to-br from-[#F6FAF8] to-[#EDF6F2] border border-[#CBE2D8] p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-xs">
+                    <div>
+                      <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                        Total All-Inclusive Price ({activePlan.name})
+                      </span>
+                      <div className="flex flex-wrap items-baseline gap-2 mt-0.5">
+                        <span className="text-xl sm:text-2xl font-black text-[#002A22] tracking-tight">
+                          {activePlanPrice > 0 ? `₹${activePlanPrice}` : "Customized Price"}
+                        </span>
+                        <span className="text-[10px] sm:text-xs font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-200/80">
+                          {activePlanPrice > 0 ? "Standard Rate" : "Custom Quote"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                        ✓ All eco-friendly chemicals, high-grade tools &amp; GST included. No surprise fees.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => handleAddToCart(activePlan)}
+                        className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-[#002A22] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
+                      >
+                        <ShoppingCart className="h-3.5 w-3.5" />
+                        <span>Add To Cart</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDirectBookNow(activePlan)}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#00241B] via-[#005B36] to-[#007A48] hover:from-[#001712] hover:to-[#005B36] text-white text-xs font-extrabold uppercase tracking-wide transition-all cursor-pointer border-0 shadow-md shadow-emerald-950/20 active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap"
+                      >
+                        <Zap className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
+                        <span>{activePlanPrice > 0 ? "Book Now" : "Book Slot with OTP"}</span>
+                      </button>
+
+                      {activePlanPrice === 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setQuoteModalOpen(true)}
+                          className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl border border-emerald-700/50 bg-white hover:bg-emerald-50 text-[#002A22] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                        >
+                          <Phone className="h-3.5 w-3.5 text-[#007A48]" />
+                          <span>Request Quote</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
 
             </div>
 
@@ -1321,32 +1396,16 @@ function ServiceDetailPage() {
         handleAddToCart={handleAddToCart}
         handleDirectBookNow={handleDirectBookNow}
         setQuoteModalOpen={setQuoteModalOpen}
+        isCommercial={isCommercial}
       />
 
       {/* QUOTE MODAL - REQUEST FREE ESTIMATE (Modular Component) */}
       <ServiceQuoteModal
         open={quoteModalOpen}
-        onClose={() => {
-          setQuoteModalOpen(false);
-          setQuoteErrors({});
-          setQuoteTouched({});
-        }}
+        onClose={() => setQuoteModalOpen(false)}
         service={service}
         activePlan={activePlan}
-        quoteName={quoteName}
-        quotePhone={quotePhone}
-        quoteRequirements={quoteRequirements}
-        quoteTouched={quoteTouched}
-        quoteErrors={quoteErrors}
-        quoteSubmitting={quoteSubmitting}
-        handleQuoteNameChange={handleQuoteNameChange}
-        handleQuotePhoneChange={handleQuotePhoneChange}
-        setQuoteRequirements={setQuoteRequirements}
-        setQuoteTouched={setQuoteTouched}
-        validateQuoteForm={validateQuoteForm}
-        setQuoteErrors={setQuoteErrors}
-        handleSubmitQuote={handleSubmitQuote}
-        handleDirectBookNow={handleDirectBookNow}
+        userLocation={userLocation}
       />
 
       {/* PLAN INCLUSIONS & EXCLUSIONS BOTTOM SHEET MODAL (Modular Component) */}

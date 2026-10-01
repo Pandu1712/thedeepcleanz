@@ -1491,3 +1491,24 @@ export type CartItem = {
   qty: number;
   paymentType?: "full" | "deposit_25" | "deposit_50" | "free_advance";
 };
+
+export function isCommercialService(service: { id?: string; categoryId?: string; title?: string } | null | undefined): boolean {
+  if (!service) return false;
+  const id = (service.id || "").toLowerCase();
+  const catId = (service.categoryId || "").toLowerCase();
+  const title = (service.title || "").toLowerCase();
+  
+  return (
+    catId === "commercial" ||
+    id.startsWith("commercial") ||
+    id === "office" ||
+    id === "hotel" ||
+    id === "post-construction" ||
+    title.includes("commercial") ||
+    title.includes("office cleaning") ||
+    title.includes("hotel cleaning") ||
+    title.includes("post-construction") ||
+    title.includes("post interior") ||
+    title.includes("corporate")
+  );
+}

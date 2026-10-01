@@ -412,8 +412,9 @@ function MyBookingsPage() {
       fetch(`${ADMIN_API_URL}/api/bookings`)
         .then((res) => res.json())
         .then((data) => {
+          let serverList: any[] = [];
           if (Array.isArray(data)) {
-            const filtered = data.filter((b: any) => {
+            serverList = data.filter((b: any) => {
               const bUserId = b.userId;
               const bPhone = b.customer?.phone ? b.customer.phone.replace(/\D/g, "") : "";
               const bEmail = b.customer?.email ? b.customer.email.toLowerCase().trim() : "";
@@ -424,10 +425,47 @@ function MyBookingsPage() {
                 (cleanUserEmail && bEmail === cleanUserEmail && !bEmail.endsWith("@thedeepcleanerz.com"))
               );
             });
-            setBookings(filtered.slice().reverse());
           }
+
+          // Merge local bookings and commercial quote requests from localStorage
+          try {
+            const localRaw = localStorage.getItem("thedeepcleanz_local_bookings");
+            if (localRaw) {
+              const localList = JSON.parse(localRaw);
+              if (Array.isArray(localList)) {
+                for (const lb of localList) {
+                  const alreadyExists = serverList.some((sb) => sb.id === lb.id);
+                  if (!alreadyExists) {
+                    const lbPhone = lb.customer?.phone ? lb.customer.phone.replace(/\D/g, "") : "";
+                    const lbEmail = lb.customer?.email ? lb.customer.email.toLowerCase().trim() : "";
+                    if (
+                      !cleanUserPhone ||
+                      lbPhone === cleanUserPhone ||
+                      (cleanUserEmail && lbEmail === cleanUserEmail)
+                    ) {
+                      serverList.push(lb);
+                    }
+                  }
+                }
+              }
+            }
+          } catch (e) {}
+
+          setBookings(serverList.slice().reverse());
         })
-        .catch((err) => console.error("Error fetching bookings:", err))
+        .catch((err) => {
+          console.error("Error fetching bookings:", err);
+          // Fallback to local bookings if network offline
+          try {
+            const localRaw = localStorage.getItem("thedeepcleanz_local_bookings");
+            if (localRaw) {
+              const localList = JSON.parse(localRaw);
+              if (Array.isArray(localList)) {
+                setBookings(localList);
+              }
+            }
+          } catch (e) {}
+        })
         .finally(() => setIsLoading(false));
     }
   };
@@ -676,17 +714,25 @@ function MyBookingsPage() {
               } catch (e) {
                 parsedItems = [];
               }
+              const isCommercialQuote =
+                b.isCommercialQuote === true ||
+                b.paymentStatus === "quote_pending" ||
+                b.serviceType === "commercial_quote" ||
+                b.paymentMethod === "custom_quote";
+
               const isFullyPaid =
                 typeof b.paymentStatus === "string" && 
                 (b.paymentStatus.includes("Paid In Full") || b.paymentStatus.toLowerCase().includes("full amount"));
               const isPaid =
                 typeof b.paymentStatus === "string" &&
                 (b.paymentStatus.includes("Paid") || b.paymentStatus.includes("Success") || b.paymentStatus.includes("Refund"));
-              const isCod = !isPaid && !isFullyPaid;
+              const isCod = !isPaid && !isFullyPaid && !isCommercialQuote;
               const isCancelled = b.jobStatus === "Cancelled";
 
               let paidAmount = 0;
-              if (isFullyPaid) {
+              if (isCommercialQuote) {
+                paidAmount = 0;
+              } else if (isFullyPaid) {
                 paidAmount = b.total;
               } else if (isPaid) {
                 const match = b.paymentStatus.match(/\(₹(\d+)\)/);
@@ -715,20 +761,31 @@ function MyBookingsPage() {
                   }
                 }
               }
-              const balanceAmount = b.total - paidAmount;
+              const balanceAmount = isCommercialQuote ? 0 : b.total - paidAmount;
 
               return (
                 <div
                   key={b.id}
-                  className="rounded-3xl border border-[#cb9f5a]/20 bg-white overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 font-sans"
+                  className={`rounded-3xl border bg-white overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 font-sans ${
+                    isCommercialQuote ? "border-emerald-500/30 ring-1 ring-emerald-500/10" : "border-[#cb9f5a]/20"
+                  }`}
                 >
                   {/* Card Header (Luxury brand style) */}
-                  <div className="bg-[#002a22]/5 border-b border-[#cb9f5a]/10 px-5 py-4 flex flex-wrap gap-y-4 gap-x-8 text-xs text-slate-600">
+                  <div className={`border-b px-5 py-4 flex flex-wrap gap-y-4 gap-x-8 text-xs text-slate-600 ${
+                    isCommercialQuote ? "bg-emerald-50/60 border-emerald-500/20" : "bg-[#002a22]/5 border-[#cb9f5a]/10"
+                  }`}>
+                    {isCommercialQuote && (
+                      <div className="w-full pb-1">
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider bg-[#007A48] text-white px-3 py-1 rounded-full shadow-2xs">
+                          🏢 Commercial Free Quote &amp; Site Inspection
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2.5">
                       <Calendar className="h-4.5 w-4.5 text-slate-400 shrink-0" />
                       <div className="flex flex-col">
                         <span className="uppercase text-[9px] font-extrabold text-[#cb9f5a] tracking-wider mb-0.5">
-                          Booking Placed
+                          {isCommercialQuote ? "Quote Requested" : "Booking Placed"}
                         </span>
                         <span className="font-bold text-[#002a22]">
                           {b.createdAt
@@ -745,22 +802,30 @@ function MyBookingsPage() {
                       <CreditCard className="h-4.5 w-4.5 text-slate-400 shrink-0" />
                       <div className="flex flex-col">
                         <span className="uppercase text-[9px] font-extrabold text-[#cb9f5a] tracking-wider mb-0.5">
-                          Total
+                          {isCommercialQuote ? "Estimated Fee" : "Total"}
                         </span>
                         <div className="flex flex-col items-start gap-0.5">
-                          {b.discount > 0 && (
-                            <span className="text-[10px] text-slate-400 font-bold line-through">
-                              ₹{Number(b.total) + Number(b.discount)}
+                          {isCommercialQuote ? (
+                            <span className="font-extrabold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full text-xs border border-emerald-200">
+                              Free Survey (₹0 Upfront)
                             </span>
-                          )}
-                          <span className="font-extrabold text-[#002a22]">₹{b.total}</span>
-                          {b.discount > 0 && b.coupon && (
-                            <span
-                              className="inline-flex items-center text-[9px] font-extrabold text-white bg-[#002a22] border border-[#cb9f5a]/20 px-2 py-0.5 rounded-full mt-0.5 max-w-[120px] truncate"
-                              title={`${b.coupon}: -₹${b.discount}`}
-                            >
-                              🏷️ {b.coupon} (-₹{b.discount})
-                            </span>
+                          ) : (
+                            <>
+                              {b.discount > 0 && (
+                                <span className="text-[10px] text-slate-400 font-bold line-through">
+                                  ₹{Number(b.total) + Number(b.discount)}
+                                </span>
+                              )}
+                              <span className="font-extrabold text-[#002a22]">₹{b.total}</span>
+                              {b.discount > 0 && b.coupon && (
+                                <span
+                                  className="inline-flex items-center text-[9px] font-extrabold text-white bg-[#002a22] border border-[#cb9f5a]/20 px-2 py-0.5 rounded-full mt-0.5 max-w-[120px] truncate"
+                                  title={`${b.coupon}: -₹${b.discount}`}
+                                >
+                                  🏷️ {b.coupon} (-₹{b.discount})
+                                </span>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -801,19 +866,21 @@ function MyBookingsPage() {
                   </div>
                     <div className="flex flex-col text-left sm:text-right sm:ml-auto">
                       <span className="uppercase text-[9px] font-extrabold text-slate-400 tracking-wider mb-1">
-                        Booking # {b.id.substring(0, 12).toUpperCase()}
+                        {isCommercialQuote ? "Quote #" : "Booking #"} {b.id.substring(0, 12).toUpperCase()}
                       </span>
                       <div className="flex items-center sm:justify-end gap-2 text-[#cb9f5a]">
                         <button
                           onClick={() => {
                             const itemsList = (parsedItems || []).map((i: any) => i.title).join(", ");
                             const mapUrl = b.customer?.mapsLink || (b.customer?.gpsCoords ? `https://www.google.com/maps?q=${b.customer.gpsCoords}` : "");
-                            const msg = `*TheDeep CleanerZ Booking Invoice* 🧼\n\n*Booking ID:* #${b.id.substring(0, 10).toUpperCase()}\n*Service:* ${itemsList || "Deep Cleaning"}\n*Slot Date & Time:* ${b.schedule?.date || ""} at ${b.schedule?.time || ""}\n*Address:* ${b.customer?.address || ""}, ${b.customer?.city || ""}\n${mapUrl ? `*Google Maps:* ${mapUrl}\n` : ""}*Total Amount:* ₹${b.total}\n*Paid:* ₹${paidAmount}\n*Balance Due:* ₹${balanceAmount}`;
+                            const msg = isCommercialQuote
+                              ? `*TheDeep CleanerZ Commercial Quote Request* 🏢\n\n*Quote Reference:* #${b.id.substring(0, 10).toUpperCase()}\n*Service:* ${itemsList || "Commercial Deep Cleaning"}\n*Preferred Inspection Date:* ${b.schedule?.date || ""} at ${b.schedule?.time || ""}\n*Address:* ${b.customer?.address || ""}, ${b.customer?.city || ""}\n*Contact:* ${b.customer?.name} (${b.customer?.phone})`
+                              : `*TheDeep CleanerZ Booking Invoice* 🧼\n\n*Booking ID:* #${b.id.substring(0, 10).toUpperCase()}\n*Service:* ${itemsList || "Deep Cleaning"}\n*Slot Date & Time:* ${b.schedule?.date || ""} at ${b.schedule?.time || ""}\n*Address:* ${b.customer?.address || ""}, ${b.customer?.city || ""}\n${mapUrl ? `*Google Maps:* ${mapUrl}\n` : ""}*Total Amount:* ₹${b.total}\n*Paid:* ₹${paidAmount}\n*Balance Due:* ₹${balanceAmount}`;
                             window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
                           }}
                           className="hover:opacity-80 cursor-pointer font-extrabold flex items-center gap-1 text-[#25D366] bg-[#25D366]/10 px-2.5 py-1 rounded-full border border-[#25D366]/30 text-[10px]"
                         >
-                          💬 Send WhatsApp Invoice
+                          💬 Send WhatsApp {isCommercialQuote ? "Inquiry" : "Invoice"}
                         </button>
                       </div>
                     </div>
@@ -824,11 +891,13 @@ function MyBookingsPage() {
                     {/* Left/Main Column */}
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-[#002a22] mb-1">
-                        {isFullyPaid
-                          ? "Confirmed & Fully Paid"
-                          : isCod
-                            ? "Scheduled for Servicing"
-                            : "Confirmed & Deposit Paid"}
+                        {isCommercialQuote
+                          ? "Commercial On-Site Inspection Requested"
+                          : isFullyPaid
+                            ? "Confirmed & Fully Paid"
+                            : isCod
+                              ? "Scheduled for Servicing"
+                              : "Confirmed & Deposit Paid"}
                       </h3>
                       <div className="text-sm text-slate-600 mb-4 font-semibold flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3">
                         <div className="flex items-center gap-1.5 min-w-0">
@@ -1069,47 +1138,55 @@ function MyBookingsPage() {
                             </span>
                             <span
                               className={`font-extrabold px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider whitespace-nowrap shrink-0 ${
-                                isFullyPaid
-                                  ? "bg-emerald-500/10 text-emerald-700 border border-emerald-500/25"
-                                  : isPaid
-                                    ? "bg-blue-500/10 text-blue-700 border border-blue-500/25"
-                                    : "bg-amber-500/10 text-amber-700 border border-amber-500/25"
+                                isCommercialQuote
+                                  ? "bg-emerald-600/15 text-emerald-800 border border-emerald-600/30"
+                                  : isFullyPaid
+                                    ? "bg-emerald-500/10 text-emerald-700 border border-emerald-500/25"
+                                    : isPaid
+                                      ? "bg-blue-500/10 text-blue-700 border border-blue-500/25"
+                                      : "bg-amber-500/10 text-amber-700 border border-amber-500/25"
                               }`}
                             >
-                              {b.paymentStatus || (isFullyPaid
-                                ? "Paid in Full"
-                                : isPaid
-                                  ? "Deposit Paid"
-                                  : "Pending (COD)")}
+                              {isCommercialQuote
+                                ? "Free On-Site Survey (Quote Pending)"
+                                : b.paymentStatus || (isFullyPaid
+                                  ? "Paid in Full"
+                                  : isPaid
+                                    ? "Deposit Paid"
+                                    : "Pending (COD)")}
                             </span>
                           </div>
-                          {b.discount > 0 && b.coupon && (
+                          {!isCommercialQuote && (
                             <>
+                              {b.discount > 0 && b.coupon && (
+                                <>
+                                  <div className="h-4 w-px bg-[#cb9f5a]/20 hidden sm:block" />
+                                  <div>
+                                    <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                                      Coupon Applied:
+                                    </span>
+                                    <span className="ml-1 text-[#cb9f5a]">
+                                      {b.coupon} (-₹{b.discount})
+                                    </span>
+                                  </div>
+                                </>
+                              )}
                               <div className="h-4 w-px bg-[#cb9f5a]/20 hidden sm:block" />
                               <div>
                                 <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                                  Coupon Applied:
+                                  Amount Paid:
                                 </span>
-                                <span className="ml-1 text-[#cb9f5a]">
-                                  {b.coupon} (-₹{b.discount})
+                                <span className="ml-1 text-[#002a22]">₹{paidAmount}</span>
+                              </div>
+                              <div className="h-4 w-px bg-[#cb9f5a]/20 hidden sm:block" />
+                              <div>
+                                <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                                  Balance Due:
                                 </span>
+                                <span className="ml-1 text-[#cb9f5a]">₹{balanceAmount}</span>
                               </div>
                             </>
                           )}
-                          <div className="h-4 w-px bg-[#cb9f5a]/20 hidden sm:block" />
-                          <div>
-                            <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                              Amount Paid:
-                            </span>
-                            <span className="ml-1 text-[#002a22]">₹{paidAmount}</span>
-                          </div>
-                          <div className="h-4 w-px bg-[#cb9f5a]/20 hidden sm:block" />
-                          <div>
-                            <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                              Balance Due:
-                            </span>
-                            <span className="ml-1 text-[#cb9f5a]">₹{balanceAmount}</span>
-                          </div>
                         </div>
                       )}
 
@@ -1278,7 +1355,15 @@ function MyBookingsPage() {
                         </div>
                       ) : (
                         <>
-                          {balanceAmount > 0 ? (
+                          {isCommercialQuote ? (
+                            <a
+                              href="tel:+919966346347"
+                              className="w-full btn-luxury-primary text-xs py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-xs"
+                            >
+                              <Phone className="h-3.5 w-3.5 text-white" />
+                              <span>Call Commercial Desk</span>
+                            </a>
+                          ) : balanceAmount > 0 ? (
                             <button
                               type="button"
                               onClick={() =>

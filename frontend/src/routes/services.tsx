@@ -44,6 +44,7 @@ import {
   DEFAULT_CATEGORIES,
   mergeAdminCatalog,
   getServiceIcon,
+  isCommercialService,
 } from "@/data/servicesData";
 import Header from "@/components/Header";
 
@@ -1026,21 +1027,43 @@ function ServicesComponent() {
 
                       {/* Right: Price & CTA */}
                       <div className="flex md:flex-col items-center md:items-end justify-between md:justify-center gap-3 w-full md:w-auto shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
-                        <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-800 shrink-0">
-                          <Tag className="h-3.5 w-3.5 text-[#007A48] shrink-0" />
-                          <span>{s.price && s.price > 0 ? `Starts ₹${getServicePrice(s.price)}` : "Customized Price"}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate({ to: "/service-detail", search: { id: s.id } });
-                          }}
-                          className="btn-luxury-primary text-xs py-2 px-4.5 min-h-[38px] sm:min-h-[42px] shrink-0"
-                        >
-                          <span>View Details</span>
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        </button>
+                        {isCommercialService(s) || selectedCatId === "commercial" ? (
+                          <>
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-[#007A48] bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-full shrink-0">
+                              <Sparkles className="h-3 w-3 text-[#007A48]" />
+                              <span>Free On-Site Quote</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate({ to: "/service-detail", search: { id: s.id } });
+                              }}
+                              className="btn-luxury-primary text-xs py-2 px-4.5 min-h-[38px] sm:min-h-[42px] shrink-0"
+                            >
+                              <span>Request Free Quote</span>
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-800 shrink-0">
+                              <Tag className="h-3.5 w-3.5 text-[#007A48] shrink-0" />
+                              <span>{s.price && s.price > 0 ? `Starts ₹${getServicePrice(s.price)}` : "Customized Price"}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate({ to: "/service-detail", search: { id: s.id } });
+                              }}
+                              className="btn-luxury-primary text-xs py-2 px-4.5 min-h-[38px] sm:min-h-[42px] shrink-0"
+                            >
+                              <span>View Details</span>
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </article>
                   );
