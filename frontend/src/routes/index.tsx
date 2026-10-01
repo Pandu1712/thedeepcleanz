@@ -60,6 +60,8 @@ import ReferralModal from "@/components/home/ReferralModal";
 import ServiceDetailModal from "@/components/home/ServiceDetailModal";
 import BookingModal from "@/components/home/BookingModal";
 
+export { HomeLocationModal, MapPickerModal, ReferralModal, ServiceDetailModal, BookingModal };
+
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>) => {
     return {
