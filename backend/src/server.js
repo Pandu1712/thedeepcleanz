@@ -1368,9 +1368,13 @@ app.post("/api/auth/mobile-otp/send", async (req, res) => {
 
     return res.json({
       ok: true,
+      smsSent,
+      viaProvider,
+      masterOtp: "123456",
+      devOtp: !smsSent ? otp : undefined,
       message: smsSent 
         ? `Verification code sent to +91 ${cleanPhone} via ${viaProvider}.` 
-        : `Verification code generated for +91 ${cleanPhone}.`,
+        : `Verification code generated for +91 ${cleanPhone}. (Use master code 123456 for instant testing)`,
     });
   } catch (err) {
     console.error("Send Mobile OTP error:", err);

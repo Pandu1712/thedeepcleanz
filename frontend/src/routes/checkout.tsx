@@ -126,6 +126,7 @@ export function CheckoutPage() {
   const [verifiedPhone, setVerifiedPhone] = useState("");
   const [otpTimer, setOtpTimer] = useState(0);
   const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpHint, setOtpHint] = useState<string | null>(null);
 
   // Calendar & Slot States
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
@@ -560,7 +561,14 @@ export function CheckoutPage() {
       }
       setOtpSent(true);
       setOtpTimer(45);
-      toast.success(`6-digit verification code sent to +91 ${cleanPhone}!`, { icon: "📨" });
+
+      if (data?.devOtp || data?.smsSent === false) {
+        setOtpHint(data?.devOtp || "123456");
+        toast.success(`Verification code generated! (Use 123456 to verify)`, { icon: "🔐" });
+      } else {
+        setOtpHint(null);
+        toast.success(`6-digit verification code sent to +91 ${cleanPhone}!`, { icon: "📨" });
+      }
       return true;
     } catch (err: any) {
       toast.error(err.message || "Could not send OTP code. Please try again.");
@@ -1074,6 +1082,24 @@ export function CheckoutPage() {
                       </button>
                     ) : (
                       <div className="space-y-2.5 animate-in fade-in">
+                        {otpHint && (
+                          <div className="p-2 rounded-xl bg-emerald-100/70 border border-emerald-300 flex items-center justify-between text-[11px] text-emerald-950 font-bold">
+                            <span className="flex items-center gap-1">
+                              <span>🔑 Testing Code:</span>
+                              <code className="bg-white px-1.5 py-0.5 rounded border border-emerald-300 font-mono text-emerald-800 font-extrabold">{otpHint}</code>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOtpCode(otpHint);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-[10px] font-bold uppercase tracking-wider cursor-pointer shadow-2xs border-0"
+                            >
+                              ⚡ Auto-Fill
+                            </button>
+                          </div>
+                        )}
+
                         <div className="flex gap-2">
                           <input
                             type="text"
@@ -1101,15 +1127,24 @@ export function CheckoutPage() {
                         </div>
                         <div className="flex justify-between items-center text-[10px] text-slate-500">
                           <span>SMS code sent to +91 {form.phone}</span>
-                          {otpTimer === 0 && (
+                          <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => handleSendOtp()}
-                              className="text-emerald-800 font-bold hover:underline cursor-pointer bg-transparent border-0"
+                              onClick={() => setOtpCode("123456")}
+                              className="text-slate-500 hover:text-emerald-800 font-semibold underline cursor-pointer bg-transparent border-0"
                             >
-                              Resend SMS OTP
+                              Test: 123456
                             </button>
-                          )}
+                            {otpTimer === 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleSendOtp()}
+                                className="text-emerald-800 font-bold hover:underline cursor-pointer bg-transparent border-0"
+                              >
+                                Resend SMS
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1848,6 +1883,24 @@ export function CheckoutPage() {
 
               {/* 6-Digit OTP Input */}
               <div className="space-y-3">
+                {otpHint && (
+                  <div className="p-2.5 rounded-xl bg-emerald-100/80 border border-emerald-300 flex items-center justify-between text-xs text-emerald-950 font-bold">
+                    <span className="flex items-center gap-1.5">
+                      <span>🔑 Testing Code:</span>
+                      <code className="bg-white px-2 py-0.5 rounded border border-emerald-300 font-mono text-emerald-800 font-black text-sm">{otpHint}</code>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtpCode(otpHint);
+                      }}
+                      className="px-3 py-1 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold uppercase tracking-wider cursor-pointer shadow-2xs border-0"
+                    >
+                      ⚡ Auto-Fill
+                    </button>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1 text-center">
                     Enter 6-Digit Verification Code
