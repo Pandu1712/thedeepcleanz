@@ -188,6 +188,24 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
             </button>
             <button
               onClick={() => {
+                if (userProfile) {
+                  sessionStorage.setItem("user_authenticated", "true");
+                  localStorage.setItem("user_authenticated", "true");
+                  sessionStorage.setItem("user_profile", JSON.stringify(userProfile));
+                  localStorage.setItem("user_profile", JSON.stringify(userProfile));
+                  if (userProfile.email) {
+                    sessionStorage.setItem("user_email", userProfile.email);
+                    localStorage.setItem("user_email", userProfile.email);
+                  }
+                  if (userProfile.phone) {
+                    sessionStorage.setItem("user_phone", userProfile.phone);
+                    localStorage.setItem("user_phone", userProfile.phone);
+                  }
+                  if (userProfile.name) {
+                    sessionStorage.setItem("user_name", userProfile.name);
+                    localStorage.setItem("user_name", userProfile.name);
+                  }
+                }
                 navigate({ to: "/my-bookings" });
                 setNavOpen(false);
               }}

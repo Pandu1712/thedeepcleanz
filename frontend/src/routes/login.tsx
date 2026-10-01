@@ -226,11 +226,17 @@ function LoginComponent() {
             sessionStorage.setItem("user_authenticated", "true");
             sessionStorage.setItem("user_email", data.email || data.user?.email || email);
             sessionStorage.setItem("user_role", "admin");
-            sessionStorage.setItem(
-              "user_profile",
-              JSON.stringify(data.user || { id: "admin-1", name: "Administrator", email, role: "admin" }),
-            );
+            const adminUserObj = data.user || { id: "admin-1", name: "Administrator", email, role: "admin" };
+            sessionStorage.setItem("user_profile", JSON.stringify(adminUserObj));
+
+            localStorage.setItem("admin_authenticated", "true");
+            localStorage.setItem("user_authenticated", "true");
+            localStorage.setItem("user_email", data.email || data.user?.email || email);
+            localStorage.setItem("user_role", "admin");
+            localStorage.setItem("user_profile", JSON.stringify(adminUserObj));
+
             window.dispatchEvent(new Event("auth-state-change"));
+            window.dispatchEvent(new Event("storage"));
             toast.success("Welcome back, Administrator!", { icon: "👑" });
             navigate({ to: "/admin" });
             setIsLoading(false);
@@ -247,16 +253,33 @@ function LoginComponent() {
           } else if (data.role === "technician" && data.user) {
             sessionStorage.setItem("technician_authenticated", "true");
             sessionStorage.setItem("technician_profile", JSON.stringify(data.user));
+            localStorage.setItem("technician_authenticated", "true");
+            localStorage.setItem("technician_profile", JSON.stringify(data.user));
             window.dispatchEvent(new Event("auth-state-change"));
+            window.dispatchEvent(new Event("storage"));
             toast.success(`Welcome back, ${data.user.name}! Staff Portal active.`, { icon: "🛠️" });
             navigate({ to: "/technician" });
             setIsLoading(false);
             return;
           } else if (data.user) {
             sessionStorage.setItem("user_authenticated", "true");
-            sessionStorage.setItem("user_email", data.user.email);
+            sessionStorage.setItem("user_email", data.user.email || "");
+            sessionStorage.setItem("user_phone", data.user.phone || "");
+            sessionStorage.setItem("user_name", data.user.name || "");
+            sessionStorage.setItem("user_id", data.user.id || "");
+            sessionStorage.setItem("user_role", data.user.role || "user");
             sessionStorage.setItem("user_profile", JSON.stringify(data.user));
+
+            localStorage.setItem("user_authenticated", "true");
+            localStorage.setItem("user_email", data.user.email || "");
+            localStorage.setItem("user_phone", data.user.phone || "");
+            localStorage.setItem("user_name", data.user.name || "");
+            localStorage.setItem("user_id", data.user.id || "");
+            localStorage.setItem("user_role", data.user.role || "user");
+            localStorage.setItem("user_profile", JSON.stringify(data.user));
+
             window.dispatchEvent(new Event("auth-state-change"));
+            window.dispatchEvent(new Event("storage"));
             toast.success(`Logged in as ${data.user.name}!`, { icon: "✨" });
             navigate({ to: "/", search: { category: undefined, cart: undefined } });
             setIsLoading(false);
@@ -322,16 +345,22 @@ function LoginComponent() {
         sessionStorage.setItem("user_role", "admin");
         
         const profileName = otpEmail.includes("sairamadoddi") ? "Sairam Adoddi" : "Administrator";
-        sessionStorage.setItem(
-          "user_profile",
-          JSON.stringify({
-            id: "admin-1",
-            name: profileName,
-            email: otpEmail,
-            role: "admin",
-          }),
-        );
+        const adminObj = {
+          id: "admin-1",
+          name: profileName,
+          email: otpEmail,
+          role: "admin",
+        };
+        sessionStorage.setItem("user_profile", JSON.stringify(adminObj));
+
+        localStorage.setItem("admin_authenticated", "true");
+        localStorage.setItem("user_authenticated", "true");
+        localStorage.setItem("user_email", otpEmail);
+        localStorage.setItem("user_role", "admin");
+        localStorage.setItem("user_profile", JSON.stringify(adminObj));
+
         window.dispatchEvent(new Event("auth-state-change"));
+        window.dispatchEvent(new Event("storage"));
         toast.success("Welcome back, Administrator!", { icon: "👑" });
         navigate({ to: "/admin" });
       } else {

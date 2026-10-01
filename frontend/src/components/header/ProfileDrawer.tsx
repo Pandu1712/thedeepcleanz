@@ -77,8 +77,10 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
         const updatedProfile = { ...userProfile, addresses: updatedAddresses };
         setUserProfile(updatedProfile);
         sessionStorage.setItem("user_profile", JSON.stringify(updatedProfile));
+        localStorage.setItem("user_profile", JSON.stringify(updatedProfile));
         localStorage.setItem("thedeepcleanz_saved_addresses", JSON.stringify(updatedAddresses));
         window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("auth-state-change"));
         toast.success("New address saved successfully!", { icon: "🏠" });
 
         // Reset fields
@@ -116,8 +118,10 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
         const updatedProfile = { ...userProfile, addresses: updatedAddresses };
         setUserProfile(updatedProfile);
         sessionStorage.setItem("user_profile", JSON.stringify(updatedProfile));
+        localStorage.setItem("user_profile", JSON.stringify(updatedProfile));
         localStorage.setItem("thedeepcleanz_saved_addresses", JSON.stringify(updatedAddresses));
         window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("auth-state-change"));
         toast.success("Default address updated!");
       }
     } catch (e) {
@@ -146,8 +150,10 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
         const updatedProfile = { ...userProfile, addresses: updatedAddresses };
         setUserProfile(updatedProfile);
         sessionStorage.setItem("user_profile", JSON.stringify(updatedProfile));
+        localStorage.setItem("user_profile", JSON.stringify(updatedProfile));
         localStorage.setItem("thedeepcleanz_saved_addresses", JSON.stringify(updatedAddresses));
         window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("auth-state-change"));
         toast.success("Address deleted.");
       }
     } catch (e) {
@@ -478,6 +484,24 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
           <button
             type="button"
             onClick={() => {
+              if (userProfile) {
+                sessionStorage.setItem("user_authenticated", "true");
+                localStorage.setItem("user_authenticated", "true");
+                sessionStorage.setItem("user_profile", JSON.stringify(userProfile));
+                localStorage.setItem("user_profile", JSON.stringify(userProfile));
+                if (userProfile.email) {
+                  sessionStorage.setItem("user_email", userProfile.email);
+                  localStorage.setItem("user_email", userProfile.email);
+                }
+                if (userProfile.phone) {
+                  sessionStorage.setItem("user_phone", userProfile.phone);
+                  localStorage.setItem("user_phone", userProfile.phone);
+                }
+                if (userProfile.name) {
+                  sessionStorage.setItem("user_name", userProfile.name);
+                  localStorage.setItem("user_name", userProfile.name);
+                }
+              }
               onClose();
               navigate({ to: "/my-bookings" });
             }}

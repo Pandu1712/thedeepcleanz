@@ -400,13 +400,21 @@ function ServicesComponent() {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem("user_email");
-    sessionStorage.removeItem("user_authenticated");
-    sessionStorage.removeItem("admin_authenticated");
-    sessionStorage.removeItem("user_profile");
+    sessionStorage.clear();
+    localStorage.removeItem("user_email");
+    localStorage.removeItem("user_role");
+    localStorage.removeItem("user_profile");
+    localStorage.removeItem("user_authenticated");
+    localStorage.removeItem("user_phone");
+    localStorage.removeItem("user_name");
+    localStorage.removeItem("user_id");
+    localStorage.removeItem("admin_authenticated");
+    localStorage.removeItem("technician_authenticated");
     setUserEmail(null);
     setUserProfile(null);
-    window.location.href = "/";
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new Event("auth-state-change"));
+    navigate({ to: "/", search: { category: undefined, cart: undefined } });
   };
 
   const updateQty = (id: string, d: number) =>

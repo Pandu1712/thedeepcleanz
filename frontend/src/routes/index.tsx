@@ -496,13 +496,16 @@ function Index() {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem("user_email");
-    sessionStorage.removeItem("user_authenticated");
-    sessionStorage.removeItem("admin_authenticated");
-    sessionStorage.removeItem("user_profile");
-    sessionStorage.removeItem("user_location_address");
-    sessionStorage.removeItem("user_location_lat");
-    sessionStorage.removeItem("user_location_lng");
+    sessionStorage.clear();
+    localStorage.removeItem("user_email");
+    localStorage.removeItem("user_role");
+    localStorage.removeItem("user_profile");
+    localStorage.removeItem("user_authenticated");
+    localStorage.removeItem("user_phone");
+    localStorage.removeItem("user_name");
+    localStorage.removeItem("user_id");
+    localStorage.removeItem("admin_authenticated");
+    localStorage.removeItem("technician_authenticated");
     setUserEmail(null);
     setUserProfile(null);
     setIsAdmin(false);
@@ -510,6 +513,8 @@ function Index() {
     setUserLat(null);
     setUserLng(null);
     window.dispatchEvent(new Event("location-updated"));
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new Event("auth-state-change"));
     toast.success("Logged out successfully", { icon: "👋" });
   };
 

@@ -126,14 +126,21 @@ export default function Header({
         if (profileStr) {
           const parsed = JSON.parse(profileStr);
           setUserProfile(parsed);
+          sessionStorage.setItem("user_authenticated", "true");
+          localStorage.setItem("user_authenticated", "true");
         } else if (isAuth && (email || savedPhone || savedName)) {
-          setUserProfile({
+          const fallbackProfile = {
             id: `usr_${savedPhone || "guest"}`,
             name: savedName || "Customer",
             phone: savedPhone || "",
             email: email || "",
             role: role || "user",
-          });
+          };
+          setUserProfile(fallbackProfile);
+          sessionStorage.setItem("user_authenticated", "true");
+          localStorage.setItem("user_authenticated", "true");
+          sessionStorage.setItem("user_profile", JSON.stringify(fallbackProfile));
+          localStorage.setItem("user_profile", JSON.stringify(fallbackProfile));
         } else {
           setUserProfile(null);
         }
@@ -157,6 +164,11 @@ export default function Header({
     localStorage.removeItem("user_role");
     localStorage.removeItem("user_profile");
     localStorage.removeItem("user_authenticated");
+    localStorage.removeItem("user_phone");
+    localStorage.removeItem("user_name");
+    localStorage.removeItem("user_id");
+    localStorage.removeItem("admin_authenticated");
+    localStorage.removeItem("technician_authenticated");
     setUserEmail(null);
     setIsAdmin(false);
     setUserProfile(null);
