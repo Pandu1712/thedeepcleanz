@@ -40,7 +40,7 @@ export interface CartItem {
   id: string;
   title: string;
   price: number;
-  qty?: number;
+  qty: number;
   img?: string;
   paymentType?: "full" | "deposit_25" | "deposit_50" | "free_advance" | string;
 }
