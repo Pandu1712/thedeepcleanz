@@ -40,6 +40,7 @@ import {
   mergeAdminCatalog,
 } from "@/data/servicesData";
 import Header from "@/components/Header";
+import CartDrawer from "@/components/CartDrawer";
 import {
   ADMIN_API_URL,
   fetchAdminCatalog,
@@ -1184,10 +1185,6 @@ function ServiceDetailPage() {
     navigate({ to: "/checkout" });
   }, [handleAddToCart, navigate]);
 
-  const handleCloseBooking = useCallback(() => {
-    setBookingOpen(false);
-  }, []);
-
   const handleCloseCart = useCallback(() => {
     setCartOpen(false);
   }, []);
@@ -1195,16 +1192,6 @@ function ServiceDetailPage() {
   const handleCartCheckout = useCallback(() => {
     setCartOpen(false);
     navigate({ to: "/checkout" });
-  }, [navigate]);
-
-  const handleConfirmBooking = useCallback(() => {
-    setCart([]);
-    setBookingOpen(false);
-    toast.success("Booking confirmed! Redirecting to your bookings...", {
-      icon: "🎉",
-      duration: 4000,
-    });
-    navigate({ to: "/my-bookings" });
   }, [navigate]);
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -2266,16 +2253,7 @@ function ServiceDetailPage() {
         customizedServices={customizedServices}
       />
 
-      <BookingModal
-        open={bookingOpen}
-        onClose={handleCloseBooking}
-        cart={cart}
-        total={cartTotal}
-        onConfirm={handleConfirmBooking}
-        updateQty={updateQty}
-        removeItem={removeItem}
-        onAddItem={addRawItemToCart}
-      />
+
     </div>
   );
 }

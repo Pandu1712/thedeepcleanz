@@ -33,6 +33,7 @@ import {
 } from "@/api/admin-api";
 import { CartItem } from "@/data/servicesData";
 import Header from "@/components/Header";
+import CartDrawer from "@/components/CartDrawer";
 
 type CustomizedSearch = {
   service?: string;
@@ -657,14 +658,6 @@ function CustomizedComponent() {
         onAddItem={addRawItemToCart}
         allServices={allServices}
         customizedServices={services}
-      />
-
-      <BookingModal
-        open={bookingOpen}
-        onClose={() => setBookingOpen(false)}
-        cart={cart}
-        total={cartTotal}
-        onConfirm={completeBooking}
       />
     </div>
   );

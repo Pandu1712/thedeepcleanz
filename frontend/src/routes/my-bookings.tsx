@@ -262,10 +262,7 @@ function MyBookingsPage() {
   const [reviewComment, setReviewComment] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
-  // Buy It Again direct checkout states
-  const [bookingOpen, setBookingOpen] = useState(false);
-  const [bookingCart, setBookingCart] = useState<CartItem[]>([]);
-  const [bookingTotal, setBookingTotal] = useState(0);
+
 
   // Reschedule Modal States
   const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
@@ -1790,13 +1787,6 @@ function MyBookingsPage() {
         </div>
       )}
 
-      <BookingModal
-        open={bookingOpen}
-        onClose={() => setBookingOpen(false)}
-        cart={bookingCart}
-        total={bookingTotal}
-        onConfirm={completeBooking}
-      />
 
       {/* Reschedule Modal */}
       {rescheduleModalOpen && (

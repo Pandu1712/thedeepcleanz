@@ -1376,41 +1376,6 @@ function ServicesComponent() {
           </div>
         </div>
       </footer>
-
-      {/* SHARED MODALS */}
-      <ServiceDetailModal
-        service={detail}
-        onClose={() => setDetail(null)}
-        onAddPlan={(s, plan) => {
-          handleAddPlanToCart(s, plan);
-          setDetail(null);
-        }}
-        getServicePrice={(basePrice) => basePrice}
-      />
-
-      <CartDrawer
-        open={cartOpen}
-        onClose={() => setCartOpen(false)}
-        cart={cart}
-        total={cartTotal}
-        updateQty={updateQty}
-        removeItem={removeItem}
-        onCheckout={checkout}
-        onAddItem={addRawItemToCart}
-        allServices={allServices}
-        customizedServices={customizedServices}
-      />
-
-      <BookingModal
-        open={bookingOpen}
-        onClose={() => setBookingOpen(false)}
-        cart={cart}
-        total={cartTotal}
-        onConfirm={completeBooking}
-        updateQty={updateQty}
-        removeItem={removeItem}
-        onAddItem={addRawItemToCart}
-      />
     </div>
   );
 }
