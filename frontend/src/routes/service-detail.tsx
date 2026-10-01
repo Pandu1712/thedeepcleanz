@@ -1733,7 +1733,7 @@ function ServiceDetailPage() {
                 className="btn-luxury-primary text-xs py-2 px-3 sm:px-4 min-h-[36px] shrink-0 active:scale-95 whitespace-nowrap flex items-center gap-1 shadow-md shadow-emerald-950/20"
               >
                 <Zap className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
-                <span>{activePlanPrice > 0 ? "Book Now" : "Book with OTP"}</span>
+                <span>{activePlanPrice > 0 ? "Book Now" : "Book Service"}</span>
               </button>
               {activePlanPrice === 0 && (
                 <button
@@ -1922,7 +1922,7 @@ function ServiceDetailPage() {
                   className="w-full py-2.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#002A22] text-xs font-bold transition-all cursor-pointer border border-emerald-200/80 flex items-center justify-center gap-1.5"
                 >
                   <Zap className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-                  <span>Choose Date &amp; Time Slot with Mobile OTP</span>
+                  <span>Choose Date &amp; Time Slot</span>
                 </button>
               </div>
             </div>

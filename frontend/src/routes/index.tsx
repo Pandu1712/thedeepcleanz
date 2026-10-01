@@ -7076,30 +7076,38 @@ export const BookingModal = memo(function BookingModal({
   };
 
   const handleConfirm = async () => {
-    if (!form.name.trim() || form.phone.replace(/\D/g, "").length < 10) {
-      toast.error("Please provide your name and a valid 10-digit phone number");
+    const cleanName = (form.name || "").trim();
+    const cleanPhone = (form.phone || "").replace(/\D/g, "");
+
+    if (!cleanName || cleanName.length < 2) {
+      toast.error("Please enter your full name (minimum 2 characters)");
       setEditingContact(true);
       return;
     }
 
-    if (!form.address.trim()) {
-      toast.error("Please enter or auto-detect your service delivery address");
+    if (cleanPhone.length !== 10 || !/^[6-9]/.test(cleanPhone)) {
+      toast.error("Please enter a valid 10-digit Indian mobile number");
+      setEditingContact(true);
+      return;
+    }
+
+    if (!form.address || !form.address.trim()) {
+      toast.error("Please provide or auto-detect your service address");
       setShowCheckoutAddressForm(true);
       return;
     }
 
     // Save contact locally for seamless future bookings
     try {
-      localStorage.setItem("thedeepcleanz_saved_contact", JSON.stringify({ name: form.name.trim(), phone: form.phone.trim() }));
+      localStorage.setItem(
+        "thedeepcleanz_saved_contact",
+        JSON.stringify({
+          name: cleanName,
+          phone: cleanPhone,
+          email: form.email?.trim() || "",
+        }),
+      );
     } catch (e) {}
-
-    // MANDATORY OTP GATE: Mobile OTP verification required before payment!
-    if (!otpVerified) {
-      setShowAuthGate(true);
-      setShowOtpVerification(false);
-      await handleSendMobileOtp();
-      return;
-    }
 
     let currentProfile: any = null;
     try {
@@ -7109,7 +7117,7 @@ export const BookingModal = memo(function BookingModal({
       }
     } catch (e) {}
 
-    // Seamlessly proceed directly to payment & booking after OTP verification
+    // Seamlessly proceed directly to payment & booking
     return executePaymentAndBooking(currentProfile);
   };
 
