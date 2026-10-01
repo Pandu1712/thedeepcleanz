@@ -31,7 +31,7 @@ import {
   fetchAdminCatalog,
   type AdminCustomizedService,
 } from "@/api/admin-api";
-import { CartItem, CartDrawer, BookingModal } from "./index";
+import { CartItem } from "@/data/servicesData";
 import Header from "@/components/Header";
 
 type CustomizedSearch = {

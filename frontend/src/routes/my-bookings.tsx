@@ -44,7 +44,7 @@ import {
   normalizeTimeSlot,
   type BlockedDate,
 } from "@/api/admin-api";
-import { BookingModal, CartItem } from "./index";
+import { CartItem } from "@/data/servicesData";
 import Header from "@/components/Header";
 
 import imgKitchen from "@/assets/service-kitchen.jpg";

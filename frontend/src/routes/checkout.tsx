@@ -43,7 +43,7 @@ import {
   type BookedSlotsResponse,
   type BlockedDate,
 } from "@/api/admin-api";
-import { CartItem } from "./index";
+import { CartItem } from "@/data/servicesData";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({

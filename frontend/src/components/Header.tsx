@@ -22,7 +22,7 @@ import {
   Layers,
 } from "lucide-react";
 import { toast } from "sonner";
-import { SERVICES, type Category } from "../routes/index";
+import { SERVICES, type Category } from "@/data/servicesData";
 
 interface HeaderProps {
   cartCount: number;
