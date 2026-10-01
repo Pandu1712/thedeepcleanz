@@ -366,6 +366,354 @@ function getPlanInclusionsAndExclusions(
   };
 }
 
+/**
+ * Resolves complete 3-Tier package options (Express Clean, Classic Deep Clean, Premium Sanitized)
+ * for all services, ensuring zero missing package options.
+ */
+function resolveServicePlans(service: any): ServicePlan[] {
+  if (!service) return [];
+
+  let rawPlans: any[] = [];
+  if (Array.isArray(service.plans)) {
+    rawPlans = service.plans;
+  } else if (typeof service.plans === "string") {
+    try {
+      const parsed = JSON.parse(service.plans);
+      if (Array.isArray(parsed)) rawPlans = parsed;
+    } catch (e) {}
+  }
+
+  // If service has 2 or more custom plans defined, use them
+  if (rawPlans.length > 1) {
+    return rawPlans.map((p: any) => ({
+      name: p?.name || "Standard Plan",
+      price: typeof p?.price === "number" ? p.price : service.price || 0,
+      duration: p?.duration || "2 - 3 hours",
+      description: p?.description || p?.desc || service.desc || "",
+      includes: Array.isArray(p?.includes)
+        ? sanitizeItemList(p.includes)
+        : Array.isArray(service.sub)
+          ? sanitizeItemList(service.sub)
+          : [],
+      excludes: Array.isArray(p?.excludes) ? sanitizeItemList(p.excludes) : [],
+    }));
+  }
+
+  const basePrice = Number(service.price) || 1499;
+  const sTitle = (service.title || "").toLowerCase();
+  const sId = (service.id || "").toLowerCase();
+
+  // Full House / Vacant / Furnished / Villa Plans (3 Tiers: Express Clean, Classic Deep Clean, Premium Sanitized)
+  if (
+    sId.includes("house") ||
+    sId.includes("vacant") ||
+    sId.includes("furnished") ||
+    sId.includes("villa") ||
+    sId.includes("bhk") ||
+    sTitle.includes("vacant") ||
+    sTitle.includes("furnished") ||
+    sTitle.includes("bhk") ||
+    sTitle.includes("house")
+  ) {
+    const isVacant = sId.includes("vacant") || sTitle.includes("vacant");
+    const expressPrice = basePrice;
+    const classicPrice = Math.max(expressPrice + 500, Math.round((basePrice * 1.38) / 50) * 50);
+    const premiumPrice = Math.max(classicPrice + 700, Math.round((basePrice * 1.75) / 50) * 50);
+
+    return [
+      {
+        name: "Express Clean",
+        price: expressPrice,
+        duration: "2 - 3 hours",
+        description: isVacant
+          ? "Essential move-in wipe down, floor scrubbing, bathroom sanitization and empty cabinet dust wipe."
+          : "Essential deep dusting of rooms, floor scrubbing, bathroom descaling & kitchen counters degreasing.",
+        includes: [
+          "Deep dusting of all rooms & cobweb removal",
+          "Dry & wet floor scrubbing with eco-friendly agents",
+          "Bathroom descaling, sanitization & WC polish",
+          "Kitchen platform, sink, tiles & stove wipedown",
+          isVacant
+            ? "Inside-out dust wipedown of empty wardrobes"
+            : "Balcony wash & window glass surface wipe",
+        ],
+        excludes: [
+          "Single-disc heavy machine floor scrub",
+          "Hospital-grade high-temperature steam sterilization",
+          "Interior cabinet wet washing with utensils inside",
+        ],
+      },
+      {
+        name: "Classic Deep Clean",
+        price: classicPrice,
+        duration: "4 - 5 hours",
+        description: isVacant
+          ? "Comprehensive move-in deep cleaning with single-disc machine floor scrub and inside-out cabinet detailing."
+          : "Comprehensive deep clean with machine floor buffing, window channels detailing & kitchen degreasing.",
+        includes: [
+          "All Express Clean inclusions",
+          "Single-disc mechanical floor scrubbing & buffing",
+          "All empty wardrobes & kitchen modular cabinets washed inside-out",
+          "Window channels, glass tracks, sliders & balcony deep wash",
+          "Kitchen exhaust fan & chimney exterior deep degreasing",
+          "Multi-bathroom deep tile limescale removal",
+        ],
+        excludes: [
+          "High-temperature steam disinfection (Included in Premium)",
+          "Upholstery / sofa foam shampooing",
+        ],
+      },
+      {
+        name: "Premium Sanitized",
+        price: premiumPrice,
+        duration: "5 - 7 hours",
+        description: "Hospitality-grade clinical deep clean with 140°C steam sterilization, germicidal fogging & protective surface sealant.",
+        includes: [
+          "All Classic Deep Clean inclusions",
+          "140°C High-temperature steam disinfection for bathrooms & kitchen",
+          "Paint specks, minor cement residue & hard adhesive spot removal",
+          "Hospital-grade anti-bacterial fogging & odor neutralizing",
+          "Protective surface shine & chrome fittings sealant application",
+        ],
+        excludes: [
+          "Permanent structural acid etched stain removal from raw marble",
+          "Electrical appliance internal motor repairs",
+        ],
+      },
+    ];
+  }
+
+  // Kitchen Deep Cleaning (3 Tiers)
+  if (sId.includes("kitchen") || sTitle.includes("kitchen")) {
+    const p1 = basePrice;
+    const p2 = Math.max(p1 + 400, Math.round((basePrice * 1.35) / 50) * 50);
+    const p3 = Math.max(p2 + 500, Math.round((basePrice * 1.7) / 50) * 50);
+
+    return [
+      {
+        name: "Standard Kitchen",
+        price: p1,
+        duration: "2 - 3 hours",
+        description: "Deep scrubbing of countertop, stovetop, wall tiles backsplash, sink and floor degreasing.",
+        includes: [
+          "Countertop, sink & faucet hard-water limescale removal",
+          "Gas stove burner tops, knobs & tray detailed scrub",
+          "Kitchen wall tiles backsplash oil & grout degreasing",
+          "Modular cabinet exterior wipedown & floor mop",
+        ],
+        excludes: [
+          "Chimney baffle filter power wash",
+          "Interior cabinet cleaning with utensils inside",
+        ],
+      },
+      {
+        name: "Kitchen with Chimney",
+        price: p2,
+        duration: "3 - 4 hours",
+        description: "Complete kitchen deep clean with chimney hood degreasing, baffle filter wash & exhaust fan scrub.",
+        includes: [
+          "All Standard Kitchen inclusions",
+          "Chimney hood degreasing & baffle filter power wash",
+          "Exhaust fan & ceiling fan blade deep degreasing",
+          "Refrigerator & microwave exterior clinical wipe",
+          "Drain pipe hot water flush & odor elimination",
+        ],
+        excludes: [
+          "Interior steam disinfection (Included in Premium)",
+        ],
+      },
+      {
+        name: "Ultra Steam Kitchen",
+        price: p3,
+        duration: "4 - 5 hours",
+        description: "Ultimate clinical kitchen overhaul with steam sterilization, inside-out empty cabinets & appliance degreasing.",
+        includes: [
+          "All Kitchen with Chimney inclusions",
+          "140°C High-temp steam sterilization on tiles & sink",
+          "Inside-out wipedown of empty modular cabinets & drawers",
+          "Microwave & Refrigerator interior clinical steam wipe",
+          "Anti-microbial counter polish & drain sanitization",
+        ],
+        excludes: [
+          "Chimney motor dismantling or electrical repair",
+        ],
+      },
+    ];
+  }
+
+  // Bathroom Deep Cleaning (3 Tiers)
+  if (sId.includes("bath") || sId.includes("toilet") || sTitle.includes("bath")) {
+    const p1 = basePrice;
+    const p2 = Math.max(p1 + 300, Math.round((basePrice * 1.45) / 50) * 50);
+    const p3 = Math.max(p2 + 400, Math.round((basePrice * 1.9) / 50) * 50);
+
+    return [
+      {
+        name: "Express Bathroom",
+        price: p1,
+        duration: "40 - 50 mins",
+        description: "Essential manual descaling, WC sanitization, washbasin shine and floor scrubbing.",
+        includes: [
+          "Commode (WC) inside-out descaling & sanitization",
+          "Washbasin, mirror & chrome taps limescale removal",
+          "Floor tiles manual scrubbing & drain wash",
+        ],
+        excludes: [
+          "Single-disc mechanical wall buffing",
+          "Steam sanitization",
+        ],
+      },
+      {
+        name: "Classic Deep Clean",
+        price: p2,
+        duration: "60 - 80 mins",
+        description: "Intensive multi-chemical bathroom deep descaling with wall grout scrubbing & exhaust fan wipe.",
+        includes: [
+          "All Express Bathroom inclusions",
+          "Wall tiles stain removal & grout line scrub",
+          "Shower partition glass hard-water mark reduction",
+          "Exhaust fan, geyser exterior & door wipedown",
+          "Anti-odour enzyme drain flush",
+        ],
+        excludes: [
+          "Steam sterilization (Included in Premium)",
+        ],
+      },
+      {
+        name: "Intensive Steam Sanitize",
+        price: p3,
+        duration: "80 - 100 mins",
+        description: "Clinical-grade bathroom restoration with 140°C steam disinfection, silicone mold treatment & nano-sealant.",
+        includes: [
+          "All Classic Deep Clean inclusions",
+          "140°C Steam sterilization across WC, tiles & corners",
+          "Shower glass hydrophobic nano-coating",
+          "Tile grout bleaching & stubborn yellow stain treatment",
+          "Germicidal anti-bacterial fogging",
+        ],
+        excludes: [
+          "Permanent acid etch damage on marble floors",
+        ],
+      },
+    ];
+  }
+
+  // Sofa / Carpet / Mattress Cleaning (3 Tiers)
+  if (
+    sId.includes("sofa") ||
+    sId.includes("carpet") ||
+    sId.includes("mattress") ||
+    sTitle.includes("sofa") ||
+    sTitle.includes("carpet") ||
+    sTitle.includes("mattress")
+  ) {
+    const p1 = basePrice;
+    const p2 = Math.max(p1 + 400, Math.round((basePrice * 1.35) / 50) * 50);
+    const p3 = Math.max(p2 + 500, Math.round((basePrice * 1.7) / 50) * 50);
+
+    return [
+      {
+        name: "Standard Shampoo",
+        price: p1,
+        duration: "45 - 60 mins",
+        description: "High-power dry vacuuming, fabric foam shampooing and moisture extraction.",
+        includes: [
+          "Commercial dry vacuuming to remove dust mites",
+          "Eco-friendly fabric foam shampooing",
+          "Moisture extraction (dries within 2–4 hours)",
+        ],
+        excludes: [
+          "Steam sanitization",
+          "Anti-allergen sanitization",
+        ],
+      },
+      {
+        name: "Deep Stain Extraction",
+        price: p2,
+        duration: "60 - 75 mins",
+        description: "Intensive spot treatment for food/oil stains, deep extraction and anti-odor deodorization.",
+        includes: [
+          "All Standard Shampoo inclusions",
+          "Heavy spot stain treatment for stubborn marks",
+          "Fabric deodorizing & freshness infusion",
+          "Cushion sides & crevice deep detailing",
+        ],
+        excludes: [
+          "Steam sanitization",
+        ],
+      },
+      {
+        name: "Ultra Steam & Anti-Allergen",
+        price: p3,
+        duration: "75 - 90 mins",
+        description: "Complete steam sterilization, 99.9% dust mite eradication and fabric protection coat.",
+        includes: [
+          "All Deep Stain Extraction inclusions",
+          "140°C High-temp steam disinfection",
+          "99.9% Dust mite & microbial allergen eradication",
+          "Fabric color brightening & fiber shield application",
+        ],
+        excludes: [
+          "Permanent ink or chemical bleach burns",
+        ],
+      },
+    ];
+  }
+
+  // Generic 3-Tier fallback
+  const p1 = basePrice;
+  const p2 = Math.max(p1 + 300, Math.round((basePrice * 1.35) / 50) * 50);
+  const p3 = Math.max(p2 + 400, Math.round((basePrice * 1.7) / 50) * 50);
+
+  return [
+    {
+      name: "Express Plan",
+      price: p1,
+      duration: "40 - 60 min",
+      description: service.desc || "Complete deep sanitization and scrubbing of targeted area.",
+      includes: Array.isArray(service.sub) ? sanitizeItemList(service.sub) : [
+        "Complete clinical sanitization of targeted area",
+        "Removal of stubborn grease, grime & sticky residue",
+        "Exterior wipe of fittings, frames & switchboards",
+      ],
+      excludes: [
+        "Single-disc mechanical floor scrub",
+        "Steam sterilization",
+      ],
+    },
+    {
+      name: "Classic Plan",
+      price: p2,
+      duration: "60 - 90 min",
+      description: "Comprehensive deep scrubbing with high-grade chemical degreasing & detailed stain removal.",
+      includes: [
+        "All Express Plan features",
+        "Intensive mechanical scrub & stain extraction",
+        "Detailed corner, grill & edge detailing",
+        "Anti-bacterial deodorization",
+      ],
+      excludes: [
+        "Steam sterilization",
+      ],
+    },
+    {
+      name: "Premium Plan",
+      price: p3,
+      duration: "90 - 120 min",
+      description: "Hospitality-grade clinical overhaul with steam disinfection, sanitizing fog & protective finish.",
+      includes: [
+        "All Classic Plan features",
+        "140°C High-temp steam sterilization",
+        "Food-safe anti-microbial protection shield",
+        "Supervisor quality inspection & sign-off",
+      ],
+      excludes: [
+        "Structural replacement or mechanical hardware repair",
+      ],
+    },
+  ];
+}
+
 function ServiceDetailPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
@@ -727,49 +1075,51 @@ function ServiceDetailPage() {
     }
   }, [service?.id]);
 
-  // Plans state
-  const plans: ServicePlan[] = useMemo(() => {
+  // Sibling services in the same category (e.g. 1 BHK, 2 BHK, 3 BHK, 4 BHK, 5 BHK, Villa)
+  const siblingServices = useMemo(() => {
     if (!service) return [];
+    const sId = (service.id || "").toLowerCase();
+    const sTitle = (service.title || "").toLowerCase();
 
-    let plansList: any[] = [];
-    if (Array.isArray(service.plans)) {
-      plansList = service.plans;
-    } else if (typeof service.plans === "string") {
-      try {
-        const parsed = JSON.parse(service.plans);
-        if (Array.isArray(parsed)) plansList = parsed;
-      } catch (e) {}
+    // 1. Check parent categories & child categories in catalog
+    if (Array.isArray(categories)) {
+      for (const cat of categories) {
+        if (cat && Array.isArray(cat.services)) {
+          const match = cat.services.some(
+            (s) => s && (s.id?.toLowerCase() === sId || s.title?.toLowerCase() === sTitle)
+          );
+          if (match && cat.services.length > 1) {
+            return cat.services;
+          }
+        }
+      }
     }
 
-    if (plansList.length > 0) {
-      return plansList.map((p: any) => ({
-        name: p?.name || service.title || "Standard Plan",
-        price: typeof p?.price === "number" ? p.price : service.price || 0,
-        duration: p?.duration || "40 - 60 min",
-        description: p?.description || p?.desc || service.desc || "",
-        includes: Array.isArray(p?.includes)
-          ? sanitizeItemList(p.includes)
-          : Array.isArray(service.sub)
-            ? sanitizeItemList(service.sub)
-            : [],
-        excludes: Array.isArray(p?.excludes) ? sanitizeItemList(p.excludes) : [],
-      }));
+    // 2. Check rawAdminServices
+    if (Array.isArray(rawAdminServices) && rawAdminServices.length > 0) {
+      if (service.categoryId) {
+        const byCat = rawAdminServices.filter((s) => s && s.categoryId === service.categoryId);
+        if (byCat.length > 1) return byCat;
+      }
     }
 
-    return [
-      {
-        name: service.title || "Standard Plan",
-        price: service.price || 0,
-        duration: "40 - 60 min",
-        description: service.desc || "Complete deep sanitization and scrubbing of surfaces.",
-        includes: Array.isArray(service.sub) ? sanitizeItemList(service.sub) : [],
-        excludes: [
-          "Appliance electrical wiring or motor repairs",
-          "Permanent acid/paint scraping without prior notice",
-          "Moving heavy furniture exceeding 40kg without assistance",
-        ],
-      },
-    ];
+    // 3. Fallback to built-in collections
+    if (sId.includes("vacant") || sTitle.includes("vacant")) {
+      return VACANT_SERVICES;
+    }
+    if (sId.includes("furnished") || sTitle.includes("furnished")) {
+      return FURNISHED_SERVICES;
+    }
+    if (sId.includes("villa") || sTitle.includes("villa")) {
+      return VILLA_SERVICES;
+    }
+
+    return [];
+  }, [service, categories, rawAdminServices]);
+
+  // Dynamic Multi-Tier Plans State (Express Clean, Classic Deep Clean, Premium Sanitized)
+  const plans: ServicePlan[] = useMemo(() => {
+    return resolveServicePlans(service);
   }, [service]);
 
   // Active plan selection state
@@ -1140,17 +1490,74 @@ function ServiceDetailPage() {
               </div>
 
               {/* ===================================================
-                  STEP 1: SELECT SERVICE PACKAGE TIER / APPLIANCE TYPE
+                  STEP 1: SELECT APARTMENT SIZE / CONFIGURATION (IF MULTIPLE)
+                 =================================================== */}
+              {siblingServices.length > 1 && (
+                <div className="pt-2 sm:pt-3 space-y-2.5 bg-[#F6FAF8] border border-[#DCEEE6] p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-extrabold uppercase tracking-wider text-[#002A22] flex items-center gap-1.5">
+                      <span className="flex h-5 w-5 rounded-full bg-[#0B6B46] text-white text-[10px] font-black items-center justify-center">1</span>
+                      Select Home Size / Configuration
+                    </label>
+                    <span className="text-[10px] sm:text-[11px] text-emerald-800 font-bold">
+                      {siblingServices.length} Sizes Available
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-0.5">
+                    {siblingServices.map((sib: any) => {
+                      const isCurrent = (sib.id || "").toLowerCase() === (service?.id || "").toLowerCase() ||
+                        (sib.title || "").toLowerCase() === (service?.title || "").toLowerCase();
+                      const cleanShortTitle = (sib.title || "")
+                        .replace(/\s*(Vacant|\/|Empty|Flat|Deep|Cleaning|Furnished|Apartment|Services?)\s*/gi, " ")
+                        .trim()
+                        .replace(/\s+/g, " ") || sib.title;
+
+                      return (
+                        <button
+                          key={sib.id || sib.title}
+                          type="button"
+                          onClick={() => {
+                            if (!isCurrent) {
+                              navigate({
+                                to: "/service-detail",
+                                search: { id: sib.id || sib.title },
+                              });
+                            }
+                          }}
+                          className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center gap-2 active:scale-95 shadow-3xs ${
+                            isCurrent
+                              ? "bg-[#002A22] text-white border-[#002A22] shadow-sm ring-2 ring-[#0B6B46]/30"
+                              : "bg-white text-slate-700 border-slate-200 hover:border-emerald-600 hover:bg-emerald-50/60"
+                          }`}
+                        >
+                          <span>{cleanShortTitle}</span>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                            isCurrent ? "bg-emerald-800/80 text-emerald-200" : "bg-slate-100 text-emerald-800"
+                          }`}>
+                            ₹{sib.price}/-
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* ===================================================
+                  STEP 2: SELECT CLEANING PACKAGE TIER (EXPRESS / CLASSIC / PREMIUM)
                  =================================================== */}
               {plans.length > 0 && (
                 <div className="pt-2 sm:pt-3 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-extrabold uppercase tracking-wider text-[#002A22] flex items-center gap-1.5">
-                      <span className="flex h-5 w-5 rounded-full bg-[#0B6B46] text-white text-[10px] font-black items-center justify-center">1</span>
-                      Select Appliance or Package Option
+                      <span className="flex h-5 w-5 rounded-full bg-[#0B6B46] text-white text-[10px] font-black items-center justify-center">
+                        {siblingServices.length > 1 ? "2" : "1"}
+                      </span>
+                      Select Cleaning Package Tier
                     </label>
                     <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
-                      {plans.length} options available
+                      {plans.length} tiers available
                     </span>
                   </div>
 
