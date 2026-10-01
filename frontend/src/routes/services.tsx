@@ -38,16 +38,13 @@ import {
   type AdminCustomizedService,
 } from "@/api/admin-api";
 import {
-  Category,
-  Service,
-  CartItem,
-  ServiceDetailModal,
-  CartDrawer,
-  BookingModal,
+  type Category,
+  type Service,
+  type CartItem,
   DEFAULT_CATEGORIES,
   mergeAdminCatalog,
   getServiceIcon,
-} from "./index";
+} from "@/data/servicesData";
 import Header from "@/components/Header";
 
 type ServicesSearch = {

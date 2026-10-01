@@ -34,16 +34,11 @@ import {
 import {
   DEFAULT_CATEGORIES,
   SERVICES,
-  FURNISHED_SERVICES,
-  VACANT_SERVICES,
-  VILLA_SERVICES,
-  Service,
-  CartItem,
-  CartDrawer,
-  BookingModal,
+  type Service,
+  type CartItem,
   getServiceIcon,
   mergeAdminCatalog,
-} from "./index";
+} from "@/data/servicesData";
 import Header from "@/components/Header";
 import {
   ADMIN_API_URL,
