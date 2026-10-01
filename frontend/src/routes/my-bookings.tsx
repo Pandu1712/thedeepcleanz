@@ -462,24 +462,13 @@ function MyBookingsPage() {
         qty: 1,
       };
 
-      setBookingCart([cartItem]);
-      setBookingTotal(item.price);
-      setBookingOpen(true);
-
-      toast.success(`Preparing checkout for "${item.title}"...`, { icon: "🛍️" });
+      setCart([cartItem]);
+      setCartOpen(true);
+      toast.success(`Added "${item.title}" to cart!`, { icon: "🛍️" });
     } catch (e) {
       console.error(e);
-      toast.error("Failed to start checkout.");
+      toast.error("Failed to add to cart.");
     }
-  };
-
-  const completeBooking = () => {
-    setBookingOpen(false);
-    toast.success("Booking confirmed! Our team will call you shortly.", {
-      icon: "✨",
-      duration: 5000,
-    });
-    loadBookings();
   };
 
   const handlePayBalance = async (
@@ -562,14 +551,14 @@ function MyBookingsPage() {
   return (
     <div className="min-h-screen bg-[#faf8f5] font-sans flex flex-col pt-[112px] xs:pt-[108px] sm:pt-[116px] md:pt-[120px]">
       <Header
-        cartCount={cart.reduce((acc, i) => acc + i.qty, 0)}
+        cartCount={cart.reduce((acc, i) => acc + (i.qty || 1), 0)}
         favsCount={favs.length}
         userLocation={userLocation}
         onOpenCart={() => setCartOpen(true)}
         onOpenLocation={() => setLocationModalOpen(true)}
         activeHash=""
         isSubPage={true}
-        hideMobileNav={cartOpen || bookingOpen || locationModalOpen || rescheduleModalOpen || cancellingBooking !== null || reviewModalOpen}
+        hideMobileNav={cartOpen || locationModalOpen || rescheduleModalOpen || cancellingBooking !== null || reviewModalOpen}
       />
 
       {/* MAIN CONTENT */}

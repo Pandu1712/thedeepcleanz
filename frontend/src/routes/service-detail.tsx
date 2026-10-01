@@ -34,6 +34,9 @@ import {
 import {
   DEFAULT_CATEGORIES,
   SERVICES,
+  FURNISHED_SERVICES,
+  VACANT_SERVICES,
+  VILLA_SERVICES,
   type Service,
   type CartItem,
   getServiceIcon,
@@ -778,7 +781,7 @@ function ServiceDetailPage() {
     <div className="min-h-screen bg-[#FBFBF9] text-[#1D2939] font-sans pt-24 sm:pt-28 lg:pt-32 pb-[max(calc(env(safe-area-inset-bottom,0px)+120px),8rem)] md:pb-20 antialiased selection:bg-[#0B6B46] selection:text-white">
       {/* GLOBAL HEADER */}
       <Header
-        cartCount={cart.reduce((acc, i) => acc + i.qty, 0)}
+        cartCount={cart.reduce((acc, i) => acc + (i.qty || 1), 0)}
         favsCount={favs.length}
         userLocation={userLocation}
         onOpenCart={() => setCartOpen(true)}
