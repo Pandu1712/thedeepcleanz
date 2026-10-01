@@ -46,6 +46,10 @@ import {
 } from "@/api/admin-api";
 import { CartItem } from "@/data/servicesData";
 import Header from "@/components/Header";
+import { LiveTrackingMap } from "@/components/my-bookings/LiveTrackingMap";
+import { RescheduleModal } from "@/components/my-bookings/RescheduleModal";
+import { ReviewBookingModal } from "@/components/my-bookings/ReviewBookingModal";
+import { CancelBookingModal } from "@/components/my-bookings/CancelBookingModal";
 
 import imgKitchen from "@/assets/service-kitchen.jpg";
 import imgSofa from "@/assets/service-sofa.jpg";
@@ -98,130 +102,6 @@ const loadRazorpayScript = () => {
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
-};
-
-interface MapContainerProps {
-  techLat: number | null;
-  techLng: number | null;
-  customerLat: number | null;
-  customerLng: number | null;
-  customerAddress?: string;
-}
-
-const MapContainer = ({ techLat, techLng, customerLat, customerLng, customerAddress }: MapContainerProps) => {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstance = useRef<any>(null);
-
-  useEffect(() => {
-    if (!mapRef.current) return;
-    
-    // Dynamically load Leaflet CSS if it hasn't been loaded already
-    const linkId = "leaflet-css";
-    if (!document.getElementById(linkId)) {
-      const link = document.createElement("link");
-      link.id = linkId;
-      link.rel = "stylesheet";
-      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(link);
-    }
-
-    // Initialize/update Leaflet Map
-    const loadMap = () => {
-      const L = (window as any).L;
-      if (!L || !mapRef.current) return;
-
-      // Clean up previous map instance to prevent target container already initialized errors
-      if (mapInstance.current) {
-        mapInstance.current.remove();
-        mapInstance.current = null;
-      }
-
-      const points: [number, number][] = [];
-      if (techLat && techLng) points.push([techLat, techLng]);
-      if (customerLat && customerLng) points.push([customerLat, customerLng]);
-
-      const center: [number, number] = points.length > 0 ? points[0] : [16.307888, 80.438993]; // default Guntur office
-      const zoom = points.length === 2 ? 13 : 15;
-
-      const map = L.map(mapRef.current, { zoomControl: false }).setView(center, zoom);
-      L.control.zoom({ position: "topright" }).addTo(map);
-      mapInstance.current = map;
-
-      // Premium maps tile layer
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: "abcd",
-        maxZoom: 20
-      }).addTo(map);
-
-      // Custom marker icon setup
-      const techIcon = L.icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/7542/7542670.png", // Delivery van pin
-        iconSize: [38, 38],
-        iconAnchor: [19, 19],
-        popupAnchor: [0, -19]
-      });
-
-      const homeIcon = L.icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/25/25694.png", // Home doorstep pin
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -32]
-      });
-
-      const bounds = L.latLngBounds(points);
-
-      if (techLat && techLng) {
-        L.marker([techLat, techLng], { icon: techIcon })
-          .addTo(map)
-          .bindPopup("<div class='font-sans font-bold text-xs text-slate-800'>📍 Cleaning Expert<br/><span class='text-[10px] text-emerald-800'>On the way to your address</span></div>")
-          .openPopup();
-      }
-
-      if (customerLat && customerLng) {
-        L.marker([customerLat, customerLng], { icon: homeIcon })
-          .addTo(map)
-          .bindPopup(`<div class='font-sans font-bold text-xs text-slate-800'>🏠 Your doorstep<br/><span class='text-[9px] text-slate-500 font-medium'>${customerAddress || ""}</span></div>`);
-      }
-
-      if (points.length === 2) {
-        map.fitBounds(bounds, { padding: [40, 40] });
-      }
-    };
-
-    if (!(window as any).L) {
-      const scriptId = "leaflet-js";
-      if (!document.getElementById(scriptId)) {
-        const script = document.createElement("script");
-        script.id = scriptId;
-        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-        script.onload = loadMap;
-        document.body.appendChild(script);
-      }
-    } else {
-      loadMap();
-    }
-
-    return () => {
-      if (mapInstance.current) {
-        mapInstance.current.remove();
-        mapInstance.current = null;
-      }
-    };
-  }, [techLat, techLng, customerLat, customerLng]);
-
-  return (
-    <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50 h-[300px] w-full z-10 font-sans mt-3 mb-4">
-      <div ref={mapRef} className="h-full w-full" />
-      <div className="absolute bottom-3 left-3 bg-white/95 border border-[#cb9f5a]/30 backdrop-blur-xs px-3 py-1.5 rounded-xl shadow-xs z-50 text-[10px] font-sans flex items-center gap-1.5">
-        <span className="flex h-2 w-2 relative">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-        </span>
-        <span className="font-extrabold uppercase text-[#002a22] tracking-wider">Live Expert Tracking Active</span>
-      </div>
-    </div>
-  );
 };
 
 export const Route = createFileRoute("/my-bookings")({
@@ -311,6 +191,37 @@ function MyBookingsPage() {
       loadBookings();
     } catch (err: any) {
       toast.error(`Reschedule failed: ${err.message}`);
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (isSubmittingReview || !selectedServiceToReview) return;
+    setIsSubmittingReview(true);
+    try {
+      const response = await fetch(`${ADMIN_API_URL}/api/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: selectedServiceToReview.id,
+          userName: userProfile?.name || "Anonymous",
+          rating: reviewRating,
+          comment: reviewComment,
+        }),
+      });
+      if (response.ok) {
+        toast.success("Review submitted successfully! Thank you.", { icon: "🎉" });
+        setReviewModalOpen(false);
+        setSelectedServiceToReview(null);
+        setReviewComment("");
+        setReviewRating(5);
+      } else {
+        toast.error("Failed to submit review");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to submit review. Try again.");
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -1011,7 +922,7 @@ function MyBookingsPage() {
                         (b.jobStatus === "Started" || b.jobStatus === "Arrived" || b.jobStatus === "Ongoing") &&
                         b.technician?.lat &&
                         b.technician?.lng && (
-                          <MapContainer
+                          <LiveTrackingMap
                             techLat={Number(b.technician.lat)}
                             techLng={Number(b.technician.lng)}
                             customerLat={
@@ -1687,329 +1598,44 @@ function MyBookingsPage() {
       </footer>
 
       {/* Write Review Modal */}
-      {reviewModalOpen && selectedServiceToReview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#001712]/60 backdrop-blur-md p-4 font-sans">
-          <div className="relative w-full max-w-md rounded-3xl glass-dark p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-250 border border-[#cb9f5a]/25 text-white">
-            <button
-              onClick={() => {
-                setReviewModalOpen(false);
-                setSelectedServiceToReview(null);
-              }}
-              className="absolute top-4 right-4 grid h-9 w-9 place-items-center rounded-full bg-white/5 text-cream/75 hover:bg-[#cb9f5a] hover:text-[#001712] border border-white/10 transition-all cursor-pointer"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
-            <div className="mb-4 pr-6">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#cb9f5a]">
-                Service Review
-              </span>
-              <h2 className="mt-1.5 font-display text-xl font-bold text-cream leading-snug">
-                Review "{selectedServiceToReview.title}"
-              </h2>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-extrabold text-cream/50 block mb-1.5 uppercase tracking-wider">
-                  Your Rating
-                </label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setReviewRating(star)}
-                      className="transition-transform active:scale-125 cursor-pointer"
-                    >
-                      <Star
-                        className={`h-8 w-8 ${star <= reviewRating ? "text-[#cb9f5a] fill-current" : "text-white/20"}`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-extrabold text-cream/50 block mb-1.5 uppercase tracking-wider">
-                  Your Comments
-                </label>
-                <textarea
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                  rows={4}
-                  placeholder="How clean did our team leave your place? Share your honest feedback..."
-                  className="w-full rounded-2xl border border-[#cb9f5a]/20 bg-black/25 px-4 py-3 text-xs text-white outline-none focus:border-[#cb9f5a] focus:ring-1 focus:ring-[#cb9f5a] transition-all resize-none placeholder:text-cream/30 font-semibold"
-                />
-              </div>
-
-              <button
-                onClick={async () => {
-                  if (isSubmittingReview) return;
-                  setIsSubmittingReview(true);
-                  try {
-                    const response = await fetch(`${ADMIN_API_URL}/api/reviews`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        serviceId: selectedServiceToReview.id,
-                        userName: userProfile?.name || "Anonymous",
-                        rating: reviewRating,
-                        comment: reviewComment,
-                      }),
-                    });
-                    if (response.ok) {
-                      toast.success("Review submitted successfully! Thank you.", { icon: "🎉" });
-                      setReviewModalOpen(false);
-                      setSelectedServiceToReview(null);
-                      setReviewComment("");
-                      setReviewRating(5);
-                    } else {
-                      toast.error("Failed to submit review");
-                    }
-                  } catch (e) {
-                    console.error(e);
-                    toast.error("Failed to submit review. Try again.");
-                  } finally {
-                    setIsSubmittingReview(false);
-                  }
-                }}
-                disabled={isSubmittingReview}
-                className="w-full gradient-gold text-navy font-bold py-3.5 rounded-2xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
-              >
-                {isSubmittingReview ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-navy border-t-transparent" />
-                ) : null}
-                Submit Review
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      <ReviewBookingModal
+        open={reviewModalOpen}
+        onClose={() => {
+          setReviewModalOpen(false);
+          setSelectedServiceToReview(null);
+        }}
+        service={selectedServiceToReview}
+        rating={reviewRating}
+        setRating={setReviewRating}
+        comment={reviewComment}
+        setComment={setReviewComment}
+        isSubmitting={isSubmittingReview}
+        onSubmit={handleSubmitReview}
+      />
 
       {/* Reschedule Modal */}
-      {rescheduleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white border border-[#cb9f5a]/35 rounded-3xl p-6 w-full max-w-sm shadow-2xl relative font-sans text-slate-800">
-            <h3 className="text-lg font-display font-bold flex items-center gap-2 text-[#002a22]">
-              🗓️ Reschedule Clean Appointment
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Select a new date and time slot for booking #
-              {rescheduleBookingId.substring(0, 8).toUpperCase()}.
-            </p>
-
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="text-2xs font-extrabold uppercase tracking-wider block mb-1 text-[#cb9f5a]">
-                  Select Date
-                </label>
-                <input
-                  type="date"
-                  min={new Date().toISOString().slice(0, 10)}
-                  value={newDate}
-                  onChange={(e) => {
-                    const picked = e.target.value;
-                    const isBlocked = blockedDatesList.find((b) => b.date === picked);
-                    if (isBlocked) {
-                      const todayStr = new Date().toISOString().slice(0, 10);
-                      const isToday = picked === todayStr;
-                      const cleanReason = (isBlocked.reason && !/^admin\s*blocked/i.test(isBlocked.reason) && !/^blocked/i.test(isBlocked.reason)) ? isBlocked.reason : "Holiday";
-                      toast.error(
-                        isToday
-                          ? `🏖️ Today is a Holiday (${cleanReason}). Please choose an upcoming available date.`
-                          : `🏖️ Selected date (${picked}) is a Holiday (${cleanReason}). Please choose another date.`,
-                      );
-                    }
-                    setNewDate(picked);
-                  }}
-                  className={`w-full rounded-xl border px-3.5 py-2 text-xs outline-none ${
-                    newDate && blockedDatesList.some((b) => b.date === newDate)
-                      ? "border-red-400 bg-red-50 text-red-700 font-bold"
-                      : "border-slate-200 bg-white text-slate-800 focus:border-[#cb9f5a]"
-                  }`}
-                />
-                {newDate && blockedDatesList.some((b) => b.date === newDate) && (
-                  <p className="text-[10px] text-red-600 font-bold mt-1 flex items-center gap-1">
-                    <span>⚠️</span>
-                    <span>
-                      Holiday: {((r) => (!r || /^admin\s*blocked/i.test(r) || /^blocked/i.test(r)) ? "Holiday" : r)(blockedDatesList.find((b) => b.date === newDate)?.reason)}
-                    </span>
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="text-2xs font-extrabold uppercase tracking-wider block mb-1.5 text-[#cb9f5a]">
-                  Select Time Slot
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {STANDARD_TIME_SLOTS.map((s) => {
-                    const isPast = isSlotInPast(s, newDate, 30);
-                    const isSelected = newTime === s || normalizeTimeSlot(newTime) === normalizeTimeSlot(s);
-                    return (
-                      <button
-                        key={s}
-                        type="button"
-                        disabled={isPast}
-                        onClick={() => setNewTime(s)}
-                        className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-0.5 ${
-                          isPast
-                            ? "bg-slate-100 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed"
-                            : isSelected
-                              ? "bg-[#002a22] text-white border-[#cb9f5a] ring-2 ring-[#cb9f5a]/40 shadow-xs cursor-pointer"
-                              : "bg-white border-slate-200 text-slate-700 hover:border-emerald-500 hover:bg-emerald-50/30 cursor-pointer"
-                        }`}
-                      >
-                        <span className={isPast ? "line-through text-slate-400" : ""}>{s}</span>
-                        <span className={`text-[8px] font-black uppercase ${isPast ? "text-slate-400" : isSelected ? "text-[#cb9f5a]" : "text-emerald-700"}`}>
-                          {isPast ? "Passed" : isSelected ? "Selected ✓" : "Available"}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex items-center justify-end gap-3 text-xs">
-              <button
-                onClick={() => {
-                  setRescheduleModalOpen(false);
-                  setRescheduleBookingId("");
-                }}
-                className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-4 py-2.5 font-semibold text-slate-700 transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={submitReschedule}
-                className="rounded-xl bg-[#002a22] hover:bg-[#0a3d33] px-5 py-2.5 font-bold text-white transition-all active:scale-[0.98] cursor-pointer"
-              >
-                Save Schedule
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <RescheduleModal
+        open={rescheduleModalOpen}
+        onClose={() => {
+          setRescheduleModalOpen(false);
+          setRescheduleBookingId("");
+        }}
+        bookingId={rescheduleBookingId}
+        newDate={newDate}
+        setNewDate={setNewDate}
+        newTime={newTime}
+        setNewTime={setNewTime}
+        blockedDatesList={blockedDatesList}
+        onConfirm={submitReschedule}
+      />
 
       {/* Cancellation Confirmation Modal */}
-      {cancellingBooking && (() => {
-        const bookingDate = cancellingBooking.schedule?.date;
-        const bookingTimeRaw = cancellingBooking.schedule?.time || "10:00";
-        const bookingTime = bookingTimeRaw.split(" - ")[0].trim();
-        const bookingDateTime = new Date(`${bookingDate}T${bookingTime}:00`);
-        const now = new Date();
-        const diffHours = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-        const isFullyPaid =
-          typeof cancellingBooking.paymentStatus === "string" &&
-          (cancellingBooking.paymentStatus.includes("Paid In Full") ||
-           cancellingBooking.paymentStatus.toLowerCase().includes("full amount"));
-        const isPaid =
-          typeof cancellingBooking.paymentStatus === "string" &&
-          (cancellingBooking.paymentStatus.includes("Paid") || cancellingBooking.paymentStatus.includes("Success"));
-
-        let paidAmount = 0;
-        if (isFullyPaid) {
-          paidAmount = cancellingBooking.total;
-        } else if (isPaid) {
-          const match = cancellingBooking.paymentStatus.match(/\(₹(\d+)\)/);
-          if (match && match[1]) {
-            paidAmount = parseInt(match[1], 10);
-          } else {
-            if (cancellingBooking.paymentStatus.includes("50%")) {
-              paidAmount = Math.round(cancellingBooking.total * 0.50);
-            } else {
-              paidAmount = Math.round(cancellingBooking.total * 0.25);
-            }
-          }
-        }
-
-        let penaltyPercent = 0;
-        let refundAmount = paidAmount;
-
-        if (diffHours < 12) {
-          const elapsed = 12 - diffHours;
-          penaltyPercent = Math.min(100, Math.round(elapsed * 10));
-          refundAmount = Math.max(0, Math.round(paidAmount * (1 - penaltyPercent / 100)));
-        }
-
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white border border-[#cb9f5a]/35 rounded-3xl p-6 w-full max-w-sm shadow-2xl relative font-sans text-slate-800">
-              <button
-                onClick={() => setCancellingBooking(null)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-
-              <h3 className="text-lg font-display font-bold flex items-center gap-2 text-[#002a22]">
-                ⚠️ Cancel Cleaning Service?
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Booking ID: #{cancellingBooking.id.substring(0, 8).toUpperCase()}
-              </p>
-
-              <div className="mt-4 space-y-3.5 bg-slate-50 border border-slate-200/60 p-4 rounded-2xl text-xs font-semibold">
-                <div>
-                  <span className="text-slate-450 uppercase text-[9px] block">Time Remaining</span>
-                  <span className="text-slate-700 font-bold">{diffHours.toFixed(1)} Hours before slot</span>
-                </div>
-
-                <div className="pt-2 border-t border-slate-200/50">
-                  <span className="text-slate-450 uppercase text-[9px] block">Cancellation Rule Status</span>
-                  {diffHours >= 12 ? (
-                    <span className="text-emerald-700 font-bold flex items-center gap-1 mt-0.5">
-                      ✅ Free cancellation (12hr+ window)
-                    </span>
-                  ) : (
-                    <span className="text-rose-700 font-bold flex items-center gap-1 mt-0.5">
-                      ⚠️ Late fee: {penaltyPercent}% charge ({Math.min(12, Math.ceil(12 - diffHours))} hrs elapsed)
-                    </span>
-                  )}
-                </div>
-
-                <div className="pt-2.5 border-t border-slate-200/50 grid grid-cols-2 gap-y-2 text-slate-700">
-                  <div>Amount Paid:</div>
-                  <div className="text-right font-extrabold">₹{paidAmount}</div>
-                  
-                  <div>Deduction Fee:</div>
-                  <div className="text-right font-extrabold text-rose-650">-₹{paidAmount - refundAmount}</div>
-
-                  <div className="border-t border-dashed border-slate-300 pt-1 text-slate-900 font-bold">Estimated Refund:</div>
-                  <div className="border-t border-dashed border-slate-300 pt-1 text-right font-black text-emerald-700 text-sm">₹{refundAmount}</div>
-                </div>
-              </div>
-
-              <div className="mt-3.5 bg-blue-50/50 border border-blue-200/50 px-3 py-2.5 rounded-xl text-[10px] text-blue-750 font-bold leading-normal">
-                💡 Timeline: Refunds are processed immediately back to original payment mode. Settlement takes 5-7 working days.
-              </div>
-
-              <div className="mt-5 flex items-center justify-end gap-3 text-xs">
-                <button
-                  onClick={() => setCancellingBooking(null)}
-                  className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-4 py-2.5 font-semibold text-slate-700 transition-all cursor-pointer"
-                >
-                  Keep Booking
-                </button>
-                <button
-                  onClick={handleCancelBooking}
-                  disabled={isCancelling}
-                  className="rounded-xl bg-rose-600 hover:bg-rose-700 px-5 py-2.5 font-bold text-white transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  {isCancelling && (
-                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  )}
-                  Confirm Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      <CancelBookingModal
+        cancellingBooking={cancellingBooking}
+        onClose={() => setCancellingBooking(null)}
+        onConfirm={handleCancelBooking}
+        isCancelling={isCancelling}
+      />
     </div>
   );
 }
