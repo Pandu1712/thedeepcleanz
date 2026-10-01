@@ -3297,7 +3297,7 @@ function Index() {
   const removeItem = (id: string) => setCart((c) => c.filter((i) => i.id !== id));
   const checkout = () => {
     setCartOpen(false);
-    setBookingOpen(true);
+    navigate({ to: "/checkout" });
   };
   const completeBooking = () => {
     setCart([]);

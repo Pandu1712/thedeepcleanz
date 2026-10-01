@@ -878,8 +878,8 @@ function ServiceDetailPage() {
 
   const handleDirectBookNow = useCallback((plan?: ServicePlan) => {
     handleAddToCart(plan);
-    setBookingOpen(true);
-  }, [handleAddToCart]);
+    navigate({ to: "/checkout" });
+  }, [handleAddToCart, navigate]);
 
   const handleCloseBooking = useCallback(() => {
     setBookingOpen(false);
@@ -891,8 +891,8 @@ function ServiceDetailPage() {
 
   const handleCartCheckout = useCallback(() => {
     setCartOpen(false);
-    setBookingOpen(true);
-  }, []);
+    navigate({ to: "/checkout" });
+  }, [navigate]);
 
   const handleConfirmBooking = useCallback(() => {
     setCart([]);

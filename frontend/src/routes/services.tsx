@@ -426,7 +426,7 @@ function ServicesComponent() {
   };
   const checkout = () => {
     setCartOpen(false);
-    setBookingOpen(true);
+    navigate({ to: "/checkout" });
   };
   const completeBooking = () => {
     setCart([]);
