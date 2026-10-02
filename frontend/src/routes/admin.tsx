@@ -1791,13 +1791,16 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       });
     }
 
-    // 4. Sort Order
+    // 4. Sort Order (Recent orders first by default)
     result.sort((a, b) => {
-      const dateA = a.createdAt || "";
-      const dateB = b.createdAt || "";
-      const timeA = new Date(dateA).getTime() || 0;
-      const timeB = new Date(dateB).getTime() || 0;
-      return bookingSortOrder === "asc" ? timeA - timeB : timeB - timeA;
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (timeA && timeB && timeA !== timeB && !isNaN(timeA) && !isNaN(timeB)) {
+        return bookingSortOrder === "asc" ? timeA - timeB : timeB - timeA;
+      }
+      return bookingSortOrder === "asc"
+        ? String(a.id || "").localeCompare(String(b.id || ""))
+        : String(b.id || "").localeCompare(String(a.id || ""));
     });
 
     return result;

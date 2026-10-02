@@ -367,9 +367,15 @@ function MyBookingsPage() {
         if (activeTab === "Cancelled Orders") {
           return isFailedOrCancelled;
         }
-        return true;
       })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      .sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        if (timeA && timeB && timeA !== timeB && !isNaN(timeA) && !isNaN(timeB)) {
+          return timeB - timeA;
+        }
+        return String(b.id || "").localeCompare(String(a.id || ""));
+      });
   }, [bookings, activeTab, dateFilter]);
 
   useEffect(() => {
@@ -461,7 +467,15 @@ function MyBookingsPage() {
           }
         } catch (e) {}
 
-        setBookings(serverList.slice().reverse());
+        const sortedList = [...serverList].sort((a, b) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          if (timeA && timeB && timeA !== timeB && !isNaN(timeA) && !isNaN(timeB)) {
+            return timeB - timeA;
+          }
+          return String(b.id || "").localeCompare(String(a.id || ""));
+        });
+        setBookings(sortedList);
       })
       .catch((err) => {
         console.error("Error fetching bookings:", err);
@@ -471,7 +485,15 @@ function MyBookingsPage() {
           if (localRaw) {
             const localList = JSON.parse(localRaw);
             if (Array.isArray(localList)) {
-              setBookings(localList);
+              const sortedLocal = [...localList].sort((a, b) => {
+                const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                if (timeA && timeB && timeA !== timeB && !isNaN(timeA) && !isNaN(timeB)) {
+                  return timeB - timeA;
+                }
+                return String(b.id || "").localeCompare(String(a.id || ""));
+              });
+              setBookings(sortedLocal);
             }
           }
         } catch (e) {}

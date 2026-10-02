@@ -428,8 +428,24 @@ function TechnicianPortal() {
     }
   };
 
-  const assignedBookings = bookings.filter((b) => !isExcludedCommercialQuote(b) && (b.jobStatus || "Pending") !== "Completed");
-  const completedBookings = bookings.filter((b) => !isExcludedCommercialQuote(b) && (b.jobStatus || "Pending") === "Completed");
+  const sortByRecent = (list: any[]) => {
+    return [...list].sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (timeA && timeB && timeA !== timeB && !isNaN(timeA) && !isNaN(timeB)) {
+        return timeB - timeA;
+      }
+      return String(b.id || "").localeCompare(String(a.id || ""));
+    });
+  };
+
+  const assignedBookings = sortByRecent(
+    bookings.filter((b) => !isExcludedCommercialQuote(b) && (b.jobStatus || "Pending") !== "Completed")
+  );
+  const completedBookings = sortByRecent(
+    bookings.filter((b) => !isExcludedCommercialQuote(b) && (b.jobStatus || "Pending") === "Completed")
+  );
+  const sortedAvailableJobs = sortByRecent(availableJobs);
   const displayBookings = activeFilter === "assigned" ? assignedBookings : completedBookings;
 
   if (isLoading) {
@@ -976,7 +992,7 @@ function TechnicianPortal() {
                   </button>
                 </div>
 
-                {availableJobs.map((b) => {
+                {sortedAvailableJobs.map((b) => {
                   const customer =
                     typeof b.customer === "string" ? JSON.parse(b.customer) : b.customer;
                   const schedule =

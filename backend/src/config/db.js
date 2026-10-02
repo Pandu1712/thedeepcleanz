@@ -3235,7 +3235,7 @@ module.exports = {
       SELECT b.*, t.name as technicianName, t.phone as technicianPhone, t.email as technicianEmail, t.specialty as technicianSpecialty, t.status as technicianStatus, t.lat as technicianLat, t.lng as technicianLng, t.lastPing as technicianLastPing
       FROM bookings b
       LEFT JOIN technicians t ON b.technicianId = t.id
-      ORDER BY b.id DESC
+      ORDER BY b.createdAt DESC, b.id DESC
     `);
 
     // Get all reschedule logs
@@ -3598,7 +3598,7 @@ module.exports = {
   },
   async getAvailableBookings() {
     const rows = await query(
-      "SELECT * FROM bookings WHERE (technicianId IS NULL OR technicianId = '') AND (jobStatus IS NULL OR (jobStatus != 'Cancelled' AND jobStatus != 'Completed')) ORDER BY id DESC",
+      "SELECT * FROM bookings WHERE (technicianId IS NULL OR technicianId = '') AND (jobStatus IS NULL OR (jobStatus != 'Cancelled' AND jobStatus != 'Completed')) ORDER BY createdAt DESC, id DESC",
     );
     return (rows || []).map((b) => {
       let customer = {};
@@ -3668,7 +3668,7 @@ module.exports = {
   },
   async getTechnicianBookings(technicianId) {
     const rows = await query(
-      "SELECT * FROM bookings WHERE technicianId = ? ORDER BY id DESC",
+      "SELECT * FROM bookings WHERE technicianId = ? ORDER BY createdAt DESC, id DESC",
       [technicianId],
     );
     const logs = await query("SELECT * FROM reschedule_logs ORDER BY id ASC");
