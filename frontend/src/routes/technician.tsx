@@ -23,6 +23,8 @@ import {
   Lock,
   Eye,
   EyeOff,
+  MessageSquare,
+  Navigation,
 } from "lucide-react";
 import {
   fetchTechnicianBookings,
@@ -53,7 +55,7 @@ function TechnicianPortal() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isClaimingJobId, setIsClaimingJobId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<"available" | "assigned" | "completed" | "profile">("assigned");
+  const [activeFilter, setActiveFilter] = useState<"available" | "assigned" | "completed" | "profile">("available");
 
   // Profile edit states
   const [editName, setEditName] = useState("");
@@ -641,10 +643,102 @@ function TechnicianPortal() {
         </div>
 
         {/* Tasks List */}
-        <div className="lg:col-span-3 space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-3">
+        <div className="lg:col-span-3 space-y-5">
+          {/* Mobile Profile Quick Strip */}
+          <div className="lg:hidden bg-white border border-slate-200/90 rounded-2xl p-3.5 flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="h-11 w-11 rounded-full bg-gradient-to-tr from-[#cb9f5a] to-[#cb9f5a]/60 flex items-center justify-center text-base font-black text-navy border-2 border-[#cb9f5a]">
+                {profile.name.substring(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-800 leading-tight">{profile.name}</h2>
+                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.2 rounded-full border border-emerald-200/60 mt-0.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active Duty
+                </span>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Specialty</span>
+              <span className="text-xs font-bold text-slate-700">{profile.specialty || "Deep Cleaning"}</span>
+            </div>
+          </div>
+
+          {/* Full-width Responsive Filter Switcher */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-100 p-1.5 rounded-2xl w-full">
+            <button
+              onClick={() => setActiveFilter("available")}
+              className={`py-3 sm:py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeFilter === "available"
+                  ? "bg-amber-500 text-white shadow-md font-black scale-[1.01]"
+                  : "bg-white/70 text-slate-700 hover:bg-white"
+              }`}
+            >
+              <Zap className="h-4 w-4 fill-current" />
+              <span>Available Leads</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+                  activeFilter === "available"
+                    ? "bg-amber-600 text-white"
+                    : availableJobs.length > 0
+                    ? "bg-amber-100 text-amber-900 border border-amber-300 animate-pulse"
+                    : "bg-slate-200 text-slate-600"
+                }`}
+              >
+                {availableJobs.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveFilter("assigned")}
+              className={`py-3 sm:py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeFilter === "assigned"
+                  ? "bg-[#002a22] text-white shadow-md font-black scale-[1.01]"
+                  : "bg-white/70 text-slate-700 hover:bg-white"
+              }`}
+            >
+              <span>📋 Assigned</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+                  activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
+                }`}
+              >
+                {assignedBookings.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveFilter("completed")}
+              className={`py-3 sm:py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeFilter === "completed"
+                  ? "bg-emerald-700 text-white shadow-md font-black scale-[1.01]"
+                  : "bg-white/70 text-slate-700 hover:bg-white"
+              }`}
+            >
+              <span>✅ Completed</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+                  activeFilter === "completed" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
+                }`}
+              >
+                {completedBookings.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveFilter("profile")}
+              className={`py-3 sm:py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeFilter === "profile"
+                  ? "bg-slate-800 text-white shadow-md font-black scale-[1.01]"
+                  : "bg-white/70 text-slate-700 hover:bg-white"
+              }`}
+            >
+              <span>👤 Profile</span>
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5 flex-wrap gap-2">
             <div>
-              <h2 className="text-xl font-bold text-[#002a22] font-display">
+              <h2 className="text-lg sm:text-xl font-bold text-[#002a22] font-display">
                 {activeFilter === "available"
                   ? "⚡ Open Cleaning Leads (కొత్త పనులు)"
                   : activeFilter === "profile"
@@ -653,7 +747,7 @@ function TechnicianPortal() {
                   ? "Completed Cleaning Tasks"
                   : "Assigned Cleaning Tasks"}
               </h2>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-500 mt-0.5">
                 {activeFilter === "available"
                   ? "First-come, first-serve job broadcast. Accept any open booking instantly to claim it exclusively."
                   : activeFilter === "profile"
@@ -662,71 +756,6 @@ function TechnicianPortal() {
                   ? "Review past completed cleaning orders and uploaded service photos."
                   : "Review dates, schedules, cleaning items, and location markers for your current duty bookings."}
               </p>
-            </div>
-
-            {/* Desktop Filter Tabs */}
-            <div className="hidden md:flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
-              <button
-                onClick={() => setActiveFilter("available")}
-                className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeFilter === "available"
-                    ? "bg-amber-500 text-white shadow-xs font-black"
-                    : "text-slate-600 hover:text-slate-800"
-                }`}
-              >
-                <Zap className="h-3.5 w-3.5" />
-                <span>Available Leads</span>
-                <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                    activeFilter === "available"
-                      ? "bg-amber-600 text-white"
-                      : availableJobs.length > 0
-                      ? "bg-amber-100 text-amber-900 animate-pulse border border-amber-300"
-                      : "bg-slate-200 text-slate-600"
-                  }`}
-                >
-                  {availableJobs.length}
-                </span>
-              </button>
-
-              <button
-                onClick={() => setActiveFilter("assigned")}
-                className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeFilter === "assigned"
-                    ? "bg-white text-[#002a22] shadow-xs font-black"
-                    : "text-slate-600 hover:text-slate-800"
-                }`}
-              >
-                <span>Assigned</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black">
-                  {assignedBookings.length}
-                </span>
-              </button>
-
-              <button
-                onClick={() => setActiveFilter("completed")}
-                className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeFilter === "completed"
-                    ? "bg-white text-[#002a22] shadow-xs font-black"
-                    : "text-slate-600 hover:text-slate-800"
-                }`}
-              >
-                <span>Completed</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black">
-                  {completedBookings.length}
-                </span>
-              </button>
-
-              <button
-                onClick={() => setActiveFilter("profile")}
-                className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                  activeFilter === "profile"
-                    ? "bg-white text-[#002a22] shadow-xs font-black"
-                    : "text-slate-600 hover:text-slate-800"
-                }`}
-              >
-                👤 Profile
-              </button>
             </div>
           </div>
 
@@ -1150,22 +1179,45 @@ function TechnicianPortal() {
                                 Phone:
                               </span>
                               <span className="font-semibold text-slate-700">+91 {customer.phone}</span>
-                              <a
-                                href={`tel:${customer.phone}`}
-                                className="text-[10px] text-slate-700 hover:bg-slate-150/40 font-bold px-2.5 py-1 rounded-lg border border-slate-200 transition-all"
-                              >
-                                📞 Call Customer
-                              </a>
+                              <div className="flex items-center gap-1.5 flex-wrap mt-1 sm:mt-0">
+                                <a
+                                  href={`tel:${customer.phone}`}
+                                  className="inline-flex items-center gap-1 text-[11px] text-white bg-emerald-600 hover:bg-emerald-700 font-bold px-2.5 py-1 rounded-lg transition-all shadow-xs"
+                                >
+                                  <Phone className="h-3 w-3" />
+                                  <span>Call</span>
+                                </a>
+                                <a
+                                  href={`https://wa.me/91${customer.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Hello ${customer.name || ""}, I am reaching out from TheDeep CleanerZ regarding your cleaning service booking today.`)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 text-[11px] text-white bg-emerald-700 hover:bg-emerald-800 font-bold px-2.5 py-1 rounded-lg transition-all shadow-xs"
+                                >
+                                  <MessageSquare className="h-3 w-3" />
+                                  <span>WhatsApp</span>
+                                </a>
+                              </div>
                             </div>
                           )}
                         </div>
 
                         <div className="flex items-start gap-2.5 text-xs text-slate-600">
                           <MapPin className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                              Service Address Location:
-                            </span>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+                                Service Address Location:
+                              </span>
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((customer?.address || "") + " " + (customer?.city || "Guntur") + " " + (customer?.pincode || ""))}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-[10px] text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-md font-bold transition-all"
+                              >
+                                <Navigation className="h-2.5 w-2.5" />
+                                <span>Directions (Maps)</span>
+                              </a>
+                            </div>
                             <span className="font-semibold block text-slate-700">
                               {customer?.address || "No address provided."}
                             </span>
@@ -1175,7 +1227,7 @@ function TechnicianPortal() {
                               </span>
                             )}
                             <span className="text-[10px] text-slate-400 font-bold block uppercase mt-1">
-                              {customer?.city || "Bengaluru"} - {customer?.pincode}
+                              {customer?.city || "Guntur"} - {customer?.pincode}
                             </span>
                           </div>
                         </div>
