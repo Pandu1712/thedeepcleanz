@@ -59,6 +59,11 @@ import {
   CreditCard,
   AlertTriangle,
   CheckCircle,
+  Activity,
+  Navigation,
+  Radio,
+  Briefcase,
+  ExternalLink,
 } from "lucide-react";
 
 import {
@@ -405,6 +410,8 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [bookingPaymentFilter, setBookingPaymentFilter] = useState("all");
   const [bookingDateFilter, setBookingDateFilter] = useState("all");
   const [bookingSortOrder, setBookingSortOrder] = useState("desc");
+  const [bookingDutyFilter, setBookingDutyFilter] = useState<string>("all");
+  const [bookingTechFilter, setBookingTechFilter] = useState<string>("all");
 
   // Analytics Filter States
   const [analyticsFilterType, setAnalyticsFilterType] = useState<"daily" | "monthly" | "custom">("daily");
@@ -806,6 +813,20 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       refreshData();
     } catch (err: any) {
       toast.error(`Failed to assign technician: ${err.message}`);
+    }
+  };
+
+  const handleAdminUpdateJobStatus = async (
+    bookingId: string,
+    status: string,
+    note?: string | null,
+  ) => {
+    try {
+      await updateBookingJobStatus(bookingId, status, note || null);
+      toast.success(`Job stage updated to "${status}"!`);
+      refreshData();
+    } catch (err: any) {
+      toast.error(`Failed to update status: ${err.message}`);
     }
   };
 
@@ -1724,6 +1745,36 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const categoriesCount = categories.length;
   const bookingsCount = bookings.length;
 
+  // Live Duty & Operations Statistics
+  const dutyStats = useMemo(() => {
+    let total = bookings.length;
+    let unassigned = 0;
+    let assigned = 0;
+    let accepted = 0;
+    let started = 0;
+    let arrived = 0;
+    let ongoing = 0;
+    let completed = 0;
+    let issues = 0;
+
+    bookings.forEach((b) => {
+      if (!b.technicianId) {
+        unassigned++;
+      } else {
+        assigned++;
+      }
+      const st = (b.jobStatus || "").toLowerCase();
+      if (st === "assigned" || st === "accepted") accepted++;
+      else if (st === "started") started++;
+      else if (st === "arrived") arrived++;
+      else if (st === "ongoing") ongoing++;
+      else if (st === "completed") completed++;
+      else if (st === "issues") issues++;
+    });
+
+    return { total, unassigned, assigned, accepted, started, arrived, ongoing, completed, issues };
+  }, [bookings]);
+
   // Filter items based on search and custom filters
   const filteredBookings = useMemo(() => {
     let result = [...bookings];
@@ -1736,7 +1787,10 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           b.customer?.name?.toLowerCase().includes(q) ||
           b.customer?.phone?.toLowerCase().includes(q) ||
           b.id?.toLowerCase().includes(q) ||
-          b.customer?.address?.toLowerCase().includes(q),
+          b.customer?.address?.toLowerCase().includes(q) ||
+          b.customer?.landmark?.toLowerCase().includes(q) ||
+          b.technician?.name?.toLowerCase().includes(q) ||
+          b.technicianName?.toLowerCase().includes(q),
       );
     }
 
@@ -1791,7 +1845,31 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       });
     }
 
-    // 4. Sort Order (Recent orders first by default)
+    // 4. Staff Duty Stage Filter
+    if (bookingDutyFilter !== "all") {
+      if (bookingDutyFilter === "unassigned") {
+        result = result.filter((b) => !b.technicianId);
+      } else if (bookingDutyFilter === "assigned") {
+        result = result.filter((b) => !!b.technicianId);
+      } else if (bookingDutyFilter === "accepted") {
+        result = result.filter(
+          (b) =>
+            (b.jobStatus || "").toLowerCase() === "assigned" ||
+            (b.jobStatus || "").toLowerCase() === "accepted",
+        );
+      } else {
+        result = result.filter(
+          (b) => (b.jobStatus || "").toLowerCase() === bookingDutyFilter.toLowerCase(),
+        );
+      }
+    }
+
+    // 5. Specific Technician Filter
+    if (bookingTechFilter !== "all") {
+      result = result.filter((b) => b.technicianId === bookingTechFilter);
+    }
+
+    // 6. Sort Order (Recent orders first by default)
     result.sort((a, b) => {
       const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -1804,7 +1882,15 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     });
 
     return result;
-  }, [bookings, searchQuery, bookingPaymentFilter, bookingDateFilter, bookingSortOrder]);
+  }, [
+    bookings,
+    searchQuery,
+    bookingPaymentFilter,
+    bookingDateFilter,
+    bookingDutyFilter,
+    bookingTechFilter,
+    bookingSortOrder,
+  ]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans text-slate-800 relative">
@@ -2517,6 +2603,118 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* LIVE STAFF OPERATIONS DUTY SUMMARY WIDGET */}
+              <div className="rounded-2xl border border-[#cb9f5a]/20 bg-gradient-to-br from-[#002a22] via-[#01352a] to-[#001f19] p-6 text-white shadow-md">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#cb9f5a]/20 text-[#cb9f5a] border border-[#cb9f5a]/30">
+                      <Activity className="h-5 w-5 animate-pulse" />
+                    </div>
+                    <div>
+                      <h3 className="font-display text-base font-bold text-white">
+                        Live Staff Duty Operations
+                      </h3>
+                      <p className="text-xs text-cream/70 font-medium">
+                        Real-time snapshot of technician job acceptance and field execution.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab("bookings")}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#cb9f5a] hover:underline cursor-pointer"
+                  >
+                    Open Full Duty Board <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+                  <div
+                    onClick={() => {
+                      setBookingDutyFilter("unassigned");
+                      setActiveTab("bookings");
+                    }}
+                    className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                      dutyStats.unassigned > 0
+                        ? "bg-amber-500/20 border-amber-400/40 text-amber-300 hover:bg-amber-500/30 animate-pulse"
+                        : "bg-white/5 border-white/10 text-white/80 hover:bg-white/10"
+                    }`}
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider block">📢 Unassigned</span>
+                    <span className="text-lg font-black text-white">{dutyStats.unassigned}</span>
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setBookingDutyFilter("accepted");
+                      setActiveTab("bookings");
+                    }}
+                    className="p-3 rounded-xl bg-white/5 border border-white/10 text-indigo-300 hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider block">🤝 Accepted</span>
+                    <span className="text-lg font-black text-white">{dutyStats.accepted}</span>
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setBookingDutyFilter("started");
+                      setActiveTab("bookings");
+                    }}
+                    className="p-3 rounded-xl bg-white/5 border border-white/10 text-blue-300 hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider block">🚗 En Route</span>
+                    <span className="text-lg font-black text-white">{dutyStats.started}</span>
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setBookingDutyFilter("arrived");
+                      setActiveTab("bookings");
+                    }}
+                    className="p-3 rounded-xl bg-white/5 border border-white/10 text-cyan-300 hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider block">📍 Arrived</span>
+                    <span className="text-lg font-black text-white">{dutyStats.arrived}</span>
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setBookingDutyFilter("ongoing");
+                      setActiveTab("bookings");
+                    }}
+                    className="p-3 rounded-xl bg-white/5 border border-white/10 text-amber-300 hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider block">🧼 Cleaning</span>
+                    <span className="text-lg font-black text-white">{dutyStats.ongoing}</span>
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setBookingDutyFilter("completed");
+                      setActiveTab("bookings");
+                    }}
+                    className="p-3 rounded-xl bg-white/5 border border-white/10 text-emerald-300 hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider block">✅ Done</span>
+                    <span className="text-lg font-black text-white">{dutyStats.completed}</span>
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setBookingDutyFilter("issues");
+                      setActiveTab("bookings");
+                    }}
+                    className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                      dutyStats.issues > 0
+                        ? "bg-rose-500/20 border-rose-400/40 text-rose-300 hover:bg-rose-500/30 animate-pulse"
+                        : "bg-white/5 border-white/10 text-white/80 hover:bg-white/10"
+                    }`}
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider block">⚠️ Issues</span>
+                    <span className="text-lg font-black text-white">{dutyStats.issues}</span>
                   </div>
                 </div>
               </div>
@@ -4589,10 +4787,10 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
               <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h3 className="font-display text-lg font-bold text-slate-900">
-                    All Client Bookings
+                    All Client Bookings & Live Field Operations
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Cancel or manage cleaning appointments registered in the database.
+                    Track technician duty stages in real-time, broadcast jobs, and manage appointments.
                   </p>
                 </div>
 
@@ -4605,18 +4803,187 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                 </button>
               </div>
 
+              {/* LIVE STAFF OPERATIONS & WORK TRACKING HUB */}
+              <div className="mb-6 rounded-2xl bg-gradient-to-br from-[#002a22] via-[#01382c] to-[#001c17] p-5 text-white shadow-lg border border-[#cb9f5a]/30">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#cb9f5a]/20 text-[#cb9f5a] border border-[#cb9f5a]/30 shadow-inner">
+                      <Activity className="h-6 w-6 animate-pulse" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-display text-base font-black tracking-wide text-white">
+                          Live Field Operations & Staff Duty Tracker
+                        </h4>
+                        <span className="flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-300 border border-emerald-500/30">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                          Live Sync
+                        </span>
+                      </div>
+                      <p className="text-xs text-cream/70 font-medium">
+                        Real-time tracking: see which technician accepted which task, en-route status, ongoing cleaning & reported issues.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Staff Filter Dropdown */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xs font-extrabold uppercase tracking-wider text-[#cb9f5a]">
+                      Filter Staff:
+                    </span>
+                    <select
+                      value={bookingTechFilter}
+                      onChange={(e) => setBookingTechFilter(e.target.value)}
+                      className="rounded-xl border border-[#cb9f5a]/40 bg-[#001c17] px-3 py-1.5 text-xs font-bold text-cream outline-none focus:border-[#cb9f5a] cursor-pointer shadow-sm"
+                    >
+                      <option value="all">All Technicians ({technicians.length})</option>
+                      {technicians.map((t) => {
+                        const techBookings = bookings.filter((b) => b.technicianId === t.id);
+                        const activeCount = techBookings.filter(
+                          (b) => b.jobStatus !== "Completed" && b.jobStatus !== "Cancelled"
+                        ).length;
+                        return (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({activeCount} active job{activeCount === 1 ? "" : "s"})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Duty Status Filter Pills Grid */}
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 font-sans">
+                  {/* 1. All */}
+                  <button
+                    type="button"
+                    onClick={() => setBookingDutyFilter("all")}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      bookingDutyFilter === "all"
+                        ? "bg-[#cb9f5a] text-[#002a22] font-black border-[#cb9f5a] shadow-md scale-[1.02]"
+                        : "bg-white/5 hover:bg-white/10 text-white/90 border-white/10"
+                    }`}
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider opacity-80">All Jobs</span>
+                    <span className="text-base font-black mt-0.5">{dutyStats.total}</span>
+                  </button>
+
+                  {/* 2. Unassigned Leads */}
+                  <button
+                    type="button"
+                    onClick={() => setBookingDutyFilter("unassigned")}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      bookingDutyFilter === "unassigned"
+                        ? "bg-amber-500 text-slate-950 font-black border-amber-400 shadow-md scale-[1.02]"
+                        : dutyStats.unassigned > 0
+                          ? "bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse hover:bg-amber-500/30"
+                          : "bg-white/5 hover:bg-white/10 text-white/90 border-white/10"
+                    }`}
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider">📢 Unassigned</span>
+                    <span className="text-base font-black mt-0.5">{dutyStats.unassigned}</span>
+                  </button>
+
+                  {/* 3. Accepted / Claimed */}
+                  <button
+                    type="button"
+                    onClick={() => setBookingDutyFilter("accepted")}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      bookingDutyFilter === "accepted"
+                        ? "bg-indigo-500 text-white font-black border-indigo-400 shadow-md scale-[1.02]"
+                        : "bg-white/5 hover:bg-white/10 text-indigo-300 border-white/10"
+                    }`}
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider">🤝 Accepted</span>
+                    <span className="text-base font-black mt-0.5">{dutyStats.accepted}</span>
+                  </button>
+
+                  {/* 4. Started / On The Way */}
+                  <button
+                    type="button"
+                    onClick={() => setBookingDutyFilter("started")}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      bookingDutyFilter === "started"
+                        ? "bg-blue-500 text-white font-black border-blue-400 shadow-md scale-[1.02]"
+                        : "bg-white/5 hover:bg-white/10 text-blue-300 border-white/10"
+                    }`}
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider">🚗 En Route</span>
+                    <span className="text-base font-black mt-0.5">{dutyStats.started}</span>
+                  </button>
+
+                  {/* 5. Arrived at Site */}
+                  <button
+                    type="button"
+                    onClick={() => setBookingDutyFilter("arrived")}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      bookingDutyFilter === "arrived"
+                        ? "bg-cyan-500 text-slate-950 font-black border-cyan-400 shadow-md scale-[1.02]"
+                        : "bg-white/5 hover:bg-white/10 text-cyan-300 border-white/10"
+                    }`}
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider">📍 Arrived</span>
+                    <span className="text-base font-black mt-0.5">{dutyStats.arrived}</span>
+                  </button>
+
+                  {/* 6. Ongoing Deep Cleaning */}
+                  <button
+                    type="button"
+                    onClick={() => setBookingDutyFilter("ongoing")}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      bookingDutyFilter === "ongoing"
+                        ? "bg-amber-400 text-slate-950 font-black border-amber-300 shadow-md scale-[1.02]"
+                        : "bg-white/5 hover:bg-white/10 text-amber-300 border-white/10"
+                    }`}
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider">🧼 Cleaning</span>
+                    <span className="text-base font-black mt-0.5">{dutyStats.ongoing}</span>
+                  </button>
+
+                  {/* 7. Completed */}
+                  <button
+                    type="button"
+                    onClick={() => setBookingDutyFilter("completed")}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      bookingDutyFilter === "completed"
+                        ? "bg-emerald-500 text-white font-black border-emerald-400 shadow-md scale-[1.02]"
+                        : "bg-white/5 hover:bg-white/10 text-emerald-300 border-white/10"
+                    }`}
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider">✅ Done</span>
+                    <span className="text-base font-black mt-0.5">{dutyStats.completed}</span>
+                  </button>
+
+                  {/* 8. Issues / Delays */}
+                  <button
+                    type="button"
+                    onClick={() => setBookingDutyFilter("issues")}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      bookingDutyFilter === "issues"
+                        ? "bg-rose-500 text-white font-black border-rose-400 shadow-md scale-[1.02]"
+                        : dutyStats.issues > 0
+                          ? "bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse hover:bg-rose-500/30"
+                          : "bg-white/5 hover:bg-white/10 text-rose-300 border-white/10"
+                    }`}
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider">⚠️ Issues</span>
+                    <span className="text-base font-black mt-0.5">{dutyStats.issues}</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Filter Controls Panel */}
               <div className="mb-6 grid gap-4 sm:grid-cols-2 md:grid-cols-4 bg-slate-50 border border-slate-200/60 rounded-2xl p-4">
                 {/* Search Clients */}
                 <div>
                   <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider block mb-1">
-                    Search Clients
+                    Search Clients / Staff
                   </label>
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Name, Phone, ID..."
+                    placeholder="Client, Staff, Phone, ID..."
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#d91b5c]"
                   />
                 </div>
@@ -4680,7 +5047,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                       <th className="pb-2 pl-5">Booking Ref</th>
                       <th className="pb-2">Client & Location</th>
                       <th className="pb-2">Services & Value</th>
-                      <th className="pb-2">Schedule & Assignment</th>
+                      <th className="pb-2">Schedule & Staff Duty Tracking</th>
                       <th className="pb-2 text-right pr-5">Payment & Action</th>
                     </tr>
                   </thead>
@@ -4706,6 +5073,9 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                         : isPaid
                           ? "border-l-4 border-l-teal-500"
                           : "border-l-4 border-l-amber-500";
+
+                      const assignedTech =
+                        b.technician || technicians.find((t) => t.id === b.technicianId);
 
                       return (
                         <tr
@@ -4819,118 +5189,206 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                             </div>
                           </td>
 
-                          {/* 4. Schedule & Assignment */}
-                          <td className="py-4 border-y border-slate-200/60 bg-white min-w-[280px]">
-                            <div className="space-y-2.5">
-                              {/* 1. Date & Time */}
-                              <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
-                                <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                                <span className="font-bold text-slate-800">
-                                  {b.schedule?.date || "TBD"}
-                                </span>
-                                <span className="text-slate-300">•</span>
-                                <span className="text-[9px] font-black text-[#d91b5c] uppercase bg-rose-50 px-1.5 py-0.5 rounded">
-                                  {b.schedule?.time || "Anytime"}
-                                </span>
+                          {/* 4. Schedule & Staff Duty Tracking */}
+                          <td className="py-4 border-y border-slate-200/60 bg-white min-w-[320px]">
+                            <div className="space-y-3">
+                              {/* 1. Date & Time Slot */}
+                              <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                                <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
+                                  <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                  <span className="font-bold text-slate-800">
+                                    {b.schedule?.date || "TBD"}
+                                  </span>
+                                  <span className="text-slate-300">•</span>
+                                  <span className="text-[10px] font-black text-[#d91b5c] uppercase bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-lg">
+                                    {b.schedule?.time || "Anytime"}
+                                  </span>
+                                </div>
                                 <button
+                                  type="button"
                                   onClick={() => {
                                     setRescheduleBookingId(b.id);
                                     setNewDate(b.schedule?.date || "");
                                     setNewTime(b.schedule?.time || "");
                                     setRescheduleModalOpen(true);
                                   }}
-                                  className="ml-2 text-[9px] font-bold text-[#cb9f5a] hover:underline bg-[#cb9f5a]/10 border border-[#cb9f5a]/20 px-1.5 py-0.5 rounded cursor-pointer"
+                                  className="text-[9px] font-extrabold text-[#cb9f5a] hover:underline bg-[#cb9f5a]/10 hover:bg-[#cb9f5a]/20 border border-[#cb9f5a]/30 px-2 py-0.5 rounded-lg cursor-pointer transition-colors"
                                 >
                                   Reschedule
                                 </button>
                               </div>
 
-                              {/* 2. Staff Assigned */}
-                              <div className="flex items-center gap-2">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
-                                  Assign:
-                                </span>
-                                <div className="space-y-1">
-                                  <select
-                                    value={b.technicianId || ""}
-                                    onChange={(e) =>
-                                      handleAssignTechnician(b.id, e.target.value || null)
-                                    }
-                                    className={`rounded-xl border bg-white px-2 py-1 text-2xs font-semibold text-slate-700 outline-none focus:border-[#cb9f5a] cursor-pointer max-w-[130px] ${
-                                      b.technicianId &&
-                                      getTechnicianStatusOnSlot(b.technicianId, b).startsWith("⚠️")
-                                        ? "border-rose-300 bg-rose-50 text-rose-800"
-                                        : "border-slate-200"
-                                    }`}
-                                  >
-                                    <option value="">Unassigned</option>
-                                    {technicians
-                                      .filter(
-                                        (t) => t.status === "Active" || t.id === b.technicianId,
-                                      )
-                                      .map((t) => {
-                                        const status = getTechnicianStatusOnSlot(t.id, b);
-                                        return (
-                                          <option key={t.id} value={t.id}>
-                                            {t.name} ({status})
-                                          </option>
-                                        );
-                                      })}
-                                  </select>
-                                  {b.technicianId &&
-                                    getTechnicianStatusOnSlot(b.technicianId, b).startsWith(
-                                      "⚠️",
-                                    ) && (
-                                      <div className="text-[8px] text-rose-600 bg-rose-50 border border-rose-100 rounded px-1.5 py-0.5 font-bold uppercase tracking-wide inline-block">
-                                        ⚠️ Clash
+                              {/* 2. Staff Assigned & Duty Progression */}
+                              {b.technicianId ? (
+                                <div className="rounded-xl bg-slate-50/80 border border-slate-200/80 p-2.5 space-y-2">
+                                  {/* Staff Info Header with Direct Call & WhatsApp */}
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <div className="h-7 w-7 rounded-lg bg-[#002a22] text-[#cb9f5a] flex items-center justify-center font-bold text-2xs uppercase shrink-0 border border-[#cb9f5a]/30">
+                                        {assignedTech?.name ? assignedTech.name.substring(0, 2) : "TC"}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <div className="text-xs font-bold text-slate-800 truncate">
+                                          {assignedTech?.name || "Assigned Staff"}
+                                        </div>
+                                        <div className="text-[9px] font-semibold text-slate-500 truncate">
+                                          {assignedTech?.specialty || "Cleaning Specialist"}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Direct Phone Call & WhatsApp links */}
+                                    {assignedTech?.phone && (
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <a
+                                          href={`tel:+91${assignedTech.phone.replace(/\D/g, "")}`}
+                                          className="h-6 w-6 rounded-lg bg-emerald-50 hover:bg-emerald-500 hover:text-white text-emerald-700 border border-emerald-200 flex items-center justify-center transition-all shadow-2xs"
+                                          title={`Call ${assignedTech.name} (+91 ${assignedTech.phone})`}
+                                        >
+                                          <Phone className="h-3 w-3" />
+                                        </a>
+                                        <a
+                                          href={`https://wa.me/91${assignedTech.phone.replace(/\D/g, "")}?text=Hello%20${encodeURIComponent(assignedTech.name)},%20regarding%20booking%20%23${b.id.substring(0, 8).toUpperCase()}%20for%20${encodeURIComponent(b.customer?.name || "Client")}%20on%20${encodeURIComponent(b.schedule?.date || "")}%20at%20${encodeURIComponent(b.schedule?.time || "")}.`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="h-6 w-6 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center transition-all shadow-2xs"
+                                          title={`WhatsApp ${assignedTech.name}`}
+                                        >
+                                          <MessageCircle className="h-3 w-3" />
+                                        </a>
                                       </div>
                                     )}
-                                </div>
-                              </div>
+                                  </div>
 
-                              {/* 3. Progress Status & Delay Warnings */}
-                              <div className="flex items-start gap-2 text-xs font-semibold">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mt-1">
-                                  Status:
-                                </span>
-                                <div>
-                                  {b.jobStatus === "Started" ? (
-                                    <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-2xs font-extrabold text-blue-700 border border-blue-200 uppercase tracking-wider animate-pulse">
-                                      🚗 On My Way
+                                  {/* Live Duty Stage Badge */}
+                                  <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-slate-200/50">
+                                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
+                                      Duty Stage:
                                     </span>
-                                  ) : b.jobStatus === "Ongoing" ? (
-                                    <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-2xs font-extrabold text-amber-700 border border-amber-200 uppercase tracking-wider">
-                                      🧼 Ongoing
-                                    </span>
-                                  ) : b.jobStatus === "Completed" ? (
-                                    <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-2xs font-extrabold text-emerald-700 border border-emerald-200 uppercase tracking-wider">
-                                      ✅ Completed
-                                    </span>
-                                  ) : b.jobStatus === "Issues" ? (
-                                    <div className="space-y-1">
-                                      <span className="inline-flex items-center gap-1 rounded bg-rose-50 px-2 py-0.5 text-2xs font-extrabold text-rose-700 border border-rose-200 uppercase tracking-wider">
-                                        ⚠️ Issue/Delay
-                                      </span>
-                                      {b.statusNote && (
-                                        <div
-                                          className="text-[9px] text-rose-600 bg-rose-50 border border-rose-100 px-2 py-1 rounded-xl max-w-[170px] break-words font-semibold"
-                                          title={b.statusNote}
-                                        >
-                                          {b.statusNote}
+                                    <div>
+                                      {b.jobStatus === "Started" ? (
+                                        <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-700 border border-blue-200 uppercase tracking-wider animate-pulse">
+                                          🚗 En Route (On My Way)
+                                        </span>
+                                      ) : b.jobStatus === "Arrived" ? (
+                                        <span className="inline-flex items-center gap-1 rounded-lg bg-cyan-50 px-2 py-0.5 text-[10px] font-extrabold text-cyan-800 border border-cyan-200 uppercase tracking-wider">
+                                          📍 Arrived at Site
+                                        </span>
+                                      ) : b.jobStatus === "Ongoing" ? (
+                                        <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-0.5 text-[10px] font-extrabold text-amber-800 border border-amber-200 uppercase tracking-wider animate-pulse">
+                                          🧼 Cleaning In Progress
+                                        </span>
+                                      ) : b.jobStatus === "Completed" ? (
+                                        <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800 border border-emerald-200 uppercase tracking-wider">
+                                          ✅ Completed & Locked
+                                        </span>
+                                      ) : b.jobStatus === "Issues" ? (
+                                        <div className="space-y-1 text-right">
+                                          <span className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-0.5 text-[10px] font-extrabold text-rose-700 border border-rose-200 uppercase tracking-wider">
+                                            ⚠️ Issue / Delay Reported
+                                          </span>
+                                          {b.statusNote && (
+                                            <div
+                                              className="text-[9px] text-rose-700 bg-rose-100/70 border border-rose-200 px-2 py-1 rounded-lg text-left max-w-[220px] break-words font-semibold mt-1"
+                                              title={b.statusNote}
+                                            >
+                                              📝 {b.statusNote}
+                                            </div>
+                                          )}
                                         </div>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-0.5 text-[10px] font-extrabold text-indigo-700 border border-indigo-200 uppercase tracking-wider">
+                                          🤝 Job Accepted & Ready
+                                        </span>
                                       )}
                                     </div>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-2xs font-extrabold text-slate-600 border border-slate-200 uppercase tracking-wider">
-                                      ⏳ Pending
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
+                                  </div>
 
-                              {/* 4. Reschedule logs */}
+                                  {/* Live GPS Coordinates Link if available */}
+                                  {assignedTech?.lat && assignedTech?.lng && (
+                                    <div className="pt-1">
+                                      <a
+                                        href={`https://www.google.com/maps?q=${assignedTech.lat},${assignedTech.lng}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center gap-1.5 w-full rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 py-1 text-[9px] font-bold transition-all"
+                                      >
+                                        <Navigation className="h-3 w-3 animate-spin" />
+                                        <span>📍 View Live Staff GPS Position</span>
+                                      </a>
+                                    </div>
+                                  )}
+
+                                  {/* Reassign / Change Staff selector */}
+                                  <div className="pt-1.5 border-t border-slate-200/50 flex items-center justify-between gap-1">
+                                    <span className="text-[9px] font-bold text-slate-450 uppercase tracking-wider">
+                                      Reassign:
+                                    </span>
+                                    <select
+                                      value={b.technicianId || ""}
+                                      onChange={(e) =>
+                                        handleAssignTechnician(b.id, e.target.value || null)
+                                      }
+                                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-2xs font-semibold text-slate-700 outline-none focus:border-[#cb9f5a] cursor-pointer max-w-[150px]"
+                                    >
+                                      <option value="">Unassign Staff</option>
+                                      {technicians
+                                        .filter(
+                                          (t) => t.status === "Active" || t.id === b.technicianId,
+                                        )
+                                        .map((t) => {
+                                          const status = getTechnicianStatusOnSlot(t.id, b);
+                                          return (
+                                            <option key={t.id} value={t.id}>
+                                              {t.name} ({status})
+                                            </option>
+                                          );
+                                        })}
+                                    </select>
+                                  </div>
+                                </div>
+                              ) : (
+                                /* Unassigned Open Broadcast Lead Banner */
+                                <div className="rounded-xl bg-amber-50/90 border border-amber-200 p-2.5 space-y-2">
+                                  <div className="flex items-center gap-1.5 text-amber-900">
+                                    <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                                    <span className="text-[10px] font-extrabold uppercase tracking-wider">
+                                      📢 Open Broadcast Lead
+                                    </span>
+                                  </div>
+                                  <p className="text-[9px] text-amber-700 font-medium">
+                                    Awaiting staff acceptance or direct admin dispatch.
+                                  </p>
+                                  <div className="flex items-center gap-1 pt-1">
+                                    <span className="text-[9px] font-extrabold uppercase text-amber-900">
+                                      Assign:
+                                    </span>
+                                    <select
+                                      value={b.technicianId || ""}
+                                      onChange={(e) =>
+                                        handleAssignTechnician(b.id, e.target.value || null)
+                                      }
+                                      className="w-full rounded-lg border border-amber-300 bg-white px-2 py-1 text-2xs font-bold text-slate-800 outline-none focus:border-[#d91b5c] cursor-pointer shadow-2xs"
+                                    >
+                                      <option value="">Choose Staff to Assign...</option>
+                                      {technicians
+                                        .filter((t) => t.status === "Active")
+                                        .map((t) => {
+                                          const status = getTechnicianStatusOnSlot(t.id, b);
+                                          return (
+                                            <option key={t.id} value={t.id}>
+                                              {t.name} ({status})
+                                            </option>
+                                          );
+                                        })}
+                                    </select>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* 3. Reschedule logs */}
                               {b.rescheduleLogs && b.rescheduleLogs.length > 0 && (
-                                <div className="space-y-1 bg-slate-50 border border-slate-100 p-2 rounded-xl text-[9px] text-slate-500 max-w-[200px]">
+                                <div className="space-y-1 bg-slate-50 border border-slate-100 p-2 rounded-xl text-[9px] text-slate-500">
                                   <span className="font-black text-[8px] uppercase tracking-wider block text-slate-400">
                                     🔄 Rescheduled ({b.rescheduleLogs.length}):
                                   </span>
@@ -5594,6 +6052,193 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                   )}
                 </div>
               </div>
+
+              {/* ASSIGNED TASKS & LIVE DUTY FEED FOR SELECTED TECHNICIAN */}
+              {!activeTechnicianId.startsWith("new-") && activeTechnicianId && (
+                <div className="lg:col-span-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
+                  {(() => {
+                    const currentTech = technicians.find((t) => t.id === activeTechnicianId);
+                    const techJobs = bookings.filter((b) => b.technicianId === activeTechnicianId);
+                    const ongoingJobs = techJobs.filter(
+                      (b) => b.jobStatus !== "Completed" && b.jobStatus !== "Cancelled"
+                    );
+                    const completedJobs = techJobs.filter((b) => b.jobStatus === "Completed");
+                    const totalTechYield = techJobs.reduce(
+                      (sum, b) => sum + (Number(b.total) || 0),
+                      0
+                    );
+
+                    return (
+                      <div>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-display text-lg font-bold text-slate-900">
+                                Duty Roster & Live Tasks: {currentTech?.name || "Technician"}
+                              </h3>
+                              <span className="rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 py-0.5 text-2xs font-extrabold uppercase">
+                                {currentTech?.status || "Active"}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Real-time tracking of all cleaning orders assigned to {currentTech?.name}.
+                            </p>
+                          </div>
+
+                          {/* Quick 1-tap Phone / WhatsApp to Technician */}
+                          {currentTech?.phone && (
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={`tel:+91${currentTech.phone.replace(/\D/g, "")}`}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all border border-slate-200 cursor-pointer"
+                              >
+                                <Phone className="h-3.5 w-3.5 text-emerald-600" />
+                                <span>Call {currentTech.phone}</span>
+                              </a>
+                              <a
+                                href={`https://wa.me/91${currentTech.phone.replace(/\D/g, "")}?text=Hello%20${encodeURIComponent(currentTech.name)},%20update%20regarding%20your%20scheduled%20cleanings%20for%20TheDeep%20CleanerZ.`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                <span>WhatsApp Staff</span>
+                              </a>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Quick Metrics Strip */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4 font-sans">
+                          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                              Total Assigned
+                            </span>
+                            <div className="text-xl font-black text-slate-800 mt-0.5">
+                              {techJobs.length} Jobs
+                            </div>
+                          </div>
+                          <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-100">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700">
+                              Active / In Progress
+                            </span>
+                            <div className="text-xl font-black text-amber-900 mt-0.5">
+                              {ongoingJobs.length} Active
+                            </div>
+                          </div>
+                          <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-100">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">
+                              Completed Cleanings
+                            </span>
+                            <div className="text-xl font-black text-emerald-900 mt-0.5">
+                              {completedJobs.length} Done
+                            </div>
+                          </div>
+                          <div className="p-3.5 rounded-2xl bg-purple-50/70 border border-purple-100">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-700">
+                              Handled Value
+                            </span>
+                            <div className="text-xl font-black text-purple-900 mt-0.5">
+                              ₹{totalTechYield.toLocaleString("en-IN")}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Task Feed List */}
+                        <div className="space-y-3 font-sans">
+                          {techJobs.length > 0 ? (
+                            techJobs.map((b) => (
+                              <div
+                                key={b.id}
+                                className="rounded-2xl border border-slate-200/80 bg-white p-4 hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
+                              >
+                                <div className="space-y-1.5 flex-1 min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-mono text-xs font-black text-[#d91b5c]">
+                                      #{b.id.substring(0, 8).toUpperCase()}
+                                    </span>
+                                    <span className="text-slate-300">•</span>
+                                    <span className="text-sm font-bold text-slate-900">
+                                      {b.customer?.name || "Client"}
+                                    </span>
+                                    <span className="text-xs text-slate-500 font-semibold">
+                                      ({b.customer?.phone ? `+91 ${b.customer.phone}` : "No phone"})
+                                    </span>
+                                  </div>
+
+                                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+                                    <div className="flex items-center gap-1 font-semibold text-slate-700">
+                                      <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                      <span>{b.schedule?.date || "TBD"}</span>
+                                      <span className="text-slate-300">@</span>
+                                      <span className="font-black text-[#d91b5c]">
+                                        {b.schedule?.time || "Anytime"}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1 truncate text-slate-500">
+                                      <MapPin className="h-3.5 w-3.5 text-[#d91b5c] shrink-0" />
+                                      <span className="truncate max-w-[280px]">
+                                        {b.customer?.address || "Guntur"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Status Badge & Actions */}
+                                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                  <div>
+                                    {b.jobStatus === "Started" ? (
+                                      <span className="inline-flex items-center gap-1 rounded-xl bg-blue-50 px-2.5 py-1 text-xs font-extrabold text-blue-700 border border-blue-200 uppercase tracking-wider animate-pulse">
+                                        🚗 En Route (On My Way)
+                                      </span>
+                                    ) : b.jobStatus === "Arrived" ? (
+                                      <span className="inline-flex items-center gap-1 rounded-xl bg-cyan-50 px-2.5 py-1 text-xs font-extrabold text-cyan-800 border border-cyan-200 uppercase tracking-wider">
+                                        📍 Arrived at Site
+                                      </span>
+                                    ) : b.jobStatus === "Ongoing" ? (
+                                      <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1 text-xs font-extrabold text-amber-800 border border-amber-200 uppercase tracking-wider animate-pulse">
+                                        🧼 Cleaning In Progress
+                                      </span>
+                                    ) : b.jobStatus === "Completed" ? (
+                                      <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-xs font-extrabold text-emerald-800 border border-emerald-200 uppercase tracking-wider">
+                                        ✅ Completed & Locked
+                                      </span>
+                                    ) : b.jobStatus === "Issues" ? (
+                                      <span className="inline-flex items-center gap-1 rounded-xl bg-rose-50 px-2.5 py-1 text-xs font-extrabold text-rose-700 border border-rose-200 uppercase tracking-wider">
+                                        ⚠️ Issue Reported
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 px-2.5 py-1 text-xs font-extrabold text-indigo-700 border border-indigo-200 uppercase tracking-wider">
+                                        🤝 Accepted & Assigned
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setBookingTechFilter(activeTechnicianId);
+                                      setBookingDutyFilter("all");
+                                      setActiveTab("bookings");
+                                    }}
+                                    className="px-3 py-1 rounded-xl bg-slate-100 hover:bg-[#002a22] hover:text-white text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer"
+                                  >
+                                    View in Bookings →
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="py-8 text-center text-slate-400 text-xs italic bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                              No bookings currently assigned to this technician.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           )}
           {activeTab === "reschedules" && (
