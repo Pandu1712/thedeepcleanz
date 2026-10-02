@@ -230,9 +230,9 @@ function CheckoutPage() {
         const isBooked = res.normalizedSlots.includes(currentNorm);
         const isPast = isSlotInPast(selectedSlot, selectedDate, 30);
 
-        if (isBooked || isPast) {
+        if (isBooked || isPast || !selectedSlot) {
           const firstFree = getFirstAvailableSlot(selectedDate, res.normalizedSlots, 30);
-          if (firstFree) setSelectedSlot(firstFree);
+          setSelectedSlot(firstFree || "");
         }
       })
       .catch(() => {})
@@ -243,6 +243,15 @@ function CheckoutPage() {
       active = false;
     };
   }, [selectedDate]);
+
+  // Computed slot availability & validation states
+  const isSelectedDateHoliday = !!blockedDates.find((b) => b.date === selectedDate);
+  const isSelectedSlotPast = !selectedSlot || isSlotInPast(selectedSlot, selectedDate, 15);
+  const isSelectedSlotBooked = !selectedSlot || bookedSlotsInfo.normalizedSlots.includes(normalizeTimeSlot(selectedSlot));
+  const areAllSlotsFull = STANDARD_TIME_SLOTS.every((s) => {
+    return isSlotInPast(s, selectedDate, 30) || bookedSlotsInfo.normalizedSlots.includes(normalizeTimeSlot(s));
+  });
+  const isSlotUnavailable = !selectedSlot || isSelectedSlotPast || isSelectedSlotBooked || isSelectedDateHoliday || areAllSlotsFull;
 
   // 5. OTP Timer Countdown
   useEffect(() => {
@@ -400,11 +409,20 @@ function CheckoutPage() {
     }
     const isHoliday = blockedDates.find((b) => b.date === selectedDate);
     if (isHoliday) {
-      toast.error(`Selected date is a Holiday: ${isHoliday.reason || "Holiday"}`);
+      toast.error(`Selected date (${selectedDate}) is a Holiday (${isHoliday.reason || "Holiday"}). Please choose another date.`);
+      return false;
+    }
+    if (!selectedSlot) {
+      toast.error("Please select an available service time slot.");
       return false;
     }
     if (isSlotInPast(selectedSlot, selectedDate, 15)) {
       toast.error(`The slot (${selectedSlot}) has already passed for today. Please choose another time slot.`);
+      return false;
+    }
+    const currentNorm = normalizeTimeSlot(selectedSlot);
+    if (bookedSlotsInfo.normalizedSlots.includes(currentNorm)) {
+      toast.error(`The slot (${selectedSlot} on ${selectedDate}) is already booked by another customer. Please select an available slot.`);
       return false;
     }
     return true;
@@ -577,6 +595,27 @@ function CheckoutPage() {
 
   // Execute Razorpay Payment & Save Booking
   const executePaymentAndBooking = async (userProfileOverride?: any) => {
+    if (!validateForm()) return;
+
+    setIsProcessing(true);
+
+    // ⚡ REAL-TIME LIVE PRE-PAYMENT SLOT VERIFICATION:
+    // Ensure the slot wasn't booked by another customer in the last few seconds before charging
+    try {
+      const liveCheck = await fetchBookedSlots(selectedDate);
+      setBookedSlotsInfo(liveCheck);
+      const currentNorm = normalizeTimeSlot(selectedSlot);
+      if (liveCheck.normalizedSlots.includes(currentNorm)) {
+        toast.error(`⚠️ Slot conflict: (${selectedSlot} on ${selectedDate}) was just booked by another customer. Payment not charged. Please choose another available slot.`);
+        const nextFree = getFirstAvailableSlot(selectedDate, liveCheck.normalizedSlots, 30);
+        setSelectedSlot(nextFree || "");
+        setIsProcessing(false);
+        return;
+      }
+    } catch (checkErr) {
+      console.warn("Could not pre-verify slot availability:", checkErr);
+    }
+
     const cleanName = name.trim();
     const cleanPhone = phone.replace(/\D/g, "");
     const cleanEmail = email.trim() || `${cleanPhone}@thedeepcleanerz.com`;
@@ -599,7 +638,6 @@ function CheckoutPage() {
 
     // Online Razorpay Payment (for advance deposit)
     if (upfrontPayAmount > 0 && !isFreeAdvance) {
-      setIsProcessing(true);
       try {
         const loaded = await loadRazorpayScript();
         if (!loaded) {
@@ -1180,6 +1218,26 @@ function CheckoutPage() {
                     );
                   })}
                 </div>
+
+                {/* Time Slot Unavailable / Booked Warning Banners */}
+                {isSelectedSlotBooked && (
+                  <div className="mt-3 bg-rose-50 border border-rose-300 rounded-2xl p-3 flex items-center gap-2.5 text-xs text-rose-800 font-bold">
+                    <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                    <span>⚠️ Selected slot ({selectedSlot} on {selectedDate}) is already booked by another customer. Please choose an available green slot.</span>
+                  </div>
+                )}
+                {isSelectedSlotPast && !isSelectedSlotBooked && (
+                  <div className="mt-3 bg-amber-50 border border-amber-300 rounded-2xl p-3 flex items-center gap-2.5 text-xs text-amber-800 font-bold">
+                    <Clock className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span>⚠️ Selected slot ({selectedSlot}) has already passed for today. Please choose an upcoming time slot.</span>
+                  </div>
+                )}
+                {areAllSlotsFull && (
+                  <div className="mt-3 bg-rose-50 border border-rose-300 rounded-2xl p-3 flex items-center gap-2.5 text-xs text-rose-800 font-bold">
+                    <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                    <span>⚠️ All time slots on {selectedDate} are fully booked. Please select the next available date above.</span>
+                  </div>
+                )}
               </div>
 
               {/* Instructions */}
@@ -1345,15 +1403,53 @@ function CheckoutPage() {
                 </div>
               </div>
 
+              {/* Slot Unavailable Block Banner */}
+              {isSlotUnavailable && (
+                <div className="p-3 bg-rose-50 border border-rose-300 rounded-2xl text-center text-xs font-bold text-rose-800 space-y-1 animate-fade-in">
+                  <div className="flex items-center justify-center gap-1.5 font-black text-rose-900">
+                    <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                    <span>
+                      {isSelectedDateHoliday
+                        ? `Selected Date (${selectedDate}) is a Holiday`
+                        : areAllSlotsFull
+                        ? `All Slots on ${selectedDate} are Fully Booked`
+                        : isSelectedSlotBooked
+                        ? `Slot (${selectedSlot} on ${selectedDate}) is Booked`
+                        : isSelectedSlotPast
+                        ? `Slot (${selectedSlot}) Has Passed for Today`
+                        : "Please Select an Available Time Slot"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-rose-700 font-medium">
+                    Payment is locked. Please pick an available green slot above to proceed.
+                  </p>
+                </div>
+              )}
+
               {/* Main Submit Button */}
               <button
                 type="button"
-                disabled={isProcessing || cart.length === 0}
+                disabled={isProcessing || cart.length === 0 || isSlotUnavailable}
                 onClick={handleInitiateBooking}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#00241B] via-[#005B36] to-[#007A48] hover:from-[#001712] hover:to-[#005B36] text-white text-xs sm:text-sm font-black uppercase tracking-wider transition-all shadow-lg cursor-pointer border-0 active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#00241B] via-[#005B36] to-[#007A48] hover:from-[#001712] hover:to-[#005B36] text-white text-xs sm:text-sm font-black uppercase tracking-wider transition-all shadow-lg cursor-pointer border-0 active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isProcessing ? (
                   <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : isSlotUnavailable ? (
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-300" />
+                    <span>
+                      {isSelectedSlotBooked
+                        ? `Slot (${selectedSlot}) Already Booked`
+                        : isSelectedSlotPast
+                        ? `Slot (${selectedSlot}) Passed`
+                        : isSelectedDateHoliday
+                        ? `Holiday (${selectedDate})`
+                        : areAllSlotsFull
+                        ? `Date Fully Booked`
+                        : "Choose Available Slot"}
+                    </span>
+                  </div>
                 ) : (
                   <>
                     <Zap className="h-4 w-4 text-amber-300 fill-amber-300" />

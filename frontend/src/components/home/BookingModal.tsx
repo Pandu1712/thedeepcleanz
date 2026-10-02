@@ -567,8 +567,24 @@ export const BookingModal = memo(function BookingModal({
 
     const finalNotes = `${avoidCalling ? "[Customer Preference: Avoid calling before arrival] " : ""}${form.notes}`.trim();
 
+    setIsPaying(true);
+
+    // ⚡ REAL-TIME LIVE PRE-PAYMENT SLOT CHECK:
+    try {
+      const liveCheck = await fetchBookedSlots(form.date);
+      const currentNorm = normalizeTimeSlot(form.time);
+      if (liveCheck.normalizedSlots.includes(currentNorm)) {
+        toast.error(`⚠️ Slot conflict: (${form.time} on ${form.date}) was just booked by another customer. Payment not charged. Please choose another available slot.`);
+        const nextFree = getFirstAvailableSlot(form.date, liveCheck.normalizedSlots, 30);
+        setForm((prev) => ({ ...prev, time: nextFree || "" }));
+        setIsPaying(false);
+        return;
+      }
+    } catch (checkErr) {
+      console.warn("Could not pre-verify slot availability in modal:", checkErr);
+    }
+
     if (payMethod === "razorpay" && upfrontPayAmount > 0) {
-      setIsPaying(true);
       try {
         const loaded = await loadRazorpayScript();
         if (!loaded) {
