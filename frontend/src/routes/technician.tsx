@@ -333,6 +333,12 @@ function TechnicianPortal() {
   };
 
   const handleStatusUpdate = async (bookingId: string, newStatus: string) => {
+    const targetBooking = bookings.find((b) => b.id === bookingId);
+    if ((targetBooking?.jobStatus || "Pending") === "Completed") {
+      toast.error("ఈ పని ఇప్పటికే పూర్తయింది. మార్పులు చేయలేరు (Completed jobs cannot be edited).", { icon: "🔒" });
+      return;
+    }
+
     if (newStatus === "Issues") {
       setPendingStatusBookingId(bookingId);
       setPendingStatusValue(newStatus);
@@ -357,6 +363,13 @@ function TechnicianPortal() {
   const submitStatusWithNote = async () => {
     if (!statusNoteText.trim()) {
       toast.error("Please enter a note describing the issue/delay.");
+      return;
+    }
+
+    const targetBooking = bookings.find((b) => b.id === pendingStatusBookingId);
+    if ((targetBooking?.jobStatus || "Pending") === "Completed") {
+      toast.error("ఈ పని ఇప్పటికే పూర్తయింది. మార్పులు చేయలేరు (Completed jobs cannot be edited).", { icon: "🔒" });
+      setNoteModalOpen(false);
       return;
     }
 
@@ -386,6 +399,12 @@ function TechnicianPortal() {
   const submitReschedule = async () => {
     if (!newDate || !newTime) {
       toast.error("Please select a date and time slot.");
+      return;
+    }
+    const targetBooking = bookings.find((b) => b.id === rescheduleBookingId);
+    if ((targetBooking?.jobStatus || "Pending") === "Completed") {
+      toast.error("ఈ పని ఇప్పటికే పూర్తయింది. రీషెడ్యూల్ చేయలేరు (Completed jobs cannot be rescheduled).", { icon: "🔒" });
+      setRescheduleModalOpen(false);
       return;
     }
     try {
@@ -1160,6 +1179,7 @@ function TechnicianPortal() {
 
                 const paidAmount = isFullyPaid ? b.total : isPaid ? Math.round(b.total * 0.25) : 0;
                 const balanceAmount = b.total - paidAmount;
+                const isCompleted = (b.jobStatus || "Pending") === "Completed";
 
                 return (
                   <div
@@ -1184,17 +1204,19 @@ function TechnicianPortal() {
                             <Clock className="h-3.5 w-3.5 text-slate-400" />
                             <span>{schedule?.time || "Anytime"}</span>
                           </span>
-                          <button
-                            onClick={() => {
-                              setRescheduleBookingId(b.id);
-                              setNewDate(schedule?.date || "");
-                              setNewTime(schedule?.time || "");
-                              setRescheduleModalOpen(true);
-                            }}
-                            className="ml-2 text-[10px] text-slate-600 hover:text-[#002a22] hover:underline font-bold bg-slate-50 hover:bg-slate-100 px-2 py-0.5 rounded border border-slate-200 cursor-pointer"
-                          >
-                            🗓️ Reschedule
-                          </button>
+                          {!isCompleted && (
+                            <button
+                              onClick={() => {
+                                setRescheduleBookingId(b.id);
+                                setNewDate(schedule?.date || "");
+                                setNewTime(schedule?.time || "");
+                                setRescheduleModalOpen(true);
+                              }}
+                              className="ml-2 text-[10px] text-slate-600 hover:text-[#002a22] hover:underline font-bold bg-slate-50 hover:bg-slate-100 px-2 py-0.5 rounded border border-slate-200 cursor-pointer"
+                            >
+                              🗓️ Reschedule
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -1287,127 +1309,186 @@ function TechnicianPortal() {
                             </span>
                           ))}
                         </div>
-                        {/* Job Progress Status Updates */}
-                        <div className="border-t border-slate-100 pt-4 mt-4 font-sans">
-                          <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
-                            Clean Job Progress Status
-                          </span>
 
-                          <div className="flex flex-wrap gap-2.5">
-                            {[
-                              {
-                                value: "Assigned",
-                                label: "📋 Assigned",
-                                color: "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100",
-                              },
-                              {
-                                value: "Accepted",
-                                label: "🤝 Accept Job / Agree",
-                                color: "bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100",
-                              },
-                              {
-                                value: "Started",
-                                label: "🚗 On My Way",
-                                color: "bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100",
-                              },
-                              {
-                                value: "Arrived",
-                                label: "📍 Arrived / In Location",
-                                color: "bg-teal-50 border-teal-200 text-teal-755 hover:bg-teal-100",
-                              },
-                              {
-                                value: "Ongoing",
-                                label: "🧼 Work Ongoing",
-                                color: "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100",
-                              },
-                              {
-                                value: "Completed",
-                                label: "✅ Complete Work / Finished",
-                                color: "bg-emerald-50 border-emerald-250 text-emerald-700 hover:bg-emerald-100",
-                              },
-                              {
-                                value: "Issues",
-                                label: "⚠️ Issue/Delay",
-                                color: "bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100",
-                              },
-                            ].map((status) => {
-                              const isCurrent = (b.jobStatus || "Pending") === status.value;
-                              return (
-                                <button
-                                  key={status.value}
-                                  onClick={() => handleStatusUpdate(b.id, status.value)}
-                                  className={`px-3 py-1.5 rounded-xl border text-2xs font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 ${
-                                    isCurrent
-                                      ? "bg-[#002a22] border-[#002a22] text-white font-extrabold shadow-sm"
-                                      : status.color
-                                  }`}
-                                >
-                                  {status.label}
-                                  {isCurrent && (
-                                    <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                        {/* Job Progress Status or Locked Completed Banner */}
+                        {isCompleted ? (
+                          <div className="border-t border-slate-100 pt-3.5 mt-3.5 font-sans">
+                            <div className="bg-emerald-50/90 border border-emerald-300 rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3 shadow-2xs">
+                              <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
+                                  <CheckCircle2 className="h-5 w-5" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs font-black text-emerald-950 uppercase tracking-wider">
+                                      ✅ Work Completed & Closed (పూర్తయిన పని)
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                                      <Lock className="h-2.5 w-2.5" /> Locked (ఎడిట్ చేయలేరు)
+                                    </span>
+                                  </div>
+                                  <p className="text-2xs text-slate-600 font-medium mt-0.5">
+                                    ఈ పని విజయవంతంగా పూర్తయింది మరియు లాక్ చేయబడింది. స్థితి లేదా రీషెడ్యూల్ మార్పులు సాధ్యం కాదు.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Transformation Photos View */}
+                            {(b.beforeImage || b.afterImage) && (
+                              <div className="mt-3 bg-slate-50 border border-slate-200 p-3 rounded-xl max-w-2xl font-sans">
+                                <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                  📸 Completed Service Photos
+                                </span>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {b.beforeImage && (
+                                    <a
+                                      href={b.beforeImage}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 hover:border-slate-300 font-bold px-3 py-1.5 rounded-xl shadow-3xs hover:bg-slate-50 transition-all"
+                                    >
+                                      <span>🖼️ Before Photo</span>
+                                      <ExternalLink className="h-3 w-3 text-slate-400" />
+                                    </a>
                                   )}
-                                </button>
-                              );
-                            })}
+                                  {b.afterImage && (
+                                    <a
+                                      href={b.afterImage}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 hover:border-emerald-300 font-bold px-3 py-1.5 rounded-xl shadow-3xs hover:bg-emerald-100 transition-all"
+                                    >
+                                      <span>✨ After Photo</span>
+                                      <ExternalLink className="h-3 w-3 text-emerald-600" />
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
-
-                          {/* Saved Status Note */}
-                          {b.statusNote && (
-                            <div className="mt-3 bg-rose-50 border border-rose-200 p-3 rounded-xl text-xs text-rose-700 max-w-2xl">
-                              <span className="font-extrabold uppercase text-[9px] text-[#cb9f5a] block mb-0.5">
-                                ⚠️ Reported Delay / Issue Note:
-                              </span>
-                              <span className="font-semibold text-slate-700">{b.statusNote}</span>
-                            </div>
-                          )}
-
-                          {/* Transformation Photos Input */}
-                          <div className="mt-4 bg-slate-50/80 border border-slate-200 p-3 rounded-xl max-w-2xl font-sans space-y-2">
-                            <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                              📸 Upload / Set Before & After Transformation Photos
+                        ) : (
+                          <div className="border-t border-slate-100 pt-4 mt-4 font-sans">
+                            <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
+                              Clean Job Progress Status
                             </span>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
-                              <div>
-                                <span className="text-slate-500 font-semibold block mb-1">Before Cleaning Photo URL</span>
-                                <input
-                                  type="text"
-                                  placeholder="Paste Before Photo Link..."
-                                  defaultValue={b.beforeImage || ""}
-                                  onBlur={async (e) => {
-                                    const val = e.target.value;
-                                    await fetch(`${ADMIN_API_URL}/api/bookings/${b.id}/media`, {
-                                      method: "PUT",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ beforeImage: val, afterImage: b.afterImage }),
-                                    });
-                                    toast.success("Before photo saved!");
-                                    handleRefresh();
-                                  }}
-                                  className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 outline-none focus:border-[#002a22]"
-                                />
+
+                            <div className="flex flex-wrap gap-2.5">
+                              {[
+                                {
+                                  value: "Assigned",
+                                  label: "📋 Assigned",
+                                  color: "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100",
+                                },
+                                {
+                                  value: "Accepted",
+                                  label: "🤝 Accept Job / Agree",
+                                  color: "bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100",
+                                },
+                                {
+                                  value: "Started",
+                                  label: "🚗 On My Way",
+                                  color: "bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100",
+                                },
+                                {
+                                  value: "Arrived",
+                                  label: "📍 Arrived / In Location",
+                                  color: "bg-teal-50 border-teal-200 text-teal-755 hover:bg-teal-100",
+                                },
+                                {
+                                  value: "Ongoing",
+                                  label: "🧼 Work Ongoing",
+                                  color: "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100",
+                                },
+                                {
+                                  value: "Completed",
+                                  label: "✅ Complete Work / Finished",
+                                  color: "bg-emerald-50 border-emerald-250 text-emerald-700 hover:bg-emerald-100",
+                                },
+                                {
+                                  value: "Issues",
+                                  label: "⚠️ Issue/Delay",
+                                  color: "bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100",
+                                },
+                              ].map((status) => {
+                                const isCurrent = (b.jobStatus || "Pending") === status.value;
+                                return (
+                                  <button
+                                    key={status.value}
+                                    onClick={() => handleStatusUpdate(b.id, status.value)}
+                                    className={`px-3 py-1.5 rounded-xl border text-2xs font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 ${
+                                      isCurrent
+                                        ? "bg-[#002a22] border-[#002a22] text-white font-extrabold shadow-sm"
+                                        : status.color
+                                    }`}
+                                  >
+                                    {status.label}
+                                    {isCurrent && (
+                                      <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Saved Status Note */}
+                            {b.statusNote && (
+                              <div className="mt-3 bg-rose-50 border border-rose-200 p-3 rounded-xl text-xs text-rose-700 max-w-2xl">
+                                <span className="font-extrabold uppercase text-[9px] text-[#cb9f5a] block mb-0.5">
+                                  ⚠️ Reported Delay / Issue Note:
+                                </span>
+                                <span className="font-semibold text-slate-700">{b.statusNote}</span>
                               </div>
-                              <div>
-                                <span className="text-slate-500 font-semibold block mb-1">After Cleaning Photo URL</span>
-                                <input
-                                  type="text"
-                                  placeholder="Paste After Photo Link..."
-                                  defaultValue={b.afterImage || ""}
-                                  onBlur={async (e) => {
-                                    const val = e.target.value;
-                                    await fetch(`${ADMIN_API_URL}/api/bookings/${b.id}/media`, {
-                                      method: "PUT",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ beforeImage: b.beforeImage, afterImage: val }),
-                                    });
-                                    toast.success("After photo saved!");
-                                    handleRefresh();
-                                  }}
-                                  className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 outline-none focus:border-[#002a22]"
-                                />
+                            )}
+
+                            {/* Transformation Photos Input */}
+                            <div className="mt-4 bg-slate-50/80 border border-slate-200 p-3 rounded-xl max-w-2xl font-sans space-y-2">
+                              <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                                📸 Upload / Set Before & After Transformation Photos
+                              </span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
+                                <div>
+                                  <span className="text-slate-500 font-semibold block mb-1">Before Cleaning Photo URL</span>
+                                  <input
+                                    type="text"
+                                    placeholder="Paste Before Photo Link..."
+                                    defaultValue={b.beforeImage || ""}
+                                    onBlur={async (e) => {
+                                      const val = e.target.value;
+                                      await fetch(`${ADMIN_API_URL}/api/bookings/${b.id}/media`, {
+                                        method: "PUT",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ beforeImage: val, afterImage: b.afterImage }),
+                                      });
+                                      toast.success("Before photo saved!");
+                                      handleRefresh();
+                                    }}
+                                    className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 outline-none focus:border-[#002a22]"
+                                  />
+                                </div>
+                                <div>
+                                  <span className="text-slate-500 font-semibold block mb-1">After Cleaning Photo URL</span>
+                                  <input
+                                    type="text"
+                                    placeholder="Paste After Photo Link..."
+                                    defaultValue={b.afterImage || ""}
+                                    onBlur={async (e) => {
+                                      const val = e.target.value;
+                                      await fetch(`${ADMIN_API_URL}/api/bookings/${b.id}/media`, {
+                                        method: "PUT",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ beforeImage: b.beforeImage, afterImage: val }),
+                                      });
+                                      toast.success("After photo saved!");
+                                      handleRefresh();
+                                    }}
+                                    className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 outline-none focus:border-[#002a22]"
+                                  />
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
 
