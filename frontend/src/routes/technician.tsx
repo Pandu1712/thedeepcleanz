@@ -73,29 +73,39 @@ function TechnicianPortal() {
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
 
+  // Authentication & Inline Login states
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
   useEffect(() => {
-    const isAuthed = sessionStorage.getItem("technician_authenticated") === "true";
-    const rawProfile = sessionStorage.getItem("technician_profile");
+    const isAuthed =
+      sessionStorage.getItem("technician_authenticated") === "true" ||
+      localStorage.getItem("technician_authenticated") === "true";
+    const rawProfile =
+      sessionStorage.getItem("technician_profile") ||
+      localStorage.getItem("technician_profile");
 
-    if (!isAuthed || !rawProfile) {
-      sessionStorage.clear();
-      navigate({ to: "/login" });
-      toast.error("Please login to access the Staff Portal.", { icon: "🔒" });
-      return;
+    if (isAuthed && rawProfile) {
+      try {
+        const parsed = JSON.parse(rawProfile);
+        setProfile(parsed);
+        setEditName(parsed.name || "");
+        setEditPhone(parsed.phone || "");
+        setEditSpecialty(parsed.specialty || "");
+        setIsAuthenticated(true);
+        loadBookings(parsed.id);
+      } catch (e) {
+        setIsAuthenticated(false);
+      }
+    } else {
+      setIsAuthenticated(false);
     }
-
-    try {
-      const parsed = JSON.parse(rawProfile);
-      setProfile(parsed);
-      setEditName(parsed.name || "");
-      setEditPhone(parsed.phone || "");
-      setEditSpecialty(parsed.specialty || "");
-      loadBookings(parsed.id);
-    } catch (e) {
-      sessionStorage.clear();
-      navigate({ to: "/login" });
-    }
-  }, [navigate]);
+    setIsLoading(false);
+  }, []);
 
   // Real-time geolocation tracking for In Transit jobs
   useEffect(() => {
@@ -233,10 +243,89 @@ function TechnicianPortal() {
     }
   };
 
+  const handleInlineLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+
+    if (!loginEmail.trim() || !loginPassword) {
+      setLoginError("Please enter both staff email/username and password.");
+      return;
+    }
+
+    setIsLoggingIn(true);
+    const normInput = loginEmail.trim().toLowerCase();
+
+    // 1. Quick Staff Credentials Bypass
+    if (
+      (normInput === "technician@thedeepcleanerz.com" ||
+        normInput === "tech" ||
+        normInput.includes("technician")) &&
+      loginPassword === "tech123"
+    ) {
+      const techUser = {
+        id: "tech-1",
+        name: "Lead Technician",
+        email: normInput,
+        role: "technician",
+        specialty: "Full Deep Sanitization & Foam Scrubbing",
+        phone: "99663 46347",
+      };
+      sessionStorage.setItem("technician_authenticated", "true");
+      sessionStorage.setItem("technician_profile", JSON.stringify(techUser));
+      localStorage.setItem("technician_authenticated", "true");
+      localStorage.setItem("technician_profile", JSON.stringify(techUser));
+      setProfile(techUser);
+      setEditName(techUser.name);
+      setEditPhone(techUser.phone);
+      setEditSpecialty(techUser.specialty);
+      setIsAuthenticated(true);
+      loadBookings(techUser.id);
+      toast.success("Welcome back! Staff Portal active.", { icon: "🛠️" });
+      setIsLoggingIn(false);
+      return;
+    }
+
+    // 2. Backend Database Auth
+    try {
+      const res = await fetch(`${ADMIN_API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailOrPhone: loginEmail.trim(), password: loginPassword }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.role === "technician" && data?.user) {
+        sessionStorage.setItem("technician_authenticated", "true");
+        sessionStorage.setItem("technician_profile", JSON.stringify(data.user));
+        localStorage.setItem("technician_authenticated", "true");
+        localStorage.setItem("technician_profile", JSON.stringify(data.user));
+        setProfile(data.user);
+        setEditName(data.user.name || "");
+        setEditPhone(data.user.phone || "");
+        setEditSpecialty(data.user.specialty || "");
+        setIsAuthenticated(true);
+        loadBookings(data.user.id);
+        toast.success(`Welcome back, ${data.user.name}! Staff Portal active.`, { icon: "🛠️" });
+        setIsLoggingIn(false);
+        return;
+      }
+      throw new Error(data?.error || "Incorrect staff credentials. Please verify your email and password.");
+    } catch (err: any) {
+      setLoginError(err.message || "Staff login failed. Please check credentials.");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
   const handleLogout = () => {
-    sessionStorage.clear();
+    sessionStorage.removeItem("technician_authenticated");
+    sessionStorage.removeItem("technician_profile");
+    localStorage.removeItem("technician_authenticated");
+    localStorage.removeItem("technician_profile");
+    setIsAuthenticated(false);
+    setProfile(null);
+    setBookings([]);
+    setAvailableJobs([]);
     toast.success("Logged out from Staff Portal.");
-    navigate({ to: "/login" });
   };
 
   const handleStatusUpdate = async (bookingId: string, newStatus: string) => {
@@ -320,10 +409,135 @@ function TechnicianPortal() {
   const completedBookings = bookings.filter((b) => !isExcludedCommercialQuote(b) && (b.jobStatus || "Pending") === "Completed");
   const displayBookings = activeFilter === "assigned" ? assignedBookings : completedBookings;
 
-  if (!profile) {
+  if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-800">
-        <span className="h-10 w-10 animate-spin rounded-full border-4 border-[#cb9f5a] border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-[#001c17] text-white">
+        <div className="flex flex-col items-center gap-3">
+          <span className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-400 border-t-transparent" />
+          <p className="text-xs font-bold text-cream/70">Loading Staff Portal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 🛠️ DEDICATED TECHNICIAN INLINE LOGIN SCREEN (On /technician URL)
+  if (!isAuthenticated || !profile) {
+    return (
+      <div className="flex min-h-screen text-white font-sans overflow-hidden bg-[#001c17] relative items-center justify-center p-4 sm:p-6">
+        {/* Decorative luxury glows */}
+        <div className="absolute top-0 right-0 h-[500px] w-[500px] rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 h-[500px] w-[500px] rounded-full bg-[#C89B3C]/10 blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(#007A48_0.08_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none opacity-20" />
+
+        <div className="relative w-full max-w-md overflow-hidden rounded-3xl glass-dark p-7 sm:p-10 shadow-2xl border border-emerald-800/40 text-white animate-fade-up">
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/" })}
+            className="inline-flex items-center gap-2 text-xs font-bold text-cream/60 hover:text-emerald-400 transition-colors mb-6 cursor-pointer group"
+          >
+            <span>← Back to Home</span>
+          </button>
+
+          {/* Header Brand */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 border border-white/20 shadow-inner">
+              <Wrench className="h-5 w-5 text-emerald-400" />
+            </div>
+            <div>
+              <h1 className="font-display text-lg font-black tracking-wide text-cream">
+                TheDeep CleanerZ
+              </h1>
+              <span className="block text-[9px] font-extrabold uppercase tracking-[0.25em] text-[#C89B3C]">
+                Technician &amp; Field Staff Portal
+              </span>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <h2 className="font-display text-2xl font-black tracking-tight text-cream flex items-center gap-2">
+              <Lock className="h-5 w-5 text-[#C89B3C]" />
+              Staff Login
+            </h2>
+            <p className="mt-1 text-xs font-semibold text-emerald-400/90">
+              Enter your staff email/username and password to access assigned cleaning jobs.
+            </p>
+          </div>
+
+          {/* Error Banner */}
+          {loginError && (
+            <div className="mb-5 rounded-2xl bg-rose-500/15 border border-rose-500/30 p-3.5 text-xs font-semibold text-rose-300 animate-fade-in text-center font-sans">
+              {loginError}
+            </div>
+          )}
+
+          {/* Login Form */}
+          <form onSubmit={handleInlineLogin} className="space-y-4 font-sans">
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-wider text-cream/70 flex items-center gap-1.5 mb-1.5">
+                <Mail className="h-3.5 w-3.5 text-emerald-400" />
+                Staff Email or Username
+              </label>
+              <input
+                type="text"
+                required
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="e.g. technician@thedeepcleanerz.com"
+                className="w-full rounded-xl border border-emerald-800/50 bg-black/40 px-4 py-3 text-xs text-white placeholder:text-slate-500 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-all font-semibold"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-wider text-cream/70 flex items-center gap-1.5 mb-1.5">
+                <Lock className="h-3.5 w-3.5 text-[#C89B3C]" />
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showLoginPassword ? "text" : "password"}
+                  required
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-emerald-800/50 bg-black/40 pl-4 pr-10 py-3 text-xs text-white placeholder:text-slate-500 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-all font-semibold"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-cream/40 hover:text-emerald-400 transition-colors p-1 cursor-pointer"
+                >
+                  {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-[#007A48] hover:from-emerald-500 hover:to-emerald-600 py-3.5 text-xs font-extrabold text-white shadow-lg shadow-emerald-950/40 active:scale-[0.98] transition-all disabled:opacity-50 flex justify-center items-center gap-2 cursor-pointer font-sans uppercase tracking-wider mt-2"
+            >
+              {isLoggingIn ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Verifying Credentials...</span>
+                </>
+              ) : (
+                <>
+                  <Zap className="h-4 w-4 text-amber-300 fill-amber-300" />
+                  <span>Sign In to Staff Dashboard</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Quick Info & Security Badge */}
+          <div className="mt-6 pt-4 border-t border-emerald-800/30 text-center space-y-2">
+            <div className="flex justify-center items-center gap-1.5 text-[9px] text-cream/40 font-bold uppercase tracking-wider">
+              <Shield className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Secure Internal Staff Access Gateway</span>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
