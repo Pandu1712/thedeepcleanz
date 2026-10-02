@@ -999,32 +999,69 @@ function TechnicianPortal() {
                           </div>
                         </div>
 
-                        {/* Location / Area Masked Info */}
-                        <div className="bg-slate-50 border border-slate-200/80 p-3.5 sm:p-4 rounded-xl space-y-2.5 font-sans">
-                          <div className="flex items-start gap-2.5">
-                            <MapPin className="h-4.5 w-4.5 text-rose-500 shrink-0 mt-0.5" />
-                            <div>
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                                Target Area / Locality
-                              </span>
-                              <span className="font-bold text-slate-800 text-sm block">
-                                {b.locality || customer?.locality || customer?.landmark || customer?.city || "Guntur (Central Area)"}
-                              </span>
-                              <span className="text-2xs text-slate-500 font-medium block mt-0.5">
-                                Full house/door address will unlock immediately when you accept the job.
-                              </span>
+                        {/* Location & Customer Contact Card */}
+                        <div className="bg-slate-50 border border-slate-200/90 p-4 rounded-2xl space-y-3 font-sans">
+                          {/* Customer Profile & Contact Bar */}
+                          <div className="flex items-center justify-between border-b border-slate-200/70 pb-2.5 flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-emerald-700 shrink-0" />
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Customer:</span>
+                              <span className="font-bold text-slate-800 text-sm">{customer?.name || "Customer"}</span>
                             </div>
+                            {customer?.phone ? (
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-semibold text-slate-700 text-xs">+91 {customer.phone}</span>
+                                <a
+                                  href={`tel:${customer.phone}`}
+                                  className="inline-flex items-center gap-1 text-[11px] text-white bg-emerald-600 hover:bg-emerald-700 font-bold px-2.5 py-1 rounded-lg transition-all shadow-xs"
+                                >
+                                  <Phone className="h-3 w-3" />
+                                  <span>Call</span>
+                                </a>
+                                <a
+                                  href={`https://wa.me/91${customer.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Hello ${customer.name || ""}, I am reaching out from TheDeep CleanerZ regarding your cleaning service booking today.`)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 text-[11px] text-white bg-emerald-700 hover:bg-emerald-800 font-bold px-2.5 py-1 rounded-lg transition-all shadow-xs"
+                                >
+                                  <MessageSquare className="h-3 w-3" />
+                                  <span>WhatsApp</span>
+                                </a>
+                              </div>
+                            ) : (
+                              <span className="text-2xs text-slate-400 font-mono">Contact via Admin</span>
+                            )}
                           </div>
 
-                          <div className="flex items-center justify-between border-t border-slate-200/60 pt-2 text-xs flex-wrap gap-2">
-                            <div className="flex items-center gap-2">
-                              <User className="h-3.5 w-3.5 text-slate-400" />
-                              <span className="text-2xs font-bold text-slate-400 uppercase">Customer:</span>
-                              <span className="font-bold text-slate-700">{customer?.name || "Verified Customer"}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-2xs text-slate-400 font-mono">
-                              <Lock className="h-3 w-3 text-slate-400" />
-                              <span>Contact: {customer?.phone || "+91 ••••• •••••"}</span>
+                          {/* Address & GPS Location Bar */}
+                          <div className="flex items-start gap-2.5 text-xs text-slate-700">
+                            <MapPin className="h-4.5 w-4.5 text-rose-500 shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                  Service Address Location:
+                                </span>
+                                <a
+                                  href={customer?.mapsLink || (customer?.gpsCoords ? `https://www.google.com/maps/search/?api=1&query=${customer.gpsCoords.lat},${customer.gpsCoords.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((customer?.address || "") + " " + (customer?.city || "Guntur") + " " + (customer?.pincode || ""))}`)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 text-[10px] text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2.5 py-1 rounded-lg font-bold transition-all shadow-3xs"
+                                >
+                                  <Navigation className="h-3 w-3" />
+                                  <span>{customer?.gpsCoords ? `GPS (${customer.gpsCoords.lat.toFixed(4)}, ${customer.gpsCoords.lng.toFixed(4)})` : "Open in Google Maps"}</span>
+                                </a>
+                              </div>
+                              <span className="font-bold text-slate-800 text-sm block">
+                                {customer?.address || customer?.locality || b.location?.area || "Guntur (Central Area)"}
+                              </span>
+                              {customer?.landmark && (
+                                <span className="text-xs text-amber-800 font-bold block mt-1 bg-amber-50 border border-amber-200/60 px-2.5 py-0.5 rounded-md inline-block">
+                                  Landmark: {customer.landmark}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-slate-400 font-bold block uppercase mt-1">
+                                {customer?.city || "Guntur"} {customer?.pincode ? `- ${customer.pincode}` : ""}
+                              </span>
                             </div>
                           </div>
                         </div>

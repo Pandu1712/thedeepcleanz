@@ -3629,16 +3629,31 @@ module.exports = {
       return {
         id: b.id,
         createdAt: b.createdAt,
+        customer: {
+          name: customer.name || "Customer",
+          phone: customer.phone || "",
+          email: customer.email || "",
+          address: customer.address || customer.locality || "",
+          landmark: customer.landmark || "",
+          city: customer.city || "Guntur",
+          pincode: customer.pincode || "",
+          gpsCoords: customer.gpsCoords || null,
+          mapsLink: customer.mapsLink || "",
+        },
         schedule: {
           date: schedule.date || "",
           time: schedule.time || "",
         },
         location: {
-          area: customer.address || customer.locality || "Customer Locality",
+          area: customer.address || customer.locality || "Guntur",
           city: customer.city || "Guntur",
           landmark: customer.landmark || "",
+          gpsCoords: customer.gpsCoords || null,
+          mapsLink: customer.mapsLink || "",
         },
         items: sanitizedItems,
+        total: b.total,
+        paymentStatus: b.paymentStatus,
         jobStatus: b.jobStatus || "Open",
         technicianId: null,
       };
