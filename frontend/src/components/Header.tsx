@@ -384,7 +384,9 @@ export default function Header({
             <button
               type="button"
               onClick={() => {
-                if (isSubPage) {
+                if (cartCount > 0) {
+                  navigate({ to: "/checkout" });
+                } else if (isSubPage) {
                   navigate({ to: "/services" });
                 } else {
                   const el = document.getElementById("categories");
