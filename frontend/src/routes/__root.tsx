@@ -13,6 +13,7 @@ import { Toaster, toast } from "sonner";
 import "../styles/styles.css";
 import appCss from "../styles/styles.css?url";
 import { ADMIN_API_URL } from "../api/admin-api";
+import { fastReverseGeocode } from "../utils/geocoding";
 import StickyContactButtons from "../components/StickyContactButtons";
 
 function NotFoundComponent() {
@@ -43,21 +44,42 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
   useEffect(() => {
     const msg = (error?.message || "").toLowerCase();
-    if (
+    const isChunkError =
       msg.includes("failed to fetch dynamically imported module") ||
       msg.includes("importing a module script failed") ||
       msg.includes("loading chunk") ||
       msg.includes("dynamically imported") ||
-      msg.includes("error loading dynamic import")
-    ) {
+      msg.includes("error loading dynamic import");
+
+    if (isChunkError) {
       const now = Date.now();
-      const lastReload = Number(sessionStorage.getItem("last_chunk_reload") || "0");
-      if (now - lastReload > 3000) {
-        sessionStorage.setItem("last_chunk_reload", String(now));
+      const lastRetry = Number(sessionStorage.getItem("chunk_retry_timestamp") || "0");
+      const retryCount = Number(sessionStorage.getItem("chunk_retry_count") || "0");
+
+      // Only attempt AT MOST 1 automatic reload per 30 seconds to prevent flashing loops
+      if (retryCount < 1 || now - lastRetry > 30000) {
+        sessionStorage.setItem("chunk_retry_timestamp", String(now));
+        sessionStorage.setItem("chunk_retry_count", String(retryCount + 1));
         window.location.reload();
       }
     }
   }, [error]);
+
+  const handleHardRefresh = () => {
+    try {
+      sessionStorage.removeItem("chunk_retry_timestamp");
+      sessionStorage.removeItem("chunk_retry_count");
+      if ("caches" in window) {
+        caches.keys().then((names) => {
+          names.forEach((name) => caches.delete(name));
+        });
+      }
+    } catch {}
+    if (reset) {
+      try { reset(); } catch {}
+    }
+    window.location.reload();
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 font-sans">
@@ -69,12 +91,12 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           Quick Refresh Needed
         </h1>
         <p className="mt-2 text-sm text-slate-500 font-medium leading-relaxed">
-          The app was updated with a new version or your connection experienced a momentary interruption.
+          The app was updated or your internet connection experienced a momentary interruption.
         </p>
         {error && (
           <div className="mt-4 text-left">
-            <details className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3" open>
-              <summary className="font-bold cursor-pointer mb-1">Error details:</summary>
+            <details className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3">
+              <summary className="font-bold cursor-pointer mb-1">Technical details</summary>
               <pre className="font-mono text-[11px] whitespace-pre-wrap break-all">{error?.message || String(error)}</pre>
               {error?.stack && (
                 <pre className="font-mono text-[9px] text-slate-500 mt-2 max-h-32 overflow-auto whitespace-pre-wrap">{error.stack}</pre>
@@ -84,18 +106,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         )}
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button
-            onClick={() => {
-              if (reset) {
-                try { reset(); } catch (e) {}
-              }
-              window.location.reload();
-            }}
-            className="inline-flex items-center justify-center rounded-xl bg-[#007A48] px-5 py-2.5 text-sm font-bold text-white transition-transform hover:scale-[1.02] shadow-md cursor-pointer"
+            onClick={handleHardRefresh}
+            className="inline-flex items-center justify-center rounded-xl bg-[#007A48] hover:bg-[#005B36] px-5 py-2.5 text-sm font-bold text-white transition-transform hover:scale-[1.02] shadow-md cursor-pointer"
           >
             Reload Page
           </button>
           <button
             onClick={() => {
+              sessionStorage.removeItem("chunk_retry_timestamp");
+              sessionStorage.removeItem("chunk_retry_count");
               window.location.href = "/";
             }}
             className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 cursor-pointer"
@@ -336,7 +355,8 @@ function RootComponent() {
   const getLiveLocation = (force = false) => {
     if (typeof window !== "undefined" && navigator.geolocation) {
       // If we already have user location stored, avoid aggressive background re-prompting unless forced
-      if (!force && sessionStorage.getItem("user_location_address")) {
+      const existingAddress = sessionStorage.getItem("user_location_address");
+      if (!force && existingAddress) {
         return;
       }
 
@@ -367,35 +387,21 @@ function RootComponent() {
             console.warn("Failed to report live visitor location:", err);
           }
 
-          // 2. Reverse geocode location using OpenStreetMap Nominatim with 2.5s abort timeout
-          try {
-            const geoCtrl = new AbortController();
-            const geoTimer = setTimeout(() => geoCtrl.abort(), 2500);
-            const geoRes = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
-              { signal: geoCtrl.signal }
-            );
-            clearTimeout(geoTimer);
-            if (geoRes.ok) {
-              const geoData = await geoRes.json();
-              if (geoData && geoData.address) {
-                const city =
-                  geoData.address.city ||
-                  geoData.address.town ||
-                  geoData.address.village ||
-                  geoData.address.suburb ||
-                  "";
-                const state = geoData.address.state || "";
-                const addressText =
-                  city && state ? `${city}, ${state}` : city || state || "Detected Location";
+          // 2. Reverse geocode location using fastReverseGeocode only if not already detected or forced
+          if (force || !existingAddress) {
+            try {
+              const geo = await fastReverseGeocode(latitude, longitude, 2000);
+              const addressText = geo.fullAddress || `${geo.city}, ${geo.state}` || "Detected Location";
+              const prevAddress = sessionStorage.getItem("user_location_address");
+              if (prevAddress !== addressText) {
                 sessionStorage.setItem("user_location_address", addressText);
                 sessionStorage.setItem("user_location_lat", String(latitude));
                 sessionStorage.setItem("user_location_lng", String(longitude));
                 window.dispatchEvent(new Event("location-updated"));
               }
+            } catch (geoErr) {
+              console.warn("Reverse geocoding note:", geoErr);
             }
-          } catch (geoErr) {
-            console.warn("Reverse geocoding timed out or failed:", geoErr);
           }
         },
         (error) => {
@@ -415,11 +421,6 @@ function RootComponent() {
       } else {
         setTimeout(() => getLiveLocation(false), 1200);
       }
-
-      const handleAuth = () => {
-        getLiveLocation();
-      };
-      window.addEventListener("auth-state-change", handleAuth);
 
       // Track online status
       setIsOnline(navigator.onLine);
@@ -467,7 +468,6 @@ function RootComponent() {
       }
 
       return () => {
-        window.removeEventListener("auth-state-change", handleAuth);
         window.removeEventListener("online", handleOnlineStatus);
         window.removeEventListener("offline", handleOfflineStatus);
       };

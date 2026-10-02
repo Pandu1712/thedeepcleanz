@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X, MapPin, Locate, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { fastReverseGeocode } from "@/utils/geocoding";
 
 function loadLeaflet(): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -77,33 +78,13 @@ function MapPickerModal({
   const reverseGeocode = async (lat: number, lng: number) => {
     setIsLoadingAddr(true);
     try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 2500);
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
-        { signal: ctrl.signal },
-      );
-      clearTimeout(timer);
-      if (res.ok) {
-        const data = await res.json();
-        const addr = data.address || {};
-        const houseNumber = addr.house_number || addr.building || "";
-        const road = addr.road || addr.street || addr.residential || "";
-        const suburb = addr.suburb || addr.neighbourhood || addr.village || "";
-        const city = addr.city || addr.town || addr.county || addr.state_district || "Guntur";
-        const pincode = addr.postcode || "";
-
-        const fullStreetAddr = [houseNumber, road, suburb].filter(Boolean).join(", ");
-        const fullDisplayAddr = data.display_name || `${fullStreetAddr}, ${city}`;
-        const landmarkStr = suburb || road ? `${suburb || road}, ${city}` : city;
-
-        setAddressData({
-          address: fullStreetAddr || fullDisplayAddr,
-          landmark: landmarkStr,
-          pincode: pincode,
-          city: city,
-        });
-      }
+      const geo = await fastReverseGeocode(lat, lng, 2000);
+      setAddressData({
+        address: geo.street || geo.fullAddress,
+        landmark: geo.landmark,
+        pincode: geo.pincode,
+        city: geo.city,
+      });
     } catch (err) {
       console.warn("Reverse geocoding error:", err);
     } finally {

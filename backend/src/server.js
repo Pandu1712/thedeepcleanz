@@ -3,6 +3,15 @@ require("dotenv").config({
 });
 const path = require("path");
 
+// Process level safety guards against unexpected backend crashes
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception thrown:", err);
+});
+
 // Polyfill fetch using native HTTPS module to support older Node.js versions on Hostinger
 const fetch = typeof globalThis.fetch === "function" ? globalThis.fetch : async (url, options = {}) => {
   const https = require("https");
@@ -2868,6 +2877,24 @@ async function loadFrontendHandler() {
     );
   }
 }
+
+// Global API 404 & Error Handler Middleware
+app.all("/api/*", (req, res) => {
+  res.status(404).json({ ok: false, error: `API endpoint '${req.path}' not found` });
+});
+
+app.use((err, req, res, next) => {
+  if (req.path.startsWith("/api")) {
+    console.error("API Internal Error:", err);
+    if (!res.headersSent) {
+      return res.status(err.status || 500).json({
+        ok: false,
+        error: err.message || "Internal Server Error",
+      });
+    }
+  }
+  next(err);
+});
 
 // Fallback all non-API, non-admin routes to TanStack Start SSR or Client SPA
 app.all("*", async (req, res, next) => {

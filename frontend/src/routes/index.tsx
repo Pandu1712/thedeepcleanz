@@ -15,6 +15,7 @@ import {
 } from "@/api/admin-api";
 import Header from "@/components/Header";
 import CartDrawer from "@/components/CartDrawer";
+import { fastReverseGeocode } from "@/utils/geocoding";
 import { GUNTUR_LOCATIONS } from "@/data/homeLocationData";
 import {
   DEFAULT_CATEGORIES,
@@ -452,31 +453,8 @@ function Index() {
 
         let formattedAddress = `GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
         try {
-          const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), 2500);
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
-            { signal: ctrl.signal },
-          );
-          clearTimeout(timer);
-          if (res.ok) {
-            const data = await res.json();
-            const addr = data.address || {};
-            const area =
-              addr.suburb ||
-              addr.neighbourhood ||
-              addr.residential ||
-              addr.road ||
-              addr.village ||
-              "";
-            const city =
-              addr.city || addr.town || addr.county || addr.state_district || "";
-            if (area && city) {
-              formattedAddress = `${area}, ${city}`;
-            } else if (data.display_name) {
-              formattedAddress = data.display_name.split(",").slice(0, 2).join(",");
-            }
-          }
+          const geo = await fastReverseGeocode(latitude, longitude, 2500);
+          formattedAddress = geo.fullAddress || `${geo.street}, ${geo.city}` || `GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
         } catch {
           /* ignore */
         }
@@ -1108,15 +1086,17 @@ function Index() {
       <HomeFooter onOpenLocation={() => setLocationModalOpen(true)} />
 
       {/* SERVICE DETAILS MODAL */}
-      <ServiceDetailModal
-        service={detail}
-        onClose={() => setDetail(null)}
-        onAddPlan={(s, plan) => {
-          addToCart(s, plan);
-          setDetail(null);
-        }}
-        getServicePrice={getServicePrice}
-      />
+      {detail && (
+        <ServiceDetailModal
+          service={detail}
+          onClose={() => setDetail(null)}
+          onAddPlan={(s, plan) => {
+            addToCart(s, plan);
+            setDetail(null);
+          }}
+          getServicePrice={getServicePrice}
+        />
+      )}
 
       {/* CART DRAWER */}
       <CartDrawer
@@ -1133,13 +1113,15 @@ function Index() {
       />
 
       {/* BOOKING MODAL */}
-      <BookingModal
-        open={bookingOpen}
-        onClose={() => setBookingOpen(false)}
-        cart={cart}
-        total={cartTotal}
-        onConfirm={completeBooking}
-      />
+      {bookingOpen && (
+        <BookingModal
+          open={bookingOpen}
+          onClose={() => setBookingOpen(false)}
+          cart={cart}
+          total={cartTotal}
+          onConfirm={completeBooking}
+        />
+      )}
 
       {/* BACK TO TOP FLOATING BUTTON */}
       {showTop && (
@@ -1153,42 +1135,48 @@ function Index() {
       )}
 
       {/* SELECT LOCATION MODAL */}
-      <HomeLocationModal
-        open={locationModalOpen}
-        onClose={() => setLocationModalOpen(false)}
-        citySearch={citySearch}
-        setCitySearch={setCitySearch}
-        onSelectArea={(loc) => {
-          saveLocationForUser(loc.area, loc.lat, loc.lng);
-          setLocationModalOpen(false);
-          toast.success(`Location set to ${loc.area}!`, { icon: "📍" });
-        }}
-        onOpenMapPicker={() => {
-          setLocationModalOpen(false);
-          setMapPickerOpen(true);
-        }}
-        selectedCity={selectedCity}
-        setSelectedCity={setSelectedCity}
-      />
+      {locationModalOpen && (
+        <HomeLocationModal
+          open={locationModalOpen}
+          onClose={() => setLocationModalOpen(false)}
+          citySearch={citySearch}
+          setCitySearch={setCitySearch}
+          onSelectArea={(loc) => {
+            saveLocationForUser(loc.area, loc.lat, loc.lng);
+            setLocationModalOpen(false);
+            toast.success(`Location set to ${loc.area}!`, { icon: "📍" });
+          }}
+          onOpenMapPicker={() => {
+            setLocationModalOpen(false);
+            setMapPickerOpen(true);
+          }}
+          selectedCity={selectedCity}
+          setSelectedCity={setSelectedCity}
+        />
+      )}
 
       {/* MAP PICKER MODAL */}
-      <MapPickerModal
-        open={mapPickerOpen}
-        initialLat={userLat}
-        initialLng={userLng}
-        onClose={() => setMapPickerOpen(false)}
-        onConfirmLocation={(data) => {
-          saveLocationForUser(data.address || data.landmark, data.lat, data.lng);
-          toast.success(`Doorstep pin set: ${data.landmark || "Custom location"}!`, { icon: "📍" });
-        }}
-      />
+      {mapPickerOpen && (
+        <MapPickerModal
+          open={mapPickerOpen}
+          initialLat={userLat}
+          initialLng={userLng}
+          onClose={() => setMapPickerOpen(false)}
+          onConfirmLocation={(data) => {
+            saveLocationForUser(data.address || data.landmark, data.lat, data.lng);
+            toast.success(`Doorstep pin set: ${data.landmark || "Custom location"}!`, { icon: "📍" });
+          }}
+        />
+      )}
 
       {/* REFER & EARN MODAL */}
-      <ReferralModal
-        open={referralModalOpen}
-        onClose={() => setReferralModalOpen(false)}
-        userProfile={userProfile}
-      />
+      {referralModalOpen && (
+        <ReferralModal
+          open={referralModalOpen}
+          onClose={() => setReferralModalOpen(false)}
+          userProfile={userProfile}
+        />
+      )}
     </div>
   );
 }

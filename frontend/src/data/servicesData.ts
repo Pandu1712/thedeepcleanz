@@ -33,8 +33,42 @@ import {
   Wrench,
   Clock,
   BadgeCheck,
+  Car,
+  Utensils,
 } from "lucide-react";
 import type { AdminCatalog, ServicePlan } from "@/api/admin-api";
+
+export const CAT_STORAGE_KEY = "thedeepcleanerz_categories_v1";
+
+export function getCategoryIcon(id: string) {
+  const norm = (id || "").toLowerCase();
+  const words = norm.split(/[\s\-_]+/);
+  const hasWord = (w: string) => words.includes(w);
+
+  if (hasWord("car") || norm.includes("car wash")) return Car;
+  if (norm.includes("kitchen") || norm.includes("cook")) return ChefHat;
+  if (
+    norm.includes("washroom") ||
+    norm.includes("bath") ||
+    norm.includes("toilet") ||
+    norm.includes("restroom")
+  )
+    return Bath;
+  if (norm.includes("commercial") || norm.includes("office") || norm.includes("building"))
+    return Building2;
+  if (
+    norm.includes("sofa") ||
+    norm.includes("upholstery") ||
+    norm.includes("furniture") ||
+    norm.includes("chair") ||
+    norm.includes("custom") ||
+    norm.includes("package")
+  )
+    return Sofa;
+  if (norm.includes("makhana") || norm.includes("food") || norm.includes("snack")) return Utensils;
+  if (norm.includes("house") || norm.includes("home")) return HomeIcon;
+  return Sparkles;
+}
 
 export interface CartItem {
   id: string;
@@ -1171,14 +1205,7 @@ export function mergeAdminCatalog(catalog?: AdminCatalog | null): Category[] {
     };
   });
 
-  const resultCats: Category[] = [...mapped];
-  DEFAULT_CATEGORIES.forEach((dc) => {
-    if (!resultCats.some((rc) => rc.id === dc.id)) {
-      resultCats.push(dc);
-    }
-  });
-
-  return resultCats.sort((a, b) => {
+  return mapped.sort((a, b) => {
     const order: Record<string, number> = {
       "full-house": 1,
       "customized": 2,

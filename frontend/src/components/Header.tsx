@@ -108,8 +108,9 @@ export default function Header({
     );
   }, [searchQuery, allServices]);
 
-  // Load user profile on mount & when storage changes
+  // Load user profile on mount & when auth state changes (pure read-only listener)
   useEffect(() => {
+    let lastLoadedState = "";
     const loadUser = () => {
       try {
         const email = sessionStorage.getItem("user_email") || localStorage.getItem("user_email");
@@ -121,26 +122,26 @@ export default function Header({
         const savedPhone = sessionStorage.getItem("user_phone") || localStorage.getItem("user_phone");
         const savedName = sessionStorage.getItem("user_name") || localStorage.getItem("user_name");
 
+        const stateSignature = `${email || ""}_${role || ""}_${profileStr || ""}_${isAuth}_${savedPhone || ""}_${savedName || ""}`;
+        if (stateSignature === lastLoadedState) return;
+        lastLoadedState = stateSignature;
+
         setUserEmail(email);
         setIsAdmin(role === "admin");
         if (profileStr) {
-          const parsed = JSON.parse(profileStr);
-          setUserProfile(parsed);
-          sessionStorage.setItem("user_authenticated", "true");
-          localStorage.setItem("user_authenticated", "true");
+          try {
+            setUserProfile(JSON.parse(profileStr));
+          } catch {
+            setUserProfile(null);
+          }
         } else if (isAuth && (email || savedPhone || savedName)) {
-          const fallbackProfile = {
+          setUserProfile({
             id: `usr_${savedPhone || "guest"}`,
             name: savedName || "Customer",
             phone: savedPhone || "",
             email: email || "",
             role: role || "user",
-          };
-          setUserProfile(fallbackProfile);
-          sessionStorage.setItem("user_authenticated", "true");
-          localStorage.setItem("user_authenticated", "true");
-          sessionStorage.setItem("user_profile", JSON.stringify(fallbackProfile));
-          localStorage.setItem("user_profile", JSON.stringify(fallbackProfile));
+          });
         } else {
           setUserProfile(null);
         }
@@ -150,11 +151,11 @@ export default function Header({
     };
 
     loadUser();
-    window.addEventListener("storage", loadUser);
     window.addEventListener("auth-state-change", loadUser);
+    window.addEventListener("storage", loadUser);
     return () => {
-      window.removeEventListener("storage", loadUser);
       window.removeEventListener("auth-state-change", loadUser);
+      window.removeEventListener("storage", loadUser);
     };
   }, []);
 

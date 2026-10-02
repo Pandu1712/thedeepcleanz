@@ -5,6 +5,7 @@ import { ArrowLeft, Lock } from "lucide-react";
 import { auth, isFirebaseConfigured } from "@/utils/firebase";
 import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
 import Header from "@/components/Header";
+import { fastReverseGeocode } from "@/utils/geocoding";
 import {
   ADMIN_API_URL,
   normalizeTimeSlot,
@@ -322,26 +323,11 @@ function CheckoutPage() {
         let detectedLandmark = "";
 
         try {
-          const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), 3000);
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
-            { signal: ctrl.signal },
-          );
-          clearTimeout(timer);
-          if (res.ok) {
-            const data = await res.json();
-            const addr = data.address || {};
-            if (addr.postcode) detectedPincode = addr.postcode.replace(/\D/g, "").slice(0, 6);
-            if (addr.city || addr.town || addr.county || addr.state_district) {
-              detectedCity = addr.city || addr.town || addr.county || addr.state_district || "Guntur";
-            }
-            const road = addr.road || addr.street || "";
-            const houseNo = addr.house_number || addr.building || "";
-            detectedStreet = [houseNo, road].filter(Boolean).join(", ");
-            const area = addr.suburb || addr.neighbourhood || addr.residential || "";
-            if (area) detectedLandmark = `${area}, ${detectedCity}`;
-          }
+          const geo = await fastReverseGeocode(latitude, longitude, 2500);
+          detectedStreet = geo.street;
+          detectedCity = geo.city || "Guntur";
+          detectedLandmark = geo.landmark || `${geo.street}, ${geo.city}`;
+          detectedPincode = geo.pincode || (detectedCity.toLowerCase().includes("guntur") ? "522002" : "");
         } catch (e) {}
 
         const finalAddress = detectedStreet || (detectedLandmark ? `Near ${detectedLandmark}` : "Current GPS Location");
