@@ -415,56 +415,75 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
             </div>
           </div>
 
-          {/* Change Password Section */}
-          {userProfile?.id && (
-            <div className="pt-2 border-t border-[#cb9f5a]/10 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-black text-[#002a22] uppercase tracking-wider flex items-center gap-1.5">
-                  <span>🔐 Security Settings</span>
-                </h4>
+          {/* Security & Account Login Info */}
+          <div className="pt-2 border-t border-[#cb9f5a]/10 space-y-3 font-sans">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-black text-[#002a22] uppercase tracking-wider flex items-center gap-1.5">
+                <span>🔐 Security &amp; Access</span>
+              </h4>
+              {isAdmin && (
                 <button
                   onClick={() => setShowChangePasswordForm((v) => !v)}
                   className="text-[10px] text-[#cb9f5a] font-bold hover:underline flex items-center gap-1 cursor-pointer"
                 >
-                  {showChangePasswordForm ? "Cancel" : "Change Password"}
+                  {showChangePasswordForm ? "Cancel" : "Admin Password"}
                 </button>
-              </div>
-
-              {showChangePasswordForm && (
-                <form onSubmit={handleChangePassword} className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-3xs space-y-3">
-                  <div>
-                    <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Current Password</label>
-                    <input
-                      type="password"
-                      required
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-[#cb9f5a] transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">New Password</label>
-                    <input
-                      type="password"
-                      required
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Min 6 characters"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-[#cb9f5a] transition-all"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isUpdatingPassword}
-                    className="w-full text-center py-2.5 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-[#cb9f5a] hover:text-[#002a22] border border-[#cb9f5a]/30 text-xs font-black transition-all active:scale-[0.98] cursor-pointer"
-                  >
-                    {isUpdatingPassword ? "Updating..." : "Update Password"}
-                  </button>
-                </form>
               )}
             </div>
-          )}
+
+            <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-3.5 flex items-start gap-3">
+              <div className="h-8 w-8 rounded-xl bg-emerald-600/10 border border-emerald-600/20 flex items-center justify-center text-emerald-700 font-bold shrink-0">
+                📱
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-extrabold text-[#002a22]">
+                    {userProfile?.phone ? `+91 ${userProfile.phone}` : "Mobile OTP Login"}
+                  </span>
+                  <span className="text-[9px] font-bold uppercase bg-emerald-600 text-white px-1.5 py-0.2 rounded-md">
+                    Verified
+                  </span>
+                </div>
+                <p className="text-[10px] text-emerald-800 font-medium mt-0.5 leading-snug">
+                  Fast, secure 1-click login enabled via carrier SMS OTP. No passwords required.
+                </p>
+              </div>
+            </div>
+
+            {isAdmin && showChangePasswordForm && (
+              <form onSubmit={handleChangePassword} className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-3xs space-y-3">
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Current Admin Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-[#cb9f5a] transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">New Admin Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Min 6 characters"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-[#cb9f5a] transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isUpdatingPassword}
+                  className="w-full text-center py-2.5 rounded-xl bg-[#002a22] hover:bg-[#cb9f5a] text-[#cb9f5a] hover:text-[#002a22] border border-[#cb9f5a]/30 text-xs font-black transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  {isUpdatingPassword ? "Updating..." : "Update Admin Password"}
+                </button>
+              </form>
+            )}
+          </div>
         </div>
 
         {/* Drawer Footer */}
