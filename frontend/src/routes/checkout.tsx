@@ -368,6 +368,7 @@ function CheckoutPage() {
   const validateForm = () => {
     const cleanName = name.trim();
     const cleanPhone = phone.replace(/\D/g, "");
+    const cleanEmail = email.trim();
 
     if (!cleanName || cleanName.length < 2) {
       toast.error("Please enter your full name (minimum 2 letters)");
@@ -375,6 +376,11 @@ function CheckoutPage() {
     }
     if (cleanPhone.length !== 10 || !/^[6-9]/.test(cleanPhone)) {
       toast.error("Please enter a valid 10-digit Indian mobile number");
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      toast.error("Please enter a valid email address to receive your official GST Tax Invoice & Booking Confirmation");
       return false;
     }
     if (!address.trim()) {
@@ -815,15 +821,19 @@ function CheckoutPage() {
 
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                  Email Address (For Confirmation &amp; Invoice)
+                  Email Address (For Tax Invoice &amp; Booking Confirmation) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
-                  placeholder="e.g. yourname@gmail.com"
+                  required
+                  placeholder="e.g. name@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-[#F8FAF9] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#002A22] outline-none focus:border-emerald-600"
                 />
+                <p className="text-[10px] text-emerald-800/90 font-medium mt-1">
+                  ✓ Official GST Tax Invoice &amp; booking receipt will be dispatched to this email immediately from our admin mailbox.
+                </p>
               </div>
             </div>
 
