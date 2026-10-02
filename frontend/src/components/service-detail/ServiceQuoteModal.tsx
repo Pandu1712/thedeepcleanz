@@ -21,6 +21,7 @@ import { type Service } from "@/data/servicesData";
 import { type ServicePlan, postAdminBooking, STANDARD_TIME_SLOTS, getFirstAvailableSlot, areAllSlotsPassedToday } from "@/api/admin-api";
 import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { auth, isFirebaseConfigured } from "@/utils/firebase";
+import { fastReverseGeocode } from "@/utils/geocoding";
 
 interface ServiceQuoteModalProps {
   open: boolean;
@@ -41,6 +42,7 @@ export const ServiceQuoteModal: React.FC<ServiceQuoteModalProps> = ({
   const [quotePhone, setQuotePhone] = useState("");
   const [quoteEmail, setQuoteEmail] = useState("");
   const [quoteAddress, setQuoteAddress] = useState("");
+  const [isLocating, setIsLocating] = useState(false);
   const [spaceType, setSpaceType] = useState("Corporate Office");
   const [spaceSize, setSpaceSize] = useState("");
   const [quoteDate, setQuoteDate] = useState(() => {
@@ -61,6 +63,52 @@ export const ServiceQuoteModal: React.FC<ServiceQuoteModalProps> = ({
   const [otpSending, setOtpSending] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<any>(null);
 
+  // Fast GPS Geolocation Auto-Detection
+  const handleDetectGps = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+    setIsLocating(true);
+    const toastId = toast.loading("Detecting your exact GPS location...", { icon: "📍" });
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        let detectedStreet = "";
+        let detectedCity = "Guntur";
+        let detectedLandmark = "";
+        let detectedPincode = "";
+
+        try {
+          const geo = await fastReverseGeocode(latitude, longitude, 2500);
+          detectedStreet = geo.street;
+          detectedCity = geo.city || "Guntur";
+          detectedLandmark = geo.landmark || `${geo.street}, ${geo.city}`;
+          detectedPincode = geo.pincode || (detectedCity.toLowerCase().includes("guntur") ? "522002" : "");
+        } catch (e) {}
+
+        const finalAddr = detectedStreet || (detectedLandmark ? `Near ${detectedLandmark}, ${detectedCity} ${detectedPincode}`.trim() : `Current Location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`);
+        
+        setQuoteAddress(finalAddr);
+        try {
+          sessionStorage.setItem("user_location_address", finalAddr);
+          localStorage.setItem("user_location_address", finalAddr);
+        } catch (e) {}
+
+        toast.success("GPS Location auto-detected!", { id: toastId, icon: "📍" });
+        setIsLocating(false);
+      },
+      (err) => {
+        let msg = "Could not retrieve GPS coordinates.";
+        if (err.code === 1) msg = "Location permission denied. Please enter address manually.";
+        toast.error(msg, { id: toastId });
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
+    );
+  };
+
   // Auto-populate logged-in user profile
   useEffect(() => {
     if (open) {
@@ -76,9 +124,10 @@ export const ServiceQuoteModal: React.FC<ServiceQuoteModalProps> = ({
         }
         const savedAddr = sessionStorage.getItem("user_location_address") || localStorage.getItem("user_location_address");
         if (savedAddr) setQuoteAddress(savedAddr);
+        else if (userLocation && userLocation !== "Guntur, Andhra Pradesh") setQuoteAddress(userLocation);
       } catch (e) {}
     }
-  }, [open]);
+  }, [open, userLocation]);
 
   if (!open) return null;
 
@@ -492,18 +541,41 @@ export const ServiceQuoteModal: React.FC<ServiceQuoteModalProps> = ({
                 </div>
               </div>
 
-              {/* Row 4: Commercial Address */}
+              {/* Row 4: Commercial Address with 1-Click GPS Auto-detect */}
               <div>
-                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-600 mb-1">
-                  Facility Address / Landmark
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 4th Floor, Tech Park, Arundelpet, Guntur"
-                  value={quoteAddress}
-                  onChange={(e) => setQuoteAddress(e.target.value)}
-                  className="w-full bg-[#F8FAF9] border border-slate-200 focus:border-[#007A48] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none transition-all"
-                />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-600">
+                    Facility Address / Landmark
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleDetectGps}
+                    disabled={isLocating}
+                    className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-[#007A48] hover:text-[#005B36] bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/90 px-2.5 py-1 rounded-full transition-all cursor-pointer shadow-3xs active:scale-95 disabled:opacity-50"
+                  >
+                    {isLocating ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin text-[#007A48]" />
+                        <span>Detecting GPS...</span>
+                      </>
+                    ) : (
+                      <>
+                        <MapPin className="h-3 w-3 text-[#007A48]" />
+                        <span>📍 Auto-Detect via GPS</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="e.g. 4th Floor, Tech Park, Arundelpet, Guntur"
+                    value={quoteAddress}
+                    onChange={(e) => setQuoteAddress(e.target.value)}
+                    className="w-full bg-[#F8FAF9] border border-slate-200 focus:border-[#007A48] focus:bg-white rounded-xl pl-9 pr-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none transition-all"
+                  />
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-600 pointer-events-none" />
+                </div>
               </div>
 
               {/* Row 5: Notes & Special Inclusions */}
