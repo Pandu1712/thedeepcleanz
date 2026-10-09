@@ -42,6 +42,15 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
   const [newPassword, setNewPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
+  React.useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const handleSaveAddress = async () => {
@@ -204,12 +213,12 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
     <>
       {/* Dark overlay backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-[#033B2E]/60 backdrop-blur-xs transition-opacity duration-300"
+        className="fixed inset-0 z-50 bg-[#033B2E]/60 backdrop-blur-xs transition-opacity duration-300 pointer-events-auto cursor-pointer"
         onClick={onClose}
       />
 
       {/* Drawer Container */}
-      <div className="fixed right-0 top-0 bottom-0 w-full max-w-sm sm:max-w-md bg-[#F9F7F2] border-l border-[#C89B3C]/30 shadow-2xl z-55 flex flex-col animate-in slide-in-from-right duration-250 font-sans text-slate-700">
+      <div className="fixed right-0 top-0 bottom-0 w-full max-w-sm sm:max-w-md bg-[#F9F7F2] border-l border-[#C89B3C]/30 shadow-2xl z-55 flex flex-col animate-in slide-in-from-right duration-250 font-sans text-slate-700 pointer-events-auto">
         {/* Drawer Header */}
         <div className="p-5 border-b border-[#C89B3C]/20 bg-white flex items-center justify-between">
           <div>

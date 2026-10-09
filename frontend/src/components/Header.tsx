@@ -460,7 +460,7 @@ export default function Header({
       {!hideMobileNav && (
         <nav
           aria-label="Mobile Bottom Navigation"
-          className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom,0px),16px)]"
+          className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 pt-1.5 pb-[max(env(safe-area-inset-bottom,0px),16px)] pointer-events-auto"
         >
           <div className="flex items-center justify-around max-w-md mx-auto">
             <Link

@@ -44,7 +44,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
   if (!navOpen) return null;
 
   return (
-    <div className="border-t border-[#e6dfd3] bg-[#F9F7F2] px-5 pb-5 lg:hidden">
+    <div className="border-t border-[#e6dfd3] bg-[#F9F7F2] px-5 pb-5 lg:hidden pointer-events-auto">
       {/* Mobile Search Bar */}
       <div className="relative font-sans mt-4">
         <div className="relative flex items-center bg-white border border-[#C89B3C]/30 rounded-2xl px-3.5 py-2.5 shadow-3xs">

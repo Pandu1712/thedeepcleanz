@@ -26,7 +26,7 @@ export const HeaderSearchOverlay: React.FC<HeaderSearchOverlayProps> = ({
   if (!searchExpanded) return null;
 
   return (
-    <div className="border-t border-slate-100 bg-white/98 px-4 sm:px-6 lg:px-8 py-3 shadow-md animate-in slide-in-from-top-2 duration-200">
+    <div className="border-t border-slate-100 bg-white/98 px-4 sm:px-6 lg:px-8 py-3 shadow-md animate-in slide-in-from-top-2 duration-200 pointer-events-auto">
       <div className="mx-auto max-w-[1400px] flex items-center gap-3">
         <div className="relative flex-1 flex items-center bg-[#F9FAF8] border border-slate-200 focus-within:border-[#007A48] focus-within:bg-white rounded-full px-4 py-2 transition-all">
           <Search className="h-4 w-4 text-[#007A48] mr-2.5 shrink-0" />
