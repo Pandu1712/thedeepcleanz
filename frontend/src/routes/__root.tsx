@@ -438,9 +438,17 @@ function RootComponent() {
       window.addEventListener("online", handleOnlineStatus);
       window.addEventListener("offline", handleOfflineStatus);
 
-      // Register Custom Service Worker with Instant Update
+      // Auto-reload once when a new Service Worker takes control
+      let refreshing = false;
       if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
+        });
+
+        const registerSw = () => {
           navigator.serviceWorker
             .register("/sw.js")
             .then((reg) => {
@@ -464,7 +472,12 @@ function RootComponent() {
             .catch((err) => {
               console.error("Service Worker registration failed:", err);
             });
-        });
+        };
+        if (document.readyState === "complete") {
+          registerSw();
+        } else {
+          window.addEventListener("load", registerSw);
+        }
       }
 
       return () => {
