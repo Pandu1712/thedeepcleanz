@@ -95,50 +95,126 @@ app.use((req, res, next) => {
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "..", "views"));
 
+// Resolve the active static public directory (supports both local and Hostinger production layouts)
+const candidatePublicDirs = [
+  path.join(__dirname, "../public"),
+  path.join(process.cwd(), "backend", "public"),
+  path.join(process.cwd(), "public"),
+  path.join(__dirname, "../../backend/public"),
+  path.join(__dirname, "../../frontend/dist/client"),
+];
+
+const resolvedPublicDir = candidatePublicDirs.find((dir) =>
+  fs.existsSync(path.join(dir, "index.html"))
+) || path.join(__dirname, "../public");
+
+console.log("[server.js] Resolved static public directory:", resolvedPublicDir);
+
 // Dedicated Service Worker route: Ensure sw.js is NEVER cached and always served with latest version
 app.get("/sw.js", (req, res) => {
   res.setHeader("Content-Type", "application/javascript; charset=utf-8");
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
-  const swPath = path.join(__dirname, "../public/sw.js");
-  res.sendFile(swPath);
+  for (const dir of candidatePublicDirs) {
+    const swFile = path.join(dir, "sw.js");
+    if (fs.existsSync(swFile)) {
+      return res.sendFile(swFile);
+    }
+  }
+  res.status(404).send("// sw.js not found");
 });
 
-// Serve production static assets from backend/public (which is tracked in Git)
-app.use(express.static(path.join(__dirname, "..", "public"), {
-  maxAge: "1d",
-  etag: true,
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith(".html") || filePath.endsWith("sw.js") || filePath.endsWith("manifest.json")) {
-      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-      res.setHeader("Pragma", "no-cache");
-      res.setHeader("Expires", "0");
-    } else if (filePath.includes("/assets/")) {
-      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+// Dedicated Web App Manifest route
+app.get(["/manifest.json", "/manifest.webmanifest"], (req, res) => {
+  res.setHeader("Content-Type", "application/manifest+json; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  for (const dir of candidatePublicDirs) {
+    const mfFile = path.join(dir, "manifest.json");
+    if (fs.existsSync(mfFile)) {
+      return res.sendFile(mfFile);
     }
-  },
-}));
+  }
+  res.status(404).send("{}");
+});
 
 // Smart Stylesheet Fallback:
 // If an incoming request asks for /assets/styles-*.css and the exact hash is not on disk (e.g. after a rebuild),
 // seamlessly serve the active compiled styles-*.css file so clients NEVER experience unstyled HTML or 404s!
 app.get("/assets/styles-*.css", (req, res, next) => {
-  const assetsDir = path.join(__dirname, "../public/assets");
-  const exactFile = path.join(assetsDir, path.basename(req.path));
-  if (fs.existsSync(exactFile)) {
-    return next();
-  }
-  if (fs.existsSync(assetsDir)) {
-    const files = fs.readdirSync(assetsDir);
-    const cssFile = files.find((f) => f.startsWith("styles-") && f.endsWith(".css"));
-    if (cssFile) {
-      res.setHeader("Content-Type", "text/css; charset=utf-8");
-      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-      return res.sendFile(path.join(assetsDir, cssFile));
+  for (const dir of candidatePublicDirs) {
+    const assetsDir = path.join(dir, "assets");
+    const exactFile = path.join(assetsDir, path.basename(req.path));
+    if (fs.existsSync(exactFile)) return res.sendFile(exactFile);
+    if (fs.existsSync(assetsDir)) {
+      const files = fs.readdirSync(assetsDir);
+      const cssFile = files.find((f) => f.startsWith("styles-") && f.endsWith(".css"));
+      if (cssFile) {
+        res.setHeader("Content-Type", "text/css; charset=utf-8");
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        return res.sendFile(path.join(assetsDir, cssFile));
+      }
     }
   }
   next();
+});
+
+// Smart JS Chunk Fallback:
+// If an incoming request asks for /assets/index-*.js or /assets/checkout-*.js with a previous hash,
+// seamlessly serve the active compiled file so the user NEVER gets a 503 or blank white screen!
+app.get("/assets/index-*.js", (req, res, next) => {
+  for (const dir of candidatePublicDirs) {
+    const assetsDir = path.join(dir, "assets");
+    const exactFile = path.join(assetsDir, path.basename(req.path));
+    if (fs.existsSync(exactFile)) return res.sendFile(exactFile);
+    if (fs.existsSync(assetsDir)) {
+      const files = fs.readdirSync(assetsDir);
+      const jsFile = files.find((f) => f.startsWith("index-") && f.endsWith(".js"));
+      if (jsFile) {
+        res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        return res.sendFile(path.join(assetsDir, jsFile));
+      }
+    }
+  }
+  next();
+});
+
+app.get("/assets/checkout-*.js", (req, res, next) => {
+  for (const dir of candidatePublicDirs) {
+    const assetsDir = path.join(dir, "assets");
+    const exactFile = path.join(assetsDir, path.basename(req.path));
+    if (fs.existsSync(exactFile)) return res.sendFile(exactFile);
+    if (fs.existsSync(assetsDir)) {
+      const files = fs.readdirSync(assetsDir);
+      const jsFile = files.find((f) => f.startsWith("checkout-") && f.endsWith(".js"));
+      if (jsFile) {
+        res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        return res.sendFile(path.join(assetsDir, jsFile));
+      }
+    }
+  }
+  next();
+});
+
+// Serve static assets from candidate directories
+candidatePublicDirs.forEach((dir) => {
+  if (fs.existsSync(dir)) {
+    app.use(express.static(dir, {
+      maxAge: "1d",
+      etag: true,
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith(".html") || filePath.endsWith("sw.js") || filePath.endsWith("manifest.json")) {
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+          res.setHeader("Pragma", "no-cache");
+          res.setHeader("Expires", "0");
+        } else if (filePath.includes("/assets/")) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
+    }));
+  }
 });
 
 // Google Search Console Ownership Verification Route
@@ -2893,23 +2969,39 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-// Fallback all non-API, non-admin routes directly to the production Client SPA index.html
+// Fallback all non-API, non-admin HTML routes directly to the production Client SPA index.html
 app.all("*", (req, res, next) => {
-  if (req.path.startsWith("/api") || req.path.startsWith("/admin") || req.path.startsWith("/technician")) {
+  if (
+    req.path.startsWith("/api") ||
+    req.path.startsWith("/admin") ||
+    req.path.startsWith("/technician")
+  ) {
     return next();
   }
 
-  const clientIndexPath = path.join(
-    __dirname,
-    "../public/index.html",
-  );
+  // Never return index.html or 503 for static asset requests that were not found
+  if (
+    req.path.startsWith("/assets/") ||
+    req.path.endsWith(".js") ||
+    req.path.endsWith(".css") ||
+    req.path.endsWith(".json") ||
+    req.path.endsWith(".png") ||
+    req.path.endsWith(".jpg") ||
+    req.path.endsWith(".svg") ||
+    req.path.endsWith(".ico")
+  ) {
+    return res.status(404).send("Asset Not Found");
+  }
 
-  if (fs.existsSync(clientIndexPath)) {
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    res.setHeader("Pragma", "no-cache");
-    res.setHeader("Expires", "0");
-    return res.sendFile(clientIndexPath);
+  for (const dir of candidatePublicDirs) {
+    const clientIndexPath = path.join(dir, "index.html");
+    if (fs.existsSync(clientIndexPath)) {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+      return res.sendFile(clientIndexPath);
+    }
   }
 
   return res
