@@ -94,6 +94,19 @@ app.use((req, res, next) => {
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "..", "views"));
+
+// Dedicated Service Worker route: Ensure sw.js is NEVER cached and always served with latest version
+app.get("/sw.js", (req, res) => {
+  res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  const swPath = fs.existsSync(path.join(__dirname, "../../frontend/dist/client/sw.js"))
+    ? path.join(__dirname, "../../frontend/dist/client/sw.js")
+    : path.join(__dirname, "../public/sw.js");
+  res.sendFile(swPath);
+});
+
 app.use(express.static(path.join(__dirname, "..", "public"), {
   maxAge: "1d",
   etag: true,
@@ -668,6 +681,15 @@ app.post("/api/bookings", async (req, res) => {
         return res.status(400).json({
           error: `The slot (${bookingTime} on ${bookingDate}) is already booked by another customer. Only 1 booking is allowed per slot. Please choose another time slot.`,
         });
+      }
+    }
+
+    // Idempotency: If this exact paymentId has already been recorded, return existing booking
+    if (paymentId) {
+      const allExisting = await db.getBookings();
+      const existingBooking = (allExisting || []).find((b) => b.paymentId === paymentId);
+      if (existingBooking) {
+        return res.status(200).json(existingBooking);
       }
     }
 

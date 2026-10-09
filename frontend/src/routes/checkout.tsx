@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -16,6 +16,7 @@ import {
   X,
   Sparkles,
   ShoppingBag,
+  AlertCircle,
 } from "lucide-react";
 import Header from "@/components/Header";
 import { auth, isFirebaseConfigured } from "@/utils/firebase";
@@ -131,6 +132,7 @@ function CheckoutPage() {
 
   // Payment & Booking submission
   const [isProcessing, setIsProcessing] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // 1. Initial Load (Read LocalStorage & SessionStorage once on mount)
   useEffect(() => {
@@ -226,12 +228,13 @@ function CheckoutPage() {
       .then((res) => {
         if (!active) return;
         setBookedSlotsInfo(res);
+        const normSlots = Array.isArray(res?.normalizedSlots) ? res.normalizedSlots : [];
         const currentNorm = normalizeTimeSlot(selectedSlot);
-        const isBooked = res.normalizedSlots.includes(currentNorm);
+        const isBooked = normSlots.includes(currentNorm);
         const isPast = isSlotInPast(selectedSlot, selectedDate, 30);
 
         if (isBooked || isPast || !selectedSlot) {
-          const firstFree = getFirstAvailableSlot(selectedDate, res.normalizedSlots, 30);
+          const firstFree = getFirstAvailableSlot(selectedDate, normSlots, 30);
           setSelectedSlot(firstFree || "");
         }
       })
@@ -247,9 +250,9 @@ function CheckoutPage() {
   // Computed slot availability & validation states
   const isSelectedDateHoliday = !!blockedDates.find((b) => b.date === selectedDate);
   const isSelectedSlotPast = !selectedSlot || isSlotInPast(selectedSlot, selectedDate, 15);
-  const isSelectedSlotBooked = !selectedSlot || bookedSlotsInfo.normalizedSlots.includes(normalizeTimeSlot(selectedSlot));
+  const isSelectedSlotBooked = !selectedSlot || (bookedSlotsInfo?.normalizedSlots || []).includes(normalizeTimeSlot(selectedSlot));
   const areAllSlotsFull = STANDARD_TIME_SLOTS.every((s) => {
-    return isSlotInPast(s, selectedDate, 30) || bookedSlotsInfo.normalizedSlots.includes(normalizeTimeSlot(s));
+    return isSlotInPast(s, selectedDate, 30) || (bookedSlotsInfo?.normalizedSlots || []).includes(normalizeTimeSlot(s));
   });
   const isSlotUnavailable = !selectedSlot || isSelectedSlotPast || isSelectedSlotBooked || isSelectedDateHoliday || areAllSlotsFull;
 
@@ -295,54 +298,60 @@ function CheckoutPage() {
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const coordsStr = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-        const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
-
-        let detectedStreet = "";
-        let detectedPincode = "";
-        let detectedCity = "Guntur";
-        let detectedLandmark = "";
-
         try {
-          const geo = await fastReverseGeocode(latitude, longitude, 2500);
-          detectedStreet = geo.street;
-          detectedCity = geo.city || "Guntur";
-          detectedLandmark = geo.landmark || `${geo.street}, ${geo.city}`;
-          detectedPincode = geo.pincode || (detectedCity.toLowerCase().includes("guntur") ? "522002" : "");
-        } catch (e) {}
+          const { latitude, longitude } = pos.coords;
+          const coordsStr = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
 
-        const finalAddr = detectedStreet || (detectedLandmark ? `Near ${detectedLandmark}` : "Current GPS Location");
-        const finalPin = detectedPincode || (detectedCity.toLowerCase().includes("guntur") ? "522002" : "");
+          let detectedStreet = "";
+          let detectedPincode = "";
+          let detectedCity = "Guntur";
+          let detectedLandmark = "";
 
-        setAddress(finalAddr);
-        setLandmark(detectedLandmark);
-        setCity(detectedCity);
-        setPincode(finalPin);
-        setGpsCoords(coordsStr);
-        setMapsLink(mapsUrl);
+          try {
+            const geo = await fastReverseGeocode(latitude, longitude, 2500);
+            detectedStreet = geo.street;
+            detectedCity = geo.city || "Guntur";
+            detectedLandmark = geo.landmark || `${geo.street}, ${geo.city}`;
+            detectedPincode = geo.pincode || (detectedCity.toLowerCase().includes("guntur") ? "522002" : "");
+          } catch (e) {}
 
-        const newAddr: SavedAddress = {
-          id: `addr-gps-${Date.now()}`,
-          type: "Current Location",
-          address: finalAddr,
-          landmark: detectedLandmark,
-          city: detectedCity,
-          pincode: finalPin,
-          gpsCoords: coordsStr,
-          mapsLink: mapsUrl,
-          isDefault: true,
-        };
+          const finalAddr = detectedStreet || (detectedLandmark ? `Near ${detectedLandmark}` : "Current GPS Location");
+          const finalPin = detectedPincode || (detectedCity.toLowerCase().includes("guntur") ? "522002" : "");
 
-        const updated = [newAddr, ...savedAddresses.filter((a) => a.type !== "Current Location")];
-        setSavedAddresses(updated);
-        try {
-          localStorage.setItem("thedeepcleanz_saved_addresses", JSON.stringify(updated));
-        } catch (e) {}
+          setAddress(finalAddr);
+          setLandmark(detectedLandmark);
+          setCity(detectedCity);
+          setPincode(finalPin);
+          setGpsCoords(coordsStr);
+          setMapsLink(mapsUrl);
 
-        setShowManualAddress(false);
-        toast.success("GPS Location auto-detected!", { id: toastId, icon: "📍" });
-        setIsLocating(false);
+          const newAddr: SavedAddress = {
+            id: `addr-gps-${Date.now()}`,
+            type: "Current Location",
+            address: finalAddr,
+            landmark: detectedLandmark,
+            city: detectedCity,
+            pincode: finalPin,
+            gpsCoords: coordsStr,
+            mapsLink: mapsUrl,
+            isDefault: true,
+          };
+
+          const updated = [newAddr, ...savedAddresses.filter((a) => a.type !== "Current Location")];
+          setSavedAddresses(updated);
+          try {
+            localStorage.setItem("thedeepcleanz_saved_addresses", JSON.stringify(updated));
+          } catch (e) {}
+
+          setShowManualAddress(false);
+          toast.success("GPS Location auto-detected!", { id: toastId, icon: "📍" });
+        } catch (gpsResErr) {
+          console.warn("GPS resolution error:", gpsResErr);
+          toast.error("Could not parse location coordinates. Please enter manually.", { id: toastId });
+        } finally {
+          setIsLocating(false);
+        }
       },
       (err) => {
         let msg = "Could not retrieve GPS coordinates.";
@@ -421,7 +430,7 @@ function CheckoutPage() {
       return false;
     }
     const currentNorm = normalizeTimeSlot(selectedSlot);
-    if (bookedSlotsInfo.normalizedSlots.includes(currentNorm)) {
+    if ((bookedSlotsInfo?.normalizedSlots || []).includes(currentNorm)) {
       toast.error(`The slot (${selectedSlot} on ${selectedDate}) is already booked by another customer. Please select an available slot.`);
       return false;
     }
@@ -578,6 +587,7 @@ function CheckoutPage() {
 
   // Main Booking Trigger (Initiates OTP if needed, or Payment)
   const handleInitiateBooking = async () => {
+    if (isSubmittingRef.current || isProcessing) return;
     if (!validateForm()) return;
 
     const cleanPhone = phone.replace(/\D/g, "");
@@ -595,8 +605,10 @@ function CheckoutPage() {
 
   // Execute Razorpay Payment & Save Booking
   const executePaymentAndBooking = async (userProfileOverride?: any) => {
+    if (isSubmittingRef.current || isProcessing) return;
     if (!validateForm()) return;
 
+    isSubmittingRef.current = true;
     setIsProcessing(true);
 
     // ⚡ REAL-TIME LIVE PRE-PAYMENT SLOT VERIFICATION:
@@ -605,10 +617,11 @@ function CheckoutPage() {
       const liveCheck = await fetchBookedSlots(selectedDate);
       setBookedSlotsInfo(liveCheck);
       const currentNorm = normalizeTimeSlot(selectedSlot);
-      if (liveCheck.normalizedSlots.includes(currentNorm)) {
+      if ((liveCheck?.normalizedSlots || []).includes(currentNorm)) {
         toast.error(`⚠️ Slot conflict: (${selectedSlot} on ${selectedDate}) was just booked by another customer. Payment not charged. Please choose another available slot.`);
-        const nextFree = getFirstAvailableSlot(selectedDate, liveCheck.normalizedSlots, 30);
+        const nextFree = getFirstAvailableSlot(selectedDate, liveCheck?.normalizedSlots || [], 30);
         setSelectedSlot(nextFree || "");
+        isSubmittingRef.current = false;
         setIsProcessing(false);
         return;
       }
@@ -642,6 +655,7 @@ function CheckoutPage() {
         const loaded = await loadRazorpayScript();
         if (!loaded) {
           toast.error("Failed to load payment gateway. Please check your internet connection.");
+          isSubmittingRef.current = false;
           setIsProcessing(false);
           return;
         }
@@ -682,6 +696,7 @@ function CheckoutPage() {
             } catch (err: any) {
               toast.error(err?.message || "Payment recorded. Contact support to confirm your slot.");
             } finally {
+              isSubmittingRef.current = false;
               setIsProcessing(false);
             }
           },
@@ -695,6 +710,7 @@ function CheckoutPage() {
           },
           modal: {
             ondismiss: function () {
+              isSubmittingRef.current = false;
               setIsProcessing(false);
             },
           },
@@ -704,11 +720,11 @@ function CheckoutPage() {
         rzp.open();
       } catch (err: any) {
         toast.error(err.message || "Could not launch payment gateway.");
+        isSubmittingRef.current = false;
         setIsProcessing(false);
       }
     } else {
       // Free Advance / Pay after Service
-      setIsProcessing(true);
       try {
         await postAdminBooking({
           customer: customerPayload,
@@ -736,6 +752,7 @@ function CheckoutPage() {
       } catch (err: any) {
         toast.error(err?.message || "Failed to confirm booking.");
       } finally {
+        isSubmittingRef.current = false;
         setIsProcessing(false);
       }
     }
@@ -762,8 +779,8 @@ function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAF9] text-[#1D2939] font-sans pt-24 sm:pt-28 pb-20 antialiased selection:bg-[#0B6B46] selection:text-white">
-      {/* Invisible container for Firebase Phone Authentication */}
-      <div id="recaptcha-container" className="invisible fixed bottom-0 left-0 pointer-events-none" />
+      {/* Invisible container for Firebase Phone Authentication (restricted dimensions so it never captures clicks) */}
+      <div id="recaptcha-container" className="invisible fixed bottom-0 left-0 w-0 h-0 overflow-hidden pointer-events-none -z-50" />
 
       <Header
         cartCount={cart.reduce((sum, i) => sum + (i.qty || 1), 0)}
@@ -1188,7 +1205,7 @@ function CheckoutPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                   {STANDARD_TIME_SLOTS.map((slot) => {
                     const isPast = isSlotInPast(slot, selectedDate, 30);
-                    const isBooked = bookedSlotsInfo.normalizedSlots.includes(normalizeTimeSlot(slot));
+                    const isBooked = (bookedSlotsInfo?.normalizedSlots || []).includes(normalizeTimeSlot(slot));
                     const isDisabled = isPast || isBooked;
                     const isSelected = selectedSlot === slot && !isDisabled;
 

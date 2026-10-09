@@ -25,6 +25,9 @@
     "nodemon": "^3.1.4"
   },
   "overrides": {
+    "proxy-addr": "^2.0.8",
+    "qs": "^6.16.0",
+    "braces": "^3.0.3",
     "brace-expansion": {
       "1": "^1.1.21",
       "2": "^2.1.7",
