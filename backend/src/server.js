@@ -101,21 +101,30 @@ app.get("/sw.js", (req, res) => {
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
-  const swPath = fs.existsSync(path.join(__dirname, "../../frontend/dist/client/sw.js"))
-    ? path.join(__dirname, "../../frontend/dist/client/sw.js")
-    : path.join(__dirname, "../public/sw.js");
+  const swPath = path.join(__dirname, "../public/sw.js");
   res.sendFile(swPath);
 });
 
+// Serve production static assets from backend/public (which is tracked in Git)
 app.use(express.static(path.join(__dirname, "..", "public"), {
   maxAge: "1d",
   etag: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith(".html") || filePath.endsWith("sw.js") || filePath.endsWith("manifest.json")) {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+    } else if (filePath.includes("/assets/")) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    }
+  },
 }));
+
 // Smart Stylesheet Fallback:
 // If an incoming request asks for /assets/styles-*.css and the exact hash is not on disk (e.g. after a rebuild),
 // seamlessly serve the active compiled styles-*.css file so clients NEVER experience unstyled HTML or 404s!
 app.get("/assets/styles-*.css", (req, res, next) => {
-  const assetsDir = path.join(__dirname, "../../frontend/dist/client/assets");
+  const assetsDir = path.join(__dirname, "../public/assets");
   const exactFile = path.join(assetsDir, path.basename(req.path));
   if (fs.existsSync(exactFile)) {
     return next();
@@ -131,20 +140,6 @@ app.get("/assets/styles-*.css", (req, res, next) => {
   }
   next();
 });
-
-app.use(express.static(path.join(__dirname, "../../frontend/dist/client"), {
-  maxAge: "7d",
-  etag: true,
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith(".html") || filePath.endsWith("sw.js") || filePath.endsWith("manifest.json")) {
-      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-      res.setHeader("Pragma", "no-cache");
-      res.setHeader("Expires", "0");
-    } else if (filePath.includes("/assets/")) {
-      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-    }
-  },
-}));
 
 // Google Search Console Ownership Verification Route
 app.get(["/google639a710a1902b697.html", "/google639a710a1902b697"], (req, res) => {
@@ -2880,32 +2875,6 @@ app.delete("/api/inquiries/:id", async (req, res) => {
   }
 });
 
-const urlHelper = require("url");
-// Load the TanStack Start server handler
-const frontendServerPath = path.join(
-  __dirname,
-  "../../frontend/dist/server/server.js",
-);
-let startHandler;
-
-async function loadFrontendHandler() {
-  if (fs.existsSync(frontendServerPath)) {
-    try {
-      const fileUrl = urlHelper.pathToFileURL(frontendServerPath).href;
-      const handlerModule = await import(fileUrl);
-      startHandler = handlerModule.default || handlerModule;
-      console.log("Successfully loaded TanStack Start server handler.");
-    } catch (err) {
-      console.error("Failed to load TanStack Start server handler:", err);
-    }
-  } else {
-    console.warn(
-      "TanStack Start server entry not found at:",
-      frontendServerPath,
-    );
-  }
-}
-
 // Global API 404 & Error Handler Middleware
 app.all("/api/*", (req, res) => {
   res.status(404).json({ ok: false, error: `API endpoint '${req.path}' not found` });
@@ -2924,89 +2893,33 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-// Fallback all non-API, non-admin routes to TanStack Start SSR or Client SPA
-app.all("*", async (req, res, next) => {
-  if (req.path.startsWith("/api")) {
+// Fallback all non-API, non-admin routes directly to the production Client SPA index.html
+app.all("*", (req, res, next) => {
+  if (req.path.startsWith("/api") || req.path.startsWith("/admin") || req.path.startsWith("/technician")) {
     return next();
   }
 
   const clientIndexPath = path.join(
     __dirname,
-    "../../frontend/dist/client/index.html",
+    "../public/index.html",
   );
 
-  if (!startHandler) {
-    if (fs.existsSync(clientIndexPath)) {
-      return res.sendFile(clientIndexPath);
-    }
-    return res
-      .status(503)
-      .send(
-        "Frontend is building or not loaded yet. Please refresh in a moment.",
-      );
+  if (fs.existsSync(clientIndexPath)) {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    return res.sendFile(clientIndexPath);
   }
 
-  try {
-    const protocol = req.protocol;
-    const host = req.get("host");
-    const url = `${protocol}://${host}${req.originalUrl}`;
-
-    const headers = new Headers();
-    for (const [key, value] of Object.entries(req.headers)) {
-      if (value) {
-        if (Array.isArray(value)) {
-          value.forEach((v) => headers.append(key, v));
-        } else {
-          headers.set(key, value);
-        }
-      }
-    }
-
-    const requestOptions = {
-      method: req.method,
-      headers,
-    };
-
-    if (req.method !== "GET" && req.method !== "HEAD" && req.body) {
-      requestOptions.body =
-        typeof req.body === "object" ? JSON.stringify(req.body) : req.body;
-    }
-
-    const webReq = new Request(url, requestOptions);
-    
-    // Race SSR against a 2500ms timeout to guarantee instant client response under load
-    const ssrTimeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("SSR Timeout (2500ms exceeded)")), 2500)
+  return res
+    .status(503)
+    .send(
+      "Frontend is building or not loaded yet. Please refresh in a moment.",
     );
-    const webRes = await Promise.race([
-      startHandler.fetch(webReq),
-      ssrTimeoutPromise,
-    ]);
-
-    // If SSR returned 404 or an error, fallback to client SPA index.html so client router can resolve
-    if (webRes.status === 404 && req.method === "GET" && fs.existsSync(clientIndexPath)) {
-      return res.sendFile(clientIndexPath);
-    }
-
-    res.status(webRes.status);
-
-    webRes.headers.forEach((value, key) => {
-      res.setHeader(key, value);
-    });
-
-    const bodyText = await webRes.text();
-    res.send(bodyText);
-  } catch (err) {
-    console.warn("SSR handler bypass (serving fast client SPA):", err.message || err);
-    if (fs.existsSync(clientIndexPath)) {
-      return res.sendFile(clientIndexPath);
-    }
-    res.status(500).send("SSR Render Error");
-  }
 });
 
 db.initDb().then(async () => {
-  await loadFrontendHandler();
   app.listen(PORT, () => {
     console.log(
       `\n  TheDeep CleanerZ Admin running → http://localhost:${PORT}\n  Login: ${process.env.ADMIN_USERNAME || "admin"} / admin123 (default)\n`,
