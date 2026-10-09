@@ -12,7 +12,7 @@
  * 6. Auto-purges all legacy caches (thedeepcleanz-static-v1, thedeepcleanz-api-v1, thedeepcleanz-api-v6, etc.) on activate.
  */
 
-const CACHE_NAME = "thedeepcleanz-v9";
+const CACHE_NAME = "thedeepcleanz-v10";
 
 // Install: Skip waiting immediately
 self.addEventListener("install", () => {

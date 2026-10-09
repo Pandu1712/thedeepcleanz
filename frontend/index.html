@@ -69,10 +69,14 @@
 
       gtag('config', 'G-KCXSZYY046');
 
-      // Auto-recover seamlessly when a dynamic chunk fails due to a live version update
+      // Auto-recover seamlessly when a dynamic chunk fails due to a live version update (max 1 reload per 60s)
       window.addEventListener('vite:preloadError', (event) => {
-        console.warn('New app version detected. Seamlessly refreshing...');
-        window.location.reload();
+        const last = parseInt(sessionStorage.getItem('vite_preload_retry') || '0', 10);
+        if (Date.now() - last > 60000) {
+          sessionStorage.setItem('vite_preload_retry', String(Date.now()));
+          console.warn('New app version detected. Seamlessly refreshing once...');
+          window.location.reload();
+        }
       });
     </script>
 

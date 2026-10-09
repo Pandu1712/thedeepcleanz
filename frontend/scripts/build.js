@@ -65,6 +65,14 @@ const jsFiles = assets.filter((f) => f.endsWith(".js"));
 console.log(`✓ dist/client/index.html ready (${(fs.statSync(indexHtmlPath).size / 1024).toFixed(1)} KB)`);
 console.log(`✓ CSS Bundles found (${cssFiles.length}):`, cssFiles.join(", "));
 console.log(`✓ JS Chunks found (${jsFiles.length})`);
+// 5. Sync into backend/public/ for production deployment
+const backendPublicDir = path.resolve("../backend/public");
+if (fs.existsSync(backendPublicDir)) {
+  console.log("\n[5/5] Syncing compiled assets into backend/public...");
+  copyDirRecursive(distClientDir, backendPublicDir);
+  console.log("✓ backend/public synchronized with latest client build!");
+}
+
 console.log("\n==========================================");
 console.log("  BUILD COMPLETED SUCCESSFULLY!");
 console.log("==========================================\n");
