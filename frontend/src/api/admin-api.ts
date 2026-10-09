@@ -204,11 +204,21 @@ export function getFirstAvailableSlot(
 
 export async function fetchBookedSlots(date: string, signal?: AbortSignal): Promise<BookedSlotsResponse> {
   if (!date) return { date: "", bookedSlots: [], normalizedSlots: [] };
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  
+  // Link external signal if provided
+  if (signal) {
+    if (signal.aborted) {
+      clearTimeout(timer);
+      return { date, bookedSlots: [], normalizedSlots: [] };
+    }
+    signal.addEventListener("abort", () => ctrl.abort(), { once: true });
+  }
+
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 3500);
     const res = await fetch(`${ADMIN_API_URL}/api/bookings/booked-slots?date=${encodeURIComponent(date)}`, {
-      signal: signal || ctrl.signal,
+      signal: ctrl.signal,
     });
     clearTimeout(timer);
     if (!res.ok) return { date, bookedSlots: [], normalizedSlots: [] };
@@ -218,8 +228,11 @@ export async function fetchBookedSlots(date: string, signal?: AbortSignal): Prom
       bookedSlots: Array.isArray(data.bookedSlots) ? data.bookedSlots : [],
       normalizedSlots: Array.isArray(data.normalizedSlots) ? data.normalizedSlots : [],
     };
-  } catch (err) {
-    console.warn("Failed to fetch booked slots:", err);
+  } catch (err: any) {
+    clearTimeout(timer);
+    if (err?.name !== "AbortError") {
+      console.warn("Failed to fetch booked slots:", err);
+    }
     return { date, bookedSlots: [], normalizedSlots: [] };
   }
 }
@@ -831,14 +844,25 @@ export interface BlockedDate {
 }
 
 export async function fetchBlockedDates(signal?: AbortSignal): Promise<BlockedDate[]> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  if (signal) {
+    if (signal.aborted) {
+      clearTimeout(timer);
+      return [];
+    }
+    signal.addEventListener("abort", () => ctrl.abort(), { once: true });
+  }
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 3500);
-    const res = await fetch(`${ADMIN_API_URL}/api/blocked-dates`, { signal: signal || ctrl.signal });
+    const res = await fetch(`${ADMIN_API_URL}/api/blocked-dates`, { signal: ctrl.signal });
     clearTimeout(timer);
     if (!res.ok) return [];
     return (await res.json()) as BlockedDate[];
-  } catch (err) {
+  } catch (err: any) {
+    clearTimeout(timer);
+    if (err?.name !== "AbortError") {
+      console.warn("Fetch blocked dates note:", err);
+    }
     return [];
   }
 }

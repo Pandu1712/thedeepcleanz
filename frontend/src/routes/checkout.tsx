@@ -88,6 +88,7 @@ function CheckoutPage() {
   // Form details
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const phoneInputRef = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [landmark, setLandmark] = useState("");
@@ -223,8 +224,9 @@ function CheckoutPage() {
   useEffect(() => {
     if (!selectedDate) return;
     let active = true;
+    const ctrl = new AbortController();
     setIsLoadingSlots(true);
-    fetchBookedSlots(selectedDate)
+    fetchBookedSlots(selectedDate, ctrl.signal)
       .then((res) => {
         if (!active) return;
         setBookedSlotsInfo(res);
@@ -244,13 +246,14 @@ function CheckoutPage() {
       });
     return () => {
       active = false;
+      ctrl.abort();
     };
   }, [selectedDate]);
 
   // Computed slot availability & validation states
   const isSelectedDateHoliday = !!blockedDates.find((b) => b.date === selectedDate);
-  const isSelectedSlotPast = !selectedSlot || isSlotInPast(selectedSlot, selectedDate, 15);
-  const isSelectedSlotBooked = !selectedSlot || (bookedSlotsInfo?.normalizedSlots || []).includes(normalizeTimeSlot(selectedSlot));
+  const isSelectedSlotPast = Boolean(selectedSlot && isSlotInPast(selectedSlot, selectedDate, 15));
+  const isSelectedSlotBooked = Boolean(selectedSlot && (bookedSlotsInfo?.normalizedSlots || []).includes(normalizeTimeSlot(selectedSlot)));
   const areAllSlotsFull = STANDARD_TIME_SLOTS.every((s) => {
     return isSlotInPast(s, selectedDate, 30) || (bookedSlotsInfo?.normalizedSlots || []).includes(normalizeTimeSlot(s));
   });
@@ -836,26 +839,37 @@ function CheckoutPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                  <label htmlFor="checkout-customer-name" className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1 cursor-pointer">
                     Full Name <span className="text-red-500">*</span>
                   </label>
                   <input
+                    id="checkout-customer-name"
+                    name="name"
                     type="text"
+                    autoComplete="name"
                     placeholder="Enter your name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-[#F8FAF9] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-[#002A22] outline-none focus:border-emerald-600"
+                    className="w-full bg-[#F8FAF9] border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[#002A22] outline-none focus:border-emerald-600 focus:bg-white transition-colors cursor-text"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                  <label htmlFor="checkout-customer-phone" className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1 cursor-pointer">
                     Mobile Number <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex items-center bg-[#F8FAF9] border border-slate-200 rounded-xl px-3 py-2.5 text-xs">
-                    <span className="font-bold text-slate-400 mr-1.5">+91</span>
+                  <div
+                    onClick={() => phoneInputRef.current?.focus()}
+                    className="flex items-center bg-[#F8FAF9] border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus-within:border-emerald-600 focus-within:bg-white cursor-text transition-colors"
+                  >
+                    <span className="font-bold text-slate-400 mr-1.5 select-none shrink-0">+91</span>
                     <input
+                      ref={phoneInputRef}
+                      id="checkout-customer-phone"
+                      name="phone"
                       type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
                       maxLength={10}
                       placeholder="10-digit mobile number"
                       value={phone}
@@ -868,25 +882,28 @@ function CheckoutPage() {
                           setOtpSent(false);
                         }
                       }}
-                      className="w-full bg-transparent font-bold text-[#002A22] outline-none"
+                      className="w-full bg-transparent font-bold text-[#002A22] outline-none cursor-text"
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                <label htmlFor="checkout-customer-email" className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1 cursor-pointer">
                   Email Address (For Tax Invoice &amp; Booking Confirmation) <span className="text-red-500">*</span>
                 </label>
                 <input
+                  id="checkout-customer-email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   required
                   placeholder="e.g. name@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-[#F8FAF9] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#002A22] outline-none focus:border-emerald-600"
+                  className="w-full bg-[#F8FAF9] border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-[#002A22] outline-none focus:border-emerald-600 focus:bg-white transition-colors cursor-text"
                 />
-                <p className="text-[10px] text-emerald-800/90 font-medium mt-1">
+                <p className="text-[10px] text-emerald-800/90 font-medium mt-1 select-none">
                   ✓ Official GST Tax Invoice &amp; booking receipt will be dispatched to this email immediately from our admin mailbox.
                 </p>
               </div>
@@ -1056,39 +1073,49 @@ function CheckoutPage() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                    <label htmlFor="checkout-address-door" className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1 cursor-pointer">
                       Flat / Door No. &amp; Building Name <span className="text-red-500">*</span>
                     </label>
                     <textarea
+                      id="checkout-address-door"
+                      name="address"
                       rows={2}
+                      autoComplete="street-address"
                       placeholder="e.g. Flat 302, Sri Sai Residency, 4th Cross..."
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:border-emerald-600 resize-none font-medium"
+                      className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-sm text-slate-800 outline-none focus:border-emerald-600 focus:bg-white resize-none font-medium cursor-text"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                      <label htmlFor="checkout-address-landmark" className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1 cursor-pointer">
                         Area / Landmark
                       </label>
                       <input
+                        id="checkout-address-landmark"
+                        name="landmark"
                         placeholder="e.g. Near Collectorate Office"
                         value={landmark}
                         onChange={(e) => setLandmark(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-600 font-medium"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-emerald-600 focus:bg-white font-medium cursor-text"
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                      <label htmlFor="checkout-address-pincode" className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1 cursor-pointer">
                         Pincode <span className="text-red-500">*</span>
                       </label>
                       <input
+                        id="checkout-address-pincode"
+                        name="pincode"
+                        inputMode="numeric"
+                        autoComplete="postal-code"
+                        maxLength={6}
                         placeholder="e.g. 522002"
                         value={pincode}
                         onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-600 font-medium"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-emerald-600 focus:bg-white font-medium cursor-text"
                       />
                     </div>
                   </div>

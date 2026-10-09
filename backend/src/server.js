@@ -597,14 +597,20 @@ app.get("/api/bookings/booked-slots", async (req, res) => {
     const allBookings = await db.getBookings();
     const activeForDate = (allBookings || []).filter((b) => {
       if (b.jobStatus === "Cancelled") return false;
-      const sched = typeof b.schedule === "string" ? JSON.parse(b.schedule) : b.schedule;
+      let sched = b.schedule;
+      if (typeof sched === "string") {
+        try { sched = JSON.parse(sched); } catch (e) { sched = null; }
+      }
       return sched && sched.date === date && sched.time;
     });
 
     const bookedSlots = activeForDate.map((b) => {
-      const sched = typeof b.schedule === "string" ? JSON.parse(b.schedule) : b.schedule;
-      return sched.time;
-    });
+      let sched = b.schedule;
+      if (typeof sched === "string") {
+        try { sched = JSON.parse(sched); } catch (e) { sched = null; }
+      }
+      return sched?.time;
+    }).filter(Boolean);
 
     const normalizedSlots = bookedSlots.map((t) => normalizeTimeSlot(t));
 

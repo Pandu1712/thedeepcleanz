@@ -657,4 +657,17 @@ input[type="number"] {
   color: #0f172a !important;
 }
 
+/* Form Input & Text Selection Guarantees */
+input, textarea, select {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure reCAPTCHA badge never overlays interactive screen areas */
+.grecaptcha-badge {
+  z-index: 10 !important;
+}
+
+
 
