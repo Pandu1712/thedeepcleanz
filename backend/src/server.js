@@ -428,6 +428,7 @@ function requireAuth(req, res, next) {
   if (req.user) return next();
   return res.status(401).json({ error: "Unauthorized: Login required." });
 }
+const authenticate = requireAuth;
 
 // Legacy EJS Auth routes commented out to allow TanStack Router frontend to handle /login
 // app.get('/login', (req, res) => {
