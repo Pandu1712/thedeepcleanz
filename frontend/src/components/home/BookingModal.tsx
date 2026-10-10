@@ -1279,6 +1279,8 @@ export const BookingModal = memo(function BookingModal({
     return executePaymentAndBooking(currentProfile);
   };
 
+  if (!open) return null;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/65 backdrop-blur-sm animate-fade-in"
