@@ -165,7 +165,7 @@ function LoginComponent() {
     let verified = false;
 
     // Firebase confirmation verification
-    if (confirmationResult && cleanOtp !== "123456" && cleanOtp !== "778899") {
+    if (confirmationResult) {
       try {
         await confirmationResult.confirm(cleanOtp);
         verified = true;
@@ -187,7 +187,7 @@ function LoginComponent() {
       });
 
       const data = await res.json().catch(() => null);
-      if (!res.ok && !verified && cleanOtp !== "123456" && cleanOtp !== "778899") {
+      if (!res.ok && !verified) {
         throw new Error(data?.error || "Incorrect or expired verification code.");
       }
 
@@ -198,6 +198,12 @@ function LoginComponent() {
         email: data?.user?.email || `${cleanPhone}@thedeepcleanerz.com`,
         role: "user",
       };
+
+      // Save auth token
+      if (data?.token) {
+        sessionStorage.setItem("auth_token", data.token);
+        localStorage.setItem("auth_token", data.token);
+      }
 
       // Save user session
       sessionStorage.setItem("user_authenticated", "true");
@@ -243,41 +249,6 @@ function LoginComponent() {
     setIsLoading(true);
     const normInput = staffEmail.trim().toLowerCase();
 
-    // Technician shortcut
-    const isTech =
-      normInput === "technician@thedeepcleanerz.com" ||
-      normInput === "tech" ||
-      normInput.includes("technician");
-
-    if (isTech && staffPassword === "tech123") {
-      sessionStorage.setItem("technician_authenticated", "true");
-      sessionStorage.setItem(
-        "technician_profile",
-        JSON.stringify({
-          id: "tech-1",
-          name: "Lead Technician",
-          email: normInput,
-          role: "technician",
-        }),
-      );
-      localStorage.setItem("technician_authenticated", "true");
-      localStorage.setItem(
-        "technician_profile",
-        JSON.stringify({
-          id: "tech-1",
-          name: "Lead Technician",
-          email: normInput,
-          role: "technician",
-        }),
-      );
-      window.dispatchEvent(new Event("auth-state-change"));
-      window.dispatchEvent(new Event("storage"));
-      toast.success("Welcome back! Staff Portal active.", { icon: "🛠️" });
-      navigate({ to: "/technician" });
-      setIsLoading(false);
-      return;
-    }
-
     // Backend Auth API for Admin / Staff
     try {
       const res = await fetch(`${ADMIN_API_URL}/api/auth/login`, {
@@ -289,11 +260,20 @@ function LoginComponent() {
       const data = await res.json().catch(() => null);
 
       if (res.ok && data) {
+        if (data.token) {
+          sessionStorage.setItem("auth_token", data.token);
+          localStorage.setItem("auth_token", data.token);
+        }
+
         if (data.role === "admin" && !data.requiresOtp) {
           sessionStorage.setItem("admin_authenticated", "true");
           sessionStorage.setItem("user_authenticated", "true");
           sessionStorage.setItem("user_email", data.email || data.user?.email || staffEmail);
           sessionStorage.setItem("user_role", "admin");
+          if (data.token) {
+            sessionStorage.setItem("admin_token", data.token);
+            localStorage.setItem("admin_token", data.token);
+          }
           const adminObj = data.user || { id: "admin-1", name: "Administrator", email: staffEmail, role: "admin" };
           sessionStorage.setItem("user_profile", JSON.stringify(adminObj));
 
@@ -323,6 +303,10 @@ function LoginComponent() {
           sessionStorage.setItem("technician_profile", JSON.stringify(data.user));
           localStorage.setItem("technician_authenticated", "true");
           localStorage.setItem("technician_profile", JSON.stringify(data.user));
+          if (data.token) {
+            sessionStorage.setItem("auth_token", data.token);
+            localStorage.setItem("auth_token", data.token);
+          }
           window.dispatchEvent(new Event("auth-state-change"));
           window.dispatchEvent(new Event("storage"));
           toast.success(`Welcome back, ${data.user.name}! Staff Portal active.`, { icon: "🛠️" });
@@ -353,22 +337,21 @@ function LoginComponent() {
 
     setIsLoading(true);
     try {
-      let verified = false;
-      try {
-        const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/verify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: adminOtpEmail, otp: cleanOtp }),
-        });
-        const data = await res.json().catch(() => null);
-        if (res.ok && data?.ok) verified = true;
-      } catch (e) {}
+      const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminOtpEmail, otp: cleanOtp }),
+      });
+      const data = await res.json().catch(() => null);
 
-      if (!verified && (cleanOtp === "778899" || cleanOtp === "123456")) {
-        verified = true;
-      }
+      if (res.ok && data?.ok) {
+        if (data?.token) {
+          sessionStorage.setItem("auth_token", data.token);
+          localStorage.setItem("auth_token", data.token);
+          sessionStorage.setItem("admin_token", data.token);
+          localStorage.setItem("admin_token", data.token);
+        }
 
-      if (verified) {
         sessionStorage.setItem("admin_authenticated", "true");
         sessionStorage.setItem("user_authenticated", "true");
         sessionStorage.setItem("user_email", adminOtpEmail);
@@ -392,7 +375,7 @@ function LoginComponent() {
         toast.success("Welcome back, Administrator!", { icon: "👑" });
         navigate({ to: "/admin" });
       } else {
-        throw new Error("Incorrect admin verification code. Please check inbox or use Master PIN (778899).");
+        throw new Error(data?.error || "Incorrect admin verification code. Please check your inbox.");
       }
     } catch (err: any) {
       setError(err.message || "Failed to verify admin OTP.");
@@ -729,7 +712,7 @@ function LoginComponent() {
                       maxLength={6}
                       value={adminOtpCode}
                       onChange={(e) => setAdminOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      placeholder="e.g. 778899"
+                      placeholder="• • • • • •"
                       className="w-full text-center tracking-[0.5em] text-lg font-black rounded-xl border border-[#C89B3C]/50 bg-black/40 px-4 py-3 text-[#C89B3C] placeholder:text-slate-600 outline-none focus:border-[#C89B3C] transition-all font-mono"
                     />
                   </div>

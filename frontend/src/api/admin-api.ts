@@ -41,6 +41,31 @@ export const ADMIN_API_URL = (() => {
   return "https://thedeepcleanerz.in";
 })();
 
+export function getAuthToken(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return (
+      sessionStorage.getItem("auth_token") ||
+      localStorage.getItem("auth_token") ||
+      sessionStorage.getItem("user_token") ||
+      localStorage.getItem("user_token") ||
+      sessionStorage.getItem("admin_token") ||
+      ""
+    );
+  } catch {
+    return "";
+  }
+}
+
+export function getAuthHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
+  const token = getAuthToken();
+  const headers: Record<string, string> = { ...extraHeaders };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 export type AdminCategory = {
   id: string;
   title: string;
@@ -243,7 +268,7 @@ export async function postAdminBooking(
   try {
     const res = await fetch(`${ADMIN_API_URL}/api/bookings`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
@@ -253,25 +278,13 @@ export async function postAdminBooking(
     return (await res.json()) as { ok: boolean; booking?: unknown };
   } catch (err: any) {
     if (err.message && err.message.includes("Failed to fetch")) {
-      console.warn("Backend booking API unreachable, saving booking locally in offline mode:", err);
-      try {
-        const localBookings = JSON.parse(localStorage.getItem("thedeepcleanz_local_bookings") || "[]");
-        const offlineBooking = {
-          id: "local-" + Math.random().toString(36).substr(2, 9),
-          createdAt: new Date().toISOString(),
-          ...(typeof payload === "object" && payload !== null ? payload : {}),
-        };
-        localStorage.setItem("thedeepcleanz_local_bookings", JSON.stringify([offlineBooking, ...localBookings]));
-        return { ok: true, booking: offlineBooking };
-      } catch (e) {
-        throw err;
-      }
+      throw new Error("Unable to connect to the server. Please check your internet connection and try again.");
     }
     throw err;
   }
 }
 
-export function loadRazorpayScript(): Promise<boolean> {
+export function loadRazorpayScript(timeoutMs = 7000): Promise<boolean> {
   return new Promise((resolve) => {
     if (typeof window === "undefined") {
       resolve(false);
@@ -281,17 +294,36 @@ export function loadRazorpayScript(): Promise<boolean> {
       resolve(true);
       return;
     }
+
+    let settled = false;
+    const finish = (result: boolean) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        resolve(result);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      finish(Boolean((window as any).Razorpay));
+    }, timeoutMs);
+
     const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
     if (existingScript) {
-      existingScript.addEventListener("load", () => resolve(true));
-      existingScript.addEventListener("error", () => resolve(false));
+      if ((window as any).Razorpay) {
+        finish(true);
+        return;
+      }
+      existingScript.addEventListener("load", () => finish(true), { once: true });
+      existingScript.addEventListener("error", () => finish(false), { once: true });
       return;
     }
+
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
+    script.onload = () => finish(true);
+    script.onerror = () => finish(false);
     document.body.appendChild(script);
   });
 }
@@ -299,38 +331,61 @@ export function loadRazorpayScript(): Promise<boolean> {
 export async function createRazorpayOrder(
   amount: number,
 ): Promise<{ orderId: string; amount: number; keyId: string }> {
-  const fallbackKey = "rzp_test_SwedUUn1KgRMs0";
   const paiseAmount = Math.round(Number(amount) * 100);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 6000);
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 3500);
     const res = await fetch(`${ADMIN_API_URL}/api/payment/order`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ amount }),
       signal: ctrl.signal,
     });
     clearTimeout(timer);
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      console.warn("Backend order creation returned status:", res.status, data);
-      return { orderId: "", amount: paiseAmount, keyId: data.keyId || fallbackKey };
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `Payment initialization failed: ${res.status}`);
     }
     const data = await res.json();
     return {
       orderId: data.orderId || "",
       amount: data.amount || paiseAmount,
-      keyId: data.keyId || fallbackKey,
+      keyId: data.keyId || "",
     };
   } catch (err: any) {
-    console.warn("createRazorpayOrder fallback to direct standard checkout:", err.message || err);
-    return { orderId: "", amount: paiseAmount, keyId: fallbackKey };
+    clearTimeout(timer);
+    throw err;
   }
 }
 
 export async function fetchBookings(): Promise<any[]> {
-  const res = await fetch(`${ADMIN_API_URL}/api/bookings`);
+  const res = await fetch(`${ADMIN_API_URL}/api/bookings`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Bookings request failed: ${res.status}`);
+  return (await res.json()) as any[];
+}
+
+export async function fetchUserBookings(
+  paramOrPhone?: string | { phone?: string; email?: string; userId?: string },
+  email?: string,
+  userId?: string,
+): Promise<any[]> {
+  const params = new URLSearchParams();
+  if (typeof paramOrPhone === "object" && paramOrPhone !== null) {
+    if (paramOrPhone.phone) params.set("phone", paramOrPhone.phone);
+    if (paramOrPhone.email) params.set("email", paramOrPhone.email);
+    if (paramOrPhone.userId) params.set("userId", paramOrPhone.userId);
+  } else {
+    if (paramOrPhone) params.set("phone", paramOrPhone);
+    if (email) params.set("email", email);
+    if (userId) params.set("userId", userId);
+  }
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const res = await fetch(`${ADMIN_API_URL}/api/user/bookings${qs}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(`User bookings request failed: ${res.status}`);
   return (await res.json()) as any[];
 }
 
@@ -348,13 +403,18 @@ export async function fetchAllReviews(signal?: AbortSignal): Promise<any[]> {
 }
 
 export async function fetchUsers(): Promise<any[]> {
-  const res = await fetch(`${ADMIN_API_URL}/api/users`);
+  const res = await fetch(`${ADMIN_API_URL}/api/users`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Users request failed: ${res.status}`);
   return (await res.json()) as any[];
 }
 
 export async function deleteBooking(id: string): Promise<boolean> {
-  const res = await fetch(`${ADMIN_API_URL}/api/bookings/${id}`, { method: "DELETE" });
+  const res = await fetch(`${ADMIN_API_URL}/api/bookings/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Delete booking failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
@@ -366,7 +426,7 @@ export async function updateBookingPayment(
 ): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/bookings/${id}/payment`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ paymentStatus, paymentId }),
   });
   if (!res.ok) throw new Error(`Update booking payment failed: ${res.status}`);
@@ -383,7 +443,7 @@ export async function createCategory(cat: {
 }): Promise<AdminCategory> {
   const res = await fetch(`${ADMIN_API_URL}/api/categories`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(cat),
   });
   if (!res.ok) throw new Error(`Create category failed: ${res.status}`);
@@ -396,7 +456,7 @@ export async function updateCategory(
 ): Promise<AdminCategory> {
   const res = await fetch(`${ADMIN_API_URL}/api/categories/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(patch),
   });
   if (!res.ok) throw new Error(`Update category failed: ${res.status}`);
@@ -404,7 +464,10 @@ export async function updateCategory(
 }
 
 export async function deleteCategory(id: string): Promise<boolean> {
-  const res = await fetch(`${ADMIN_API_URL}/api/categories/${id}`, { method: "DELETE" });
+  const res = await fetch(`${ADMIN_API_URL}/api/categories/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Delete category failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
@@ -414,7 +477,7 @@ export async function createService(
 ): Promise<AdminService> {
   const res = await fetch(`${ADMIN_API_URL}/api/services`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(svc),
   });
   if (!res.ok) throw new Error(`Create service failed: ${res.status}`);
@@ -427,7 +490,7 @@ export async function updateService(
 ): Promise<AdminService> {
   const res = await fetch(`${ADMIN_API_URL}/api/services/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(patch),
   });
   if (!res.ok) throw new Error(`Update service failed: ${res.status}`);
@@ -435,7 +498,10 @@ export async function updateService(
 }
 
 export async function deleteService(id: string): Promise<boolean> {
-  const res = await fetch(`${ADMIN_API_URL}/api/services/${id}`, { method: "DELETE" });
+  const res = await fetch(`${ADMIN_API_URL}/api/services/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Delete service failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
@@ -505,7 +571,7 @@ export async function createCustomizedService(
 ): Promise<AdminCustomizedService> {
   const res = await fetch(`${ADMIN_API_URL}/api/customized-services`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(svc),
   });
   if (!res.ok) throw new Error(`Create customized service failed: ${res.status}`);
@@ -518,7 +584,7 @@ export async function updateCustomizedService(
 ): Promise<AdminCustomizedService> {
   const res = await fetch(`${ADMIN_API_URL}/api/customized-services/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(patch),
   });
   if (!res.ok) throw new Error(`Update customized service failed: ${res.status}`);
@@ -526,7 +592,10 @@ export async function updateCustomizedService(
 }
 
 export async function deleteCustomizedService(id: string): Promise<boolean> {
-  const res = await fetch(`${ADMIN_API_URL}/api/customized-services/${id}`, { method: "DELETE" });
+  const res = await fetch(`${ADMIN_API_URL}/api/customized-services/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Delete customized service failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
@@ -540,7 +609,9 @@ export type AdminCoupon = {
 };
 
 export async function fetchCoupons(): Promise<AdminCoupon[]> {
-  const res = await fetch(`${ADMIN_API_URL}/api/coupons`);
+  const res = await fetch(`${ADMIN_API_URL}/api/coupons`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Coupons request failed: ${res.status}`);
   return (await res.json()) as AdminCoupon[];
 }
@@ -550,7 +621,7 @@ export async function createCoupon(
 ): Promise<AdminCoupon> {
   const res = await fetch(`${ADMIN_API_URL}/api/coupons`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(coupon),
   });
   if (!res.ok) {
@@ -566,7 +637,7 @@ export async function updateCoupon(
 ): Promise<AdminCoupon> {
   const res = await fetch(`${ADMIN_API_URL}/api/coupons/${code}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(patch),
   });
   if (!res.ok) {
@@ -577,7 +648,10 @@ export async function updateCoupon(
 }
 
 export async function deleteCoupon(code: string): Promise<boolean> {
-  const res = await fetch(`${ADMIN_API_URL}/api/coupons/${code}`, { method: "DELETE" });
+  const res = await fetch(`${ADMIN_API_URL}/api/coupons/${code}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Delete coupon failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
@@ -610,19 +684,25 @@ export type AdminTechnician = {
 };
 
 export async function fetchTechnicians(): Promise<AdminTechnician[]> {
-  const res = await fetch(`${ADMIN_API_URL}/api/technicians`);
+  const res = await fetch(`${ADMIN_API_URL}/api/technicians`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Technicians request failed: ${res.status}`);
   return (await res.json()) as AdminTechnician[];
 }
 
 export async function fetchTechnicianBookings(id: string): Promise<any[]> {
-  const res = await fetch(`${ADMIN_API_URL}/api/technicians/${id}/bookings`);
+  const res = await fetch(`${ADMIN_API_URL}/api/technicians/${id}/bookings`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Technician bookings request failed: ${res.status}`);
   return (await res.json()) as any[];
 }
 
 export async function fetchAvailableTechnicianJobs(id: string): Promise<any[]> {
-  const res = await fetch(`${ADMIN_API_URL}/api/technicians/${id}/available-jobs`);
+  const res = await fetch(`${ADMIN_API_URL}/api/technicians/${id}/available-jobs`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Available jobs request failed: ${res.status}`);
   return (await res.json()) as any[];
 }
@@ -633,7 +713,7 @@ export async function claimTechnicianJob(
 ): Promise<{ ok: boolean; message: string }> {
   const res = await fetch(`${ADMIN_API_URL}/api/technicians/${technicianId}/claim-booking`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ bookingId }),
   });
   const data = await res.json().catch(() => ({}));
@@ -648,7 +728,7 @@ export async function createTechnician(
 ): Promise<AdminTechnician> {
   const res = await fetch(`${ADMIN_API_URL}/api/technicians`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(tech),
   });
   if (!res.ok) {
@@ -664,7 +744,7 @@ export async function updateTechnician(
 ): Promise<AdminTechnician> {
   const res = await fetch(`${ADMIN_API_URL}/api/technicians/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(patch),
   });
   if (!res.ok) {
@@ -675,7 +755,10 @@ export async function updateTechnician(
 }
 
 export async function deleteTechnician(id: string): Promise<boolean> {
-  const res = await fetch(`${ADMIN_API_URL}/api/technicians/${id}`, { method: "DELETE" });
+  const res = await fetch(`${ADMIN_API_URL}/api/technicians/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Delete technician failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
@@ -686,7 +769,7 @@ export async function updateBookingTechnician(
 ): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/bookings/${id}/technician`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ technicianId }),
   });
   if (!res.ok) throw new Error(`Update booking technician failed: ${res.status}`);
@@ -700,7 +783,7 @@ export async function updateBookingJobStatus(
 ): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/bookings/${id}/job-status`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ jobStatus, statusNote }),
   });
   if (!res.ok) throw new Error(`Update booking job status failed: ${res.status}`);
@@ -715,7 +798,7 @@ export async function rescheduleBooking(
 ): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/bookings/${id}/reschedule`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ date, time, rescheduledBy }),
   });
   if (!res.ok) {
@@ -726,13 +809,17 @@ export async function rescheduleBooking(
 }
 
 export async function fetchRescheduleLogs(): Promise<any[]> {
-  const res = await fetch(`${ADMIN_API_URL}/api/bookings/reschedule-logs`);
+  const res = await fetch(`${ADMIN_API_URL}/api/bookings/reschedule-logs`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Fetch reschedule logs failed: ${res.status}`);
   return await res.json();
 }
 
 export async function fetchAdmins(): Promise<any[]> {
-  const res = await fetch(`${ADMIN_API_URL}/api/auth/admins`);
+  const res = await fetch(`${ADMIN_API_URL}/api/auth/admins`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Fetch admins failed: ${res.status}`);
   return await res.json();
 }
@@ -740,7 +827,7 @@ export async function fetchAdmins(): Promise<any[]> {
 export async function sendAdminSettingsOtp(email: string): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-settings/otp/send`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ email }),
   });
   if (!res.ok) {
@@ -753,7 +840,7 @@ export async function sendAdminSettingsOtp(email: string): Promise<boolean> {
 export async function registerAdmin(payload: any): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-settings/register`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -766,7 +853,7 @@ export async function registerAdmin(payload: any): Promise<boolean> {
 export async function updateAdminDetails(currentEmail: string, payload: any): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-settings/update`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ currentEmail, ...payload }),
   });
   if (!res.ok) {
@@ -779,7 +866,7 @@ export async function updateAdminDetails(currentEmail: string, payload: any): Pr
 export async function deleteAdmin(email: string): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-settings/delete`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ email }),
   });
   if (!res.ok) throw new Error(`Delete admin failed: ${res.status}`);
@@ -811,7 +898,7 @@ export async function fetchRecentTransformations(signal?: AbortSignal): Promise<
 export async function addRecentTransformation(payload: Omit<RecentTransformation, "id"> & { id?: string }): Promise<RecentTransformation> {
   const res = await fetch(`${ADMIN_API_URL}/api/transformations`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Add transformation failed: ${res.status}`);
@@ -821,7 +908,7 @@ export async function addRecentTransformation(payload: Omit<RecentTransformation
 export async function updateRecentTransformation(id: string, payload: Omit<RecentTransformation, "id" | "createdAt">): Promise<RecentTransformation> {
   const res = await fetch(`${ADMIN_API_URL}/api/transformations/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Update transformation failed: ${res.status}`);
@@ -831,6 +918,7 @@ export async function updateRecentTransformation(id: string, payload: Omit<Recen
 export async function deleteRecentTransformation(id: string): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/transformations/${id}`, {
     method: "DELETE",
+    headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(`Delete transformation failed: ${res.status}`);
   return (await res.json()).ok as boolean;
@@ -870,7 +958,7 @@ export async function fetchBlockedDates(signal?: AbortSignal): Promise<BlockedDa
 export async function addBlockedDate(payload: { date: string; reason?: string }): Promise<BlockedDate> {
   const res = await fetch(`${ADMIN_API_URL}/api/blocked-dates`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -883,6 +971,7 @@ export async function addBlockedDate(payload: { date: string; reason?: string })
 export async function deleteBlockedDate(id: string): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/blocked-dates/${id}`, {
     method: "DELETE",
+    headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(`Delete blocked date failed: ${res.status}`);
   return (await res.json()).ok as boolean;
@@ -901,10 +990,15 @@ export interface AdminInquiry {
 
 export async function fetchInquiries(signal?: AbortSignal): Promise<AdminInquiry[]> {
   try {
-    const res = await fetch(`${ADMIN_API_URL}/api/inquiries`, { signal });
+    const res = await fetch(`${ADMIN_API_URL}/api/inquiries`, {
+      signal,
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error(`Fetch inquiries failed: ${res.status}`);
     const data = await res.json();
-    return Array.isArray(data.inquiries) ? data.inquiries : [];
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.inquiries)) return data.inquiries;
+    return [];
   } catch (err) {
     console.warn("Fetch inquiries error:", err);
     return [];
@@ -914,7 +1008,7 @@ export async function fetchInquiries(signal?: AbortSignal): Promise<AdminInquiry
 export async function updateInquiryStatus(id: string, status: "pending" | "contacted" | "resolved"): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/inquiries/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ status }),
   });
   if (!res.ok) throw new Error(`Update inquiry status failed: ${res.status}`);
@@ -924,6 +1018,7 @@ export async function updateInquiryStatus(id: string, status: "pending" | "conta
 export async function deleteInquiry(id: string): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/inquiries/${id}`, {
     method: "DELETE",
+    headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(`Delete inquiry failed: ${res.status}`);
   return (await res.json()).ok as boolean;

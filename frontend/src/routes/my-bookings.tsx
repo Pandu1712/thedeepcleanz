@@ -39,6 +39,7 @@ import {
   rescheduleBooking,
   updateBookingJobStatus,
   fetchBlockedDates,
+  fetchUserBookings,
   STANDARD_TIME_SLOTS,
   isSlotInPast,
   normalizeTimeSlot,
@@ -410,37 +411,9 @@ function MyBookingsPage() {
     const currentUserId = prof?.id || sessionStorage.getItem("user_id") || localStorage.getItem("user_id");
 
     setIsLoading(true);
-    fetch(`${ADMIN_API_URL}/api/bookings`)
-      .then((res) => res.json())
+    fetchUserBookings(cleanUserPhone, cleanUserEmail, currentUserId)
       .then((data) => {
-        let serverList: any[] = [];
-        if (Array.isArray(data)) {
-          serverList = data.filter((b: any) => {
-            const bUserId = b.userId;
-            const bPhone = b.customer?.phone ? b.customer.phone.replace(/\D/g, "") : "";
-            const bEmail = b.customer?.email ? b.customer.email.toLowerCase().trim() : "";
-
-            const phoneMatch = Boolean(
-              cleanUserPhone &&
-              bPhone &&
-              (bPhone === cleanUserPhone ||
-                bPhone.slice(-10) === cleanUserPhone.slice(-10) ||
-                bPhone.includes(cleanUserPhone) ||
-                cleanUserPhone.includes(bPhone))
-            );
-
-            const emailMatch = Boolean(
-              cleanUserEmail &&
-              bEmail &&
-              bEmail === cleanUserEmail &&
-              !bEmail.endsWith("@thedeepcleanerz.com")
-            );
-
-            const userIdMatch = Boolean(currentUserId && bUserId === currentUserId);
-
-            return userIdMatch || phoneMatch || emailMatch;
-          });
-        }
+        let serverList: any[] = Array.isArray(data) ? data : [];
 
         // Merge local bookings and commercial quote requests from localStorage
         try {
@@ -625,8 +598,13 @@ function MyBookingsPage() {
       }
 
       const orderInfo = await createRazorpayOrder(amount);
+      if (!orderInfo.keyId) {
+        toast.error("Payment gateway configuration missing. Please contact support.");
+        setIsPayingId(null);
+        return;
+      }
       const options: any = {
-        key: orderInfo.keyId || "rzp_test_SwedUUn1KgRMs0",
+        key: orderInfo.keyId,
         amount: orderInfo.amount,
         currency: "INR",
         name: "TheDeep CleanerZ",

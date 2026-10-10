@@ -51,6 +51,7 @@ const fetch = typeof globalThis.fetch === "function" ? globalThis.fetch : async 
   });
 };
 const fs = require("fs");
+const crypto = require("crypto");
 const express = require("express");
 const session = require("express-session");
 const flash = require("connect-flash");
@@ -79,13 +80,37 @@ const upload = multer({
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+const ALLOWED_ORIGINS = [
+  "https://thedeepcleanerz.in",
+  "http://thedeepcleanerz.in",
+  "https://www.thedeepcleanerz.in",
+  "http://www.thedeepcleanerz.in",
+];
+
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
+  const origin = req.headers.origin;
+  const isTrusted =
+    !origin ||
+    ALLOWED_ORIGINS.includes(origin) ||
+    origin.includes("localhost") ||
+    origin.includes("127.0.0.1") ||
+    origin.startsWith("http://192.168.") ||
+    origin.startsWith("http://10.") ||
+    origin.startsWith("capacitor://") ||
+    origin.startsWith("ionic://");
+
+  if (origin && isTrusted) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Credentials", "true");
+  } else if (!origin) {
+    res.header("Access-Control-Allow-Origin", "*");
+  }
+
   res.header(
     "Access-Control-Allow-Headers",
     "Origin, X-Requested-With, Content-Type, Accept, Authorization",
   );
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
   }
@@ -345,9 +370,63 @@ app.use((req, res, next) => {
   next();
 });
 
+const JWT_SECRET = process.env.SESSION_SECRET || "thedeepcleanerz_secure_hmac_secret_2026";
+
+function signToken(payload) {
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const exp = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+  const data = Buffer.from(JSON.stringify({ ...payload, exp })).toString("base64url");
+  const signature = crypto.createHmac("sha256", JWT_SECRET).update(`${header}.${data}`).digest("base64url");
+  return `${header}.${data}.${signature}`;
+}
+
+function verifyToken(token) {
+  if (!token || typeof token !== "string") return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [header, data, signature] = parts;
+  try {
+    const expectedSig = crypto.createHmac("sha256", JWT_SECRET).update(`${header}.${data}`).digest("base64url");
+    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) return null;
+    const payload = JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
+    if (payload.exp && Date.now() > payload.exp) return null;
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+app.use((req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.slice(7).trim();
+    const payload = verifyToken(token);
+    if (payload) {
+      req.user = payload;
+    }
+  } else if (req.session && req.session.user) {
+    req.user = req.session.user;
+  }
+  next();
+});
+
+function requireAdmin(req, res, next) {
+  if (req.user && req.user.role === "admin") {
+    return next();
+  }
+  return res.status(401).json({ error: "Unauthorized: Administrator access required." });
+}
+
+function requireStaffOrAdmin(req, res, next) {
+  if (req.user && (req.user.role === "admin" || req.user.role === "technician")) {
+    return next();
+  }
+  return res.status(401).json({ error: "Unauthorized: Staff or administrator access required." });
+}
+
 function requireAuth(req, res, next) {
-  if (req.session.user) return next();
-  return res.redirect("/login");
+  if (req.user) return next();
+  return res.status(401).json({ error: "Unauthorized: Login required." });
 }
 
 // Legacy EJS Auth routes commented out to allow TanStack Router frontend to handle /login
@@ -521,55 +600,30 @@ app.get("/api/catalog", async (req, res) => {
   }
 });
 
-app.get("/api/seed-db", async (req, res) => {
-  const fs = require("fs");
-  const path = require("path");
-  const dbJsonPath = path.join(__dirname, "..", "data", "db.json");
-  const fileExists = fs.existsSync(dbJsonPath);
-
+app.post("/api/admin/seed-db", requireAdmin, async (req, res) => {
   try {
-    // Run the db.initDb function manually to seed the database
     await db.initDb();
-    
-    // Fetch the updated catalog to verify
     const categories = await db.getCategories();
     const services = await db.getServices();
-    
     res.json({
       success: true,
-      message: "Database checked and missing default data seeded successfully!",
-      seedFile: {
-        path: dbJsonPath,
-        exists: fileExists,
-        contentPreview: fileExists ? fs.readFileSync(dbJsonPath, "utf8").substring(0, 100) + "..." : null
-      },
+      message: "Database checked and catalog initialized successfully.",
       catalog: {
         categoriesCount: categories.length,
         servicesCount: services.length,
-        categories: categories.map(c => ({ id: c.id, title: c.title, parentId: c.parentId })),
-        services: services.map(s => ({ id: s.id, title: s.title, categoryId: s.categoryId }))
-      }
+      },
     });
   } catch (err) {
+    console.error("Database seed error:", err.message);
     res.status(500).json({
       success: false,
-      error: err.message,
-      seedFilePath: dbJsonPath,
-      seedFileExists: fileExists,
-      stack: err.stack
+      error: "Failed to initialize catalog database.",
     });
   }
 });
+
 app.post("/api/payment/order", async (req, res) => {
   try {
-    console.log(
-      "Order request body:",
-      req.body,
-      "loaded KEY_ID:",
-      process.env.RAZORPAY_KEY_ID,
-      "loaded SECRET:",
-      process.env.RAZORPAY_KEY_SECRET ? "Exists" : "Missing",
-    );
     const { amount } = req.body;
     if (!amount || isNaN(amount)) {
       return res.status(400).json({ error: "Invalid or missing amount" });
@@ -611,8 +665,42 @@ app.post("/api/payment/order", async (req, res) => {
       keyId: keyId,
     });
   } catch (err) {
-    console.error("Error generating Razorpay Order:", err);
+    console.error("Error generating Razorpay Order:", err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Server-side Razorpay signature verification
+app.post("/api/payment/verify", async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ ok: false, error: "Missing required payment verification parameters." });
+    }
+
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keySecret) {
+      return res.status(500).json({ ok: false, error: "Payment verification credentials not configured on server." });
+    }
+
+    const expectedSignature = crypto
+      .createHmac("sha256", keySecret)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({ ok: false, error: "Payment verification failed: Invalid transaction signature." });
+    }
+
+    res.json({
+      ok: true,
+      verified: true,
+      paymentId: razorpay_payment_id,
+      orderId: razorpay_order_id,
+    });
+  } catch (err) {
+    console.error("Payment verification error:", err.message);
+    res.status(500).json({ ok: false, error: "Payment verification failed." });
   }
 });
 
@@ -711,6 +799,31 @@ app.post("/api/bookings", async (req, res) => {
       userId,
     } = req.body;
 
+    // Input validation: customer name, phone, items
+    const custCheck = typeof customer === "string" ? JSON.parse(customer) : customer;
+    if (!custCheck || !custCheck.name || typeof custCheck.name !== "string" || custCheck.name.trim().length < 2) {
+      return res.status(400).json({ error: "Customer name must be at least 2 characters." });
+    }
+    const cleanCustPhone = String(custCheck.phone || "").replace(/\D/g, "");
+    if (!cleanCustPhone || !/^[6-9]\d{9}$/.test(cleanCustPhone.slice(-10))) {
+      return res.status(400).json({ error: "A valid 10-digit Indian mobile number is required." });
+    }
+    const itemsList = typeof items === "string" ? JSON.parse(items) : items;
+    if (!Array.isArray(itemsList) || itemsList.length === 0) {
+      return res.status(400).json({ error: "At least one cleaning service item is required." });
+    }
+
+    // Verify payment signature if online Razorpay payment
+    if (paymentId && req.body.razorpayOrderId && req.body.razorpaySignature && process.env.RAZORPAY_KEY_SECRET) {
+      const expectedSig = crypto
+        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+        .update(`${req.body.razorpayOrderId}|${paymentId}`)
+        .digest("hex");
+      if (expectedSig !== req.body.razorpaySignature) {
+        return res.status(400).json({ error: "Payment verification failed: Invalid payment transaction signature." });
+      }
+    }
+
     // Validate booking date: past dates and blocked dates protection
     const scheduleObj = typeof schedule === "string" ? JSON.parse(schedule) : schedule;
     const bookingDate = scheduleObj?.date;
@@ -724,7 +837,8 @@ app.post("/api/bookings", async (req, res) => {
         });
       }
       const blocked = await db.isDateBlocked(bookingDate);
-      if (blocked && !req.body.overrideBlockedDate && !req.body.isAdmin) {
+      const isVerifiedAdmin = req.user && req.user.role === "admin";
+      if (blocked && !(req.body.overrideBlockedDate && isVerifiedAdmin)) {
         const isToday = bookingDate === todayStr;
         const cleanReason = (blocked.reason && !/^admin\s*blocked/i.test(blocked.reason) && !/^blocked/i.test(blocked.reason)) ? blocked.reason : "Holiday";
         return res.status(400).json({
@@ -835,7 +949,7 @@ app.post("/api/bookings", async (req, res) => {
   }
 });
 
-app.post("/api/whatsapp/test", async (req, res) => {
+app.post("/api/whatsapp/test", requireAdmin, async (req, res) => {
   try {
     const { phone, apiKey } = req.body;
     const result = await sendTestWhatsAppAlert(phone, apiKey);
@@ -919,8 +1033,11 @@ app.post("/api/auth/register", async (req, res) => {
       wallet_balance: initialWallet,
     });
 
+    const token = signToken({ id: userId, role: "user", email, phone, name });
+
     res.json({
       ok: true,
+      token,
       message: "Registration successful! Please login.",
       user: {
         id: userId,
@@ -986,7 +1103,7 @@ app.post("/api/auth/forgot-password/send-otp", async (req, res) => {
       emailSent,
       message: emailSent
         ? "OTP sent to email successfully."
-        : "Password reset OTP generated. If email is delayed, use Master PIN (778899) or check server console.",
+        : "Password reset OTP generated. Please check your email inbox.",
     });
   } catch (err) {
     console.error("Forgot password send-otp error:", err);
@@ -1004,14 +1121,13 @@ app.post("/api/auth/forgot-password/reset", async (req, res) => {
 
     const normEmail = email.trim().toLowerCase();
     const cleanOtp = otp.trim();
-    const isMaster = cleanOtp === (process.env.ADMIN_MASTER_OTP || "778899") || cleanOtp === "123456";
     const record = forgotPasswordOtps.get(normEmail);
 
-    if (!isMaster && (!record || record.otp !== cleanOtp)) {
+    if (!record || record.otp !== cleanOtp) {
       return res.status(400).json({ error: "Invalid OTP code." });
     }
 
-    if (!isMaster && record && Date.now() > record.expiresAt) {
+    if (record && Date.now() > record.expiresAt) {
       forgotPasswordOtps.delete(normEmail);
       return res.status(400).json({ error: "OTP code has expired." });
     }
@@ -1158,17 +1274,20 @@ app.post("/api/auth/login", async (req, res) => {
 
           // If ADMIN_REQUIRE_OTP is explicitly disabled, bypass OTP
           if (process.env.ADMIN_REQUIRE_OTP === "false") {
+            const adminUser = {
+              id: user.id || "admin-1",
+              name: user.name || "Administrator",
+              email: targetEmail,
+              phone: user.phone || "",
+              role: "admin",
+            };
+            const token = signToken(adminUser);
             return res.json({
               ok: true,
+              token,
               requiresOtp: false,
               role: "admin",
-              user: {
-                id: user.id || "admin-1",
-                name: user.name || "Administrator",
-                email: targetEmail,
-                phone: user.phone || "",
-                role: "admin",
-              },
+              user: adminUser,
             });
           }
 
@@ -1180,7 +1299,7 @@ app.post("/api/auth/login", async (req, res) => {
             emailSent,
             message: emailSent
               ? "Verification code sent to your email."
-              : "Verification code generated. If email is delayed, use Master PIN (778899) or check server console.",
+              : "Verification code generated. Please check your email inbox.",
           });
         }
 
@@ -1201,18 +1320,29 @@ app.post("/api/auth/login", async (req, res) => {
           parsedAddresses = [];
         }
 
+        const regularUser = {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: "user",
+          referralCode: userRefCode,
+          walletBalance: user.wallet_balance || 0,
+          addresses: parsedAddresses,
+        };
+        const token = signToken({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: "user",
+        });
+
         return res.json({
           ok: true,
+          token,
           role: "user",
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            phone: user.phone,
-            referralCode: userRefCode,
-            walletBalance: user.wallet_balance || 0,
-            addresses: parsedAddresses,
-          },
+          user: regularUser,
         });
       }
     }
@@ -1237,17 +1367,27 @@ app.post("/api/auth/login", async (req, res) => {
         validTech = false;
       }
       if (validTech) {
+        const techUser = {
+          id: technician.id,
+          name: technician.name,
+          email: technician.email,
+          phone: technician.phone,
+          specialty: technician.specialty,
+          status: technician.status,
+          role: "technician",
+        };
+        const token = signToken({
+          id: technician.id,
+          name: technician.name,
+          email: technician.email,
+          phone: technician.phone,
+          role: "technician",
+        });
         return res.json({
           ok: true,
+          token,
           role: "technician",
-          user: {
-            id: technician.id,
-            name: technician.name,
-            email: technician.email,
-            phone: technician.phone,
-            specialty: technician.specialty,
-            status: technician.status,
-          },
+          user: techUser,
         });
       }
     }
@@ -1324,7 +1464,7 @@ app.post("/api/auth/admin-otp/send", async (req, res) => {
       emailSent,
       message: emailSent
         ? "Verification code sent to your email."
-        : "Verification code generated. If email is delayed, use Master PIN (778899) or check server console.",
+        : "Verification code generated. Please check your email inbox.",
     });
   } catch (err) {
     console.error("Send OTP error:", err);
@@ -1344,18 +1484,13 @@ app.post("/api/auth/admin-otp/verify", async (req, res) => {
     const normEmail = email.trim().toLowerCase();
     const cleanOtp = otp.trim();
 
-    const masterOtp = process.env.ADMIN_MASTER_OTP || "778899";
-    const isMaster = cleanOtp === masterOtp || cleanOtp === "123456";
-
     const stored =
       adminOtps.get(normEmail) ||
       adminOtps.get("admin") ||
       adminOtps.get("thedeepcleanerz.info@gmail.com");
 
     let isValid = false;
-    if (isMaster) {
-      isValid = true;
-    } else if (stored && stored.otp === cleanOtp) {
+    if (stored && stored.otp === cleanOtp) {
       if (Date.now() > stored.expiresAt) {
         adminOtps.delete(normEmail);
         return res.status(400).json({
@@ -1367,7 +1502,7 @@ app.post("/api/auth/admin-otp/verify", async (req, res) => {
 
     if (!isValid) {
       return res.status(400).json({
-        error: "Incorrect verification code. Please check your email inbox or use emergency admin code (778899).",
+        error: "Incorrect verification code. Please check your email inbox.",
       });
     }
 
@@ -1383,16 +1518,19 @@ app.post("/api/auth/admin-otp/verify", async (req, res) => {
     } catch (e) {}
 
     const resolvedEmail = normEmail === "admin" ? "thedeepcleanerz.info@gmail.com" : normEmail;
+    const adminUser = {
+      id: user ? user.id : "admin-session",
+      name: user ? user.name : "Administrator",
+      email: resolvedEmail,
+      role: "admin",
+    };
+    const token = signToken(adminUser);
 
     res.json({
       ok: true,
+      token,
       role: "admin",
-      user: {
-        id: user ? user.id : "admin-session",
-        name: user ? user.name : "Administrator",
-        email: resolvedEmail,
-        role: "admin",
-      },
+      user: adminUser,
     });
   } catch (err) {
     console.error("Verify OTP error:", err);
@@ -1478,11 +1616,9 @@ app.post("/api/auth/mobile-otp/send", async (req, res) => {
       ok: true,
       smsSent,
       viaProvider,
-      masterOtp: "123456",
-      devOtp: !smsSent ? otp : undefined,
       message: smsSent 
         ? `Verification code sent to +91 ${cleanPhone} via ${viaProvider}.` 
-        : `Verification code generated for +91 ${cleanPhone}. (Use master code 123456 for instant testing)`,
+        : `Verification code generated for +91 ${cleanPhone}. Please verify.`,
     });
   } catch (err) {
     console.error("Send Mobile OTP error:", err);
@@ -1499,22 +1635,21 @@ app.post("/api/auth/mobile-otp/verify", async (req, res) => {
     }
     const cleanPhone = phone.replace(/\D/g, "");
     const cleanOtp = otp.trim();
-    const isMaster = cleanOtp === (process.env.ADMIN_MASTER_OTP || "778899") || cleanOtp === "123456";
     const stored = mobileOtps.get(cleanPhone);
 
-    if (!isMaster && !stored) {
+    if (!stored) {
       return res.status(400).json({ error: "Verification session expired. Please request a new code." });
     }
-    if (!isMaster && stored && Date.now() > stored.expiresAt) {
+    if (Date.now() > stored.expiresAt) {
       mobileOtps.delete(cleanPhone);
       return res.status(400).json({ error: "Verification code expired. Please request a new code." });
     }
-    if (!isMaster && stored && stored.otp !== cleanOtp) {
+    if (stored.otp !== cleanOtp) {
       return res.status(400).json({ error: "Incorrect verification code. Please check your inputs." });
     }
 
     // Success! Clear one-time code
-    if (stored) mobileOtps.delete(cleanPhone);
+    mobileOtps.delete(cleanPhone);
 
     // Look up or auto-create user profile
     let user = await db.getUserByPhone(cleanPhone);
@@ -1632,8 +1767,17 @@ app.post("/api/auth/mobile-otp/verify", async (req, res) => {
     } catch (e) {}
     if (!Array.isArray(parsedAddresses)) parsedAddresses = [];
 
+    const token = signToken({
+      id: user.id,
+      name: user.name,
+      phone: user.phone,
+      email: user.email,
+      role: user.role || "user",
+    });
+
     res.json({
       ok: true,
+      token,
       user: {
         id: user.id,
         name: user.name,
@@ -1651,12 +1795,24 @@ app.post("/api/auth/mobile-otp/verify", async (req, res) => {
   }
 });
 
-// Profile Lookup by Phone
-app.get("/api/auth/profile-by-phone", async (req, res) => {
+// Profile Lookup by Phone (Protected)
+app.get("/api/auth/profile-by-phone", authenticate, async (req, res) => {
   try {
     const { phone } = req.query;
     if (!phone) return res.status(400).json({ error: "Phone number is required." });
     const cleanPhone = String(phone).replace(/\D/g, "");
+
+    const userPhone = req.user?.phone ? String(req.user.phone).replace(/\D/g, "") : null;
+    const isAuthorized = req.user && (
+      req.user.role === "admin" ||
+      req.user.role === "technician" ||
+      (userPhone && (userPhone === cleanPhone || userPhone.endsWith(cleanPhone) || cleanPhone.endsWith(userPhone)))
+    );
+
+    if (!isAuthorized) {
+      return res.status(403).json({ error: "Forbidden: You cannot access other users' profiles." });
+    }
+
     const user = await db.getUserByPhone(cleanPhone);
     if (!user) {
       return res.status(404).json({ error: "User not found." });
@@ -1689,7 +1845,7 @@ app.get("/api/auth/profile-by-phone", async (req, res) => {
 const adminRegOtps = new Map();
 
 // Fetch all administrators
-app.get("/api/auth/admins", async (req, res) => {
+app.get("/api/auth/admins", requireAdmin, async (req, res) => {
   try {
     const admins = await db.getAdmins();
     res.json(admins);
@@ -1700,7 +1856,7 @@ app.get("/api/auth/admins", async (req, res) => {
 });
 
 // Trigger OTP for administrator registration or updates
-app.post("/api/auth/admin-settings/otp/send", async (req, res) => {
+app.post("/api/auth/admin-settings/otp/send", requireAdmin, async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
@@ -1739,7 +1895,7 @@ app.post("/api/auth/admin-settings/otp/send", async (req, res) => {
       emailSent,
       message: emailSent
         ? "Verification code sent to your email."
-        : "Verification code generated. If email is delayed, use Master PIN (778899) or check server console.",
+        : "Verification code generated. Please check your email inbox.",
     });
   } catch (err) {
     console.error("Admin Settings Send OTP error:", err);
@@ -1748,7 +1904,7 @@ app.post("/api/auth/admin-settings/otp/send", async (req, res) => {
 });
 
 // Register new admin account
-app.post("/api/auth/admin-settings/register", async (req, res) => {
+app.post("/api/auth/admin-settings/register", requireAdmin, async (req, res) => {
   try {
     const { name, phone, email, password, otp } = req.body;
     if (!name || !phone || !email || !password || !otp) {
@@ -1758,24 +1914,21 @@ app.post("/api/auth/admin-settings/register", async (req, res) => {
     }
     const normEmail = email.trim().toLowerCase();
     const cleanOtp = otp.trim();
-    const isMaster = cleanOtp === (process.env.ADMIN_MASTER_OTP || "778899") || cleanOtp === "123456";
     const stored = adminRegOtps.get(normEmail);
 
-    if (!isMaster) {
-      if (!stored) {
-        return res.status(400).json({
-          error: "Verification session expired. Please request a new code.",
-        });
-      }
-      if (Date.now() > stored.expiresAt) {
-        adminRegOtps.delete(normEmail);
-        return res.status(400).json({
-          error: "Verification code expired. Please request a new code.",
-        });
-      }
-      if (stored.otp !== cleanOtp) {
-        return res.status(400).json({ error: "Incorrect verification code." });
-      }
+    if (!stored) {
+      return res.status(400).json({
+        error: "Verification session expired. Please request a new code.",
+      });
+    }
+    if (Date.now() > stored.expiresAt) {
+      adminRegOtps.delete(normEmail);
+      return res.status(400).json({
+        error: "Verification code expired. Please request a new code.",
+      });
+    }
+    if (stored.otp !== cleanOtp) {
+      return res.status(400).json({ error: "Incorrect verification code." });
     }
 
     // OTP Verified! Clean it up
@@ -1800,7 +1953,7 @@ app.post("/api/auth/admin-settings/register", async (req, res) => {
 });
 
 // Update administrator details
-app.post("/api/auth/admin-settings/update", async (req, res) => {
+app.post("/api/auth/admin-settings/update", requireAdmin, async (req, res) => {
   try {
     const { currentEmail, newEmail, name, phone, password, otp } = req.body;
     if (!currentEmail || !name || !phone || !newEmail) {
@@ -1817,25 +1970,22 @@ app.post("/api/auth/admin-settings/update", async (req, res) => {
           .json({ error: "Verification OTP is required to change email." });
       }
       const cleanOtp = otp.trim();
-      const isMaster = cleanOtp === (process.env.ADMIN_MASTER_OTP || "778899") || cleanOtp === "123456";
       const stored = adminRegOtps.get(normNew);
 
-      if (!isMaster) {
-        if (!stored) {
-          return res.status(400).json({
-            error:
-              "Verification session expired for new email. Please request code again.",
-          });
-        }
-        if (Date.now() > stored.expiresAt) {
-          adminRegOtps.delete(normNew);
-          return res.status(400).json({
-            error: "Verification code expired. Please request code again.",
-          });
-        }
-        if (stored.otp !== cleanOtp) {
-          return res.status(400).json({ error: "Incorrect verification code." });
-        }
+      if (!stored) {
+        return res.status(400).json({
+          error:
+            "Verification session expired for new email. Please request code again.",
+        });
+      }
+      if (Date.now() > stored.expiresAt) {
+        adminRegOtps.delete(normNew);
+        return res.status(400).json({
+          error: "Verification code expired. Please request code again.",
+        });
+      }
+      if (stored.otp !== cleanOtp) {
+        return res.status(400).json({ error: "Incorrect verification code." });
       }
       // OTP verified, clear it
       adminRegOtps.delete(normNew);
@@ -1861,7 +2011,7 @@ app.post("/api/auth/admin-settings/update", async (req, res) => {
 });
 
 // Delete administrator account
-app.post("/api/auth/admin-settings/delete", async (req, res) => {
+app.post("/api/auth/admin-settings/delete", requireAdmin, async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
@@ -1875,36 +2025,10 @@ app.post("/api/auth/admin-settings/delete", async (req, res) => {
   }
 });
 
-// Settings configuration endpoints
-app.get("/api/settings", async (req, res) => {
-  try {
-    const settings = await db.getSettings();
-    res.json(settings);
-  } catch (err) {
-    console.error("Get settings error:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/settings", async (req, res) => {
-  try {
-    const { travel_rate_per_km, travel_free_radius_km } = req.body;
-    if (travel_rate_per_km !== undefined) {
-      await db.updateSetting("travel_rate_per_km", String(travel_rate_per_km));
-    }
-    if (travel_free_radius_km !== undefined) {
-      await db.updateSetting("travel_free_radius_km", String(travel_free_radius_km));
-    }
-    res.json({ ok: true });
-  } catch (err) {
-    console.error("Update settings error:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // Image Upload Endpoint (via Cloudinary)
 app.post(
   "/api/upload",
+  requireStaffOrAdmin,
   (req, res, next) => {
     upload.single("file")(req, res, (err) => {
       if (err) {
@@ -1944,8 +2068,51 @@ app.post(
   },
 );
 
+// Customer-facing bookings endpoint (filtered to authenticated customer)
+app.get("/api/user/bookings", authenticate, async (req, res) => {
+  try {
+    const isStaff = req.user && (req.user.role === "admin" || req.user.role === "technician");
+    const userPhone = req.user?.phone ? String(req.user.phone).replace(/\D/g, "") : null;
+    const userEmail = req.user?.email ? String(req.user.email).trim().toLowerCase() : null;
+    const userId = req.user?.id;
+
+    const queryPhone = req.query.phone ? String(req.query.phone).replace(/\D/g, "") : null;
+    const queryEmail = req.query.email ? String(req.query.email).trim().toLowerCase() : null;
+    const queryUserId = req.query.userId || null;
+
+    const allBookings = await db.getBookings();
+    const filtered = (allBookings || []).filter((b) => {
+      let cust = b.customer;
+      if (typeof cust === "string") {
+        try { cust = JSON.parse(cust); } catch (e) { cust = {}; }
+      }
+      const custPhone = cust?.phone ? String(cust.phone).replace(/\D/g, "") : null;
+      const custEmail = cust?.email ? String(cust.email).trim().toLowerCase() : null;
+
+      if (!isStaff) {
+        // Regular customer: must match authenticated token
+        return (
+          (userId && b.userId === userId) ||
+          (userPhone && custPhone && (custPhone === userPhone || custPhone.endsWith(userPhone) || userPhone.endsWith(custPhone))) ||
+          (userEmail && custEmail && custEmail === userEmail)
+        );
+      } else {
+        // Staff member query filter
+        if (queryUserId && b.userId === queryUserId) return true;
+        if (queryPhone && custPhone && (custPhone === queryPhone || custPhone.endsWith(queryPhone) || queryPhone.endsWith(custPhone))) return true;
+        if (queryEmail && custEmail && custEmail === queryEmail) return true;
+        return true;
+      }
+    });
+
+    res.json(filtered);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // JSON API endpoints for full-page Admin Dashboard
-app.get("/api/bookings", async (req, res) => {
+app.get("/api/bookings", requireStaffOrAdmin, async (req, res) => {
   try {
     const bookings = await db.getBookings();
     res.json(bookings || []);
@@ -1954,7 +2121,7 @@ app.get("/api/bookings", async (req, res) => {
   }
 });
 
-app.get("/api/users", async (req, res) => {
+app.get("/api/users", requireAdmin, async (req, res) => {
   try {
     const users = await db.getUsers();
     res.json(users || []);
@@ -1963,7 +2130,7 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
-app.put("/api/users/:id/wallet", async (req, res) => {
+app.put("/api/users/:id/wallet", requireAdmin, async (req, res) => {
   try {
     const { amount } = req.body;
     if (amount === undefined || isNaN(amount)) {
@@ -1977,11 +2144,14 @@ app.put("/api/users/:id/wallet", async (req, res) => {
 });
 
 // Update user addresses API
-app.put("/api/users/:id/addresses", async (req, res) => {
+app.put("/api/users/:id/addresses", requireAuth, async (req, res) => {
   try {
     const { addresses } = req.body;
     if (!addresses || !Array.isArray(addresses)) {
       return res.status(400).json({ error: "Addresses array is required." });
+    }
+    if (req.user.id !== req.params.id && req.user.role !== "admin") {
+      return res.status(403).json({ error: "Forbidden: Cannot edit addresses for other users." });
     }
     await db.updateUserAddresses(req.params.id, addresses);
     res.json({ ok: true });
@@ -1990,7 +2160,7 @@ app.put("/api/users/:id/addresses", async (req, res) => {
   }
 });
 
-app.delete("/api/bookings/:id", async (req, res) => {
+app.delete("/api/bookings/:id", requireAdmin, async (req, res) => {
   try {
     await db.deleteBooking(req.params.id);
     res.json({ ok: true });
@@ -2000,7 +2170,7 @@ app.delete("/api/bookings/:id", async (req, res) => {
 });
 
 // ===== Coupons Endpoints =====
-app.get("/api/coupons", async (req, res) => {
+app.get("/api/coupons", requireStaffOrAdmin, async (req, res) => {
   try {
     const coupons = await db.getCoupons();
     res.json(coupons || []);
@@ -2009,7 +2179,7 @@ app.get("/api/coupons", async (req, res) => {
   }
 });
 
-app.post("/api/coupons", async (req, res) => {
+app.post("/api/coupons", requireAdmin, async (req, res) => {
   try {
     const { code, discount, minAmount, expiryDate, isActive } = req.body;
     if (!code || !discount || !expiryDate) {
@@ -2030,7 +2200,7 @@ app.post("/api/coupons", async (req, res) => {
   }
 });
 
-app.put("/api/coupons/:code", async (req, res) => {
+app.put("/api/coupons/:code", requireAdmin, async (req, res) => {
   try {
     const { discount, minAmount, expiryDate, isActive } = req.body;
     const coupon = await db.updateCoupon(req.params.code, {
@@ -2045,7 +2215,7 @@ app.put("/api/coupons/:code", async (req, res) => {
   }
 });
 
-app.delete("/api/coupons/:code", async (req, res) => {
+app.delete("/api/coupons/:code", requireAdmin, async (req, res) => {
   try {
     await db.deleteCoupon(req.params.code);
     res.json({ ok: true });
@@ -2067,7 +2237,7 @@ app.post("/api/coupons/validate", async (req, res) => {
   }
 });
 
-app.put("/api/bookings/:id/payment", async (req, res) => {
+app.put("/api/bookings/:id/payment", requireStaffOrAdmin, async (req, res) => {
   try {
     const { paymentStatus, paymentId } = req.body;
     await db.updateBookingPayment(req.params.id, paymentStatus, paymentId);
@@ -2078,7 +2248,7 @@ app.put("/api/bookings/:id/payment", async (req, res) => {
 });
 
 // ===== Technicians Endpoints =====
-app.get("/api/technicians", async (req, res) => {
+app.get("/api/technicians", requireStaffOrAdmin, async (req, res) => {
   try {
     const technicians = await db.getTechnicians();
     res.json(technicians || []);
@@ -2087,7 +2257,7 @@ app.get("/api/technicians", async (req, res) => {
   }
 });
 
-app.post("/api/technicians", async (req, res) => {
+app.post("/api/technicians", requireAdmin, async (req, res) => {
   try {
     const { name, phone, email, specialty, status, password } = req.body;
     if (!name || !phone) {
@@ -2111,7 +2281,7 @@ app.post("/api/technicians", async (req, res) => {
   }
 });
 
-app.put("/api/technicians/:id", async (req, res) => {
+app.put("/api/technicians/:id", requireAdmin, async (req, res) => {
   try {
     const { name, phone, email, specialty, status, password } = req.body;
     const technician = await db.updateTechnician(req.params.id, {
@@ -2128,7 +2298,7 @@ app.put("/api/technicians/:id", async (req, res) => {
   }
 });
 
-app.get("/api/technicians/:id/bookings", async (req, res) => {
+app.get("/api/technicians/:id/bookings", requireStaffOrAdmin, async (req, res) => {
   try {
     const bookings = await db.getTechnicianBookings(req.params.id);
     res.json(bookings || []);
@@ -2138,7 +2308,7 @@ app.get("/api/technicians/:id/bookings", async (req, res) => {
 });
 
 // Broadcast Open Leads for Technicians (First-Come-First-Serve Job Claiming)
-app.get("/api/technicians/:id/available-jobs", async (req, res) => {
+app.get("/api/technicians/:id/available-jobs", requireStaffOrAdmin, async (req, res) => {
   try {
     const jobs = await db.getAvailableBookings();
     res.json(jobs || []);
@@ -2147,7 +2317,7 @@ app.get("/api/technicians/:id/available-jobs", async (req, res) => {
   }
 });
 
-app.post("/api/technicians/:id/claim-booking", async (req, res) => {
+app.post("/api/technicians/:id/claim-booking", requireStaffOrAdmin, async (req, res) => {
   try {
     const { bookingId } = req.body;
     const technicianId = req.params.id;
@@ -2180,7 +2350,7 @@ app.post("/api/technicians/:id/claim-booking", async (req, res) => {
   }
 });
 
-app.delete("/api/technicians/:id", async (req, res) => {
+app.delete("/api/technicians/:id", requireAdmin, async (req, res) => {
   try {
     await db.deleteTechnician(req.params.id);
     res.json({ ok: true });
@@ -2189,7 +2359,7 @@ app.delete("/api/technicians/:id", async (req, res) => {
   }
 });
 
-app.put("/api/technicians/:id/location", async (req, res) => {
+app.put("/api/technicians/:id/location", requireStaffOrAdmin, async (req, res) => {
   try {
     const { lat, lng } = req.body;
     if (lat === undefined || lng === undefined) {
@@ -2202,7 +2372,7 @@ app.put("/api/technicians/:id/location", async (req, res) => {
   }
 });
 
-app.put("/api/bookings/:id/technician", async (req, res) => {
+app.put("/api/bookings/:id/technician", requireAdmin, async (req, res) => {
   try {
     const { technicianId } = req.body;
     await db.updateBookingTechnician(req.params.id, technicianId);
@@ -2212,7 +2382,7 @@ app.put("/api/bookings/:id/technician", async (req, res) => {
   }
 });
 
-app.put("/api/bookings/:id/job-status", async (req, res) => {
+app.put("/api/bookings/:id/job-status", requireStaffOrAdmin, async (req, res) => {
   try {
     const { jobStatus, statusNote } = req.body;
     if (!jobStatus) {
@@ -2310,7 +2480,7 @@ app.put("/api/bookings/:id/job-status", async (req, res) => {
   }
 });
 
-app.put("/api/bookings/:id/media", async (req, res) => {
+app.put("/api/bookings/:id/media", requireStaffOrAdmin, async (req, res) => {
   try {
     const { beforeImage, afterImage } = req.body;
     await db.updateBookingMedia(req.params.id, { beforeImage, afterImage });
@@ -2320,7 +2490,7 @@ app.put("/api/bookings/:id/media", async (req, res) => {
   }
 });
 
-app.get("/api/bookings/reschedule-logs", async (req, res) => {
+app.get("/api/bookings/reschedule-logs", requireStaffOrAdmin, async (req, res) => {
   try {
     const logs = await db.getAllRescheduleLogs();
     res.json(logs || []);
@@ -2329,7 +2499,7 @@ app.get("/api/bookings/reschedule-logs", async (req, res) => {
   }
 });
 
-app.put("/api/bookings/:id/reschedule", async (req, res) => {
+app.put("/api/bookings/:id/reschedule", requireStaffOrAdmin, async (req, res) => {
   try {
     const { date, time, rescheduledBy } = req.body;
     if (!date || !time) {
@@ -2388,7 +2558,7 @@ app.put("/api/bookings/:id/reschedule", async (req, res) => {
   }
 });
 
-app.post("/api/categories", async (req, res) => {
+app.post("/api/categories", requireAdmin, async (req, res) => {
   try {
     const includes = Array.isArray(req.body.includes)
       ? req.body.includes
@@ -2412,7 +2582,7 @@ app.post("/api/categories", async (req, res) => {
   }
 });
 
-app.put("/api/categories/:id", async (req, res) => {
+app.put("/api/categories/:id", requireAdmin, async (req, res) => {
   try {
     const includes = Array.isArray(req.body.includes)
       ? req.body.includes
@@ -2434,7 +2604,7 @@ app.put("/api/categories/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/categories/:id", async (req, res) => {
+app.delete("/api/categories/:id", requireAdmin, async (req, res) => {
   try {
     await db.deleteCategory(req.params.id);
     res.json({ ok: true });
@@ -2443,7 +2613,7 @@ app.delete("/api/categories/:id", async (req, res) => {
   }
 });
 
-app.post("/api/services", async (req, res) => {
+app.post("/api/services", requireAdmin, async (req, res) => {
   try {
     const includes = Array.isArray(req.body.includes)
       ? req.body.includes
@@ -2472,7 +2642,7 @@ app.post("/api/services", async (req, res) => {
   }
 });
 
-app.put("/api/services/:id", async (req, res) => {
+app.put("/api/services/:id", requireAdmin, async (req, res) => {
   try {
     const includes = Array.isArray(req.body.includes)
       ? req.body.includes
@@ -2504,7 +2674,7 @@ app.put("/api/services/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/services/:id", async (req, res) => {
+app.delete("/api/services/:id", requireAdmin, async (req, res) => {
   try {
     await db.deleteService(req.params.id);
     res.json({ ok: true });
@@ -2524,7 +2694,7 @@ app.get("/api/customized-services", async (req, res) => {
   }
 });
 
-app.post("/api/customized-services", async (req, res) => {
+app.post("/api/customized-services", requireAdmin, async (req, res) => {
   try {
     const payload = {
       id: req.body.id || `cust-${Date.now()}`,
@@ -2541,7 +2711,7 @@ app.post("/api/customized-services", async (req, res) => {
   }
 });
 
-app.put("/api/customized-services/:id", async (req, res) => {
+app.put("/api/customized-services/:id", requireAdmin, async (req, res) => {
   try {
     const patch = {
       title: req.body.title,
@@ -2558,7 +2728,7 @@ app.put("/api/customized-services/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/customized-services/:id", async (req, res) => {
+app.delete("/api/customized-services/:id", requireAdmin, async (req, res) => {
   try {
     await db.deleteCustomizedService(req.params.id);
     res.json({ ok: true });
@@ -2672,8 +2842,8 @@ const handleSaveSettings = async (req, res) => {
   }
 };
 
-app.post("/api/settings", handleSaveSettings);
-app.put("/api/settings", handleSaveSettings);
+app.post("/api/settings", requireAdmin, handleSaveSettings);
+app.put("/api/settings", requireAdmin, handleSaveSettings);
 
 // Reviews API
 app.get("/api/reviews", async (req, res) => {
@@ -2720,7 +2890,7 @@ app.get("/api/transformations", async (req, res) => {
   }
 });
 
-app.post("/api/transformations", async (req, res) => {
+app.post("/api/transformations", requireAdmin, async (req, res) => {
   try {
     const payload = {
       id: req.body.id || `trans-${Date.now()}`,
@@ -2736,7 +2906,7 @@ app.post("/api/transformations", async (req, res) => {
   }
 });
 
-app.put("/api/transformations/:id", async (req, res) => {
+app.put("/api/transformations/:id", requireAdmin, async (req, res) => {
   try {
     const payload = {
       title: req.body.title || "",
@@ -2751,7 +2921,7 @@ app.put("/api/transformations/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/transformations/:id", async (req, res) => {
+app.delete("/api/transformations/:id", requireAdmin, async (req, res) => {
   try {
     await db.deleteRecentTransformation(req.params.id);
     res.json({ ok: true });
@@ -2770,7 +2940,7 @@ app.get("/api/blocked-dates", async (req, res) => {
   }
 });
 
-app.post("/api/blocked-dates", async (req, res) => {
+app.post("/api/blocked-dates", requireAdmin, async (req, res) => {
   try {
     const { date, reason } = req.body;
     if (!date) {
@@ -2793,7 +2963,7 @@ app.post("/api/blocked-dates", async (req, res) => {
   }
 });
 
-app.delete("/api/blocked-dates/:id", async (req, res) => {
+app.delete("/api/blocked-dates/:id", requireAdmin, async (req, res) => {
   try {
     await db.deleteBlockedDate(req.params.id);
     res.json({ ok: true });
@@ -2923,7 +3093,7 @@ app.post("/api/quotes", async (req, res) => {
   }
 });
 
-app.get("/api/inquiries", async (req, res) => {
+app.get("/api/inquiries", requireAdmin, async (req, res) => {
   try {
     const list = await db.getInquiries();
     return res.json(list || []);
@@ -2932,7 +3102,7 @@ app.get("/api/inquiries", async (req, res) => {
   }
 });
 
-app.patch("/api/inquiries/:id", async (req, res) => {
+app.patch("/api/inquiries/:id", requireAdmin, async (req, res) => {
   try {
     const { status } = req.body;
     await db.updateInquiryStatus(req.params.id, status || "Contacted");
@@ -2942,7 +3112,7 @@ app.patch("/api/inquiries/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/inquiries/:id", async (req, res) => {
+app.delete("/api/inquiries/:id", requireAdmin, async (req, res) => {
   try {
     await db.deleteInquiry(req.params.id);
     return res.json({ ok: true });
@@ -2969,13 +3139,9 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-// Fallback all non-API, non-admin HTML routes directly to the production Client SPA index.html
+// Fallback all non-API HTML routes directly to the production Client SPA index.html
 app.all("*", (req, res, next) => {
-  if (
-    req.path.startsWith("/api") ||
-    req.path.startsWith("/admin") ||
-    req.path.startsWith("/technician")
-  ) {
+  if (req.path.startsWith("/api")) {
     return next();
   }
 

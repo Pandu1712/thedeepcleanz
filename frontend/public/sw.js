@@ -82,11 +82,15 @@ self.addEventListener("fetch", (event) => {
   const bypassPaths = [
     "/checkout",
     "/api/bookings",
+    "/api/payment",
     "/api/razorpay",
     "/api/auth",
     "/api/locations",
     "/api/admin",
     "/api/technician",
+    "/api/inquiries",
+    "/api/quotes",
+    "/api/user",
   ];
   if (bypassPaths.some((p) => url.pathname.startsWith(p))) {
     return; // Pass through directly to browser network
@@ -164,7 +168,7 @@ self.addEventListener("fetch", (event) => {
             JSON.stringify({ offline: true, error: "Network unavailable" }),
             {
               headers: { "Content-Type": "application/json" },
-              status: 200,
+              status: 503,
             }
           );
         })

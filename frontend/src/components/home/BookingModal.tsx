@@ -447,10 +447,11 @@ export const BookingModal = memo(function BookingModal({
           (window as any).recaptchaVerifier = appVerifier;
         }
 
-        const formattedPhone = `+91${cleanPhone}`;
-        console.log("Dispatching Firebase SMS OTP to:", formattedPhone);
-
-        const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+        const firebasePromise = signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Firebase Phone Auth timeout")), 6000),
+        );
+        const confirmation = (await Promise.race([firebasePromise, timeoutPromise])) as any;
         setConfirmationResult(confirmation);
         setOtpSentMessage(`Verification code sent to +91 ${cleanPhone} via SMS.`);
         toast.success("OTP sent to your phone via SMS!", { icon: "📨" });
@@ -573,9 +574,9 @@ export const BookingModal = memo(function BookingModal({
     try {
       const liveCheck = await fetchBookedSlots(form.date);
       const currentNorm = normalizeTimeSlot(form.time);
-      if (liveCheck.normalizedSlots.includes(currentNorm)) {
+      if ((liveCheck?.normalizedSlots || []).includes(currentNorm)) {
         toast.error(`⚠️ Slot conflict: (${form.time} on ${form.date}) was just booked by another customer. Payment not charged. Please choose another available slot.`);
-        const nextFree = getFirstAvailableSlot(form.date, liveCheck.normalizedSlots, 30);
+        const nextFree = getFirstAvailableSlot(form.date, liveCheck?.normalizedSlots || [], 30);
         setForm((prev) => ({ ...prev, time: nextFree || "" }));
         setIsPaying(false);
         return;
@@ -594,8 +595,14 @@ export const BookingModal = memo(function BookingModal({
         }
 
         const orderInfo = await createRazorpayOrder(upfrontPayAmount);
+        if (!orderInfo.keyId) {
+          toast.error("Payment gateway configuration missing. Please contact support.");
+          setIsPaying(false);
+          return;
+        }
+
         const options: any = {
-          key: orderInfo.keyId || "rzp_test_SwedUUn1KgRMs0",
+          key: orderInfo.keyId,
           amount: orderInfo.amount,
           currency: "INR",
           name: "TheDeep CleanerZ",
@@ -619,6 +626,9 @@ export const BookingModal = memo(function BookingModal({
                 })),
                 paymentStatus: `Paid Advance (₹${upfrontPayAmount}) - Remaining: ₹${payLaterAmount}`,
                 paymentId: response.razorpay_payment_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpaySignature: response.razorpay_signature,
                 userId: currentUserId,
               });
               setSuccess(true);

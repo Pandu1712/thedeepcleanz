@@ -57,7 +57,9 @@ function ThankYouPage() {
 
   useEffect(() => {
     try {
-      const savedCart = localStorage.getItem("thedeepcleanerz_cart");
+      const savedCart =
+        localStorage.getItem("thedeepcleanerz_cart_v1") ||
+        localStorage.getItem("thedeepcleanerz_cart");
       if (savedCart) {
         const parsed = JSON.parse(savedCart);
         setCartCount(Array.isArray(parsed) ? parsed.length : 0);

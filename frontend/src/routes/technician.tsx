@@ -257,39 +257,8 @@ function TechnicianPortal() {
     }
 
     setIsLoggingIn(true);
-    const normInput = loginEmail.trim().toLowerCase();
 
-    // 1. Quick Staff Credentials Bypass
-    if (
-      (normInput === "technician@thedeepcleanerz.com" ||
-        normInput === "tech" ||
-        normInput.includes("technician")) &&
-      loginPassword === "tech123"
-    ) {
-      const techUser = {
-        id: "tech-1",
-        name: "Lead Technician",
-        email: normInput,
-        role: "technician",
-        specialty: "Full Deep Sanitization & Foam Scrubbing",
-        phone: "99663 46347",
-      };
-      sessionStorage.setItem("technician_authenticated", "true");
-      sessionStorage.setItem("technician_profile", JSON.stringify(techUser));
-      localStorage.setItem("technician_authenticated", "true");
-      localStorage.setItem("technician_profile", JSON.stringify(techUser));
-      setProfile(techUser);
-      setEditName(techUser.name);
-      setEditPhone(techUser.phone);
-      setEditSpecialty(techUser.specialty);
-      setIsAuthenticated(true);
-      loadBookings(techUser.id);
-      toast.success("Welcome back! Staff Portal active.", { icon: "🛠️" });
-      setIsLoggingIn(false);
-      return;
-    }
-
-    // 2. Backend Database Auth
+    // Backend Database Auth
     try {
       const res = await fetch(`${ADMIN_API_URL}/api/auth/login`, {
         method: "POST",
@@ -297,7 +266,11 @@ function TechnicianPortal() {
         body: JSON.stringify({ emailOrPhone: loginEmail.trim(), password: loginPassword }),
       });
       const data = await res.json().catch(() => null);
-      if (res.ok && data?.role === "technician" && data?.user) {
+      if (res.ok && (data?.role === "technician" || data?.role === "admin") && data?.user) {
+        if (data?.token) {
+          sessionStorage.setItem("auth_token", data.token);
+          localStorage.setItem("auth_token", data.token);
+        }
         sessionStorage.setItem("technician_authenticated", "true");
         sessionStorage.setItem("technician_profile", JSON.stringify(data.user));
         localStorage.setItem("technician_authenticated", "true");
@@ -323,8 +296,10 @@ function TechnicianPortal() {
   const handleLogout = () => {
     sessionStorage.removeItem("technician_authenticated");
     sessionStorage.removeItem("technician_profile");
+    sessionStorage.removeItem("auth_token");
     localStorage.removeItem("technician_authenticated");
     localStorage.removeItem("technician_profile");
+    localStorage.removeItem("auth_token");
     setIsAuthenticated(false);
     setProfile(null);
     setBookings([]);

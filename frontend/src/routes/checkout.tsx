@@ -82,7 +82,19 @@ function CheckoutPage() {
   const navigate = useNavigate();
 
   // Cart state
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw =
+        localStorage.getItem("thedeepcleanerz_cart_v1") ||
+        localStorage.getItem("thedeepcleanerz_cart");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed.filter((i) => i && i.id);
+      }
+    } catch (e) {}
+    return [];
+  });
   const [isClientMounted, setIsClientMounted] = useState(false);
 
   // Form details
@@ -467,7 +479,11 @@ function CheckoutPage() {
           (window as any).checkoutRecaptchaVerifier = appVerifier;
         }
 
-        const confirmation = await signInWithPhoneNumber(auth, `+91${cleanPhone}`, appVerifier);
+        const firebasePromise = signInWithPhoneNumber(auth, `+91${cleanPhone}`, appVerifier);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Firebase Phone Auth timeout")), 6000),
+        );
+        const confirmation = (await Promise.race([firebasePromise, timeoutPromise])) as ConfirmationResult;
         setConfirmationResult(confirmation);
         setOtpSent(true);
         setOtpTimer(45);
@@ -523,7 +539,7 @@ function CheckoutPage() {
     let verified = false;
 
     // Firebase confirmation
-    if (confirmationResult && cleanOtp !== "123456" && cleanOtp !== "778899") {
+    if (confirmationResult) {
       try {
         await confirmationResult.confirm(cleanOtp);
         verified = true;
@@ -563,6 +579,12 @@ function CheckoutPage() {
         phone: cleanPhone,
         email: email.trim() || `${cleanPhone}@thedeepcleanerz.com`,
       };
+
+      // Save auth token
+      if (data?.token) {
+        sessionStorage.setItem("auth_token", data.token);
+        localStorage.setItem("auth_token", data.token);
+      }
 
       // Save user session
       sessionStorage.setItem("user_authenticated", "true");
@@ -664,8 +686,15 @@ function CheckoutPage() {
         }
 
         const orderInfo = await createRazorpayOrder(upfrontPayAmount);
+        if (!orderInfo.keyId) {
+          toast.error("Payment gateway configuration missing. Please contact support.");
+          isSubmittingRef.current = false;
+          setIsProcessing(false);
+          return;
+        }
+
         const options: any = {
-          key: orderInfo.keyId || "rzp_test_SwedUUn1KgRMs0",
+          key: orderInfo.keyId,
           amount: orderInfo.amount,
           currency: "INR",
           name: "TheDeep CleanerZ",
@@ -689,6 +718,9 @@ function CheckoutPage() {
                 })),
                 paymentStatus: `Paid Advance (₹${upfrontPayAmount}) - Remaining: ₹${payLaterAmount}`,
                 paymentId: response.razorpay_payment_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpaySignature: response.razorpay_signature,
                 userId,
               });
 
@@ -782,8 +814,8 @@ function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAF9] text-[#1D2939] font-sans pt-24 sm:pt-28 pb-20 antialiased selection:bg-[#0B6B46] selection:text-white">
-      {/* Invisible container for Firebase Phone Authentication (restricted dimensions so it never captures clicks) */}
-      <div id="recaptcha-container" className="invisible fixed bottom-0 left-0 w-0 h-0 overflow-hidden pointer-events-none -z-50" />
+      {/* Invisible container for Firebase Phone Authentication */}
+      <div id="recaptcha-container" />
 
       <Header
         cartCount={cart.reduce((sum, i) => sum + (i.qty || 1), 0)}

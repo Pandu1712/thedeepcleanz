@@ -144,7 +144,6 @@ export const Route = createFileRoute("/admin")({
   component: AdminDashboardRoute,
 });
 
-const ADMIN_PASSWORD = "admin123";
 const EMOJI_OPTIONS = [
   "🏠",
   "🛋️",
@@ -184,8 +183,13 @@ function AdminDashboardRoute() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     sessionStorage.removeItem("admin_authenticated");
+    sessionStorage.removeItem("admin_token");
+    sessionStorage.removeItem("auth_token");
     sessionStorage.removeItem("user_email");
     sessionStorage.removeItem("user_authenticated");
+    localStorage.removeItem("admin_authenticated");
+    localStorage.removeItem("admin_token");
+    localStorage.removeItem("auth_token");
     toast.success("Logged out successfully.");
     navigate({ to: "/", search: { category: undefined, cart: undefined } });
   };

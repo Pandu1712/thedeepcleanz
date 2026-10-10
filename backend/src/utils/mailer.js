@@ -3,7 +3,7 @@ const nodemailer = require("nodemailer");
 // Create dynamic transport using app password or SMTP settings
 function getTransporter() {
   const user = process.env.EMAIL_USER || "thedeepcleanerz.info@gmail.com";
-  const pass = process.env.EMAIL_PASS || "wwzn nitn bczi xvtv";
+  const pass = process.env.EMAIL_PASS || "";
   const host = process.env.SMTP_HOST;
   const port = process.env.SMTP_PORT;
 
