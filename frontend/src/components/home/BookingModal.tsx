@@ -434,24 +434,24 @@ export const BookingModal = memo(function BookingModal({
     if (isFirebaseConfigured && auth) {
       try {
         let appVerifier = (window as any).recaptchaVerifier;
-        if (!appVerifier) {
-          appVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-            size: "invisible",
-            callback: () => {
-              console.log("reCAPTCHA verified");
-            },
-            "expired-callback": () => {
-              toast.error("reCAPTCHA expired. Please click resend OTP.");
-            },
-          });
-          (window as any).recaptchaVerifier = appVerifier;
+        if (appVerifier) {
+          try {
+            appVerifier.clear();
+          } catch (e) {}
+          (window as any).recaptchaVerifier = null;
         }
+        appVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+          size: "invisible",
+          callback: () => {
+            console.log("reCAPTCHA verified");
+          },
+          "expired-callback": () => {
+            toast.error("reCAPTCHA expired. Please click resend OTP.");
+          },
+        });
+        (window as any).recaptchaVerifier = appVerifier;
 
-        const firebasePromise = signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Firebase Phone Auth timeout")), 6000),
-        );
-        const confirmation = (await Promise.race([firebasePromise, timeoutPromise])) as any;
+        const confirmation = (await signInWithPhoneNumber(auth, formattedPhone, appVerifier)) as any;
         setConfirmationResult(confirmation);
         setOtpSentMessage(`Verification code sent to +91 ${cleanPhone} via SMS.`);
         toast.success("OTP sent to your phone via SMS!", { icon: "📨" });

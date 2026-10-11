@@ -90,16 +90,20 @@ function LoginComponent() {
     if (isFirebaseConfigured && auth && typeof window !== "undefined") {
       try {
         let appVerifier = (window as any).loginRecaptchaVerifier;
-        if (!appVerifier) {
-          appVerifier = new RecaptchaVerifier(auth, "login-recaptcha-container", {
-            size: "invisible",
-            callback: () => {},
-            "expired-callback": () => {
-              toast.error("Verification session expired. Please click Resend Code.");
-            },
-          });
-          (window as any).loginRecaptchaVerifier = appVerifier;
+        if (appVerifier) {
+          try {
+            appVerifier.clear();
+          } catch (e) {}
+          (window as any).loginRecaptchaVerifier = null;
         }
+        appVerifier = new RecaptchaVerifier(auth, "login-recaptcha-container", {
+          size: "invisible",
+          callback: () => {},
+          "expired-callback": () => {
+            toast.error("Verification session expired. Please click Resend Code.");
+          },
+        });
+        (window as any).loginRecaptchaVerifier = appVerifier;
 
         const confirmation = await signInWithPhoneNumber(auth, `+91${cleanPhone}`, appVerifier);
         setConfirmationResult(confirmation);

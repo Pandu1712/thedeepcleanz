@@ -468,22 +468,22 @@ function CheckoutPage() {
     if (isFirebaseConfigured && auth && typeof window !== "undefined") {
       try {
         let appVerifier = (window as any).checkoutRecaptchaVerifier;
-        if (!appVerifier) {
-          appVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-            size: "invisible",
-            callback: () => {},
-            "expired-callback": () => {
-              toast.error("Verification session expired. Please click Resend OTP.");
-            },
-          });
-          (window as any).checkoutRecaptchaVerifier = appVerifier;
+        if (appVerifier) {
+          try {
+            appVerifier.clear();
+          } catch (e) {}
+          (window as any).checkoutRecaptchaVerifier = null;
         }
+        appVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+          size: "invisible",
+          callback: () => {},
+          "expired-callback": () => {
+            toast.error("Verification session expired. Please click Resend OTP.");
+          },
+        });
+        (window as any).checkoutRecaptchaVerifier = appVerifier;
 
-        const firebasePromise = signInWithPhoneNumber(auth, `+91${cleanPhone}`, appVerifier);
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Firebase Phone Auth timeout")), 6000),
-        );
-        const confirmation = (await Promise.race([firebasePromise, timeoutPromise])) as ConfirmationResult;
+        const confirmation = await signInWithPhoneNumber(auth, `+91${cleanPhone}`, appVerifier);
         setConfirmationResult(confirmation);
         setOtpSent(true);
         setOtpTimer(45);
