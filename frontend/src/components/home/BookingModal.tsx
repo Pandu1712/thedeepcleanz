@@ -451,6 +451,7 @@ export const BookingModal = memo(function BookingModal({
         });
         (window as any).recaptchaVerifier = appVerifier;
 
+        const formattedPhone = `+91${cleanPhone.slice(-10)}`;
         const confirmation = (await signInWithPhoneNumber(auth, formattedPhone, appVerifier)) as any;
         setConfirmationResult(confirmation);
         setOtpSentMessage(`Verification code sent to +91 ${cleanPhone} via SMS.`);

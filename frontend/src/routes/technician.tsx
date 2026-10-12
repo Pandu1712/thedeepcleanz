@@ -446,7 +446,7 @@ function TechnicianPortal() {
         <div className="relative w-full max-w-md overflow-hidden rounded-3xl glass-dark p-7 sm:p-10 shadow-2xl border border-emerald-800/40 text-white animate-fade-up">
           <button
             type="button"
-            onClick={() => navigate({ to: "/" })}
+            onClick={() => navigate({ to: "/", search: { category: undefined, cart: undefined } })}
             className="inline-flex items-center gap-2 text-xs font-bold text-cream/60 hover:text-emerald-400 transition-colors mb-6 cursor-pointer group"
           >
             <span>← Back to Home</span>

@@ -174,6 +174,10 @@ function AdminDashboardRoute() {
     if (authed) {
       setIsAuthenticated(true);
     } else {
+      // Set session flag so /login immediately opens in Admin Email OTP mode
+      try {
+        sessionStorage.setItem("admin_intended", "true");
+      } catch (e) {}
       // Redirect to the unified login page
       navigate({ to: "/login" });
       toast.error("Please login as an administrator first.", { icon: "🔒" });
