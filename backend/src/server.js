@@ -2579,6 +2579,7 @@ app.post("/api/categories", requireAdmin, async (req, res) => {
       image: req.body.image || null,
       parentId: req.body.parentId || null,
       includes,
+      paymentType: req.body.paymentType || "fixed",
     };
     await db.addCategory(newCat);
     res.json({ ok: true, category: newCat });
@@ -2602,6 +2603,8 @@ app.put("/api/categories/:id", requireAdmin, async (req, res) => {
       image: req.body.image,
       parentId: req.body.parentId || null,
       includes,
+      paymentType: req.body.paymentType,
+      cascadeToServices: req.body.cascadeToServices !== false,
     });
     res.json({ ok: true, category: c });
   } catch (err) {

@@ -478,6 +478,15 @@ async function initDb() {
       console.log("Altered categories table to add includes column.");
     }
 
+    const hasCatPaymentType = catColumns.some((c) => c.Field === "payment_type");
+    if (!hasCatPaymentType) {
+      await query(`
+        ALTER TABLE categories 
+        ADD COLUMN payment_type VARCHAR(50) DEFAULT 'fixed'
+      `);
+      console.log("Altered categories table to add payment_type column.");
+    }
+
     // Alter table services to add columns if they don't exist
     const svcColumns = await query("SHOW COLUMNS FROM services");
     const hasSvcImage = svcColumns.some((c) => c.Field === "image");
@@ -3054,26 +3063,63 @@ module.exports = {
     const rows = await query("SELECT * FROM categories");
     const result = rows.map((r) => ({
       ...r,
+      paymentType: r.payment_type || "fixed",
       includes: typeof r.includes === "string" ? JSON.parse(r.includes) : r.includes || [],
     }));
     setCache("categories", result);
     return result;
   },
-  async addCategory({ id, title, tagline, emoji, image, parentId, includes }) {
+  async addCategory({ id, title, tagline, emoji, image, parentId, includes, paymentType }) {
     invalidateCache("categories", "catalog");
+    const pType = paymentType || "fixed";
     await query(
-      "INSERT INTO categories (id, title, tagline, emoji, image, parentId, includes) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [id, title, tagline, emoji, image || null, parentId || null, JSON.stringify(includes || [])],
+      "INSERT INTO categories (id, title, tagline, emoji, image, parentId, includes, payment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, title, tagline, emoji, image || null, parentId || null, JSON.stringify(includes || []), pType],
     );
-    return { id, title, tagline, emoji, image, parentId, includes };
+    return { id, title, tagline, emoji, image, parentId, includes, paymentType: pType };
   },
-  async updateCategory(id, { title, tagline, emoji, image, parentId, includes }) {
-    invalidateCache("categories", "catalog");
+  async updateCategory(id, { title, tagline, emoji, image, parentId, includes, paymentType, cascadeToServices }) {
+    invalidateCache("categories", "services", "catalog");
+    const pType = paymentType || "fixed";
     await query(
-      "UPDATE categories SET title = ?, tagline = ?, emoji = ?, image = ?, parentId = ?, includes = ? WHERE id = ?",
-      [title, tagline, emoji, image, parentId || null, JSON.stringify(includes || []), id],
+      "UPDATE categories SET title = ?, tagline = ?, emoji = ?, image = ?, parentId = ?, includes = ?, payment_type = ? WHERE id = ?",
+      [title, tagline, emoji, image, parentId || null, JSON.stringify(includes || []), pType, id],
     );
-    return { id, title, tagline, emoji, image, parentId, includes };
+
+    // Cascade to child services if requested or if paymentType is specified
+    if (cascadeToServices !== false && paymentType) {
+      try {
+        // Collect this category ID and all subcategory IDs under it
+        const subCats = await query("SELECT id FROM categories WHERE parentId = ?", [id]);
+        const targetCatIds = [id, ...(subCats || []).map((sc) => sc.id)];
+
+        // If parent category is set to custom_quote, also mark subcategories as custom_quote
+        if (pType === "custom_quote" && subCats && subCats.length > 0) {
+          const placeholdersSub = subCats.map(() => "?").join(",");
+          await query(
+            `UPDATE categories SET payment_type = 'custom_quote' WHERE id IN (${placeholdersSub})`,
+            subCats.map((sc) => sc.id)
+          );
+        }
+
+        const placeholders = targetCatIds.map(() => "?").join(",");
+        if (pType === "custom_quote") {
+          await query(
+            `UPDATE services SET payment_type = 'custom_quote', price = 0 WHERE categoryId IN (${placeholders})`,
+            targetCatIds
+          );
+        } else if (pType === "fixed" || pType === "full") {
+          await query(
+            `UPDATE services SET payment_type = 'full' WHERE categoryId IN (${placeholders}) AND payment_type = 'custom_quote'`,
+            targetCatIds
+          );
+        }
+      } catch (cascadeErr) {
+        console.warn("Cascade category paymentType error:", cascadeErr.message);
+      }
+    }
+
+    return { id, title, tagline, emoji, image, parentId, includes, paymentType: pType };
   },
   async deleteCategory(id) {
     invalidateCache("categories", "catalog");

@@ -74,6 +74,7 @@ export type AdminCategory = {
   image?: string;
   parentId?: string | null;
   includes?: string[];
+  paymentType?: "fixed" | "custom_quote" | string;
 };
 export type ServicePlan = {
   name: string;
@@ -441,6 +442,7 @@ export async function createCategory(cat: {
   image?: string;
   parentId?: string | null;
   includes?: string[];
+  paymentType?: string;
 }): Promise<AdminCategory> {
   const res = await fetch(`${ADMIN_API_URL}/api/categories`, {
     method: "POST",
@@ -453,7 +455,7 @@ export async function createCategory(cat: {
 
 export async function updateCategory(
   id: string,
-  patch: Partial<AdminCategory>,
+  patch: Partial<AdminCategory> & { cascadeToServices?: boolean },
 ): Promise<AdminCategory> {
   const res = await fetch(`${ADMIN_API_URL}/api/categories/${id}`, {
     method: "PUT",

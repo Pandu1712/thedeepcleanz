@@ -144,6 +144,7 @@ export type Category = {
   image?: string;
   parentId?: string | null;
   includes?: string[];
+  paymentType?: "fixed" | "custom_quote" | string;
   services: CatService[];
 };
 
@@ -1108,6 +1109,11 @@ export function mergeAdminCatalog(catalog?: AdminCatalog | null): Category[] {
 
   const fallbackImg = SERVICES[0]?.img ?? "";
   const mapped: Category[] = catalog.categories.map((c) => {
+    const isCatQuote = c.paymentType === "custom_quote" || (c as any).payment_type === "custom_quote" || c.paymentType === "quote";
+    const topCat = c.parentId ? catalog.categories.find((p) => p.id === c.parentId) : null;
+    const isTopQuote = topCat && (topCat.paymentType === "custom_quote" || (topCat as any).payment_type === "custom_quote" || topCat.paymentType === "quote");
+    const effectiveCatPaymentType = isCatQuote || isTopQuote ? "custom_quote" : (c.paymentType || "fixed");
+
     const services: CatService[] = (catalog.services || [])
       .filter((s) => s.categoryId === c.id)
       .map((s) => {
@@ -1127,17 +1133,22 @@ export function mergeAdminCatalog(catalog?: AdminCatalog | null): Category[] {
           serviceDesc = local?.desc || "";
         }
 
+        const isSvcQuote = s.paymentType === "custom_quote" || s.paymentType === "quote" || effectiveCatPaymentType === "custom_quote";
+        const effectiveSvcPaymentType = isSvcQuote ? "custom_quote" : (s.paymentType as any || "full");
+        const effectivePrice = isSvcQuote ? 0 : s.price;
+
         return {
           id: s.id,
           title: s.title,
           desc: serviceDesc,
-          price: s.price,
+          price: effectivePrice,
           img: serviceImage || local?.img || fallbackImg,
           sub: s.includes && s.includes.length ? s.includes : (local?.sub.map((x) => x.name) ?? []),
           image: serviceImage,
           plans: s.plans || [],
           disclaimer: s.disclaimer,
           requirements: s.requirements,
+          paymentType: effectiveSvcPaymentType,
           precautions: s.precautions,
         };
       });
@@ -1179,17 +1190,22 @@ export function mergeAdminCatalog(catalog?: AdminCatalog | null): Category[] {
           .filter((s) => childCatIds.includes(s.categoryId))
           .map((s) => {
             const local = SERVICES.find((x) => x.id === s.id);
+            const isChildSvcQuote = s.paymentType === "custom_quote" || s.paymentType === "quote" || effectiveCatPaymentType === "custom_quote";
+            const effectiveChildPaymentType = isChildSvcQuote ? "custom_quote" : (s.paymentType as any || "full");
+            const effectiveChildPrice = isChildSvcQuote ? 0 : s.price;
+
             return {
               id: s.id,
               title: s.title,
               desc: s.description || local?.desc || "",
-              price: s.price,
+              price: effectiveChildPrice,
               img: s.image || local?.img || fallbackImg,
               sub: s.includes && s.includes.length ? s.includes : (local?.sub.map((x) => x.name) ?? []),
               image: s.image,
               plans: s.plans || [],
               disclaimer: s.disclaimer,
               requirements: s.requirements,
+              paymentType: effectiveChildPaymentType,
               precautions: s.precautions,
             };
           });
@@ -1207,6 +1223,7 @@ export function mergeAdminCatalog(catalog?: AdminCatalog | null): Category[] {
       image: categoryImage,
       parentId: c.parentId || null,
       includes: c.includes || defaultCat?.includes || [],
+      paymentType: effectiveCatPaymentType,
       services: finalServices,
     };
   });

@@ -749,6 +749,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [editingCatIncIdx, setEditingCatIncIdx] = useState<number | null>(null);
   const [editCatIncVal, setEditCatIncVal] = useState("");
   const [categorySubTab, setCategorySubTab] = useState<"main" | "sub">("main");
+  const [catPricingMode, setCatPricingMode] = useState<"fixed" | "custom_quote">("fixed");
   const [imageInputMode, setImageInputMode] = useState<"url" | "upload">("url");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
@@ -818,6 +819,13 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [customEndDate, setCustomEndDate] = useState(() => {
     return new Date().toISOString().split("T")[0];
   });
+
+  const affectedCatServices = useMemo(() => {
+    if (!activeCategoryId) return [];
+    const childCatIds = categories.filter((c) => c.parentId === activeCategoryId).map((c) => c.id);
+    const targetIds = [activeCategoryId, ...childCatIds];
+    return services.filter((s) => targetIds.includes(s.categoryId));
+  }, [activeCategoryId, categories, services]);
 
   const chartData = useMemo(() => {
     let result = [...bookings];
@@ -1622,6 +1630,8 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     setCatParentId(c.parentId || "");
     setCatIncList(c.includes || []);
     setCategorySubTab(c.parentId ? "sub" : "main");
+    const isQuote = c.paymentType === "custom_quote" || (c as any).payment_type === "custom_quote" || c.paymentType === "quote";
+    setCatPricingMode(isQuote ? "custom_quote" : "fixed");
     setImageInputMode("url");
   };
 
@@ -1683,6 +1693,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           image: catImage,
           parentId: parentIdVal,
           includes: catIncList,
+          paymentType: catPricingMode,
         });
         setCategories((prev) => [...prev, created]);
         selectCategory(created);
@@ -1696,9 +1707,48 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           image: catImage,
           parentId: parentIdVal,
           includes: catIncList,
+          paymentType: catPricingMode,
+          cascadeToServices: true,
         });
-        setCategories((prev) => prev.map((c) => (c.id === activeCategoryId ? updated : c)));
-        toast.success("Category updated successfully!");
+        setCategories((prev) =>
+          prev.map((c) => (c.id === activeCategoryId ? { ...c, ...updated, paymentType: catPricingMode } : c))
+        );
+
+        // Cascading update to local services and sub-categories state
+        const childCatIds = categories.filter((c) => c.parentId === activeCategoryId).map((c) => c.id);
+        const allTargetCatIds = [activeCategoryId, ...childCatIds];
+
+        if (catPricingMode === "custom_quote") {
+          setServices((prev) =>
+            prev.map((s) =>
+              allTargetCatIds.includes(s.categoryId)
+                ? { ...s, paymentType: "custom_quote", price: 0 }
+                : s
+            )
+          );
+          if (childCatIds.length > 0) {
+            setCategories((prev) =>
+              prev.map((c) =>
+                childCatIds.includes(c.id) ? { ...c, paymentType: "custom_quote" } : c
+              )
+            );
+          }
+          const affectedCount = services.filter((s) => allTargetCatIds.includes(s.categoryId)).length;
+          toast.success(
+            affectedCount > 0
+              ? `Category updated! Applied Custom Quote mode to ${affectedCount} services.`
+              : "Category updated with Custom Quote mode!"
+          );
+        } else {
+          setServices((prev) =>
+            prev.map((s) =>
+              allTargetCatIds.includes(s.categoryId) && (s.paymentType === "custom_quote" || s.paymentType === "quote")
+                ? { ...s, paymentType: "full" }
+                : s
+            )
+          );
+          toast.success("Category updated successfully!");
+        }
       }
       refreshData();
     } catch (err) {
@@ -1882,6 +1932,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     setCatImage("");
     setCatIncludes("");
     setCatIncList([]);
+    setCatPricingMode("fixed");
     setImageInputMode("url");
     setActiveTab("categories");
 
@@ -3273,10 +3324,17 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                               }`}
                             >
                               <span className="text-xl shrink-0">{parent.emoji || "✨"}</span>
-                              <div className="flex flex-col min-w-0">
-                                <span className="text-xs font-black uppercase tracking-wider truncate">
-                                  {parent.title}
-                                </span>
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-xs font-black uppercase tracking-wider truncate">
+                                    {parent.title}
+                                  </span>
+                                  {(parent.paymentType === "custom_quote" || (parent as any).payment_type === "custom_quote") && (
+                                    <span className="font-extrabold text-[8px] uppercase tracking-wider text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-full shrink-0">
+                                      Quote
+                                    </span>
+                                  )}
+                                </div>
                                 <span className={`text-[8px] font-black uppercase tracking-widest mt-0.5 ${isParentActive ? "text-[#cb9f5a]/70" : "text-slate-400"}`}>
                                   Main Category
                                 </span>
@@ -3305,6 +3363,11 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                                   <span className={`text-[10px] ${isSubActive ? "text-[#cb9f5a]" : "text-slate-400 font-normal"}`}>↳</span>
                                   <span className="text-base shrink-0">{sub.emoji || "✨"}</span>
                                   <span className="flex-1 truncate">{sub.title}</span>
+                                  {(sub.paymentType === "custom_quote" || (sub as any).payment_type === "custom_quote") && (
+                                    <span className="font-extrabold text-[8px] uppercase tracking-wider text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-full shrink-0">
+                                      Quote
+                                    </span>
+                                  )}
                                 </button>
                               );
                             })}
@@ -3323,6 +3386,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                                 setCatImage("");
                                 setCatIncludes("");
                                 setCatIncList([]);
+                                setCatPricingMode("fixed");
                                 setCatParentId(parent.id);
                                 setImageInputMode("url");
                                 setActiveTab("categories");
@@ -3423,6 +3487,58 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                                 </option>
                               ))}
                           </select>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Category Pricing Mode */}
+                    <div className="space-y-2.5 pt-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                          Category Pricing Mode
+                        </label>
+                        {catPricingMode === "custom_quote" && (
+                          <span className="font-extrabold text-[9px] uppercase tracking-wider text-amber-800 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full">
+                            Custom Quote Active
+                          </span>
+                        )}
+                      </div>
+                      <select
+                        value={catPricingMode}
+                        onChange={(e) => setCatPricingMode(e.target.value as "fixed" | "custom_quote")}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/55 px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:border-[#cb9f5a] focus:bg-white transition-all cursor-pointer"
+                      >
+                        <option value="fixed">💰 Fixed / Standard Pricing (Individual Service Defaults)</option>
+                        <option value="custom_quote">📋 Add a Custom Quote (Visit & Quote for all services under this)</option>
+                      </select>
+
+                      {catPricingMode === "custom_quote" && (
+                        <div className="rounded-2xl border border-amber-300 bg-amber-50/80 p-4 text-xs animate-in fade-in duration-200">
+                          <div className="flex items-start gap-3">
+                            <span className="text-2xl shrink-0">📋</span>
+                            <div className="space-y-1.5 flex-1">
+                              <div className="font-extrabold text-amber-900 uppercase tracking-wide">
+                                Custom Quote Mode Activated for this {categorySubTab === "sub" ? "Sub-Category" : "Category"}
+                              </div>
+                              <p className="text-amber-800 leading-relaxed">
+                                All price tags & plan prices will be hidden from clients for all services under this {categorySubTab === "sub" ? "sub-category" : "category"}.
+                                Customers will see &quot;Request Free On-Site Quote&quot; with ₹0 advance.
+                                Submissions will be sent to your admin email & saved in your dashboard under Custom Quotes.
+                              </p>
+                              {affectedCatServices.length > 0 ? (
+                                <div className="mt-2 pt-2 border-t border-amber-200/80 text-amber-900 font-bold">
+                                  ⚡ Applies to {affectedCatServices.length} service{affectedCatServices.length > 1 ? "s" : ""}:{" "}
+                                  <span className="font-semibold text-amber-800">
+                                    {affectedCatServices.map((s) => s.title).join(", ")}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="mt-2 pt-2 border-t border-amber-200/80 text-amber-800 italic text-[11px]">
+                                  No services currently attached. Any new services created under this {categorySubTab === "sub" ? "sub-category" : "category"} will automatically inherit Custom Quote mode.
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
