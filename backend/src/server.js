@@ -2429,6 +2429,7 @@ app.post("/api/technicians/:id/claim-booking", requireStaffOrAdmin, async (req, 
     }
 
     console.log(`[Job Claim] Booking #${bookingId} claimed successfully by ${technician.name} (${technicianId})`);
+    broadcastLive("BOOKINGS_UPDATED", { bookingId, action: "claim_job", technicianId });
     res.json({
       ok: true,
       message: `Job #${bookingId} successfully claimed by ${technician.name}!`,
@@ -2443,6 +2444,7 @@ app.post("/api/technicians/:id/claim-booking", requireStaffOrAdmin, async (req, 
 app.delete("/api/technicians/:id", requireAdmin, async (req, res) => {
   try {
     await db.deleteTechnician(req.params.id);
+    broadcastLive("BOOKINGS_UPDATED", { action: "technician_delete", technicianId: req.params.id });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2456,6 +2458,8 @@ app.put("/api/technicians/:id/location", requireStaffOrAdmin, async (req, res) =
       return res.status(400).json({ error: "Latitude (lat) and Longitude (lng) are required." });
     }
     await db.updateTechnicianLocation(req.params.id, lat, lng);
+    broadcastLive("TECHNICIAN_LOCATION_UPDATED", { technicianId: req.params.id, lat, lng });
+    broadcastLive("BOOKINGS_UPDATED", { action: "technician_location", technicianId: req.params.id, lat, lng });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2466,6 +2470,7 @@ app.put("/api/bookings/:id/technician", requireAdmin, async (req, res) => {
   try {
     const { technicianId } = req.body;
     await db.updateBookingTechnician(req.params.id, technicianId);
+    broadcastLive("BOOKINGS_UPDATED", { bookingId: req.params.id, action: "assign_technician", technicianId });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2564,6 +2569,12 @@ app.put("/api/bookings/:id/job-status", requireStaffOrAdmin, async (req, res) =>
       jobStatus,
       statusNote || null,
     );
+    broadcastLive("BOOKINGS_UPDATED", {
+      bookingId: req.params.id,
+      action: "status_update",
+      jobStatus,
+      statusNote: statusNote || null,
+    });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2574,6 +2585,12 @@ app.put("/api/bookings/:id/media", requireStaffOrAdmin, async (req, res) => {
   try {
     const { beforeImage, afterImage } = req.body;
     await db.updateBookingMedia(req.params.id, { beforeImage, afterImage });
+    broadcastLive("BOOKINGS_UPDATED", {
+      bookingId: req.params.id,
+      action: "media_update",
+      beforeImage,
+      afterImage,
+    });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

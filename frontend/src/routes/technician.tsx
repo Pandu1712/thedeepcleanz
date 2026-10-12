@@ -403,6 +403,80 @@ function TechnicianPortal() {
     }
   };
 
+  const [uploadingBookingId, setUploadingBookingId] = useState<string | null>(null);
+  const [uploadingField, setUploadingField] = useState<"before" | "after" | null>(null);
+
+  const handleUploadBookingPhoto = async (
+    bookingId: string,
+    field: "before" | "after",
+    file: File
+  ) => {
+    if (!file) return;
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error("Image file is too heavy! Maximum size allowed is 5MB.", { icon: "⚖️" });
+      return;
+    }
+
+    setUploadingBookingId(bookingId);
+    setUploadingField(field);
+    const toastId = toast.loading(`Uploading ${field === "before" ? "Before" : "After"} photo...`, {
+      icon: "☁️",
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const token = sessionStorage.getItem("auth_token") || localStorage.getItem("auth_token");
+      const res = await fetch(`${ADMIN_API_URL}/api/upload`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Upload failed: ${res.status}`);
+      }
+
+      const { url } = await res.json();
+      const target = bookings.find((b) => b.id === bookingId);
+      const payload = {
+        beforeImage: field === "before" ? url : target?.beforeImage,
+        afterImage: field === "after" ? url : target?.afterImage,
+      };
+
+      const mediaRes = await fetch(`${ADMIN_API_URL}/api/bookings/${bookingId}/media`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!mediaRes.ok) {
+        throw new Error("Failed to save media url to booking.");
+      }
+
+      setBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, ...payload } : b))
+      );
+
+      toast.success(
+        `${field === "before" ? "Before Cleaning" : "After Cleaning ✨"} photo uploaded & synced live!`,
+        { id: toastId, icon: "🎉" }
+      );
+    } catch (err: any) {
+      console.error("Photo upload error:", err);
+      toast.error(err.message || "Failed to upload photo.", { id: toastId, icon: "❌" });
+    } finally {
+      setUploadingBookingId(null);
+      setUploadingField(null);
+    }
+  };
+
   const sortByRecent = (list: any[]) => {
     return [...list].sort((a, b) => {
       const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -1433,48 +1507,105 @@ function TechnicianPortal() {
                             )}
 
                             {/* Transformation Photos Input */}
-                            <div className="mt-4 bg-slate-50/80 border border-slate-200 p-3 rounded-xl max-w-2xl font-sans space-y-2">
-                              <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                                📸 Upload / Set Before & After Transformation Photos
-                              </span>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
-                                <div>
-                                  <span className="text-slate-500 font-semibold block mb-1">Before Cleaning Photo URL</span>
-                                  <input
-                                    type="text"
-                                    placeholder="Paste Before Photo Link..."
-                                    defaultValue={b.beforeImage || ""}
-                                    onBlur={async (e) => {
-                                      const val = e.target.value;
-                                      await fetch(`${ADMIN_API_URL}/api/bookings/${b.id}/media`, {
-                                        method: "PUT",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ beforeImage: val, afterImage: b.afterImage }),
-                                      });
-                                      toast.success("Before photo saved!");
-                                      handleRefresh();
-                                    }}
-                                    className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 outline-none focus:border-[#002a22]"
-                                  />
+                            <div className="mt-4 bg-slate-50/80 border border-slate-200 p-3 sm:p-4 rounded-2xl max-w-2xl font-sans space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="block text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                  <span>📸</span> Live Transformation Proof Photos (Before &amp; After)
+                                </span>
+                                <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                  Customer Sees in Real-Time
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
+                                {/* Before Photo Box */}
+                                <div className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col justify-between">
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <span className="text-slate-700 font-bold flex items-center gap-1">
+                                        🔍 Before Cleaning
+                                      </span>
+                                      {b.beforeImage && (
+                                        <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                          Uploaded ✓
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {b.beforeImage ? (
+                                      <div className="relative mb-2 rounded-lg overflow-hidden border border-slate-200 aspect-video">
+                                        <img src={b.beforeImage} alt="Before" className="w-full h-full object-cover" />
+                                      </div>
+                                    ) : (
+                                      <div className="aspect-video bg-slate-50 border border-dashed border-slate-200 rounded-lg flex items-center justify-center text-xs text-slate-400 mb-2">
+                                        No photo uploaded
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <label className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-2xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95 text-center">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      capture="environment"
+                                      className="hidden"
+                                      disabled={uploadingBookingId === b.id && uploadingField === "before"}
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleUploadBookingPhoto(b.id, "before", file);
+                                      }}
+                                    />
+                                    {uploadingBookingId === b.id && uploadingField === "before" ? (
+                                      <span>Uploading...</span>
+                                    ) : (
+                                      <span>📷 {b.beforeImage ? "Change Before Photo" : "Take / Upload Before Photo"}</span>
+                                    )}
+                                  </label>
                                 </div>
-                                <div>
-                                  <span className="text-slate-500 font-semibold block mb-1">After Cleaning Photo URL</span>
-                                  <input
-                                    type="text"
-                                    placeholder="Paste After Photo Link..."
-                                    defaultValue={b.afterImage || ""}
-                                    onBlur={async (e) => {
-                                      const val = e.target.value;
-                                      await fetch(`${ADMIN_API_URL}/api/bookings/${b.id}/media`, {
-                                        method: "PUT",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ beforeImage: b.beforeImage, afterImage: val }),
-                                      });
-                                      toast.success("After photo saved!");
-                                      handleRefresh();
-                                    }}
-                                    className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 outline-none focus:border-[#002a22]"
-                                  />
+
+                                {/* After Photo Box */}
+                                <div className="bg-white border border-emerald-200 rounded-xl p-3 flex flex-col justify-between">
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <span className="text-emerald-800 font-bold flex items-center gap-1">
+                                        ✨ After Cleaning
+                                      </span>
+                                      {b.afterImage && (
+                                        <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                          Uploaded ✓
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {b.afterImage ? (
+                                      <div className="relative mb-2 rounded-lg overflow-hidden border border-emerald-200 aspect-video">
+                                        <img src={b.afterImage} alt="After" className="w-full h-full object-cover" />
+                                      </div>
+                                    ) : (
+                                      <div className="aspect-video bg-emerald-50/50 border border-dashed border-emerald-200 rounded-lg flex items-center justify-center text-xs text-emerald-400 mb-2">
+                                        No photo uploaded
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <label className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-2xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95 text-center">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      capture="environment"
+                                      className="hidden"
+                                      disabled={uploadingBookingId === b.id && uploadingField === "after"}
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleUploadBookingPhoto(b.id, "after", file);
+                                      }}
+                                    />
+                                    {uploadingBookingId === b.id && uploadingField === "after" ? (
+                                      <span>Uploading...</span>
+                                    ) : (
+                                      <span>✨ {b.afterImage ? "Change After Photo" : "Take / Upload After Photo"}</span>
+                                    )}
+                                  </label>
                                 </div>
                               </div>
                             </div>

@@ -48,6 +48,7 @@ import {
 import { CartItem } from "@/data/servicesData";
 import Header from "@/components/Header";
 import { LiveTrackingMap } from "@/components/my-bookings/LiveTrackingMap";
+import { UrbanCompanyLiveTracker } from "@/components/my-bookings/UrbanCompanyLiveTracker";
 import { RescheduleModal } from "@/components/my-bookings/RescheduleModal";
 import { ReviewBookingModal } from "@/components/my-bookings/ReviewBookingModal";
 import { CancelBookingModal } from "@/components/my-bookings/CancelBookingModal";
@@ -547,6 +548,37 @@ function MyBookingsPage() {
     checkAuth();
   }, [navigate]);
 
+  // Real-time live synchronization for customer bookings via WebSockets & SSE
+  useEffect(() => {
+    const handleLiveBookingsUpdate = () => {
+      const email = sessionStorage.getItem("user_email") || localStorage.getItem("user_email");
+      const phone = sessionStorage.getItem("user_phone") || localStorage.getItem("user_phone");
+      const name = sessionStorage.getItem("user_name") || localStorage.getItem("user_name");
+      const profileStr = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
+      let prof: any = null;
+      if (profileStr) {
+        try {
+          prof = JSON.parse(profileStr);
+        } catch (e) {}
+      }
+      if (!prof && (email || phone)) {
+        prof = {
+          id: `usr_${phone || "guest"}`,
+          name: name || "Customer",
+          phone: phone || "",
+          email: email || "",
+          role: "user",
+        };
+      }
+      if (prof) {
+        loadBookings(prof);
+      }
+    };
+
+    window.addEventListener("bookings-updated", handleLiveBookingsUpdate);
+    return () => window.removeEventListener("bookings-updated", handleLiveBookingsUpdate);
+  }, []);
+
   useEffect(() => {
     Promise.all([fetchAdminCatalog(), fetchCustomizedServices()])
       .then(([cat, cust]) => {
@@ -1033,171 +1065,16 @@ function MyBookingsPage() {
                         </button>
                       </div>
 
-                      {/* Live Job Progress Stepper Timeline */}
-                      <div className="my-4 bg-slate-50 border border-slate-200/80 rounded-2xl p-4 font-sans">
-                        <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-400 mb-3 text-center sm:text-left">
-                          📍 Live Technician Job Status Timeline
-                        </span>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-bold">
-                          {[
-                            { key: "Assigned", label: "1. Assigned", icon: "📋" },
-                            { key: "Started", label: "2. En Route", icon: "🚗" },
-                            { key: "Ongoing", label: "3. In Progress", icon: "🧼" },
-                            { key: "Completed", label: "4. Completed", icon: "✅" },
-                          ].map((stepItem, idx) => {
-                            const currentStatus = b.jobStatus || "Pending";
-                            const hasTech = !!b.technicianId;
-                            
-                            let isDone = false;
-                            let isCurrent = false;
-
-                            if (idx === 0) {
-                              isDone = hasTech;
-                              isCurrent = hasTech && currentStatus === "Assigned";
-                            } else if (idx === 1) {
-                              isDone = hasTech && ["Accepted", "Started", "Arrived", "Ongoing", "Completed"].includes(currentStatus);
-                              isCurrent = hasTech && ["Accepted", "Started"].includes(currentStatus);
-                            } else if (idx === 2) {
-                              isDone = hasTech && ["Arrived", "Ongoing", "Completed"].includes(currentStatus);
-                              isCurrent = hasTech && ["Arrived", "Ongoing"].includes(currentStatus);
-                            } else if (idx === 3) {
-                              isDone = hasTech && currentStatus === "Completed";
-                              isCurrent = hasTech && currentStatus === "Completed";
-                            }
-
-                            return (
-                              <div
-                                key={stepItem.key}
-                                className={`p-2.5 rounded-xl border transition-all ${
-                                  isCurrent
-                                    ? "bg-[#cb9f5a]/15 border-[#cb9f5a] text-[#002a22] shadow-sm font-black scale-[1.02]"
-                                    : isDone
-                                      ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                                      : "bg-white border-slate-200 text-slate-400 opacity-60"
-                                }`}
-                              >
-                                <span className="block text-sm mb-0.5">{stepItem.icon}</span>
-                                <span className="text-[11px] block">{stepItem.label}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Uber-Style Real-time Map Tracking */}
-                      {!isCancelled &&
-                        (b.jobStatus === "Started" || b.jobStatus === "Arrived" || b.jobStatus === "Ongoing") &&
-                        b.technician?.lat &&
-                        b.technician?.lng && (
-                          <LiveTrackingMap
-                            techLat={Number(b.technician.lat)}
-                            techLng={Number(b.technician.lng)}
-                            customerLat={
-                              b.customer?.gpsCoords
-                                ? Number(b.customer.gpsCoords.split(",")[0].trim())
-                                : null
-                            }
-                            customerLng={
-                              b.customer?.gpsCoords
-                                ? Number(b.customer.gpsCoords.split(",")[1].trim())
-                                : null
-                            }
-                            customerAddress={b.customer?.address}
-                          />
-                        )}
-
-                      {/* Live Job Progress Status Note */}
-                      {b.statusNote && (
-                        <div className="mb-4 bg-rose-50 border border-rose-200 p-3.5 rounded-2xl text-xs text-rose-750 max-w-2xl font-sans">
-                          <span className="font-extrabold uppercase text-[9px] text-rose-800 block mb-1">
-                            ⚠️ Message from Clean Expert:
-                          </span>
-                          <span className="font-semibold">{b.statusNote}</span>
-                        </div>
-                      )}
-
-                      {/* Assigned Technician Profile */}
-                      {!isCancelled && (b.technician ? (
-                        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-emerald-500/10 to-[#002a22]/5 border border-emerald-500/20 px-4 py-3.5 rounded-2xl text-xs text-slate-700">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-[#002a22] text-[#cb9f5a] flex items-center justify-center font-black text-sm uppercase shrink-0 shadow-md">
-                              {b.technician.name.substring(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="font-extrabold text-[#002a22] text-sm flex flex-wrap items-center gap-1.5">
-                                <span>Assigned Expert: {b.technician.name}</span>
-                                <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full uppercase whitespace-nowrap shrink-0">
-                                  Verified Staff
-                                </span>
-                              </div>
-                              <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
-                                Specialty: {b.technician.specialty || "General Deep Clean"} • Phone: +91 {b.technician.phone}
-                              </div>
-                            </div>
-                          </div>
-                          {b.technician.phone && (
-                            <a
-                              href={`tel:${b.technician.phone}`}
-                              className="shrink-0 inline-flex items-center justify-center gap-1.5 gradient-gold text-navy font-bold px-4 py-2 rounded-xl text-xs shadow-gold hover:scale-105 transition-transform"
-                            >
-                              📞 Call Technician
-                            </a>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="mb-4 flex items-center gap-3 bg-slate-50 border border-slate-200/60 px-4 py-3 rounded-2xl text-xs text-slate-500 font-semibold">
-                          <span className="text-base">⏳</span>
-                          <span>Technician assignment in progress. Verified clean expert will be assigned prior to slot.</span>
-                        </div>
-                      ))}
-
-                      {/* Before & After Transformation Gallery Card */}
-                      {(b.beforeImage || b.afterImage) && (
-                        <div className="mb-5 bg-white border border-[#cb9f5a]/30 p-4 rounded-2xl space-y-3 font-sans shadow-xs">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-xs font-bold text-[#002a22] flex items-center gap-1.5">
-                              <span>📸</span> Home Transformation Gallery (Before & After)
-                            </h4>
-                            <span className="text-[9px] font-extrabold text-[#cb9f5a] bg-[#cb9f5a]/10 px-2 py-0.5 rounded-full uppercase">
-                              Verified Transformation
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                                Before Cleaning
-                              </span>
-                              {b.beforeImage ? (
-                                <img
-                                  src={b.beforeImage}
-                                  alt="Before Cleaning"
-                                  className="w-full h-36 object-cover rounded-xl border border-slate-200 shadow-2xs"
-                                />
-                              ) : (
-                                <div className="h-36 rounded-xl border border-dashed border-slate-200 bg-slate-50 flex items-center justify-center text-xs text-slate-400 italic">
-                                  No before photo uploaded
-                                </div>
-                              )}
-                            </div>
-                            <div>
-                              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block mb-1.5">
-                                After Cleaning ✨
-                              </span>
-                              {b.afterImage ? (
-                                <img
-                                  src={b.afterImage}
-                                  alt="After Cleaning"
-                                  className="w-full h-36 object-cover rounded-xl border border-emerald-300 shadow-2xs"
-                                />
-                              ) : (
-                                <div className="h-36 rounded-xl border border-dashed border-slate-200 bg-slate-50 flex items-center justify-center text-xs text-slate-400 italic">
-                                  No after photo uploaded
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      {/* Urban Company-Style Live Technician Tracking & Order Status Stepper */}
+                      <UrbanCompanyLiveTracker
+                        booking={b}
+                        onRescheduleClick={() => {
+                          setRescheduleBookingId(b.id);
+                          setNewDate(b.schedule?.date || "");
+                          setNewTime(b.schedule?.time || "");
+                          setRescheduleModalOpen(true);
+                        }}
+                      />
 
                       {/* Cancellation Refund & Money Status Info Card */}
                       {isCancelled && (
