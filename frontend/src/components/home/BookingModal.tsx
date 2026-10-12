@@ -1132,7 +1132,11 @@ export const BookingModal = memo(function BookingModal({
   }, [cart, total]);
 
   const isCustomQuote = useMemo(() => {
-    return itemTotal === 0 || (cart.length > 0 && cart.every((i) => i.price === 0));
+    return (
+      itemTotal === 0 ||
+      (cart.length > 0 && cart.every((i) => i.price === 0)) ||
+      cart.some((i) => i.paymentType === "custom_quote" || i.paymentType === "quote")
+    );
   }, [itemTotal, cart]);
 
   const taxesAndFees = useMemo(() => {

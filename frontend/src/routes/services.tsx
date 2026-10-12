@@ -127,7 +127,7 @@ const getSubCategoryImage = (subId: string) => {
 
 const getSubCategoryStartingPrice = (sub: Category) => {
   if (!sub.services || sub.services.length === 0) return null;
-  const prices = sub.services.map((s) => s.price).filter((p) => p > 0);
+  const prices = sub.services.filter(s => !isCommercialService(s)).map((s) => s.price).filter((p) => p > 0);
   if (prices.length === 0) return null;
   return Math.min(...prices);
 };
@@ -892,7 +892,7 @@ function ServicesComponent() {
                                 Starting from
                               </span>
                               <span className="text-sm sm:text-base font-black text-slate-900">
-                                {startPrice ? `₹${startPrice.toLocaleString("en-IN")}` : "Custom Price"}
+                                {startPrice ? `₹${startPrice.toLocaleString("en-IN")}` : "Custom Quote"}
                               </span>
                             </div>
                             <button

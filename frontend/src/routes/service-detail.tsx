@@ -961,7 +961,7 @@ function ServiceDetailPage() {
                         </div>
                         <div>
                           <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-[#A3E5C2] block">
-                            Commercial &amp; Corporate Facility
+                            {service.title || "Customized Cleaning Service"}
                           </span>
                           <h3 className="text-base sm:text-lg font-black text-white leading-tight">
                             Custom Quotation &amp; Free On-Site Inspection
@@ -974,7 +974,7 @@ function ServiceDetailPage() {
                     </div>
 
                     <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed font-normal">
-                      Corporate offices, hotels, commercial properties, and post-interior facilities require customized scope assessment. Our commercial cleaning supervisor will visit your site for a comprehensive inspection and provide an itemized corporate quotation with GST invoicing.
+                      This service requires customized on-site scope assessment. Our cleaning specialist will visit your location for a comprehensive inspection and provide an itemized custom quotation with zero advance fee.
                     </p>
 
                     {/* Key Corporate Benefits */}

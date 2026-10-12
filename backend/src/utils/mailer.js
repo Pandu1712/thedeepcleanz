@@ -89,6 +89,13 @@ async function sendBookingEmails(booking) {
     year: "numeric",
   });
 
+  const isCustomQuote =
+    Boolean(booking.isCommercialQuote) ||
+    booking.serviceType === "commercial_quote" ||
+    booking.paymentMethod === "custom_quote" ||
+    (typeof booking.paymentStatus === "string" && booking.paymentStatus.toLowerCase().includes("quote")) ||
+    (Array.isArray(items) && items.some((it) => (it.title && it.title.includes("Quote")) || (it.details && it.details.includes("Space:"))));
+
   // Calculate items subtotal
   const itemsSubtotal = items.reduce(
     (sum, item) => sum + (Number(item.price) || 0) * (Number(item.qty) || 1),
@@ -380,8 +387,8 @@ async function sendBookingEmails(booking) {
               <!-- Header -->
               <tr>
                 <td style="background-color: #002e25; padding: 28px 30px; text-align: center; border-bottom: 2px solid #cb9f5a30;">
-                  <span style="display: inline-block; padding: 4px 14px; background-color: #ef444425; border: 1px solid #ef444460; border-radius: 20px; font-size: 10px; font-weight: 800; color: #f87171; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">
-                    🚨 NEW BOOKING ALERT 🚨
+                  <span style="display: inline-block; padding: 4px 14px; background-color: ${isCustomQuote ? '#f59e0b25' : '#ef444425'}; border: 1px solid ${isCustomQuote ? '#f59e0b60' : '#ef444460'}; border-radius: 20px; font-size: 10px; font-weight: 800; color: ${isCustomQuote ? '#fbbf24' : '#f87171'}; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">
+                    ${isCustomQuote ? "📋 NEW CUSTOM QUOTE & INSPECTION REQUEST" : "🚨 NEW BOOKING ALERT 🚨"}
                   </span>
                   <h1 style="margin: 0; font-size: 26px; font-weight: 900; color: #fdfcf7; letter-spacing: 1px;">TheDeep CleanerZ</h1>
                   <span style="display: block; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #cb9f5a; letter-spacing: 2px; margin-top: 4px;">
@@ -394,11 +401,15 @@ async function sendBookingEmails(booking) {
               <tr>
                 <td style="padding: 30px;">
                   <div style="background-color: #00362c; border: 1px solid #10b98140; border-radius: 14px; padding: 16px 20px; margin-bottom: 24px;">
-                    <div style="font-size: 16px; font-weight: 800; color: #10b981; margin-bottom: 4px;">
-                      New Customer Appointment Registered!
+                    <div style="font-size: 16px; font-weight: 800; color: ${isCustomQuote ? '#fbbf24' : '#10b981'}; margin-bottom: 4px;">
+                      ${isCustomQuote ? "New Custom Quote &amp; On-Site Survey Request!" : "New Customer Appointment Registered!"}
                     </div>
                     <div style="font-size: 13px; color: #fdfcf7cc;">
-                      A new booking has been placed by <strong>${customer.name || "Customer"}</strong> (+91 ${customer.phone}). Please assign a technician in the admin dashboard.
+                      ${
+                        isCustomQuote
+                          ? `Customer <strong>${customer.name || "Customer"}</strong> (+91 ${customer.phone}) has requested a custom on-site quote/survey. Please contact the client to confirm their inspection appointment.`
+                          : `A new booking has been placed by <strong>${customer.name || "Customer"}</strong> (+91 ${customer.phone}). Please assign a technician in the admin dashboard.`
+                      }
                     </div>
                   </div>
                   
@@ -411,7 +422,7 @@ async function sendBookingEmails(booking) {
                       </td>
                       <td width="50%" style="padding-bottom: 12px; border-bottom: 1px solid #cb9f5a15;">
                         <span style="display: block; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #cb9f5a; letter-spacing: 1px;">Total Value</span>
-                        <strong style="font-size: 15px; color: #10b981;">₹${totalAmount}</strong>
+                        <strong style="font-size: 15px; color: ${isCustomQuote ? '#fbbf24' : '#10b981'};">${isCustomQuote ? 'On-Site Estimate' : `₹${totalAmount}`}</strong>
                       </td>
                     </tr>
                     <tr>
@@ -541,10 +552,14 @@ async function sendBookingEmails(booking) {
 
   // 2. Send Realtime Notification to Admin Mailbox
   try {
+    const adminSubject = isCustomQuote
+      ? `📋 [CUSTOM QUOTE REQUEST] ${bookingRef} - ${customer.name || "Customer"} (On-Site Survey)`
+      : `🔔 [NEW BOOKING] ${bookingRef} - ${customer.name || "Customer"} (₹${totalAmount})`;
+
     const adminMailInfo = await transporter.sendMail({
       from: `"TheDeep CleanerZ Alerts" <${senderEmail}>`,
       to: adminEmail,
-      subject: `🔔 [NEW BOOKING] ${bookingRef} - ${customer.name || "Customer"} (₹${totalAmount})`,
+      subject: adminSubject,
       html: adminHtml,
     });
     console.log(`[Mailer] Admin booking alert email sent successfully to: ${adminEmail} (MessageId: ${adminMailInfo.messageId})`);
@@ -787,10 +802,73 @@ async function sendForgotPasswordOtpEmail(email, otp) {
   }
 }
 
+/**
+ * Sends notification email to admin when a new inquiry or custom quote request is submitted.
+ * @param {object} inquiry
+ */
+async function sendAdminInquiryEmail(inquiry) {
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || "thedeepcleanerz.info@gmail.com";
+  const senderEmail = process.env.EMAIL_USER || "thedeepcleanerz.info@gmail.com";
+  const transporter = getTransporter();
+
+  const inquiryHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #00120f; color: #fdfcf7;">
+      <table width="600" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; width: 100%; margin: 0 auto; background-color: #00221c; border: 1px solid #cb9f5a40; border-radius: 16px; overflow: hidden;">
+        <tr>
+          <td style="background-color: #002e25; padding: 24px; text-align: center; border-bottom: 2px solid #cb9f5a30;">
+            <span style="display: inline-block; padding: 4px 14px; background-color: #f59e0b25; border: 1px solid #f59e0b60; border-radius: 20px; font-size: 10px; font-weight: 800; color: #fbbf24; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">
+              📋 NEW CUSTOM QUOTE / INQUIRY
+            </span>
+            <h1 style="margin: 0; font-size: 22px; font-weight: 900; color: #fdfcf7;">TheDeep CleanerZ</h1>
+            <span style="display: block; font-size: 11px; font-weight: bold; color: #cb9f5a; margin-top: 4px;">Ref: ${inquiry.id || "INQ-NEW"}</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 24px;">
+            <div style="background-color: #00362c; border: 1px solid #10b98140; border-radius: 12px; padding: 14px 18px; margin-bottom: 20px;">
+              <strong style="color: #10b981; font-size: 15px;">New Estimate / Quote Requested</strong>
+              <p style="margin: 6px 0 0 0; font-size: 13px; color: #fdfcf7cc;">A customer has requested a custom survey/quote. Please contact them right away.</p>
+            </div>
+            <div style="background-color: #001914; border: 1px solid #cb9f5a20; border-radius: 12px; padding: 16px; font-size: 13px; line-height: 1.6; color: #fdfcf7cc;">
+              <strong>Client Name:</strong> ${inquiry.name || "Customer"}<br>
+              <strong>Phone:</strong> <a href="tel:+91${inquiry.phone}" style="color: #10b981; font-weight: bold; text-decoration: none;">+91 ${inquiry.phone}</a><br>
+              <strong>Requested Service:</strong> ${inquiry.service || "Cleaning Service"}<br>
+              <strong>Message / Notes:</strong> ${inquiry.message || "Free On-Site Survey Request"}<br>
+              <strong>Submitted At:</strong> ${new Date(inquiry.createdAt || Date.now()).toLocaleString("en-IN")}
+            </div>
+            <div style="text-align: center; padding-top: 20px;">
+              <a href="https://thedeepcleanerz.in/admin" style="display: inline-block; background-color: #cb9f5a; color: #00221c; text-decoration: none; padding: 12px 26px; border-radius: 10px; font-size: 12px; font-weight: 800; text-transform: uppercase;">Open Admin Console →</a>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"TheDeep CleanerZ Alerts" <${senderEmail}>`,
+      to: adminEmail,
+      subject: `📋 [NEW QUOTE / INQUIRY] ${inquiry.id || "INQ"} - ${inquiry.name} (${inquiry.service})`,
+      html: inquiryHtml,
+    });
+    console.log(`[Mailer] Admin inquiry alert sent to ${adminEmail} (MessageId: ${info.messageId})`);
+    return { success: true };
+  } catch (err) {
+    console.error(`[Mailer] Failed to send inquiry email to ${adminEmail}:`, err.message);
+    return { success: false, error: err.message };
+  }
+}
+
 module.exports = {
   sendBookingEmails,
   sendAdminOtpEmail,
   sendMobileOtpEmail,
   sendForgotPasswordOtpEmail,
+  sendAdminInquiryEmail,
 };
 

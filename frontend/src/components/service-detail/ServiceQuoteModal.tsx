@@ -201,7 +201,7 @@ export const ServiceQuoteModal: React.FC<ServiceQuoteModalProps> = ({
       id: quoteId,
       serviceType: "commercial_quote",
       isCommercialQuote: true,
-      title: `${service.title} (Commercial Free Quote)`,
+      title: `${service.title} (Custom Quote)`,
       price: 0,
       total: 0,
       paymentStatus: "quote_pending",
@@ -223,7 +223,7 @@ export const ServiceQuoteModal: React.FC<ServiceQuoteModalProps> = ({
       items: [
         {
           id: service.id,
-          title: `${service.title} - Custom Corporate Quote`,
+          title: `${service.title} - Custom Quote & Survey`,
           price: 0,
           qty: 1,
           img: service.img || service.image || "",
@@ -248,7 +248,7 @@ export const ServiceQuoteModal: React.FC<ServiceQuoteModalProps> = ({
       } catch (e) {}
 
       setQuoteSuccessData({ id: quoteId });
-      toast.success("Commercial Quote Request Submitted Successfully!", { icon: "🎉", duration: 5000 });
+      toast.success("Custom Quote Request Submitted Successfully!", { icon: "🎉", duration: 5000 });
     } catch (err: any) {
       console.error("Quote submission error:", err);
       // Even if network fails, ensure saved locally

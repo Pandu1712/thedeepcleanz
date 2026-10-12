@@ -28,6 +28,7 @@ import {
   type CatService,
   type CartItem,
 } from "@/data/homeServicesData";
+import { isCommercialService } from "@/data/servicesData";
 
 import imgKitchen from "@/assets/service-kitchen.jpg";
 import imgSofa from "@/assets/service-sofa.jpg";
@@ -195,7 +196,7 @@ function Index() {
             list.push({
               id: s.id,
               title: cleanTitle(titleStr),
-              subtext: s.price ? `Starts ₹${s.price}` : "Deep Clean",
+              subtext: isCommercialService(s) ? "Free On-Site Quote" : (s.price ? `Starts ₹${s.price}` : "Deep Clean"),
               image: img || imgInterior,
               action: () => navigate({ to: "/service-detail", search: { id: s.id } }),
             });
@@ -214,7 +215,7 @@ function Index() {
         list.push({
           id: s.id,
           title: cleanTitle(titleStr),
-          subtext: `Starts ₹${s.price}`,
+          subtext: isCommercialService(s) ? "Free On-Site Quote" : `Starts ₹${s.price}`,
           image: img,
           action: () => navigate({ to: "/service-detail", search: { id: s.id } }),
         });

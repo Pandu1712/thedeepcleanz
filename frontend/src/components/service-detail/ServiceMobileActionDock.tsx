@@ -33,7 +33,7 @@ export const ServiceMobileActionDock: React.FC<ServiceMobileActionDockProps> = (
         <div className="flex items-center justify-between gap-3 max-w-md mx-auto">
           <div className="min-w-0 flex-1">
             <span className="text-[10px] font-extrabold text-[#0B6B46] uppercase tracking-wider block">
-              🏢 Commercial Facility
+              📋 Custom Estimate &amp; Inspection
             </span>
             <div className="flex items-baseline gap-1.5 mt-0.5">
               <span className="text-sm font-black text-[#002A22] leading-none">

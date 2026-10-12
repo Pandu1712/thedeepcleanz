@@ -776,7 +776,8 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [svcDisclaimer, setSvcDisclaimer] = useState("");
   const [svcRequirements, setSvcRequirements] = useState("");
   const [svcPlans, setSvcPlans] = useState<any[]>([]);
-  const [svcPaymentType, setSvcPaymentType] = useState<"full" | "deposit_25" | "deposit_50" | "free_advance">("full");
+  const [svcPaymentType, setSvcPaymentType] = useState<"full" | "deposit_25" | "deposit_50" | "free_advance" | "custom_quote">("full");
+  const [svcPricingMode, setSvcPricingMode] = useState<"fixed" | "custom_quote">("fixed");
   const [svcPrecautions, setSvcPrecautions] = useState<any[]>([]);
   const [newPrecautionTitle, setNewPrecautionTitle] = useState("");
   const [newPrecautionDesc, setNewPrecautionDesc] = useState("");
@@ -1651,6 +1652,8 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     setSvcDisclaimer(s.disclaimer || "");
     setSvcRequirements(s.requirements || "");
     setSvcPlans(s.plans || []);
+    const isQuoteMode = s.paymentType === "custom_quote" || s.paymentType === "quote";
+    setSvcPricingMode(isQuoteMode ? "custom_quote" : "fixed");
     setSvcPaymentType(s.paymentType || "full");
     setSvcPrecautions(s.precautions || []);
     setSvcImageInputMode("url");
@@ -1901,17 +1904,20 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       return;
     }
 
+    const effectivePaymentType = svcPricingMode === "custom_quote" ? "custom_quote" : (svcPaymentType === "custom_quote" ? "full" : svcPaymentType);
+    const effectivePrice = svcPricingMode === "custom_quote" ? 0 : svcPrice;
+
     const payload = {
       categoryId: svcCatId,
       title: svcTitle,
-      price: svcPrice,
+      price: effectivePrice,
       description: svcDesc,
       includes: svcIncList,
       image: svcImage || undefined,
       plans: svcPlans,
       disclaimer: svcDisclaimer || undefined,
       requirements: svcRequirements || undefined,
-      paymentType: svcPaymentType,
+      paymentType: effectivePaymentType,
       precautions: svcPrecautions,
     };
 
@@ -1951,6 +1957,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
         setSvcRequirements("");
         setSvcPlans([]);
         setSvcPaymentType("full");
+        setSvcPricingMode("fixed");
         setSvcPrecautions([]);
       }
       toast.success("Service deleted");
@@ -1974,6 +1981,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     setSvcRequirements("");
     setSvcPlans([]);
     setSvcPaymentType("full");
+    setSvcPricingMode("fixed");
     setSvcPrecautions([]);
     setSvcImageInputMode("url");
     setActiveTab("services");
@@ -2141,6 +2149,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   // Live Duty & Operations Statistics
   const dutyStats = useMemo(() => {
     let total = bookings.length;
+    let customQuotes = 0;
     let unassigned = 0;
     let assigned = 0;
     let accepted = 0;
@@ -2151,6 +2160,17 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     let issues = 0;
 
     bookings.forEach((b) => {
+      const isQuote =
+        b.isCommercialQuote ||
+        b.serviceType === "commercial_quote" ||
+        b.paymentMethod === "custom_quote" ||
+        (typeof b.paymentStatus === "string" && b.paymentStatus.toLowerCase().includes("quote")) ||
+        (Array.isArray(b.items) && b.items.some((it: any) => it.title?.includes("Quote") || it.details?.includes("Space:")));
+
+      if (isQuote) {
+        customQuotes++;
+      }
+
       if (!b.technicianId) {
         unassigned++;
       } else {
@@ -2165,12 +2185,20 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       else if (st === "issues") issues++;
     });
 
-    return { total, unassigned, assigned, accepted, started, arrived, ongoing, completed, issues };
+    return { total, customQuotes, unassigned, assigned, accepted, started, arrived, ongoing, completed, issues };
   }, [bookings]);
 
   // Filter items based on search and custom filters
   const filteredBookings = useMemo(() => {
     let result = [...bookings];
+
+    // Helper: Is Custom Quote Booking
+    const isCustomQuoteBooking = (b: any) =>
+      b.isCommercialQuote ||
+      b.serviceType === "commercial_quote" ||
+      b.paymentMethod === "custom_quote" ||
+      (typeof b.paymentStatus === "string" && b.paymentStatus.toLowerCase().includes("quote")) ||
+      (Array.isArray(b.items) && b.items.some((it: any) => it.title?.includes("Quote") || it.details?.includes("Space:")));
 
     // 1. Text Search Query
     const q = searchQuery.toLowerCase().trim();
@@ -2190,12 +2218,15 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     // 2. Payment Status Filter
     if (bookingPaymentFilter !== "all") {
       result = result.filter((b) => {
+        const isQuote = isCustomQuoteBooking(b);
+        if (bookingPaymentFilter === "custom_quote") return isQuote;
+
         const isFullyPaid =
           typeof b.paymentStatus === "string" && b.paymentStatus.includes("Paid In Full");
         const isPaid =
           typeof b.paymentStatus === "string" &&
           (b.paymentStatus.includes("Paid") || b.paymentStatus.includes("Success"));
-        const isCod = !isPaid && !isFullyPaid;
+        const isCod = !isPaid && !isFullyPaid && !isQuote;
 
         if (bookingPaymentFilter === "paid-in-full") return isFullyPaid;
         if (bookingPaymentFilter === "deposit-paid") return isPaid && !isFullyPaid;
@@ -2238,9 +2269,11 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       });
     }
 
-    // 4. Staff Duty Stage Filter
+    // 4. Staff Duty Stage / Type Filter
     if (bookingDutyFilter !== "all") {
-      if (bookingDutyFilter === "unassigned") {
+      if (bookingDutyFilter === "custom_quotes") {
+        result = result.filter((b) => isCustomQuoteBooking(b));
+      } else if (bookingDutyFilter === "unassigned") {
         result = result.filter((b) => !b.technicianId);
       } else if (bookingDutyFilter === "assigned") {
         result = result.filter((b) => !!b.technicianId);
@@ -3671,7 +3704,13 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                                   }`}
                                 >
                                   <span className="truncate pr-2">{s.title}</span>
-                                  <span className="font-bold shrink-0">₹{s.price}</span>
+                                  {s.paymentType === "custom_quote" || s.paymentType === "quote" ? (
+                                    <span className="font-extrabold text-[9px] uppercase tracking-wider text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full shrink-0">
+                                      Custom Quote
+                                    </span>
+                                  ) : (
+                                    <span className="font-bold shrink-0">₹{s.price}</span>
+                                  )}
                                 </button>
                               ))}
                             </div>
@@ -3704,7 +3743,13 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                                       }`}
                                     >
                                       <span className="truncate pr-2">{s.title}</span>
-                                      <span className="font-bold shrink-0">₹{s.price}</span>
+                                      {s.paymentType === "custom_quote" || s.paymentType === "quote" ? (
+                                        <span className="font-extrabold text-[9px] uppercase tracking-wider text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full shrink-0">
+                                          Custom Quote
+                                        </span>
+                                      ) : (
+                                        <span className="font-bold shrink-0">₹{s.price}</span>
+                                      )}
                                     </button>
                                   ))}
                                 </div>
@@ -3740,7 +3785,13 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                               }`}
                             >
                               <span className="truncate pr-2">{s.title}</span>
-                              <span className="font-bold shrink-0">₹{s.price}</span>
+                              {s.paymentType === "custom_quote" || s.paymentType === "quote" ? (
+                                <span className="font-extrabold text-[9px] uppercase tracking-wider text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full shrink-0">
+                                  Custom Quote
+                                </span>
+                              ) : (
+                                <span className="font-bold shrink-0">₹{s.price}</span>
+                              )}
                             </button>
                           ))}
                         </div>
@@ -3808,31 +3859,70 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                       </div>
                       <div>
                         <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                          Service Base Price (₹)
-                        </label>
-                        <input
-                          type="number"
-                          value={svcPrice}
-                          onChange={(e) => setSvcPrice(Number(e.target.value) || 0)}
-                          className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-rose-500 focus:bg-white transition-all"
-                          placeholder="e.g. 1999"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                          Payment Option
+                          Pricing Mode
                         </label>
                         <select
-                          value={svcPaymentType}
-                          onChange={(e) => setSvcPaymentType(e.target.value as any)}
-                          className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-rose-500 focus:bg-white transition-all bg-white"
+                          value={svcPricingMode}
+                          onChange={(e) => {
+                            const mode = e.target.value as "fixed" | "custom_quote";
+                            setSvcPricingMode(mode);
+                            if (mode === "custom_quote") {
+                              setSvcPrice(0);
+                              setSvcPaymentType("custom_quote");
+                            } else {
+                              if (svcPaymentType === "custom_quote") setSvcPaymentType("full");
+                            }
+                          }}
+                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:border-rose-500 transition-all shadow-2xs"
                         >
-                          <option value="full">Full Payment (100% Online)</option>
-                          <option value="deposit_25">Partial Deposit (25% Online)</option>
-                          <option value="deposit_50">Half Payment (50% Online)</option>
-                          <option value="free_advance">Free Advance (0% Online)</option>
+                          <option value="fixed">💰 Fixed Base Price (Enter ₹ Amount)</option>
+                          <option value="custom_quote">📋 Add a Custom Quote (Visit &amp; Quote)</option>
                         </select>
                       </div>
+
+                      {svcPricingMode === "fixed" ? (
+                        <>
+                          <div>
+                            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                              Service Base Price (₹)
+                            </label>
+                            <input
+                              type="number"
+                              value={svcPrice}
+                              onChange={(e) => setSvcPrice(Number(e.target.value) || 0)}
+                              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-rose-500 focus:bg-white transition-all"
+                              placeholder="e.g. 1999"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                              Payment Option
+                            </label>
+                            <select
+                              value={svcPaymentType === "custom_quote" ? "full" : svcPaymentType}
+                              onChange={(e) => setSvcPaymentType(e.target.value as any)}
+                              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-700 outline-none focus:border-rose-500 focus:bg-white transition-all bg-white"
+                            >
+                              <option value="full">Full Payment (100% Online)</option>
+                              <option value="deposit_25">Partial Deposit (25% Online)</option>
+                              <option value="deposit_50">Half Payment (50% Online)</option>
+                              <option value="free_advance">Free Advance (0% Online)</option>
+                            </select>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="col-span-1 sm:col-span-2 rounded-xl bg-amber-50 border border-amber-200/90 p-3 flex items-center gap-3">
+                          <span className="text-2xl shrink-0">📋</span>
+                          <div>
+                            <span className="font-extrabold text-amber-900 text-xs block uppercase tracking-wider">
+                              Custom Quote Mode Activated
+                            </span>
+                            <span className="text-[11px] text-amber-700 font-medium">
+                              All price tags &amp; plan prices will be hidden from clients. Customers will see "Request Free On-Site Quote" with ₹0 advance. Submissions will be sent to your admin email &amp; saved in your dashboard under Custom Quotes.
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -5246,7 +5336,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                 </div>
 
                 {/* Duty Status Filter Pills Grid */}
-                <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 font-sans">
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-2 font-sans">
                   {/* 1. All */}
                   <button
                     type="button"
@@ -5259,6 +5349,22 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                   >
                     <span className="text-[10px] font-extrabold uppercase tracking-wider opacity-80">All Jobs</span>
                     <span className="text-base font-black mt-0.5">{dutyStats.total}</span>
+                  </button>
+
+                  {/* 1b. Custom Quotes */}
+                  <button
+                    type="button"
+                    onClick={() => setBookingDutyFilter(bookingDutyFilter === "custom_quotes" ? "all" : "custom_quotes")}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      bookingDutyFilter === "custom_quotes"
+                        ? "bg-amber-400 text-slate-950 font-black border-amber-300 shadow-md scale-[1.02]"
+                        : dutyStats.customQuotes > 0
+                          ? "bg-amber-500/25 text-amber-300 border-amber-500/50 hover:bg-amber-500/40"
+                          : "bg-white/5 hover:bg-white/10 text-white/90 border-white/10"
+                    }`}
+                  >
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider">📋 Custom Quotes</span>
+                    <span className="text-base font-black mt-0.5">{dutyStats.customQuotes}</span>
                   </button>
 
                   {/* 2. Unassigned Leads */}
@@ -5392,6 +5498,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#d91b5c] cursor-pointer"
                   >
                     <option value="all">All Payments</option>
+                    <option value="custom_quote">📋 Custom Quotes (Inspection / Free Quote)</option>
                     <option value="paid-in-full">Paid In Full</option>
                     <option value="deposit-paid">Deposit Paid (25%)</option>
                     <option value="pending-cod">COD / Pending</option>
@@ -5808,7 +5915,16 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                             <div className="space-y-2.5 flex flex-col items-end">
                               {/* 1. Payment status */}
                               <div>
-                                {isFullyPaid ? (
+                                {b.isCommercialQuote ||
+                                b.serviceType === "commercial_quote" ||
+                                b.paymentMethod === "custom_quote" ||
+                                (typeof b.paymentStatus === "string" && b.paymentStatus.toLowerCase().includes("quote")) ||
+                                (Array.isArray(b.items) && b.items.some((it: any) => it.title?.includes("Quote") || it.details?.includes("Space:"))) ? (
+                                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-800 border border-amber-300 uppercase tracking-wider">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />{" "}
+                                    Custom Quote
+                                  </span>
+                                ) : isFullyPaid ? (
                                   <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-extrabold text-emerald-700 border border-emerald-200 uppercase tracking-wider">
                                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />{" "}
                                     Paid In Full
@@ -5827,15 +5943,25 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                               </div>
 
                               {/* 2. Amount values */}
-                              <div className="text-[10px] text-slate-500 font-bold space-y-0.5">
-                                <div>
-                                  Paid:{" "}
-                                  <span className="font-black text-slate-700">₹{paidAmount}</span>
+                              {b.isCommercialQuote ||
+                              b.serviceType === "commercial_quote" ||
+                              b.paymentMethod === "custom_quote" ||
+                              (typeof b.paymentStatus === "string" && b.paymentStatus.toLowerCase().includes("quote")) ||
+                              (Array.isArray(b.items) && b.items.some((it: any) => it.title?.includes("Quote") || it.details?.includes("Space:"))) ? (
+                                <div className="text-[10px] text-amber-800 font-bold bg-amber-50/70 border border-amber-200/80 px-2 py-0.5 rounded-md text-right">
+                                  Survey &amp; Estimate
                                 </div>
-                                <div className="text-[#d91b5c] bg-rose-50 border border-rose-100/50 px-1.5 py-0.5 rounded font-black text-[9px] uppercase tracking-wide inline-block mt-0.5">
-                                  Balance: ₹{balanceAmount}
+                              ) : (
+                                <div className="text-[10px] text-slate-500 font-bold space-y-0.5">
+                                  <div>
+                                    Paid:{" "}
+                                    <span className="font-black text-slate-700">₹{paidAmount}</span>
+                                  </div>
+                                  <div className="text-[#d91b5c] bg-rose-50 border border-rose-100/50 px-1.5 py-0.5 rounded font-black text-[9px] uppercase tracking-wide inline-block mt-0.5">
+                                    Balance: ₹{balanceAmount}
+                                  </div>
                                 </div>
-                              </div>
+                              )}
 
                               {/* 3. Actions */}
                               <div className="pt-1.5">

@@ -79,8 +79,12 @@ export interface CartItem {
   paymentType?: "full" | "deposit_25" | "deposit_50" | "free_advance" | string;
 }
 
-export function isCommercialService(service: { id?: string; categoryId?: string; title?: string } | null | undefined): boolean {
+export function isCommercialService(service: { id?: string; categoryId?: string; title?: string; paymentType?: string; price?: number } | null | undefined): boolean {
   if (!service) return false;
+  // Dynamic Admin Configuration Check: If set to custom quote in Admin Dashboard
+  if ((service as any).paymentType === "custom_quote" || (service as any).paymentType === "quote") {
+    return true;
+  }
   const id = (service.id || "").toLowerCase();
   const catId = (service.categoryId || "").toLowerCase();
   const title = (service.title || "").toLowerCase();
@@ -99,6 +103,8 @@ export function isCommercialService(service: { id?: string; categoryId?: string;
     title.includes("corporate")
   );
 }
+
+export const isCustomQuoteService = isCommercialService;
 
 export type PrecautionItem = {
   title: string;
@@ -126,7 +132,7 @@ export type CatService = {
   plans?: ServicePlan[];
   disclaimer?: string;
   requirements?: string;
-  paymentType?: "full" | "deposit_25" | "deposit_50" | "free_advance";
+  paymentType?: "full" | "deposit_25" | "deposit_50" | "free_advance" | "custom_quote";
   precautions?: PrecautionItem[];
 };
 

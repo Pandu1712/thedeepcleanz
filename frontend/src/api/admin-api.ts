@@ -100,6 +100,7 @@ export type AdminService = {
   plans?: ServicePlan[];
   disclaimer?: string;
   requirements?: string;
+  paymentType?: "full" | "deposit_25" | "deposit_50" | "free_advance" | "custom_quote" | string;
   precautions?: PrecautionItem[];
 };
 export type AdminCatalog = { categories: AdminCategory[]; services: AdminService[] };
