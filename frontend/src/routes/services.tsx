@@ -303,6 +303,25 @@ function ServicesComponent() {
     return () => ctrl.abort();
   }, []);
 
+  // Listen for real-time live catalog & price updates via WebSockets
+  useEffect(() => {
+    const handleLiveCatalogUpdate = () => {
+      fetchAdminCatalog(undefined, true)
+        .then((catalog) => {
+          const merged = mergeAdminCatalog(catalog);
+          setCategories(merged);
+        })
+        .catch((err) => console.warn("Live catalog refresh error:", err));
+
+      fetchCustomizedServices(undefined, true)
+        .then((data) => setCustomizedServices(data || []))
+        .catch(() => {});
+    };
+
+    window.addEventListener("catalog-updated", handleLiveCatalogUpdate);
+    return () => window.removeEventListener("catalog-updated", handleLiveCatalogUpdate);
+  }, []);
+
   // Persist cart updates
   useEffect(() => {
     try {

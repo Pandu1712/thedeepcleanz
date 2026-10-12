@@ -288,11 +288,7 @@ function CheckoutPage() {
     return itemTotal === 0 || (cart.length > 0 && cart.every((i) => i.price === 0));
   }, [itemTotal, cart]);
 
-  const chemicalSurcharge = useMemo(() => {
-    return isCustomQuote ? 0 : Math.round(itemTotal * 0.05);
-  }, [isCustomQuote, itemTotal]);
-
-  const grandTotal = Math.max(0, itemTotal + chemicalSurcharge - couponDiscount);
+  const grandTotal = Math.max(0, itemTotal - couponDiscount);
   const isFreeAdvance = isCustomQuote || cart.some((i) => i.paymentType === "free_advance");
 
   const upfrontPayAmount = isFreeAdvance
@@ -1449,10 +1445,6 @@ function CheckoutPage() {
                 <div className="flex justify-between">
                   <span>Service Item Total</span>
                   <span className="font-bold text-[#002A22]">₹{itemTotal}/-</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Hospital-Grade Chemical Surcharge (5%)</span>
-                  <span className="font-bold text-[#002A22]">₹{chemicalSurcharge}/-</span>
                 </div>
                 {couponDiscount > 0 && (
                   <div className="flex justify-between text-emerald-700 font-bold">

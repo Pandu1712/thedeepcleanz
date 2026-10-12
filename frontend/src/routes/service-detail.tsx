@@ -372,6 +372,33 @@ function ServiceDetailPage() {
       .catch((err) => console.warn("Customized services sync note:", err));
   }, []);
 
+  // Listen for real-time live catalog & price updates via WebSockets
+  useEffect(() => {
+    const handleLiveCatalogUpdate = () => {
+      fetchAdminCatalog(undefined, true)
+        .then((data) => {
+          if (data && Array.isArray(data.categories) && data.categories.length > 0) {
+            setCategories(mergeAdminCatalog(data));
+          }
+          if (data && Array.isArray(data.services) && data.services.length > 0) {
+            setRawAdminServices(data.services);
+          }
+        })
+        .catch((err) => console.warn("Live catalog sync error:", err));
+
+      fetchCustomizedServices(undefined, true)
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            setCustomizedServices(data);
+          }
+        })
+        .catch(() => {});
+    };
+
+    window.addEventListener("catalog-updated", handleLiveCatalogUpdate);
+    return () => window.removeEventListener("catalog-updated", handleLiveCatalogUpdate);
+  }, []);
+
   // Find target service with resilient matching across all aliases
   const service = useMemo(() => {
     const rawId = (serviceId || "").toLowerCase().trim();

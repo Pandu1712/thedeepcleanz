@@ -159,6 +159,26 @@ function CustomizedComponent() {
     };
   }, []);
 
+  // Listen for real-time live catalog updates via WebSockets
+  useEffect(() => {
+    const handleLiveCatalogUpdate = () => {
+      Promise.all([
+        fetchCustomizedServices(undefined, true),
+        fetchAdminCatalog(undefined, true).catch(() => ({ categories: [] })),
+      ])
+        .then(([customized, catalog]) => {
+          setServices(customized || []);
+          if (catalog && catalog.categories) {
+            setAllServices(catalog.categories.flatMap((c: any) => c.services || []));
+          }
+        })
+        .catch(() => {});
+    };
+
+    window.addEventListener("catalog-updated", handleLiveCatalogUpdate);
+    return () => window.removeEventListener("catalog-updated", handleLiveCatalogUpdate);
+  }, []);
+
   // Auto-open plan selection modal if search param exists
   useEffect(() => {
     if (searchParams.service && services.length > 0) {

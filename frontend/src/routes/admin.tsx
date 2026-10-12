@@ -947,10 +947,10 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
         blkData,
         settingsRes,
       ] = await Promise.all([
-        fetchAdminCatalog().catch(() => ({ categories: [], services: [] })),
+        fetchAdminCatalog(undefined, true).catch(() => ({ categories: [], services: [] })),
         fetchBookings().catch(() => []),
         fetchUsers().catch(() => []),
-        fetchCustomizedServices().catch(() => []),
+        fetchCustomizedServices(undefined, true).catch(() => []),
         fetchCoupons().catch(() => []),
         fetchAdmins().catch(() => []),
         fetchTechnicians().catch(() => []),
@@ -1041,6 +1041,27 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       setIsRefreshing(false);
     }
   };
+
+  useEffect(() => {
+    refreshData();
+  }, []);
+
+  // Real-time live synchronization for Admin Dashboard via WebSockets & SSE
+  useEffect(() => {
+    const handleLiveCatalogUpdate = () => {
+      refreshData();
+    };
+    const handleLiveBookingsUpdate = () => {
+      refreshData();
+    };
+
+    window.addEventListener("catalog-updated", handleLiveCatalogUpdate);
+    window.addEventListener("bookings-updated", handleLiveBookingsUpdate);
+    return () => {
+      window.removeEventListener("catalog-updated", handleLiveCatalogUpdate);
+      window.removeEventListener("bookings-updated", handleLiveBookingsUpdate);
+    };
+  }, []);
 
   const selectCoupon = (c: AdminCoupon) => {
     setActiveCouponCode(c.code);

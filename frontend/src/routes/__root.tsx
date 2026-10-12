@@ -11,6 +11,7 @@ import "../styles/styles.css";
 import appCss from "../styles/styles.css?url";
 import { ADMIN_API_URL } from "../api/admin-api";
 import { fastReverseGeocode } from "../utils/geocoding";
+import { startLiveSync } from "../utils/liveSync";
 import StickyContactButtons from "../components/StickyContactButtons";
 
 function NotFoundComponent() {
@@ -370,6 +371,7 @@ function RootComponent() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+      startLiveSync();
       (window as any).requestLiveLocation = () => getLiveLocation(true);
       // Run lazily after idle to keep page load snappy
       if ("requestIdleCallback" in window) {

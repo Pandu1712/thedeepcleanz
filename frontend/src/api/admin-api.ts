@@ -41,6 +41,13 @@ export const ADMIN_API_URL = (() => {
   return "https://thedeepcleanerz.in";
 })();
 
+export const ADMIN_WS_URL = (() => {
+  if (typeof window === "undefined") return "ws://localhost:4000";
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = ADMIN_API_URL.replace(/^https?:\/\//, "");
+  return `${protocol}//${host}`;
+})();
+
 export function getAuthToken(): string {
   if (typeof window === "undefined") return "";
   try {
@@ -106,11 +113,19 @@ export type AdminService = {
 };
 export type AdminCatalog = { categories: AdminCategory[]; services: AdminService[] };
 
-export async function fetchAdminCatalog(signal?: AbortSignal): Promise<AdminCatalog> {
+export async function fetchAdminCatalog(signal?: AbortSignal, forceFresh = true): Promise<AdminCatalog> {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 4000);
-    const res = await fetch(`${ADMIN_API_URL}/api/catalog`, { signal: signal || ctrl.signal });
+    const url = `${ADMIN_API_URL}/api/catalog?_t=${Date.now()}`;
+    const res = await fetch(url, {
+      signal: signal || ctrl.signal,
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
+    });
     clearTimeout(timer);
     if (!res.ok) throw new Error(`Catalog request failed: ${res.status}`);
     return (await res.json()) as AdminCatalog;
@@ -556,11 +571,19 @@ export type AdminCustomizedService = {
 
 export async function fetchCustomizedServices(
   signal?: AbortSignal,
+  forceFresh = true,
 ): Promise<AdminCustomizedService[]> {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 3500);
-    const res = await fetch(`${ADMIN_API_URL}/api/customized-services`, { signal: signal || ctrl.signal });
+    const url = forceFresh
+      ? `${ADMIN_API_URL}/api/customized-services?_t=${Date.now()}`
+      : `${ADMIN_API_URL}/api/customized-services`;
+    const res = await fetch(url, {
+      signal: signal || ctrl.signal,
+      cache: forceFresh ? "no-store" : "default",
+      headers: forceFresh ? { "Cache-Control": "no-cache, no-store, must-revalidate", Pragma: "no-cache" } : undefined,
+    });
     clearTimeout(timer);
     if (!res.ok) return [];
     return (await res.json()) as AdminCustomizedService[];

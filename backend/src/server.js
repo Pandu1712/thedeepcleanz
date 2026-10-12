@@ -52,6 +52,8 @@ const fetch = typeof globalThis.fetch === "function" ? globalThis.fetch : async 
 };
 const fs = require("fs");
 const crypto = require("crypto");
+const http = require("http");
+const { WebSocketServer, WebSocket } = require("ws");
 const express = require("express");
 const session = require("express-session");
 const flash = require("connect-flash");
@@ -79,6 +81,69 @@ const upload = multer({
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const server = http.createServer(app);
+
+// Ultra-fast Real-time Live Engine (WebSocket Server)
+const wss = new WebSocketServer({ server });
+const sseClients = new Set();
+
+wss.on("connection", (ws) => {
+  ws.isAlive = true;
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
+  ws.on("message", (msg) => {
+    try {
+      const data = JSON.parse(msg.toString());
+      if (data.type === "PING") {
+        ws.send(JSON.stringify({ type: "PONG", timestamp: Date.now() }));
+      }
+    } catch {}
+  });
+
+  try {
+    ws.send(JSON.stringify({ type: "CONNECTED", message: "Live Engine Connected", timestamp: Date.now() }));
+  } catch {}
+});
+
+const wsHeartbeatInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (!ws.isAlive) return ws.terminate();
+    ws.isAlive = false;
+    try {
+      ws.ping();
+    } catch {}
+  });
+}, 30000);
+
+wss.on("close", () => {
+  clearInterval(wsHeartbeatInterval);
+});
+
+// Real-time broadcast helper across both WebSockets and SSE clients
+function broadcastLive(type, payload = {}) {
+  const dataStr = JSON.stringify({ type, data: payload, timestamp: Date.now() });
+
+  // 1. Broadcast to all active WebSocket clients
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      try {
+        client.send(dataStr);
+      } catch (err) {
+        console.warn("WebSocket broadcast error:", err.message);
+      }
+    }
+  });
+
+  // 2. Broadcast to all active SSE clients
+  sseClients.forEach((res) => {
+    try {
+      res.write(`data: ${dataStr}\n\n`);
+    } catch {
+      sseClients.delete(res);
+    }
+  });
+}
 
 const ALLOWED_ORIGINS = [
   "https://thedeepcleanerz.in",
@@ -589,10 +654,29 @@ app.delete('/bookings/:id', requireAuth, async (req, res) => {
 });
 */
 
+// ===== Live Real-Time Server-Sent Events Endpoint =====
+app.get("/api/live-events", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no"); // Disable Nginx buffering
+  res.flushHeaders?.();
+
+  sseClients.add(res);
+  res.write(`data: ${JSON.stringify({ type: "CONNECTED", message: "SSE Live Connected", timestamp: Date.now() })}\n\n`);
+
+  req.on("close", () => {
+    sseClients.delete(res);
+  });
+});
+
 // ===== Public JSON API (for the frontend to consume) =====
 app.get("/api/catalog", async (req, res) => {
   try {
-    res.setHeader("Cache-Control", "public, max-age=30, s-maxage=60, stale-while-revalidate=120");
+    // Ultra-fresh headers: Never cache stale prices in browser or CDN
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     const categories = await db.getCategories();
     const services = await db.getServices();
     res.json({ categories, services });
@@ -944,6 +1028,7 @@ app.post("/api/bookings", async (req, res) => {
         err,
       ),
     );
+    broadcastLive("BOOKINGS_UPDATED", { bookingId: booking.id, action: "create" });
     res.json({ ok: true, booking });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2582,6 +2667,7 @@ app.post("/api/categories", requireAdmin, async (req, res) => {
       paymentType: req.body.paymentType || "fixed",
     };
     await db.addCategory(newCat);
+    broadcastLive("CATALOG_UPDATED", { action: "category_create", categoryId: newCat.id });
     res.json({ ok: true, category: newCat });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2606,6 +2692,7 @@ app.put("/api/categories/:id", requireAdmin, async (req, res) => {
       paymentType: req.body.paymentType,
       cascadeToServices: req.body.cascadeToServices !== false,
     });
+    broadcastLive("CATALOG_UPDATED", { action: "category_update", categoryId: req.params.id });
     res.json({ ok: true, category: c });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2615,6 +2702,7 @@ app.put("/api/categories/:id", requireAdmin, async (req, res) => {
 app.delete("/api/categories/:id", requireAdmin, async (req, res) => {
   try {
     await db.deleteCategory(req.params.id);
+    broadcastLive("CATALOG_UPDATED", { action: "category_delete", categoryId: req.params.id });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2644,6 +2732,7 @@ app.post("/api/services", requireAdmin, async (req, res) => {
       precautions: req.body.precautions || [],
     };
     await db.addService(newSvc);
+    broadcastLive("CATALOG_UPDATED", { action: "service_create", serviceId: newSvc.id });
     res.json({ ok: true, service: newSvc });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2676,6 +2765,7 @@ app.put("/api/services/:id", requireAdmin, async (req, res) => {
       precautions: req.body.precautions,
     };
     const s = await db.updateService(req.params.id, patch);
+    broadcastLive("CATALOG_UPDATED", { action: "service_update", serviceId: req.params.id });
     res.json({ ok: true, service: s });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2685,6 +2775,7 @@ app.put("/api/services/:id", requireAdmin, async (req, res) => {
 app.delete("/api/services/:id", requireAdmin, async (req, res) => {
   try {
     await db.deleteService(req.params.id);
+    broadcastLive("CATALOG_UPDATED", { action: "service_delete", serviceId: req.params.id });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2694,7 +2785,9 @@ app.delete("/api/services/:id", requireAdmin, async (req, res) => {
 // Customized Services API
 app.get("/api/customized-services", async (req, res) => {
   try {
-    res.setHeader("Cache-Control", "public, max-age=30, s-maxage=60, stale-while-revalidate=120");
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     const list = await db.getCustomizedServices();
     res.json(list || []);
   } catch (err) {
@@ -2713,6 +2806,7 @@ app.post("/api/customized-services", requireAdmin, async (req, res) => {
       paymentType: req.body.paymentType || "full",
     };
     const s = await db.addCustomizedService(payload);
+    broadcastLive("CATALOG_UPDATED", { action: "customized_create", serviceId: s.id });
     res.json({ ok: true, service: s });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2730,6 +2824,7 @@ app.put("/api/customized-services/:id", requireAdmin, async (req, res) => {
       paymentType: req.body.paymentType,
     };
     const s = await db.updateCustomizedService(req.params.id, patch);
+    broadcastLive("CATALOG_UPDATED", { action: "customized_update", serviceId: req.params.id });
     res.json({ ok: true, service: s });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2739,6 +2834,7 @@ app.put("/api/customized-services/:id", requireAdmin, async (req, res) => {
 app.delete("/api/customized-services/:id", requireAdmin, async (req, res) => {
   try {
     await db.deleteCustomizedService(req.params.id);
+    broadcastLive("CATALOG_UPDATED", { action: "customized_delete", serviceId: req.params.id });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -3186,9 +3282,9 @@ app.all("*", (req, res, next) => {
 });
 
 db.initDb().then(async () => {
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(
-      `\n  TheDeep CleanerZ Admin running → http://localhost:${PORT}\n  Login: ${process.env.ADMIN_USERNAME || "admin"} / admin123 (default)\n`,
+      `\n  TheDeep CleanerZ Admin running with Live Engine (WebSockets + SSE) → http://localhost:${PORT}\n  Login: ${process.env.ADMIN_USERNAME || "admin"} / admin123 (default)\n`,
     );
   });
 });

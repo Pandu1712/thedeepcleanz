@@ -722,7 +722,7 @@ function Index() {
     const syncCatalog = () => {
       if (ctrl) ctrl.abort();
       ctrl = new AbortController();
-      fetchAdminCatalog(ctrl.signal)
+      fetchAdminCatalog(ctrl.signal, true)
         .then((catalog) => {
           const merged = mergeAdminCatalog(catalog);
           setCategories(merged);
@@ -742,6 +742,10 @@ function Index() {
             console.warn("Admin API unreachable:", err);
           }
         });
+
+      fetchCustomizedServices(ctrl.signal, true)
+        .then((data) => setCustomizedServices(data || []))
+        .catch(() => {});
     };
 
     syncCatalog();
