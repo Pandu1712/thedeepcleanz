@@ -1056,12 +1056,18 @@ function ServiceDetailPage() {
                           Select Appliance or Package Option
                         </label>
                         <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
-                          {plans.length} options available
+                          {plans.length} option{plans.length !== 1 ? "s" : ""} available
                         </span>
                       </div>
 
                       {/* Clean Radio Option Cards */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className={`grid gap-3 ${
+                        plans.length === 1
+                          ? "grid-cols-1 sm:max-w-md"
+                          : plans.length === 2
+                            ? "grid-cols-1 sm:grid-cols-2"
+                            : "grid-cols-1 sm:grid-cols-3"
+                      }`}>
                         {plans.map((p, idx) => {
                           const isSelected = selectedPlanIdx === idx;
                           const planPrice = getServicePrice(p.price || service.price || 0);

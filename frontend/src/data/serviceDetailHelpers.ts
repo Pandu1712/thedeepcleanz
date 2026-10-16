@@ -39,14 +39,20 @@ export function getPlanInclusionsAndExclusions(
   const sTitle = (service?.title || "").toLowerCase();
   const pName = (plan?.name || "").toLowerCase();
 
-  // Full House Deep Cleaning
+  // Full House / Vacant / Furnished / BHK Flat Deep Cleaning
   if (
     sId.includes("house") ||
     sId.includes("home") ||
     sId.includes("villa") ||
     sId.includes("apartment") ||
+    sId.includes("vacant") ||
+    sId.includes("furnished") ||
+    sId.includes("bhk") ||
     sTitle.includes("house") ||
-    sTitle.includes("home")
+    sTitle.includes("home") ||
+    sTitle.includes("vacant") ||
+    sTitle.includes("furnished") ||
+    sTitle.includes("bhk")
   ) {
     return {
       inclusions: [
@@ -212,18 +218,24 @@ export function resolveServicePlans(service: any): ServicePlan[] {
     } catch (e) {}
   }
 
-  // If service has 2 or more custom plans defined, use them
-  if (rawPlans.length > 1) {
+  // If service has custom plans defined in DB or Admin (1 or more plans), ALWAYS use them!
+  if (rawPlans.length > 0) {
+    const defaultIncludes =
+      Array.isArray(service.includes) && service.includes.length > 0
+        ? sanitizeItemList(service.includes)
+        : Array.isArray(service.sub) && service.sub.length > 0
+          ? sanitizeItemList(service.sub)
+          : [];
+
     return rawPlans.map((p: any) => ({
       name: p?.name || "Standard Plan",
-      price: typeof p?.price === "number" ? p.price : service.price || 0,
+      price: typeof p?.price === "number" ? p.price : (Number(p?.price) || service.price || 0),
       duration: p?.duration || "2 - 3 hours",
-      description: p?.description || p?.desc || service.desc || "",
-      includes: Array.isArray(p?.includes)
-        ? sanitizeItemList(p.includes)
-        : Array.isArray(service.sub)
-          ? sanitizeItemList(service.sub)
-          : [],
+      description: p?.description || p?.desc || service.description || service.desc || "",
+      includes:
+        Array.isArray(p?.includes) && p.includes.length > 0
+          ? sanitizeItemList(p.includes)
+          : defaultIncludes,
       excludes: Array.isArray(p?.excludes) ? sanitizeItemList(p.excludes) : [],
     }));
   }
