@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import {
   Sparkles,
@@ -614,7 +614,26 @@ type TabType =
 
 function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabType>("dashboard");
+  const [activeTab, setActiveTabState] = useState<TabType>(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabFromUrl = urlParams.get("tab") as TabType;
+      if (tabFromUrl) return tabFromUrl;
+      const saved = sessionStorage.getItem("admin_active_tab") as TabType;
+      if (saved) return saved;
+    }
+    return "dashboard";
+  });
+
+  const setActiveTab = (tab: TabType) => {
+    setActiveTabState(tab);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("admin_active_tab", tab);
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tab);
+      window.history.replaceState({}, "", url.toString());
+    }
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [syncTime, setSyncTime] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -784,6 +803,33 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [newPrecautionDesc, setNewPrecautionDesc] = useState("");
   const [editingPrecautionIdx, setEditingPrecautionIdx] = useState<number | null>(null);
 
+  // Active item tracking refs to prevent closures from reverting selections
+  const activeServiceIdRef = useRef(activeServiceId);
+  const activeCategoryIdRef = useRef(activeCategoryId);
+  const activeCustomizedIdRef = useRef(activeCustomizedId);
+  const activeCouponCodeRef = useRef(activeCouponCode);
+  const activeTechnicianIdRef = useRef(activeTechnicianId);
+  const activeTabRef = useRef(activeTab);
+
+  useEffect(() => {
+    activeServiceIdRef.current = activeServiceId;
+  }, [activeServiceId]);
+  useEffect(() => {
+    activeCategoryIdRef.current = activeCategoryId;
+  }, [activeCategoryId]);
+  useEffect(() => {
+    activeCustomizedIdRef.current = activeCustomizedId;
+  }, [activeCustomizedId]);
+  useEffect(() => {
+    activeCouponCodeRef.current = activeCouponCode;
+  }, [activeCouponCode]);
+  useEffect(() => {
+    activeTechnicianIdRef.current = activeTechnicianId;
+  }, [activeTechnicianId]);
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
   // Service Plan Sub-form states
   const [newPlanName, setNewPlanName] = useState("");
   const [newPlanPrice, setNewPlanPrice] = useState(0);
@@ -931,7 +977,11 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     return sortedKeys.map(k => aggregation[k]);
   }, [bookings, analyticsFilterType, dailyRangeOption, customStartDate, customEndDate]);
 
-  const refreshData = async () => {
+  const refreshData = async (
+    targetServiceId?: string,
+    targetCategoryId?: string,
+    targetCustomizedId?: string
+  ) => {
     setIsRefreshing(true);
     try {
       const [
@@ -1004,27 +1054,68 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
         }
       }
 
-      // Pre-select category/service if empty
-      if (catalog.categories?.length && !activeCategoryId) {
-        selectCategory(catalog.categories[0]);
+      // Pre-select category/service preserving current active item
+      const currentCatId = targetCategoryId !== undefined ? targetCategoryId : activeCategoryIdRef.current;
+      const currentSvcId = targetServiceId !== undefined ? targetServiceId : activeServiceIdRef.current;
+      const currentCustId = targetCustomizedId !== undefined ? targetCustomizedId : activeCustomizedIdRef.current;
+      const currentCoupCode = activeCouponCodeRef.current;
+      const currentTechId = activeTechnicianIdRef.current;
+
+      if (catalog.categories?.length) {
+        if (!currentCatId) {
+          selectCategory(catalog.categories[0]);
+        } else {
+          const matchCat = catalog.categories.find((c) => c.id === currentCatId);
+          if (matchCat) {
+            setActiveCategoryId(matchCat.id);
+          }
+        }
       }
-      if (catalog.services?.length && !activeServiceId) {
-        selectService(catalog.services[0]);
-      } else if (catalog.categories?.length && !activeServiceId) {
-        // Fallback draft state
+
+      if (catalog.services?.length) {
+        if (!currentSvcId) {
+          selectService(catalog.services[0]);
+        } else {
+          const matchSvc = catalog.services.find((s) => s.id === currentSvcId);
+          if (matchSvc) {
+            setActiveServiceId(matchSvc.id);
+          }
+        }
+      } else if (catalog.categories?.length && !currentSvcId) {
         setSvcCatId(catalog.categories[0].id);
       }
 
-      if (custData?.length && !activeCustomizedId) {
-        selectCustomized(custData[0]);
+      if (custData?.length) {
+        if (!currentCustId) {
+          selectCustomized(custData[0]);
+        } else {
+          const matchCust = custData.find((c) => c.id === currentCustId);
+          if (matchCust) {
+            setActiveCustomizedId(matchCust.id);
+          }
+        }
       }
 
-      if (coupData?.length && !activeCouponCode) {
-        selectCoupon(coupData[0]);
+      if (coupData?.length) {
+        if (!currentCoupCode) {
+          selectCoupon(coupData[0]);
+        } else {
+          const matchCoup = coupData.find((c) => c.code === currentCoupCode);
+          if (matchCoup) {
+            setActiveCouponCode(matchCoup.code);
+          }
+        }
       }
 
-      if (techData?.length && !activeTechnicianId) {
-        selectTechnician(techData[0]);
+      if (techData?.length) {
+        if (!currentTechId) {
+          selectTechnician(techData[0]);
+        } else {
+          const matchTech = techData.find((t) => t.id === currentTechId);
+          if (matchTech) {
+            setActiveTechnicianId(matchTech.id);
+          }
+        }
       }
 
       const now = new Date();
@@ -1042,6 +1133,11 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     }
   };
 
+  const refreshDataRef = useRef(refreshData);
+  useEffect(() => {
+    refreshDataRef.current = refreshData;
+  });
+
   useEffect(() => {
     refreshData();
   }, []);
@@ -1049,10 +1145,10 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   // Real-time live synchronization for Admin Dashboard via WebSockets & SSE
   useEffect(() => {
     const handleLiveCatalogUpdate = () => {
-      refreshData();
+      refreshDataRef.current?.();
     };
     const handleLiveBookingsUpdate = () => {
-      refreshData();
+      refreshDataRef.current?.();
     };
 
     window.addEventListener("catalog-updated", handleLiveCatalogUpdate);
@@ -1107,10 +1203,14 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       if (isNew) {
         const created = await createCoupon(payload);
         setCoupons((prev) => [...prev, created]);
+        activeCouponCodeRef.current = payload.code;
+        selectCoupon(created);
         toast.success(`Coupon ${payload.code} added!`);
       } else {
         const updated = await updateCoupon(payload.code, payload);
         setCoupons((prev) => prev.map((c) => (c.code === payload.code ? updated : c)));
+        activeCouponCodeRef.current = payload.code;
+        selectCoupon(updated);
         toast.success(`Coupon ${payload.code} updated!`);
       }
       refreshData();
@@ -1577,7 +1677,8 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     setActiveTab("customized");
   };
 
-  const handleSaveCustomized = async () => {
+  const handleSaveCustomized = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
     if (!customizedTitle.trim()) {
       toast.error("Please enter a name.");
       return;
@@ -1595,16 +1696,20 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       if (activeCustomizedId.startsWith("new-")) {
         const created = await createCustomizedService(payload);
         setCustomizedServices((prev) => [...prev, created]);
-        setActiveCustomizedId(created.id);
+        activeCustomizedIdRef.current = created.id;
+        selectCustomized(created);
         toast.success("Customized clean service added!");
+        await refreshData(undefined, undefined, created.id);
       } else {
         const updated = await updateCustomizedService(activeCustomizedId, payload);
         setCustomizedServices((prev) =>
           prev.map((item) => (item.id === activeCustomizedId ? updated : item)),
         );
+        activeCustomizedIdRef.current = activeCustomizedId;
+        selectCustomized(updated);
         toast.success("Customized clean service updated!");
+        await refreshData(undefined, undefined, activeCustomizedId);
       }
-      refreshData();
     } catch (err: any) {
       toast.error(`Save failed: ${err.message}`);
     }
@@ -1616,16 +1721,13 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       await deleteCustomizedService(id);
       setCustomizedServices((prev) => prev.filter((item) => item.id !== id));
       setActiveCustomizedId("");
+      activeCustomizedIdRef.current = "";
       toast.success("Customized clean service deleted.");
       refreshData();
     } catch (err: any) {
       toast.error(`Delete failed: ${err.message}`);
     }
   };
-
-  useEffect(() => {
-    refreshData();
-  }, []);
 
   const selectCategory = (c: AdminCategory) => {
     setActiveCategoryId(c.id);
@@ -1691,7 +1793,8 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   };
 
   // CRUD Handler - Category
-  const handleSaveCategory = async () => {
+  const handleSaveCategory = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
     if (!catTitle.trim()) {
       toast.error("Category Title is required");
       return;
@@ -1717,8 +1820,10 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           paymentType: catPricingMode,
         });
         setCategories((prev) => [...prev, created]);
+        activeCategoryIdRef.current = created.id;
         selectCategory(created);
         toast.success("Category created successfully!");
+        await refreshData(undefined, created.id);
       } else {
         // Update
         const updated = await updateCategory(activeCategoryId, {
@@ -1770,8 +1875,10 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
           );
           toast.success("Category updated successfully!");
         }
+        activeCategoryIdRef.current = activeCategoryId;
+        selectCategory(updated);
+        await refreshData(undefined, activeCategoryId);
       }
-      refreshData();
     } catch (err) {
       toast.error("Failed to save category");
     }
@@ -1966,7 +2073,8 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   };
 
   // CRUD Handler - Service
-  const handleSaveService = async () => {
+  const handleSaveService = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
     if (!svcTitle.trim()) {
       toast.error("Service Title is required");
       return;
@@ -1998,15 +2106,19 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
         // Create
         const created = await createService(payload);
         setServices((prev) => [...prev, created]);
+        activeServiceIdRef.current = created.id;
         selectService(created);
         toast.success("Service created successfully!");
+        await refreshData(created.id);
       } else {
         // Update
         const updated = await updateService(activeServiceId, payload);
         setServices((prev) => prev.map((s) => (s.id === activeServiceId ? updated : s)));
+        activeServiceIdRef.current = updated.id || activeServiceId;
+        selectService(updated);
         toast.success("Service updated successfully!");
+        await refreshData(updated.id || activeServiceId);
       }
-      refreshData();
     } catch (err) {
       toast.error("Failed to save service");
     }
@@ -3767,6 +3879,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
 
                     <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
                       <button
+                        type="button"
                         onClick={handleSaveCategory}
                         className="inline-flex items-center gap-1.5 rounded-2xl bg-[#002a22] text-[#cb9f5a] border border-[#cb9f5a]/30 hover:bg-[#cb9f5a] hover:text-[#002a22] px-6 py-3.5 text-xs font-black uppercase tracking-wider shadow-md active:scale-95 transition-all cursor-pointer"
                       >
@@ -4798,6 +4911,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
 
                     <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
                       <button
+                        type="button"
                         onClick={handleSaveService}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 px-6 py-3 text-xs font-bold text-white shadow-md active:scale-95 transition-all"
                       >
@@ -5382,6 +5496,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                     {/* Form Footer Action */}
                     <div className="flex justify-end gap-3.5 border-t border-slate-100 pt-4">
                       <button
+                        type="button"
                         onClick={handleSaveCustomized}
                         className="inline-flex items-center gap-2 rounded-xl bg-[#d91b5c] hover:bg-[#b01047] px-6 py-3 text-sm font-bold text-white shadow-md transition-colors"
                       >
@@ -6456,6 +6571,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                 <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
                   {activeCouponCode && (
                     <button
+                      type="button"
                       onClick={handleSaveCoupon}
                       className="flex-1 rounded-xl bg-[#d91b5c] py-2.5 text-xs font-bold text-white hover:bg-[#b01047] active:scale-[0.98] transition-all cursor-pointer font-sans"
                     >
@@ -6692,6 +6808,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                 <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
                   {activeTechnicianId && (
                     <button
+                      type="button"
                       onClick={handleSaveTechnician}
                       className="flex-1 rounded-xl bg-[#002a22] py-2.5 text-xs font-bold text-white hover:bg-[#0a3d33] active:scale-[0.98] transition-all cursor-pointer font-sans"
                     >
