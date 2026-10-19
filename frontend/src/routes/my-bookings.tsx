@@ -47,6 +47,7 @@ import {
 } from "@/api/admin-api";
 import { CartItem } from "@/data/servicesData";
 import Header from "@/components/Header";
+import CartDrawer from "@/components/CartDrawer";
 import { LiveTrackingMap } from "@/components/my-bookings/LiveTrackingMap";
 import { UrbanCompanyLiveTracker } from "@/components/my-bookings/UrbanCompanyLiveTracker";
 import { RescheduleModal } from "@/components/my-bookings/RescheduleModal";
@@ -361,7 +362,7 @@ function MyBookingsPage() {
           return !isFailedOrCancelled;
         }
         if (activeTab === "Buy Again") {
-          return isPaid || isFullyPaid;
+          return !isFailedOrCancelled;
         }
         if (activeTab === "Not Yet Serviced") {
           return !isFullyPaid && !isFailedOrCancelled;
@@ -381,12 +382,18 @@ function MyBookingsPage() {
   }, [bookings, activeTab, dateFilter]);
 
   useEffect(() => {
-    try {
-      const c = localStorage.getItem("thedeepcleanerz_cart_v1");
-      if (c) setCart(JSON.parse(c));
-      const f = localStorage.getItem("thedeepcleanerz_favs_v1");
-      if (f) setFavs(JSON.parse(f));
-    } catch {}
+    const handleCartSync = () => {
+      try {
+        const c = localStorage.getItem("thedeepcleanerz_cart_v1");
+        if (c) setCart(JSON.parse(c));
+        else setCart([]);
+        const f = localStorage.getItem("thedeepcleanerz_favs_v1");
+        if (f) setFavs(JSON.parse(f));
+      } catch {}
+    };
+    handleCartSync();
+    window.addEventListener("cart-updated", handleCartSync);
+    window.addEventListener("storage", handleCartSync);
 
     const handleLocationSync = () => {
       const email = sessionStorage.getItem("user_email");
@@ -402,7 +409,11 @@ function MyBookingsPage() {
     };
     handleLocationSync();
     window.addEventListener("location-updated", handleLocationSync);
-    return () => window.removeEventListener("location-updated", handleLocationSync);
+    return () => {
+      window.removeEventListener("cart-updated", handleCartSync);
+      window.removeEventListener("storage", handleCartSync);
+      window.removeEventListener("location-updated", handleLocationSync);
+    };
   }, []);
 
   const loadBookings = (profOverride?: any) => {
@@ -594,23 +605,160 @@ function MyBookingsPage() {
       .catch((err) => console.error("Error fetching catalog services:", err));
   }, []);
 
+  const cartTotal = useMemo(
+    () => cart.reduce((acc, i) => acc + (i.price || 0) * (i.qty || 1), 0),
+    [cart],
+  );
+
+  const updateQty = (id: string, d: number) => {
+    setCart((c) => {
+      const next = c.flatMap((i) =>
+        i.id === id ? (i.qty + d <= 0 ? [] : [{ ...i, qty: i.qty + d }]) : [i],
+      );
+      try {
+        localStorage.setItem("thedeepcleanerz_cart_v1", JSON.stringify(next));
+        sessionStorage.setItem("thedeepcleanerz_cart_v1", JSON.stringify(next));
+        window.dispatchEvent(new Event("cart-updated"));
+      } catch {}
+      return next;
+    });
+  };
+
+  const removeItem = (id: string) => {
+    setCart((c) => {
+      const next = c.filter((i) => i.id !== id);
+      try {
+        localStorage.setItem("thedeepcleanerz_cart_v1", JSON.stringify(next));
+        sessionStorage.setItem("thedeepcleanerz_cart_v1", JSON.stringify(next));
+        window.dispatchEvent(new Event("cart-updated"));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleCheckout = () => {
+    setCartOpen(false);
+    navigate({ to: "/checkout" });
+  };
+
+  const addRawItemToCart = (item: { id: string; title: string; price: number; img: string }) => {
+    setCart((c) => {
+      const ex = c.find((i) => i.id === item.id);
+      const next = ex
+        ? c.map((i) => (i.id === item.id ? { ...i, qty: i.qty + 1 } : i))
+        : [...c, { id: item.id, title: item.title, price: item.price, img: item.img, qty: 1 }];
+      try {
+        localStorage.setItem("thedeepcleanerz_cart_v1", JSON.stringify(next));
+        sessionStorage.setItem("thedeepcleanerz_cart_v1", JSON.stringify(next));
+        window.dispatchEvent(new Event("cart-updated"));
+      } catch {}
+      return next;
+    });
+    toast.success(`${item.title} added to cart`, { icon: "🛒" });
+  };
+
   const handleBuyItAgain = (item: any, itemImg: string) => {
     try {
-      const itemId = item.id || "house";
+      const itemId = item.id || `reorder-${Date.now()}`;
+      const price = Number(item.price) || 0;
       const cartItem: CartItem = {
         id: itemId,
-        title: item.title,
-        price: item.price,
+        title: item.title || "Cleaning Service",
+        price: price,
         img: itemImg || "",
-        qty: 1,
+        qty: Number(item.qty) || 1,
+        paymentType: item.paymentType || "full",
       };
 
-      setCart([cartItem]);
+      setCart((prev) => {
+        const ex = prev.find((i) => i.id === itemId);
+        const next = ex
+          ? prev.map((i) => (i.id === itemId ? { ...i, qty: (i.qty || 1) + 1 } : i))
+          : [...prev, cartItem];
+        try {
+          localStorage.setItem("thedeepcleanerz_cart_v1", JSON.stringify(next));
+          sessionStorage.setItem("thedeepcleanerz_cart_v1", JSON.stringify(next));
+          window.dispatchEvent(new Event("cart-updated"));
+        } catch {}
+        return next;
+      });
       setCartOpen(true);
-      toast.success(`Added "${item.title}" to cart!`, { icon: "🛍️" });
-    } catch (e) {
+      toast.success(`Added "${item.title || "Service"}" to cart!`, { icon: "🛍️" });
+    } catch (e: any) {
       console.error(e);
       toast.error("Failed to add to cart.");
+    }
+  };
+
+  const handleReorderBooking = (booking: any, itemsToReorder?: any[]) => {
+    try {
+      let items: any[] = itemsToReorder || [];
+      if (!items || items.length === 0) {
+        if (typeof booking.items === "string") {
+          try {
+            items = JSON.parse(booking.items);
+          } catch {
+            items = [];
+          }
+        } else if (Array.isArray(booking.items)) {
+          items = booking.items;
+        }
+      }
+
+      if (!items || items.length === 0) {
+        items = [{
+          id: `reorder-${booking.id || Date.now()}`,
+          title: "Deep Cleaning Service",
+          price: Number(booking.total) || 999,
+          qty: 1,
+        }];
+      }
+
+      setCart((prev) => {
+        let updated = [...prev];
+        items.forEach((item: any) => {
+          const itemId = item.id || `reorder-${Date.now()}`;
+          const catalogItem = catalogServices.find(
+            (s) => s.id === item.id || s.title?.toLowerCase() === item.title?.toLowerCase()
+          );
+          const itemImg =
+            item.img ||
+            catalogItem?.img ||
+            catalogItem?.image ||
+            serviceImageMap[itemId] ||
+            serviceImageMap[item.id] ||
+            "";
+          const exIdx = updated.findIndex((i) => i.id === itemId);
+          if (exIdx >= 0) {
+            updated[exIdx] = {
+              ...updated[exIdx],
+              qty: (updated[exIdx].qty || 1) + (Number(item.qty) || 1),
+            };
+          } else {
+            updated.push({
+              id: itemId,
+              title: item.title || "Cleaning Package",
+              price: Number(item.price) || 0,
+              img: itemImg,
+              qty: Number(item.qty) || 1,
+              paymentType: item.paymentType || catalogItem?.paymentType || "full",
+            });
+          }
+        });
+
+        try {
+          localStorage.setItem("thedeepcleanerz_cart_v1", JSON.stringify(updated));
+          sessionStorage.setItem("thedeepcleanerz_cart_v1", JSON.stringify(updated));
+          window.dispatchEvent(new Event("cart-updated"));
+        } catch {}
+        return updated;
+      });
+
+      setCartOpen(true);
+      toast.success("Added to cart! Opening cart...", { icon: "🛍️" });
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Failed to reorder. Please try again.");
     }
   };
 
@@ -1336,17 +1484,37 @@ function MyBookingsPage() {
                     {/* Right Column (Actions) */}
                     <div className="md:w-64 flex flex-col gap-2.5 border-t md:border-t-0 md:border-l border-[#cb9f5a]/15 pt-4 md:pt-0 md:pl-6 font-sans">
                       {isCancelled ? (
-                        <div className="w-full bg-slate-50 border border-slate-200 text-slate-400 text-xs font-bold py-2.5 rounded-xl text-center select-none">
-                          ❌ Booking Cancelled
+                        <div className="space-y-2.5">
+                          <div className="w-full bg-slate-50 border border-slate-200 text-slate-400 text-xs font-bold py-2.5 rounded-xl text-center select-none">
+                            ❌ Booking Cancelled
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleReorderBooking(b, parsedItems)}
+                            className="w-full btn-luxury-primary text-xs py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5 text-white" />
+                            <span>Reorder Service</span>
+                          </button>
                         </div>
                       ) : (
                         <>
+                          {/* Prominent Reorder / Repeat Clean Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleReorderBooking(b, parsedItems)}
+                            className="w-full btn-luxury-primary text-xs py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5 text-white" />
+                            <span>Reorder / Book Again</span>
+                          </button>
+
                           {isCommercialQuote ? (
                             <a
                               href="tel:+919966346347"
-                              className="w-full btn-luxury-primary text-xs py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-xs"
+                              className="w-full btn-luxury-gold text-xs py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-xs"
                             >
-                              <Phone className="h-3.5 w-3.5 text-white" />
+                              <Phone className="h-3.5 w-3.5 text-[#001712]" />
                               <span>Call Commercial Desk</span>
                             </a>
                           ) : balanceAmount > 0 ? (
@@ -1373,10 +1541,18 @@ function MyBookingsPage() {
                           ) : (
                             <button
                               type="button"
-                              className="w-full btn-luxury-secondary text-xs py-2.5 rounded-xl flex items-center justify-center gap-1.5"
+                              onClick={() => {
+                                const shareText = `TheDeep CleanerZ Booking #${b.id.substring(0, 8).toUpperCase()} - Clean scheduled for ${b.schedule?.date || ""} at ${b.schedule?.time || ""}. Total: ₹${b.total}`;
+                                if (typeof navigator !== "undefined" && navigator.share) {
+                                  navigator.share({ title: "My Deep Cleaning Booking", text: shareText, url: window.location.href }).catch(() => {});
+                                } else {
+                                  window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, "_blank");
+                                }
+                              }}
+                              className="w-full btn-luxury-secondary text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
                             >
                               <Gift className="h-3.5 w-3.5 text-[#002A22]" />
-                              <span>Share gift receipt</span>
+                              <span>Share receipt</span>
                             </button>
                           )}
                           <button
@@ -1695,6 +1871,19 @@ function MyBookingsPage() {
         onClose={() => setCancellingBooking(null)}
         onConfirm={handleCancelBooking}
         isCancelling={isCancelling}
+      />
+
+      {/* Cart Drawer */}
+      <CartDrawer
+        open={cartOpen}
+        onClose={() => setCartOpen(false)}
+        cart={cart}
+        total={cartTotal}
+        updateQty={updateQty}
+        removeItem={removeItem}
+        onCheckout={handleCheckout}
+        onAddItem={addRawItemToCart}
+        allServices={catalogServices}
       />
     </div>
   );

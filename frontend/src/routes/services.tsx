@@ -47,6 +47,7 @@ import {
   isCommercialService,
 } from "@/data/servicesData";
 import Header from "@/components/Header";
+import CartDrawer from "@/components/CartDrawer";
 
 type ServicesSearch = {
   category?: string;
@@ -1426,6 +1427,20 @@ function ServicesComponent() {
           </div>
         </div>
       </footer>
+
+      {/* CART DRAWER */}
+      <CartDrawer
+        open={cartOpen}
+        onClose={() => setCartOpen(false)}
+        cart={cart}
+        total={cartTotal}
+        updateQty={updateQty}
+        removeItem={removeItem}
+        onCheckout={checkout}
+        onAddItem={addRawItemToCart}
+        allServices={categories.flatMap((c) => c.services || [])}
+        customizedServices={customizedServices}
+      />
     </div>
   );
 }
