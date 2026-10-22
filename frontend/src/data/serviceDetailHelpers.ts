@@ -242,6 +242,11 @@ export function resolveServicePlans(service: any): ServicePlan[] {
 
   // If no custom plans defined in DB/Admin, DO NOT invent fake multi-tier packages.
   // Instead, present the service as a single transparent standard plan at basePrice!
+  const basePrice =
+    typeof service?.price === "number"
+      ? service.price
+      : Number(service?.price) || 0;
+
   const defaultIncludes =
     Array.isArray(service.includes) && service.includes.length > 0
       ? sanitizeItemList(service.includes)

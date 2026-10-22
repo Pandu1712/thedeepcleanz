@@ -2928,7 +2928,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
               </button>
 
               <button
-                onClick={refreshData}
+                onClick={() => { refreshData(); }}
                 disabled={isRefreshing}
                 className="grid h-10 w-10 place-items-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm active:scale-95 transition-all disabled:opacity-50"
                 title="Force reload catalog and bookings"
