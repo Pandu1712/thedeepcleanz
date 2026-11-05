@@ -1,22 +1,254 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <!-- Core Main Domain Pages -->
   <url>
-    <loc>https://thedeepcleanerz.com/</loc>
+    <loc>https://thedeepcleanerz.in/</loc>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://thedeepcleanerz.in/logos/logo.png</image:loc>
+      <image:title>TheDeep CleanerZ — Premium Deep Cleaning Services</image:title>
+    </image:image>
   </url>
   <url>
-    <loc>https://thedeepcleanerz.com/services</loc>
+    <loc>https://thedeepcleanerz.in/services</loc>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://thedeepcleanerz.com/customized</loc>
+    <loc>https://thedeepcleanerz.in/customized</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Category Deep Links -->
+  <url>
+    <loc>https://thedeepcleanerz.in/services?category=full-house</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/services?category=furnished</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/services?category=vacant</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/services?category=bungalow-villa</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/services?category=commercial</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/services?category=customized</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- Individual Service Detail Pages: Furnished Apartments -->
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=1bhk-furnished</loc>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://thedeepcleanerz.com/service-detail</loc>
+    <loc>https://thedeepcleanerz.in/service-detail?id=2bhk-furnished</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=3bhk-furnished</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=4bhk-furnished</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=5bhk-furnished</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Individual Service Detail Pages: Vacant / Unfurnished Flats -->
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=1bhk-vacant</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=2bhk-vacant</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=3bhk-vacant</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=4bhk-vacant</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=5bhk-vacant</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Individual Service Detail Pages: Bungalows & Villas -->
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=villa-up-to-2000</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=villa-2000-3500</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=villa-3500-5000</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=villa-duplex</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Individual Service Detail Pages: Commercial & Post Interior -->
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=commercial-office-cleaning</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=commercial-hotel-cleaning</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=commercial-post-construction</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=commercial-restaurant-cleaning</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=commercial-shop-showroom</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=commercial-warehouse-industrial</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Individual Service Detail Pages: Room, Upholstery & Appliance Deep Cleaning -->
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=sofa-cleaning</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=kitchen-deep-cleaning</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=bathroom-deep-cleaning</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=carpet-cleaning</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=mattress-cleaning</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=fridge-cleaning</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=water-tank-cleaning</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=balcony-cleaning</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=glass-window-cleaning</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thedeepcleanerz.in/service-detail?id=floor-scrubbing</loc>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>

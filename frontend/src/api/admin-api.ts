@@ -7,9 +7,21 @@ export const ADMIN_API_URL = (() => {
   const envUrl = (import.meta.env.VITE_ADMIN_API_URL as string | undefined)?.replace(/\/$/, "");
 
   if (typeof window !== "undefined") {
-    const hostname = window.location.hostname;
+    // 1. Mobile Native / Capacitor App
+    const isCapacitor =
+      (window as any).Capacitor?.isNativePlatform?.() ||
+      window.location.protocol === "capacitor:" ||
+      window.location.protocol === "ionic:" ||
+      (window.location.hostname === "localhost" && window.location.port === "");
+    if (isCapacitor) {
+      if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+        return envUrl;
+      }
+      return "https://thedeepcleanerz.in";
+    }
 
-    // 1. Local browser development
+    // 2. Local browser development (Vite dev server: localhost:5173, 127.0.0.1, LAN IP)
+    const hostname = window.location.hostname;
     if (
       hostname === "localhost" ||
       hostname === "127.0.0.1" ||
@@ -21,12 +33,6 @@ export const ADMIN_API_URL = (() => {
         return envUrl;
       }
       return `http://${hostname || "localhost"}:4000`;
-    }
-
-    // 2. Capacitor / Native Mobile App
-    const isCapacitor = (window as any).Capacitor?.isNativePlatform?.() || window.location.protocol === "capacitor:";
-    if (isCapacitor) {
-      return "https://thedeepcleanerz.in";
     }
 
     // 3. Production web deployment (both frontend & API served on the same domain)

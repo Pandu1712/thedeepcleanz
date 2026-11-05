@@ -1,5 +1,5 @@
 /**
- * TheDeep CleanerZ - Unified High-Performance Service Worker (v9)
+ * TheDeep CleanerZ - Unified High-Performance Service Worker (v8)
  *
  * Architecture:
  * 1. HTML Documents: Network-First navigation. Never treated as static assets.
@@ -12,7 +12,7 @@
  * 6. Auto-purges all legacy caches (thedeepcleanz-static-v1, thedeepcleanz-api-v1, thedeepcleanz-api-v6, etc.) on activate.
  */
 
-const CACHE_NAME = "thedeepcleanz-v9";
+const CACHE_NAME = "thedeepcleanz-v10";
 
 // Install: Skip waiting immediately
 self.addEventListener("install", () => {
@@ -82,11 +82,15 @@ self.addEventListener("fetch", (event) => {
   const bypassPaths = [
     "/checkout",
     "/api/bookings",
+    "/api/payment",
     "/api/razorpay",
     "/api/auth",
     "/api/locations",
     "/api/admin",
     "/api/technician",
+    "/api/inquiries",
+    "/api/quotes",
+    "/api/user",
   ];
   if (bypassPaths.some((p) => url.pathname.startsWith(p))) {
     return; // Pass through directly to browser network
@@ -164,7 +168,7 @@ self.addEventListener("fetch", (event) => {
             JSON.stringify({ offline: true, error: "Network unavailable" }),
             {
               headers: { "Content-Type": "application/json" },
-              status: 200,
+              status: 503,
             }
           );
         })
