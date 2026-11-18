@@ -31,13 +31,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  ADMIN_API_URL,
+  todayLocalStr,
   createRazorpayOrder,
-  updateBookingPayment,
   fetchAdminCatalog,
   fetchCustomizedServices,
-  rescheduleBooking,
-  updateBookingJobStatus,
+  cancelMyBooking,
+  rescheduleMyBooking,
+  payMyBookingBalance,
+  postReview,
+  slotDateTimeIST,
   fetchBlockedDates,
   fetchUserBookings,
   STANDARD_TIME_SLOTS,
@@ -198,14 +200,14 @@ function MyBookingsPage() {
       toast.error("Please specify a Date and Time.");
       return;
     }
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayLocalStr();
     if (newDate < todayStr) {
       toast.error("Cannot reschedule to a past date. Please select today or a future date.");
       return;
     }
     const isBlocked = blockedDatesList.find((b) => b.date === newDate);
     if (isBlocked) {
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = todayLocalStr();
       const isToday = newDate === todayStr;
       const cleanReason = (isBlocked.reason && !/^admin\s*blocked/i.test(isBlocked.reason) && !/^blocked/i.test(isBlocked.reason)) ? isBlocked.reason : "Holiday";
       toast.error(
@@ -220,7 +222,7 @@ function MyBookingsPage() {
       return;
     }
     try {
-      await rescheduleBooking(rescheduleBookingId, newDate, newTime, "Client");
+      await rescheduleMyBooking(rescheduleBookingId, newDate, newTime);
       toast.success("Clean schedule updated successfully!", { icon: "🎉" });
       setRescheduleModalOpen(false);
       setRescheduleBookingId("");
@@ -234,28 +236,20 @@ function MyBookingsPage() {
     if (isSubmittingReview || !selectedServiceToReview) return;
     setIsSubmittingReview(true);
     try {
-      const response = await fetch(`${ADMIN_API_URL}/api/reviews`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serviceId: selectedServiceToReview.id,
-          userName: userProfile?.name || "Anonymous",
-          rating: reviewRating,
-          comment: reviewComment,
-        }),
+      await postReview({
+        serviceId: selectedServiceToReview.id,
+        userName: userProfile?.name || "Customer",
+        rating: reviewRating,
+        comment: reviewComment,
       });
-      if (response.ok) {
-        toast.success("Review submitted successfully! Thank you.", { icon: "🎉" });
-        setReviewModalOpen(false);
-        setSelectedServiceToReview(null);
-        setReviewComment("");
-        setReviewRating(5);
-      } else {
-        toast.error("Failed to submit review");
-      }
-    } catch (e) {
+      toast.success("Review submitted successfully! Thank you.", { icon: "🎉" });
+      setReviewModalOpen(false);
+      setSelectedServiceToReview(null);
+      setReviewComment("");
+      setReviewRating(5);
+    } catch (e: any) {
       console.error(e);
-      toast.error("Failed to submit review. Try again.");
+      toast.error(e?.message || "Failed to submit review. Try again.");
     } finally {
       setIsSubmittingReview(false);
     }
@@ -269,61 +263,15 @@ function MyBookingsPage() {
     if (!cancellingBooking) return;
     setIsCancelling(true);
     try {
-      const bookingDate = cancellingBooking.schedule?.date;
-      const bookingTimeRaw = cancellingBooking.schedule?.time || "10:00";
-      const bookingTime = bookingTimeRaw.split(" - ")[0].trim();
-      const bookingDateTime = new Date(`${bookingDate}T${bookingTime}:00`);
-      const now = new Date();
-      const diffHours = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-      const isFullyPaid =
-        typeof cancellingBooking.paymentStatus === "string" &&
-        (cancellingBooking.paymentStatus.includes("Paid In Full") ||
-         cancellingBooking.paymentStatus.toLowerCase().includes("full amount"));
-      const isPaid =
-        typeof cancellingBooking.paymentStatus === "string" &&
-        (cancellingBooking.paymentStatus.includes("Paid") || cancellingBooking.paymentStatus.includes("Success"));
-
-      let paidAmount = 0;
-      if (isFullyPaid) {
-        paidAmount = cancellingBooking.total;
-      } else if (isPaid) {
-        const match = cancellingBooking.paymentStatus.match(/\(₹(\d+)\)/);
-        if (match && match[1]) {
-          paidAmount = parseInt(match[1], 10);
-        } else {
-          if (cancellingBooking.paymentStatus.includes("50%")) {
-            paidAmount = Math.round(cancellingBooking.total * 0.50);
-          } else {
-            paidAmount = Math.round(cancellingBooking.total * 0.25);
-          }
-        }
-      }
-
-      let penaltyPercent = 0;
-      let refundAmount = paidAmount;
-
-      if (diffHours < 12) {
-        const elapsed = 12 - diffHours;
-        penaltyPercent = Math.min(100, Math.round(elapsed * 10));
-        refundAmount = Math.max(0, Math.round(paidAmount * (1 - penaltyPercent / 100)));
-      }
-
-      const refundMsg = refundAmount > 0 
-        ? `Refund Initiated (₹${refundAmount})` 
-        : "Cancelled (No Refund)";
-
-      // Update job status to Cancelled
-      await updateBookingJobStatus(
-        cancellingBooking.id, 
-        "Cancelled", 
-        `Cancelled by user. Penalty: ${penaltyPercent}%, Refund: ₹${refundAmount}`
+      // Penalty & refund are calculated and processed on the server (single source of truth)
+      const result = await cancelMyBooking(cancellingBooking.id);
+      const refund = Number(result?.refundAmount) || 0;
+      toast.success(
+        refund > 0
+          ? `Booking cancelled. Refund of ₹${refund} initiated (5-7 working days).`
+          : "Service booking cancelled successfully.",
+        { icon: "👋" },
       );
-
-      // Update payment status
-      await updateBookingPayment(cancellingBooking.id, refundMsg, cancellingBooking.paymentId);
-
-      toast.success("Service booking cancelled successfully.", { icon: "👋" });
       setCancellingBooking(null);
       loadBookings();
     } catch (err: any) {
@@ -347,29 +295,27 @@ function MyBookingsPage() {
           if (new Date(b.createdAt).getFullYear() !== 2025) return false;
         }
 
-        // Active Tab Filter
-        const isFullyPaid =
-          typeof b.paymentStatus === "string" && b.paymentStatus.includes("Paid In Full");
-        const isPaid =
-          typeof b.paymentStatus === "string" &&
-          (b.paymentStatus.includes("Paid") || b.paymentStatus.includes("Success"));
-        const isFailedOrCancelled =
-          typeof b.paymentStatus === "string" &&
-          (b.paymentStatus.toLowerCase().includes("failed") ||
-            b.paymentStatus.toLowerCase().includes("cancelled"));
+        // Active Tab Filter - based on the JOB status (a cancelled booking may show a
+        // "Refund Initiated" payment status, and a COD job can be completed but unpaid)
+        const jobStatus = String(b.jobStatus || "Pending");
+        const paymentFailed =
+          typeof b.paymentStatus === "string" && b.paymentStatus.toLowerCase().includes("failed");
+        const isCancelled = jobStatus === "Cancelled" || paymentFailed;
+        const isCompleted = jobStatus === "Completed";
 
         if (activeTab === "Orders") {
-          return !isFailedOrCancelled;
+          return !isCancelled;
         }
         if (activeTab === "Buy Again") {
-          return !isFailedOrCancelled;
+          return !isCancelled;
         }
         if (activeTab === "Not Yet Serviced") {
-          return !isFullyPaid && !isFailedOrCancelled;
+          return !isCompleted && !isCancelled;
         }
         if (activeTab === "Cancelled Orders") {
-          return isFailedOrCancelled;
+          return isCancelled;
         }
+        return true;
       })
       .sort((a, b) => {
         const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -438,10 +384,9 @@ function MyBookingsPage() {
                 if (!alreadyExists) {
                   const lbPhone = lb.customer?.phone ? lb.customer.phone.replace(/\D/g, "") : "";
                   const lbEmail = lb.customer?.email ? lb.customer.email.toLowerCase().trim() : "";
+                  // Only this customer's own cached bookings (shared devices must not leak others')
                   const lbPhoneMatch =
-                    !cleanUserPhone ||
-                    !lbPhone ||
-                    (cleanUserPhone && (lbPhone === cleanUserPhone || lbPhone.slice(-10) === cleanUserPhone.slice(-10)));
+                    !!cleanUserPhone && !!lbPhone && lbPhone.slice(-10) === cleanUserPhone.slice(-10);
                   const lbEmailMatch = cleanUserEmail && lbEmail && lbEmail === cleanUserEmail;
                   if (lbPhoneMatch || lbEmailMatch) {
                     serverList.push(lb);
@@ -470,7 +415,11 @@ function MyBookingsPage() {
           if (localRaw) {
             const localList = JSON.parse(localRaw);
             if (Array.isArray(localList)) {
-              const sortedLocal = [...localList].sort((a, b) => {
+              const ownLocal = localList.filter((lb: any) => {
+                const lbPhone = String(lb?.customer?.phone || "").replace(/\D/g, "");
+                return !!cleanUserPhone && !!lbPhone && lbPhone.slice(-10) === cleanUserPhone.slice(-10);
+              });
+              const sortedLocal = [...ownLocal].sort((a, b) => {
                 const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
                 const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                 if (timeA && timeB && timeA !== timeB && !isNaN(timeA) && !isNaN(timeB)) {
@@ -792,13 +741,15 @@ function MyBookingsPage() {
         ...(orderInfo.orderId ? { order_id: orderInfo.orderId } : {}),
         handler: async function (response: any) {
           try {
-            await updateBookingPayment(bookingId, "Paid In Full", response.razorpay_payment_id);
+            // Server verifies the Razorpay signature and records the real amount paid
+            await payMyBookingBalance(bookingId, response);
             toast.success("Balance paid successfully! Booking is fully confirmed.", { icon: "🎉" });
             loadBookings();
-          } catch (err) {
+          } catch (err: any) {
             console.error("Booking balance payment capture failed:", err);
             toast.error(
-              "Payment succeeded, but could not update booking status. Please contact support.",
+              err?.message ||
+                `Payment succeeded (ID ${response.razorpay_payment_id}), but the booking could not be updated. Please contact support.`,
             );
           } finally {
             setIsPayingId(null);
@@ -1585,14 +1536,9 @@ function MyBookingsPage() {
                             <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
                             <span>Write a review</span>
                           </button>
-                          {b.jobStatus !== "Cancelled" && b.jobStatus !== "Completed" && (() => {
-                            const bookingDate = b.schedule?.date;
-                            const bookingTimeRaw = b.schedule?.time || "10:00";
-                            const bookingTime = bookingTimeRaw.split(" - ")[0].trim();
-                            const bookingDateTime = new Date(`${bookingDate}T${bookingTime}:00`);
-                            const now = new Date();
-                            const diffHours = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-                            return diffHours > 0;
+                          {!["Cancelled", "Completed", "Started", "Ongoing", "Arrived"].includes(b.jobStatus) && (() => {
+                            const slotTime = slotDateTimeIST(b.schedule?.date, b.schedule?.time || "10:00").getTime();
+                            return Number.isFinite(slotTime) && slotTime > Date.now();
                           })() && (
                             <button
                               onClick={() => setCancellingBooking(b)}

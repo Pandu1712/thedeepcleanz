@@ -54,20 +54,44 @@ export const ADMIN_WS_URL = (() => {
   return `${protocol}//${host}`;
 })();
 
+/**
+ * Picks the right token for the current portal, so an admin who also logs in as a
+ * customer (or technician) in the same browser doesn't send the wrong token.
+ *  - /admin pages      -> admin_token
+ *  - /technician pages -> technician_token
+ *  - everything else   -> customer token (auth_token / user_token)
+ */
 export function getAuthToken(): string {
   if (typeof window === "undefined") return "";
   try {
-    return (
-      sessionStorage.getItem("auth_token") ||
-      localStorage.getItem("auth_token") ||
-      sessionStorage.getItem("user_token") ||
-      localStorage.getItem("user_token") ||
-      sessionStorage.getItem("admin_token") ||
-      ""
-    );
+    const path = window.location.pathname || "";
+    const read = (k: string) => sessionStorage.getItem(k) || localStorage.getItem(k) || "";
+    if (path.startsWith("/admin")) {
+      return read("admin_token") || read("auth_token");
+    }
+    if (path.startsWith("/technician")) {
+      return read("technician_token") || read("auth_token");
+    }
+    return read("auth_token") || read("user_token");
   } catch {
     return "";
   }
+}
+
+/** YYYY-MM-DD for a Date in the browser's local timezone (toISOString() is UTC and is
+ *  a day behind in India between 00:00 and 05:30). */
+export function toLocalDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function todayLocalStr(): string {
+  return toLocalDateStr(new Date());
+}
+
+/** Absolute time of a booking slot ("10:00 AM", "14:00", "10:00 AM - 12:00 PM") in IST. */
+export function slotDateTimeIST(dateStr: string, timeStr: string): Date {
+  const norm = normalizeTimeSlot(String(timeStr || "10:00").split(" - ")[0]);
+  return new Date(`${dateStr}T${/^\d{2}:\d{2}$/.test(norm) ? norm : "10:00"}:00+05:30`);
 }
 
 export function getAuthHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
@@ -119,6 +143,15 @@ export type AdminService = {
 };
 export type AdminCatalog = { categories: AdminCategory[]; services: AdminService[] };
 
+// Last successfully loaded data. If a request fails/times out, pages keep showing this
+// instead of an empty list ("no services" for customers).
+let lastGoodCatalog: AdminCatalog | null = null;
+let lastGoodCustomized: AdminCustomizedService[] | null = null;
+
+function isAbortError(err: unknown): boolean {
+  return (err as { name?: string })?.name === "AbortError";
+}
+
 export async function fetchAdminCatalog(signal?: AbortSignal, forceFresh = true): Promise<AdminCatalog> {
   try {
     const ctrl = new AbortController();
@@ -133,12 +166,77 @@ export async function fetchAdminCatalog(signal?: AbortSignal, forceFresh = true)
       },
     });
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`Catalog request failed: ${res.status}`);
-    return (await res.json()) as AdminCatalog;
+    if (!res.ok) throw await readError(res, `Catalog request failed: ${res.status}`);
+    const data = (await res.json()) as AdminCatalog;
+    lastGoodCatalog = { categories: data.categories || [], services: data.services || [] };
+    return lastGoodCatalog;
   } catch (err) {
-    console.warn("Catalog fetch failed or timed out, using fallback:", err);
-    return { categories: [], services: [] };
+    // A request cancelled by the caller (newer refresh started) must not overwrite the page
+    if (signal?.aborted) throw err;
+    console.warn("Catalog fetch failed or timed out, using last loaded data:", err);
+    return lastGoodCatalog || { categories: [], services: [] };
   }
+}
+
+/** Admin version: throws on failure so the dashboard keeps its current data instead of
+ *  replacing it with empty lists when the network is slow. */
+export async function fetchAdminCatalogStrict(): Promise<AdminCatalog> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/api/catalog?_t=${Date.now()}`, {
+      signal: ctrl.signal,
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+    });
+    if (!res.ok) throw await readError(res, `Catalog request failed: ${res.status}`);
+    const data = (await res.json()) as AdminCatalog;
+    return { categories: data.categories || [], services: data.services || [] };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Admin version of customized services: throws on failure. */
+export async function fetchCustomizedServicesStrict(): Promise<AdminCustomizedService[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/customized-services?_t=${Date.now()}`, { cache: "no-store" });
+  if (!res.ok) throw await readError(res, `Customized services request failed: ${res.status}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+/** Admin version of transformations: throws on failure. */
+export async function fetchRecentTransformationsStrict(): Promise<RecentTransformation[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/transformations?_t=${Date.now()}`, { cache: "no-store" });
+  if (!res.ok) throw await readError(res, `Transformations request failed: ${res.status}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+/** Admin version of holidays: throws on failure. */
+export async function fetchBlockedDatesStrict(): Promise<BlockedDate[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/blocked-dates?_t=${Date.now()}`, { cache: "no-store" });
+  if (!res.ok) throw await readError(res, `Holidays request failed: ${res.status}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+/** Settings: an admin token returns every key; the public site only gets public keys. */
+export async function fetchSettings(): Promise<Record<string, string>> {
+  const res = await fetch(`${ADMIN_API_URL}/api/settings?_t=${Date.now()}`, {
+    cache: "no-store",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw await readError(res, `Settings request failed: ${res.status}`);
+  return res.json();
+}
+
+/** Admin inquiries list that throws on failure (fetchInquiries swallows errors). */
+export async function fetchInquiriesStrict(): Promise<AdminInquiry[]> {
+  const res = await fetch(`${ADMIN_API_URL}/api/inquiries`, { headers: getAuthHeaders() });
+  if (!res.ok) throw await readError(res, `Fetch inquiries failed: ${res.status}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data : Array.isArray(data?.inquiries) ? data.inquiries : [];
 }
 
 export interface BookedSlotsResponse {
@@ -385,7 +483,7 @@ export async function fetchBookings(): Promise<any[]> {
   const res = await fetch(`${ADMIN_API_URL}/api/bookings`, {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Bookings request failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Bookings request failed: ${res.status}`);
   return (await res.json()) as any[];
 }
 
@@ -408,8 +506,78 @@ export async function fetchUserBookings(
   const res = await fetch(`${ADMIN_API_URL}/api/user/bookings${qs}`, {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`User bookings request failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `User bookings request failed: ${res.status}`);
   return (await res.json()) as any[];
+}
+
+/**
+ * Builds an Error from a failed API response using the server's own message.
+ * A 401/403 on the admin or technician portal means the login expired, so the portal is
+ * told to log out and ask for a fresh login (instead of showing "server failed").
+ */
+async function readError(res: Response, fallback: string): Promise<Error> {
+  const data = await res.json().catch(() => ({}));
+  const serverMsg = (data as any)?.error as string | undefined;
+  if ((res.status === 401 || res.status === 403) && typeof window !== "undefined") {
+    const path = window.location.pathname || "";
+    if (path.startsWith("/admin") || path.startsWith("/technician")) {
+      window.dispatchEvent(new CustomEvent("portal-session-expired", { detail: { status: res.status } }));
+      return new Error("Your login session has expired. Please log in again.");
+    }
+  }
+  if (res.status >= 500 && !serverMsg) {
+    return new Error("Server is temporarily unavailable. Please try again in a moment.");
+  }
+  return new Error(serverMsg || fallback);
+}
+
+/** Customer cancels their own booking. Refund + penalty are calculated on the server. */
+export async function cancelMyBooking(
+  id: string,
+): Promise<{ ok: boolean; refundAmount?: number; penaltyPercent?: number; paymentStatus?: string }> {
+  const res = await fetch(`${ADMIN_API_URL}/api/user/bookings/${encodeURIComponent(id)}/cancel`, {
+    method: "POST",
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+  });
+  if (!res.ok) throw await readError(res, `Cancellation failed: ${res.status}`);
+  return res.json();
+}
+
+/** Customer reschedules their own booking. */
+export async function rescheduleMyBooking(id: string, date: string, time: string): Promise<boolean> {
+  const res = await fetch(`${ADMIN_API_URL}/api/user/bookings/${encodeURIComponent(id)}/reschedule`, {
+    method: "PUT",
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ date, time }),
+  });
+  if (!res.ok) throw await readError(res, `Reschedule failed: ${res.status}`);
+  return true;
+}
+
+/** Records a verified Razorpay balance payment for the customer's own booking. */
+export async function payMyBookingBalance(
+  id: string,
+  rzp: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string },
+): Promise<{ ok: boolean; paymentStatus: string }> {
+  const res = await fetch(`${ADMIN_API_URL}/api/user/bookings/${encodeURIComponent(id)}/pay-balance`, {
+    method: "POST",
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({
+      razorpayOrderId: rzp.razorpay_order_id,
+      razorpayPaymentId: rzp.razorpay_payment_id,
+      razorpaySignature: rzp.razorpay_signature,
+    }),
+  });
+  if (!res.ok) throw await readError(res, `Payment update failed: ${res.status}`);
+  return res.json();
+}
+
+/** Logged-in customer's own profile (wallet balance, addresses, referral code). */
+export async function fetchMyProfile(): Promise<any | null> {
+  if (!getAuthToken()) return null;
+  const res = await fetch(`${ADMIN_API_URL}/api/user/profile`, { headers: getAuthHeaders() });
+  if (!res.ok) return null;
+  return res.json();
 }
 
 export async function fetchAllReviews(signal?: AbortSignal): Promise<any[]> {
@@ -429,7 +597,7 @@ export async function fetchUsers(): Promise<any[]> {
   const res = await fetch(`${ADMIN_API_URL}/api/users`, {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Users request failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Users request failed: ${res.status}`);
   return (await res.json()) as any[];
 }
 
@@ -438,7 +606,7 @@ export async function deleteBooking(id: string): Promise<boolean> {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Delete booking failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Delete booking failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 
@@ -452,7 +620,7 @@ export async function updateBookingPayment(
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ paymentStatus, paymentId }),
   });
-  if (!res.ok) throw new Error(`Update booking payment failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Update booking payment failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 
@@ -470,7 +638,7 @@ export async function createCategory(cat: {
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(cat),
   });
-  if (!res.ok) throw new Error(`Create category failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Create category failed: ${res.status}`);
   return (await res.json()).category as AdminCategory;
 }
 
@@ -483,7 +651,7 @@ export async function updateCategory(
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(patch),
   });
-  if (!res.ok) throw new Error(`Update category failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Update category failed: ${res.status}`);
   return (await res.json()).category as AdminCategory;
 }
 
@@ -492,7 +660,7 @@ export async function deleteCategory(id: string): Promise<boolean> {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Delete category failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Delete category failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 
@@ -504,7 +672,7 @@ export async function createService(
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(svc),
   });
-  if (!res.ok) throw new Error(`Create service failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Create service failed: ${res.status}`);
   return (await res.json()).service as AdminService;
 }
 
@@ -517,7 +685,7 @@ export async function updateService(
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(patch),
   });
-  if (!res.ok) throw new Error(`Update service failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Update service failed: ${res.status}`);
   return (await res.json()).service as AdminService;
 }
 
@@ -526,7 +694,7 @@ export async function deleteService(id: string): Promise<boolean> {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Delete service failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Delete service failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 
@@ -560,10 +728,11 @@ export async function postReview(payload: {
 }): Promise<{ ok: boolean; review: ServiceReview }> {
   const res = await fetch(`${ADMIN_API_URL}/api/reviews`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`Submit review failed: ${res.status}`);
+  if (res.status === 401) throw new Error("Please log in to write a review.");
+  if (!res.ok) throw await readError(res, `Submit review failed: ${res.status}`);
   return (await res.json()) as { ok: boolean; review: ServiceReview };
 }
 
@@ -591,10 +760,13 @@ export async function fetchCustomizedServices(
       headers: forceFresh ? { "Cache-Control": "no-cache, no-store, must-revalidate", Pragma: "no-cache" } : undefined,
     });
     clearTimeout(timer);
-    if (!res.ok) return [];
-    return (await res.json()) as AdminCustomizedService[];
+    if (!res.ok) return lastGoodCustomized || [];
+    const data = await res.json();
+    lastGoodCustomized = Array.isArray(data) ? (data as AdminCustomizedService[]) : [];
+    return lastGoodCustomized;
   } catch (err) {
-    return [];
+    if (signal?.aborted && isAbortError(err)) throw err;
+    return lastGoodCustomized || [];
   }
 }
 
@@ -606,7 +778,7 @@ export async function createCustomizedService(
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(svc),
   });
-  if (!res.ok) throw new Error(`Create customized service failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Create customized service failed: ${res.status}`);
   return (await res.json()).service as AdminCustomizedService;
 }
 
@@ -619,7 +791,7 @@ export async function updateCustomizedService(
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(patch),
   });
-  if (!res.ok) throw new Error(`Update customized service failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Update customized service failed: ${res.status}`);
   return (await res.json()).service as AdminCustomizedService;
 }
 
@@ -628,7 +800,7 @@ export async function deleteCustomizedService(id: string): Promise<boolean> {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Delete customized service failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Delete customized service failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 
@@ -644,8 +816,20 @@ export async function fetchCoupons(): Promise<AdminCoupon[]> {
   const res = await fetch(`${ADMIN_API_URL}/api/coupons`, {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Coupons request failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Coupons request failed: ${res.status}`);
   return (await res.json()) as AdminCoupon[];
+}
+
+/** Public: active, non-expired coupons a customer can apply. Never throws. */
+export async function fetchActiveCoupons(): Promise<AdminCoupon[]> {
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/api/coupons/active`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function createCoupon(
@@ -684,7 +868,7 @@ export async function deleteCoupon(code: string): Promise<boolean> {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Delete coupon failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Delete coupon failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 
@@ -719,7 +903,7 @@ export async function fetchTechnicians(): Promise<AdminTechnician[]> {
   const res = await fetch(`${ADMIN_API_URL}/api/technicians`, {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Technicians request failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Technicians request failed: ${res.status}`);
   return (await res.json()) as AdminTechnician[];
 }
 
@@ -727,7 +911,7 @@ export async function fetchTechnicianBookings(id: string): Promise<any[]> {
   const res = await fetch(`${ADMIN_API_URL}/api/technicians/${id}/bookings`, {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Technician bookings request failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Technician bookings request failed: ${res.status}`);
   return (await res.json()) as any[];
 }
 
@@ -735,7 +919,7 @@ export async function fetchAvailableTechnicianJobs(id: string): Promise<any[]> {
   const res = await fetch(`${ADMIN_API_URL}/api/technicians/${id}/available-jobs`, {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Available jobs request failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Available jobs request failed: ${res.status}`);
   return (await res.json()) as any[];
 }
 
@@ -791,7 +975,7 @@ export async function deleteTechnician(id: string): Promise<boolean> {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Delete technician failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Delete technician failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 
@@ -804,7 +988,7 @@ export async function updateBookingTechnician(
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ technicianId }),
   });
-  if (!res.ok) throw new Error(`Update booking technician failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Update booking technician failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 
@@ -818,7 +1002,7 @@ export async function updateBookingJobStatus(
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ jobStatus, statusNote }),
   });
-  if (!res.ok) throw new Error(`Update booking job status failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Update booking job status failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 
@@ -844,7 +1028,7 @@ export async function fetchRescheduleLogs(): Promise<any[]> {
   const res = await fetch(`${ADMIN_API_URL}/api/bookings/reschedule-logs`, {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Fetch reschedule logs failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Fetch reschedule logs failed: ${res.status}`);
   return await res.json();
 }
 
@@ -852,7 +1036,7 @@ export async function fetchAdmins(): Promise<any[]> {
   const res = await fetch(`${ADMIN_API_URL}/api/auth/admins`, {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Fetch admins failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Fetch admins failed: ${res.status}`);
   return await res.json();
 }
 
@@ -901,7 +1085,7 @@ export async function deleteAdmin(email: string): Promise<boolean> {
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ email }),
   });
-  if (!res.ok) throw new Error(`Delete admin failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Delete admin failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 
@@ -933,7 +1117,7 @@ export async function addRecentTransformation(payload: Omit<RecentTransformation
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`Add transformation failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Add transformation failed: ${res.status}`);
   return (await res.json()).transformation as RecentTransformation;
 }
 
@@ -943,7 +1127,7 @@ export async function updateRecentTransformation(id: string, payload: Omit<Recen
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`Update transformation failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Update transformation failed: ${res.status}`);
   return (await res.json()).transformation as RecentTransformation;
 }
 
@@ -952,7 +1136,7 @@ export async function deleteRecentTransformation(id: string): Promise<boolean> {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Delete transformation failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Delete transformation failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 
@@ -1005,7 +1189,7 @@ export async function deleteBlockedDate(id: string): Promise<boolean> {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Delete blocked date failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Delete blocked date failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 
@@ -1016,9 +1200,11 @@ export interface AdminInquiry {
   service?: string;
   message?: string;
   city?: string;
-  status: "pending" | "contacted" | "resolved";
+  status: InquiryStatus | string;
   createdAt: string;
 }
+
+export type InquiryStatus = "New" | "Contacted" | "Resolved";
 
 export async function fetchInquiries(signal?: AbortSignal): Promise<AdminInquiry[]> {
   try {
@@ -1026,7 +1212,7 @@ export async function fetchInquiries(signal?: AbortSignal): Promise<AdminInquiry
       signal,
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error(`Fetch inquiries failed: ${res.status}`);
+    if (!res.ok) throw await readError(res, `Fetch inquiries failed: ${res.status}`);
     const data = await res.json();
     if (Array.isArray(data)) return data;
     if (Array.isArray(data.inquiries)) return data.inquiries;
@@ -1037,13 +1223,13 @@ export async function fetchInquiries(signal?: AbortSignal): Promise<AdminInquiry
   }
 }
 
-export async function updateInquiryStatus(id: string, status: "pending" | "contacted" | "resolved"): Promise<boolean> {
+export async function updateInquiryStatus(id: string, status: InquiryStatus): Promise<boolean> {
   const res = await fetch(`${ADMIN_API_URL}/api/inquiries/${id}`, {
     method: "PATCH",
     headers: getAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ status }),
   });
-  if (!res.ok) throw new Error(`Update inquiry status failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Update inquiry status failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 
@@ -1052,7 +1238,7 @@ export async function deleteInquiry(id: string): Promise<boolean> {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Delete inquiry failed: ${res.status}`);
+  if (!res.ok) throw await readError(res, `Delete inquiry failed: ${res.status}`);
   return (await res.json()).ok as boolean;
 }
 

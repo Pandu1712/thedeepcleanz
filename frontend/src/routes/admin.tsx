@@ -80,7 +80,9 @@ import {
   Tooltip,
 } from "recharts";
 
-import {
+import { MessageSquare as InquiryIcon } from "lucide-react";
+import { AdminInquiriesPanel } from "@/components/admin/AdminInquiriesPanel";
+import { fetchAdminCatalogStrict, fetchCustomizedServicesStrict, fetchRecentTransformationsStrict, fetchBlockedDatesStrict, fetchSettings, getAuthHeaders, todayLocalStr, toLocalDateStr, fetchInquiries,
   fetchAdminCatalog,
   fetchBookings,
   fetchUsers,
@@ -180,10 +182,29 @@ function AdminDashboardRoute() {
 
   // Check session storage on mount
   useEffect(() => {
+    // A real admin token is required (the old "admin_authenticated" flag alone is not enough)
+    const hasToken = !!(sessionStorage.getItem("admin_token") || localStorage.getItem("admin_token"));
     const authed =
-      sessionStorage.getItem("admin_authenticated") === "true" ||
-      localStorage.getItem("admin_authenticated") === "true";
+      hasToken &&
+      (sessionStorage.getItem("admin_authenticated") === "true" ||
+        localStorage.getItem("admin_authenticated") === "true");
     setIsAuthenticated(authed);
+  }, []);
+
+  // Expired/invalid admin token (e.g. server secret changed, 7-day expiry): show the login
+  // screen with a clear message instead of every action failing with "server failed".
+  useEffect(() => {
+    const onExpired = () => {
+      if (!(sessionStorage.getItem("admin_token") || localStorage.getItem("admin_token"))) return;
+      ["admin_authenticated", "admin_token", "admin_profile", "user_role"].forEach((k) => {
+        sessionStorage.removeItem(k);
+        localStorage.removeItem(k);
+      });
+      setIsAuthenticated(false);
+      toast.error("Your admin session has expired. Please log in again.", { id: "admin-session-expired" });
+    };
+    window.addEventListener("portal-session-expired", onExpired);
+    return () => window.removeEventListener("portal-session-expired", onExpired);
   }, []);
 
   // Admin OTP Timer countdown
@@ -198,12 +219,12 @@ function AdminDashboardRoute() {
     setIsAuthenticated(false);
     sessionStorage.removeItem("admin_authenticated");
     sessionStorage.removeItem("admin_token");
-    sessionStorage.removeItem("auth_token");
-    sessionStorage.removeItem("user_email");
-    sessionStorage.removeItem("user_authenticated");
+    sessionStorage.removeItem("admin_profile");
+    sessionStorage.removeItem("user_role");
     localStorage.removeItem("admin_authenticated");
     localStorage.removeItem("admin_token");
-    localStorage.removeItem("auth_token");
+    localStorage.removeItem("admin_profile");
+    localStorage.removeItem("user_role");
     toast.success("Logged out successfully.");
   };
 
@@ -222,7 +243,7 @@ function AdminDashboardRoute() {
     try {
       const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/send`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ email: cleanEmail }),
       });
       const data = await res.json().catch(() => null);
@@ -262,49 +283,37 @@ function AdminDashboardRoute() {
       try {
         const res = await fetch(`${ADMIN_API_URL}/api/auth/admin-otp/verify`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({ email: cleanEmail, otp: cleanOtp }),
         });
         const data = await res.json().catch(() => null);
 
-        if (res.ok && data?.ok) {
+        if (res.ok && data?.ok && data?.token) {
           verified = true;
           token = data.token;
           adminUser = data.user;
-        } else if (data?.error) {
-          setError(data.error);
+        } else {
+          throw new Error(data?.error || "Incorrect admin verification code. Please check your email.");
         }
-      } catch (e) {}
-
-      // Fallback to master admin PINs (778899 / 123456)
-      if (!verified && (cleanOtp === "778899" || cleanOtp === "123456")) {
-        verified = true;
+      } catch (e: any) {
+        throw new Error(e?.message || "Could not reach the server. Please try again.");
       }
 
       if (verified) {
-        const finalUser = adminUser || {
-          id: "admin-root",
-          name: "Administrator",
-          email: cleanEmail === "admin" ? "thedeepcleanerz.info@gmail.com" : cleanEmail,
-          role: "admin",
-        };
-        const finalToken = token || "admin_master_token";
+        const finalUser = adminUser;
+        const finalToken = token;
 
+        // The admin session is kept separate from the customer session (auth_token),
+        // so customer pages never run with admin privileges and vice versa.
         sessionStorage.setItem("admin_authenticated", "true");
-        sessionStorage.setItem("user_authenticated", "true");
-        sessionStorage.setItem("user_email", finalUser.email);
         sessionStorage.setItem("user_role", "admin");
         sessionStorage.setItem("admin_token", finalToken);
-        sessionStorage.setItem("auth_token", finalToken);
-        sessionStorage.setItem("user_profile", JSON.stringify(finalUser));
+        sessionStorage.setItem("admin_profile", JSON.stringify(finalUser));
 
         localStorage.setItem("admin_authenticated", "true");
-        localStorage.setItem("user_authenticated", "true");
-        localStorage.setItem("user_email", finalUser.email);
         localStorage.setItem("user_role", "admin");
         localStorage.setItem("admin_token", finalToken);
-        localStorage.setItem("auth_token", finalToken);
-        localStorage.setItem("user_profile", JSON.stringify(finalUser));
+        localStorage.setItem("admin_profile", JSON.stringify(finalUser));
 
         window.dispatchEvent(new Event("auth-state-change"));
         window.dispatchEvent(new Event("storage"));
@@ -314,7 +323,7 @@ function AdminDashboardRoute() {
         return;
       }
 
-      throw new Error(error || "Incorrect admin verification code. Please check your email or terminal.");
+      throw new Error("Incorrect admin verification code. Please check your email.");
     } catch (err: any) {
       setError(err.message || "Failed to verify admin OTP.");
     } finally {
@@ -606,6 +615,7 @@ type TabType =
   | "calendar"
   | "blocked-dates"
   | "users"
+  | "inquiries"
   | "coupons"
   | "technicians"
   | "reschedules"
@@ -644,6 +654,17 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [services, setServices] = useState<AdminService[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [newInquiryCount, setNewInquiryCount] = useState(0);
+  useEffect(() => {
+    // Badge count of unanswered inquiries in the sidebar
+    fetchInquiries()
+      .then((list) =>
+        setNewInquiryCount(
+          list.filter((i) => !["contacted", "resolved"].includes(String(i.status || "").toLowerCase())).length,
+        ),
+      )
+      .catch(() => {});
+  }, []);
   const [customizedServices, setCustomizedServices] = useState<AdminCustomizedService[]>([]);
   const [coupons, setCoupons] = useState<AdminCoupon[]>([]);
   const [technicians, setTechnicians] = useState<AdminTechnician[]>([]);
@@ -860,10 +881,10 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   const [customStartDate, setCustomStartDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
-    return d.toISOString().split("T")[0];
+    return toLocalDateStr(d);
   });
   const [customEndDate, setCustomEndDate] = useState(() => {
-    return new Date().toISOString().split("T")[0];
+    return todayLocalStr();
   });
 
   const affectedCatServices = useMemo(() => {
@@ -885,7 +906,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
         dateStr = b.schedule.date;
         dateObj = new Date(b.schedule.date);
       } else {
-        dateStr = new Date().toISOString().split("T")[0];
+        dateStr = todayLocalStr();
         dateObj = new Date();
       }
       return {
@@ -942,7 +963,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       const loop = new Date(start);
       let safetyCount = 0;
       while (loop <= endLimit && safetyCount < 90) {
-        const dateStr = loop.toISOString().split("T")[0];
+        const dateStr = toLocalDateStr(loop);
         dateRangeList.push(dateStr);
         loop.setDate(loop.getDate() + 1);
         safetyCount++;
@@ -984,45 +1005,57 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
   ) => {
     setIsRefreshing(true);
     try {
-      const [
-        catalog,
-        bData,
-        uData,
-        custData,
-        coupData,
-        adminList,
-        techData,
-        rlogs,
-        transData,
-        blkData,
-        settingsRes,
-      ] = await Promise.all([
-        fetchAdminCatalog(undefined, true).catch(() => ({ categories: [], services: [] })),
-        fetchBookings().catch(() => []),
-        fetchUsers().catch(() => []),
-        fetchCustomizedServices(undefined, true).catch(() => []),
-        fetchCoupons().catch(() => []),
-        fetchAdmins().catch(() => []),
-        fetchTechnicians().catch(() => []),
-        fetchRescheduleLogs().catch(() => []),
-        fetchRecentTransformations().catch(() => []),
-        fetchBlockedDates().catch(() => []),
-        fetch(`${ADMIN_API_URL}/api/settings`)
-          .then((r) => (r.ok ? r.json() : ({} as any)))
-          .catch(() => ({} as any)) as Promise<any>,
+      // allSettled: a slow or failing request only skips ITS section; it never replaces the
+      // current data with an empty list (which looked like everything had been deleted).
+      const results = await Promise.allSettled([
+        fetchAdminCatalogStrict(),
+        fetchBookings(),
+        fetchUsers(),
+        fetchCustomizedServicesStrict(),
+        fetchCoupons(),
+        fetchAdmins(),
+        fetchTechnicians(),
+        fetchRescheduleLogs(),
+        fetchRecentTransformationsStrict(),
+        fetchBlockedDatesStrict(),
+        fetchSettings(),
       ]);
+      const ok = <T,>(i: number): T | null =>
+        results[i].status === "fulfilled" ? ((results[i] as PromiseFulfilledResult<T>).value as T) : null;
 
-      setCategories(catalog.categories || []);
-      setServices(catalog.services || []);
-      setBookings(bData || []);
-      setUsers(uData || []);
-      setCustomizedServices(custData || []);
-      setCoupons(coupData || []);
-      setAdmins(adminList || []);
-      setTechnicians(techData || []);
-      setRescheduleLogsList(rlogs || []);
-      setTransformations(transData || []);
-      setBlockedDatesList(blkData || []);
+      const catalog = ok<{ categories: any[]; services: any[] }>(0);
+      const bData = ok<any[]>(1);
+      const uData = ok<any[]>(2);
+      const custData = ok<any[]>(3);
+      const coupData = ok<any[]>(4);
+      const adminList = ok<any[]>(5);
+      const techData = ok<any[]>(6);
+      const rlogs = ok<any[]>(7);
+      const transData = ok<any[]>(8);
+      const blkData = ok<any[]>(9);
+      const settingsRes = ok<any>(10);
+
+      if (catalog) {
+        setCategories(catalog.categories || []);
+        setServices(catalog.services || []);
+      }
+      if (bData) setBookings(bData);
+      if (uData) setUsers(uData);
+      if (custData) setCustomizedServices(custData);
+      if (coupData) setCoupons(coupData);
+      if (adminList) setAdmins(adminList);
+      if (techData) setTechnicians(techData);
+      if (rlogs) setRescheduleLogsList(rlogs);
+      if (transData) setTransformations(transData);
+      if (blkData) setBlockedDatesList(blkData);
+
+      const failed = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+      if (failed.length > 0) {
+        const msg = String(failed[0].reason?.message || "Some data could not be refreshed.");
+        if (!/session has expired/i.test(msg)) {
+          toast.error(`Some data could not be refreshed: ${msg}`, { id: "admin-refresh-error" });
+        }
+      }
 
       if (settingsRes) {
         if (settingsRes.travel_rate_per_km !== undefined) {
@@ -1061,38 +1094,35 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       const currentCoupCode = activeCouponCodeRef.current;
       const currentTechId = activeTechnicianIdRef.current;
 
-      if (catalog.categories?.length) {
-        if (!currentCatId) {
+      const isDraft = (id?: string | null) => !!id && String(id).startsWith("new-");
+
+      if (catalog?.categories?.length) {
+        const matchCat = currentCatId ? catalog.categories.find((c) => c.id === currentCatId) : null;
+        if (matchCat) {
+          setActiveCategoryId(matchCat.id);
+        } else if (!isDraft(currentCatId)) {
+          // nothing selected, or the selected category was deleted (e.g. in another tab)
           selectCategory(catalog.categories[0]);
-        } else {
-          const matchCat = catalog.categories.find((c) => c.id === currentCatId);
-          if (matchCat) {
-            setActiveCategoryId(matchCat.id);
-          }
         }
       }
 
-      if (catalog.services?.length) {
-        if (!currentSvcId) {
+      if (catalog?.services?.length) {
+        const matchSvc = currentSvcId ? catalog.services.find((s) => s.id === currentSvcId) : null;
+        if (matchSvc) {
+          setActiveServiceId(matchSvc.id);
+        } else if (!isDraft(currentSvcId)) {
           selectService(catalog.services[0]);
-        } else {
-          const matchSvc = catalog.services.find((s) => s.id === currentSvcId);
-          if (matchSvc) {
-            setActiveServiceId(matchSvc.id);
-          }
         }
-      } else if (catalog.categories?.length && !currentSvcId) {
+      } else if (catalog?.categories?.length && !currentSvcId) {
         setSvcCatId(catalog.categories[0].id);
       }
 
       if (custData?.length) {
-        if (!currentCustId) {
+        const matchCust = currentCustId ? custData.find((c) => c.id === currentCustId) : null;
+        if (matchCust) {
+          setActiveCustomizedId(matchCust.id);
+        } else if (!isDraft(currentCustId)) {
           selectCustomized(custData[0]);
-        } else {
-          const matchCust = custData.find((c) => c.id === currentCustId);
-          if (matchCust) {
-            setActiveCustomizedId(matchCust.id);
-          }
         }
       }
 
@@ -1108,13 +1138,11 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       }
 
       if (techData?.length) {
-        if (!currentTechId) {
+        const matchTech = currentTechId ? techData.find((t) => t.id === currentTechId) : null;
+        if (matchTech) {
+          setActiveTechnicianId(matchTech.id);
+        } else if (!isDraft(currentTechId)) {
           selectTechnician(techData[0]);
-        } else {
-          const matchTech = techData.find((t) => t.id === currentTechId);
-          if (matchTech) {
-            setActiveTechnicianId(matchTech.id);
-          }
         }
       }
 
@@ -1144,18 +1172,29 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
 
   // Real-time live synchronization for Admin Dashboard via WebSockets & SSE
   useEffect(() => {
-    const handleLiveCatalogUpdate = () => {
-      refreshDataRef.current?.();
-    };
-    const handleLiveBookingsUpdate = () => {
-      refreshDataRef.current?.();
+    // Debounced: bursts of events (several saves, technician GPS pings every few seconds)
+    // trigger one refresh instead of dozens of parallel full reloads.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        refreshDataRef.current?.();
+      }, 1200);
     };
 
-    window.addEventListener("catalog-updated", handleLiveCatalogUpdate);
-    window.addEventListener("bookings-updated", handleLiveBookingsUpdate);
+    window.addEventListener("catalog-updated", scheduleRefresh);
+    window.addEventListener("bookings-updated", scheduleRefresh);
+    // Re-sync when the admin comes back to the tab (missed events while the laptop slept)
+    const onVisible = () => {
+      if (document.visibilityState === "visible") scheduleRefresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
-      window.removeEventListener("catalog-updated", handleLiveCatalogUpdate);
-      window.removeEventListener("bookings-updated", handleLiveBookingsUpdate);
+      if (timer) clearTimeout(timer);
+      window.removeEventListener("catalog-updated", scheduleRefresh);
+      window.removeEventListener("bookings-updated", scheduleRefresh);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
@@ -1171,7 +1210,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
     setActiveCouponCode("new-");
     setCouponDiscount(0);
     setCouponMinAmount(0);
-    setCouponExpiryDate(new Date().toISOString().split("T")[0]);
+    setCouponExpiryDate(todayLocalStr());
     setCouponIsActive(1);
     setActiveTab("coupons");
   };
@@ -1358,7 +1397,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       toast.error("Please specify a Date and Time.");
       return;
     }
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = todayLocalStr();
     if (newDate < todayStr) {
       toast.error("Cannot reschedule to a past date. Please pick today or a future date.");
       return;
@@ -1384,7 +1423,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
       toast.error("Please select a date to block.");
       return;
     }
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = todayLocalStr();
     if (blockDateInput < todayStr) {
       toast.error("Cannot block past dates. Please choose today or a future date.");
       return;
@@ -1904,6 +1943,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
 
       const res = await fetch(`${ADMIN_API_URL}/api/upload`, {
         method: "POST",
+        headers: getAuthHeaders(),
         body: formData,
       });
 
@@ -1943,6 +1983,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
 
       const res = await fetch(`${ADMIN_API_URL}/api/upload`, {
         method: "POST",
+        headers: getAuthHeaders(),
         body: formData,
       });
 
@@ -2214,6 +2255,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
 
       const res = await fetch(`${ADMIN_API_URL}/api/upload`, {
         method: "POST",
+        headers: getAuthHeaders(),
         body: formData,
       });
 
@@ -2252,6 +2294,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
 
       const res = await fetch(`${ADMIN_API_URL}/api/upload`, {
         method: "POST",
+        headers: getAuthHeaders(),
         body: formData,
       });
 
@@ -2421,10 +2464,10 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
 
     // 3. Date / Schedule Filter
     if (bookingDateFilter !== "all") {
-      const todayStr = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+      const todayStr = todayLocalStr(); // YYYY-MM-DD
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = tomorrow.toISOString().split("T")[0];
+      const tomorrowStr = toLocalDateStr(tomorrow);
 
       result = result.filter((b) => {
         const dateStr = b.schedule?.date || ""; // YYYY-MM-DD format
@@ -2724,6 +2767,32 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                 }`}
               >
                 {users.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("inquiries");
+              setIsSidebarOpen(false);
+            }}
+            className={`flex w-full items-center gap-3.5 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer ${
+              activeTab === "inquiries"
+                ? "gradient-gold text-navy shadow-gold font-bold"
+                : "text-cream/80 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <InquiryIcon className="h-4.5 w-4.5" />
+            <span>Inquiries</span>
+            {newInquiryCount > 0 && (
+              <span
+                className={`ml-auto rounded-full px-2 py-0.5 text-2xs font-extrabold ${
+                  activeTab === "inquiries"
+                    ? "bg-[#002a22] text-white"
+                    : "bg-[#cb9f5a]/25 text-[#cb9f5a] border border-[#cb9f5a]/30"
+                }`}
+              >
+                {newInquiryCount}
               </span>
             )}
           </button>
@@ -5083,6 +5152,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                                 formData.append("file", file);
                                 const res = await fetch(`${ADMIN_API_URL}/api/upload`, {
                                   method: "POST",
+                                  headers: getAuthHeaders(),
                                   body: formData,
                                 });
                                 if (!res.ok) throw new Error("Image upload failed");
@@ -6259,6 +6329,8 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
             />
           )}
 
+          {activeTab === "inquiries" && <AdminInquiriesPanel onCountChange={setNewInquiryCount} />}
+
           {activeTab === "users" && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
@@ -6324,7 +6396,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                                   try {
                                     const res = await fetch(`${ADMIN_API_URL}/api/users/${u.id}/wallet`, {
                                       method: "PUT",
-                                      headers: { "Content-Type": "application/json" },
+                                      headers: getAuthHeaders({ "Content-Type": "application/json" }),
                                       body: JSON.stringify({ amount: amt }),
                                     });
                                     if (!res.ok) throw new Error("Failed to update user wallet balance.");
@@ -6410,7 +6482,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-700">
                       {coupons.map((c) => {
-                        const today = new Date().toISOString().split("T")[0];
+                        const today = todayLocalStr();
                         const isExpired = c.expiryDate < today;
                         const isCurrentlyActive = c.isActive && !isExpired;
 
@@ -7443,7 +7515,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                           });
                           const res = await fetch(`${ADMIN_API_URL}/api/settings`, {
                             method: "POST",
-                            headers: { "Content-Type": "application/json" },
+                            headers: getAuthHeaders({ "Content-Type": "application/json" }),
                             body: JSON.stringify({
                               travel_rate_per_km: admTravelRate,
                               travel_free_radius_km: admFreeRadius,
@@ -7545,7 +7617,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                           });
                           const res = await fetch(`${ADMIN_API_URL}/api/settings`, {
                             method: "PUT",
-                            headers: { "Content-Type": "application/json" },
+                            headers: getAuthHeaders({ "Content-Type": "application/json" }),
                             body: JSON.stringify({
                               referral_reward_amount: admReferralReward,
                               referral_enabled: admReferralEnabled ? 1 : 0,
@@ -7620,7 +7692,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                         });
                         const res = await fetch(`${ADMIN_API_URL}/api/settings`, {
                           method: "PUT",
-                          headers: { "Content-Type": "application/json" },
+                          headers: getAuthHeaders({ "Content-Type": "application/json" }),
                           body: JSON.stringify({
                             header_promo_text: admPromoText,
                             header_promo_code: admPromoCode,
@@ -7766,7 +7838,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                       try {
                         const res = await fetch(`${ADMIN_API_URL}/api/whatsapp/test`, {
                           method: "POST",
-                          headers: { "Content-Type": "application/json" },
+                          headers: getAuthHeaders({ "Content-Type": "application/json" }),
                           body: JSON.stringify({
                             phone: admWhatsappPhone,
                             apiKey: admWhatsappApiKey,
@@ -7795,7 +7867,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                       try {
                         const res = await fetch(`${ADMIN_API_URL}/api/settings`, {
                           method: "PUT",
-                          headers: { "Content-Type": "application/json" },
+                          headers: getAuthHeaders({ "Content-Type": "application/json" }),
                           body: JSON.stringify({
                             whatsapp_enabled: admWhatsappEnabled ? "1" : "0",
                             whatsapp_admin_phone: admWhatsappPhone,
@@ -8164,7 +8236,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                       </label>
                       <input
                         type="date"
-                        min={new Date().toISOString().split("T")[0]}
+                        min={todayLocalStr()}
                         value={blockDateInput}
                         onChange={(e) => setBlockDateInput(e.target.value)}
                         required
@@ -8338,7 +8410,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                 </label>
                 <input
                   type="date"
-                  min={new Date().toISOString().split("T")[0]}
+                  min={todayLocalStr()}
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-[#cb9f5a]"
@@ -8882,7 +8954,7 @@ function AdminConsole({ onLogout }: { onLogout: () => void }) {
                   <input
                     type="date"
                     required
-                    min={new Date().toISOString().split("T")[0]}
+                    min={todayLocalStr()}
                     value={mbDate}
                     onChange={(e) => setMbDate(e.target.value)}
                     className="w-full sm:w-72 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-[#cb9f5a] font-bold cursor-pointer"

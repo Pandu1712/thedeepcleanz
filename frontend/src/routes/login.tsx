@@ -163,47 +163,39 @@ function LoginComponent() {
     }
 
     setIsLoading(true);
-    let verified = false;
-
-    // Firebase confirmation verification
-    if (confirmationResult) {
-      try {
-        await confirmationResult.confirm(cleanOtp);
-        verified = true;
-      } catch (fbErr: any) {
-        console.warn("Firebase code verify fallback to backend:", fbErr.message);
-      }
-    }
 
     try {
+      // Firebase SMS: confirm the code and hand the ID token to the server for verification
+      let firebaseIdToken = "";
+      if (confirmationResult) {
+        try {
+          const cred = await confirmationResult.confirm(cleanOtp);
+          firebaseIdToken = await cred.user.getIdToken();
+        } catch (fbErr: any) {
+          throw new Error("Incorrect or expired verification code.");
+        }
+      }
+
       const res = await fetch(`${ADMIN_API_URL}/api/auth/mobile-otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phone: cleanPhone,
-          otp: cleanOtp,
+          otp: firebaseIdToken ? undefined : cleanOtp,
+          firebaseIdToken: firebaseIdToken || undefined,
           name: name.trim() || undefined,
         }),
       });
 
       const data = await res.json().catch(() => null);
-      if (!res.ok && !verified) {
+      // Only a server-verified login (with a token) is accepted
+      if (!res.ok || !data?.token || !data?.user) {
         throw new Error(data?.error || "Incorrect or expired verification code.");
       }
 
-      const user = data?.user || {
-        id: `usr_${cleanPhone}`,
-        name: name.trim() || data?.user?.name || "Customer",
-        phone: cleanPhone,
-        email: data?.user?.email || `${cleanPhone}@thedeepcleanerz.com`,
-        role: "user",
-      };
-
-      // Save auth token
-      if (data?.token) {
-        sessionStorage.setItem("auth_token", data.token);
-        localStorage.setItem("auth_token", data.token);
-      }
+      const user = data.user;
+      sessionStorage.setItem("auth_token", data.token);
+      localStorage.setItem("auth_token", data.token);
 
       // Save user session
       sessionStorage.setItem("user_authenticated", "true");
@@ -257,12 +249,9 @@ function LoginComponent() {
       const data = await res.json().catch(() => null);
 
       if (res.ok && data) {
-        if (data.token) {
-          sessionStorage.setItem("auth_token", data.token);
-          localStorage.setItem("auth_token", data.token);
-        }
-
-        if (data.role === "technician" && data.user) {
+        if (data.role === "technician" && data.user && data.token) {
+          sessionStorage.setItem("technician_token", data.token);
+          localStorage.setItem("technician_token", data.token);
           sessionStorage.setItem("technician_authenticated", "true");
           sessionStorage.setItem("technician_profile", JSON.stringify(data.user));
           localStorage.setItem("technician_authenticated", "true");

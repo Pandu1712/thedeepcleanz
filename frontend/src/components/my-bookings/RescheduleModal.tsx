@@ -1,6 +1,6 @@
 import React from "react";
 import { toast } from "sonner";
-import {
+import { todayLocalStr,
   STANDARD_TIME_SLOTS,
   isSlotInPast,
   normalizeTimeSlot,
@@ -50,13 +50,13 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
             </label>
             <input
               type="date"
-              min={new Date().toISOString().slice(0, 10)}
+              min={todayLocalStr()}
               value={newDate}
               onChange={(e) => {
                 const picked = e.target.value;
                 const isBlocked = blockedDatesList.find((b) => b.date === picked);
                 if (isBlocked) {
-                  const todayStr = new Date().toISOString().slice(0, 10);
+                  const todayStr = todayLocalStr();
                   const isToday = picked === todayStr;
                   const cleanReason =
                     isBlocked.reason &&

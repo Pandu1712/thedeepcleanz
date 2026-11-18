@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useRef, memo, useCallback } from "react";
 import { toast } from "sonner";
 import { ArrowUp } from "lucide-react";
 
-import {
+import { fetchMyProfile,
   fetchAdminCatalog,
   fetchAllReviews,
   fetchRecentTransformations,
@@ -594,8 +594,7 @@ function Index() {
       if (prof) setUserProfile(JSON.parse(prof));
 
       if (email) {
-        fetch(`${ADMIN_API_URL}/api/user/profile?email=${encodeURIComponent(email)}`)
-          .then((r) => r.ok && r.json())
+        fetchMyProfile()
           .then((data) => {
             if (data && data.id) {
               setUserProfile(data);
@@ -618,8 +617,7 @@ function Index() {
         const prof = sessionStorage.getItem("user_profile");
         setUserProfile(prof ? JSON.parse(prof) : null);
         if (email) {
-          fetch(`${ADMIN_API_URL}/api/user/profile?email=${encodeURIComponent(email)}`)
-            .then((r) => r.ok && r.json())
+          fetchMyProfile()
             .then((data) => {
               if (data && data.id) {
                 setUserProfile(data);

@@ -1,5 +1,6 @@
 import React from "react";
 import { X } from "lucide-react";
+import { slotDateTimeIST } from "@/api/admin-api";
 
 interface CancelBookingModalProps {
   cancellingBooking: any;
@@ -16,35 +17,27 @@ export const CancelBookingModal: React.FC<CancelBookingModalProps> = ({
 }) => {
   if (!cancellingBooking) return null;
 
-  const bookingDate = cancellingBooking.schedule?.date;
-  const bookingTimeRaw = cancellingBooking.schedule?.time || "10:00";
-  const bookingTime = bookingTimeRaw.split(" - ")[0].trim();
-  const bookingDateTime = new Date(`${bookingDate}T${bookingTime}:00`);
-  const now = new Date();
-  const diffHours = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+  // Preview only - mirrors the server's calculation (server is authoritative).
+  // Slot times like "10:00 AM" are converted to 24h and read in IST, so the time is valid.
+  const bookingDateTime = slotDateTimeIST(
+    cancellingBooking.schedule?.date,
+    cancellingBooking.schedule?.time || "10:00",
+  );
+  const rawDiff = (bookingDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
+  const diffHours = Number.isFinite(rawDiff) ? rawDiff : 0;
 
-  const isFullyPaid =
-    typeof cancellingBooking.paymentStatus === "string" &&
-    (cancellingBooking.paymentStatus.includes("Paid In Full") ||
-      cancellingBooking.paymentStatus.toLowerCase().includes("full amount"));
-  const isPaid =
-    typeof cancellingBooking.paymentStatus === "string" &&
-    (cancellingBooking.paymentStatus.includes("Paid") ||
-      cancellingBooking.paymentStatus.includes("Success"));
-
+  const status = typeof cancellingBooking.paymentStatus === "string" ? cancellingBooking.paymentStatus : "";
+  const storedPaid =
+    (Number(cancellingBooking.amountPaid) || 0) + (Number(cancellingBooking.balancePaid) || 0);
   let paidAmount = 0;
-  if (isFullyPaid) {
-    paidAmount = cancellingBooking.total;
-  } else if (isPaid) {
-    const match = cancellingBooking.paymentStatus.match(/\(₹(\d+)\)/);
-    if (match && match[1]) {
-      paidAmount = parseInt(match[1], 10);
+  if (storedPaid > 0) {
+    paidAmount = storedPaid;
+  } else if (cancellingBooking.paymentId && !String(cancellingBooking.paymentId).startsWith("OFFLINE-")) {
+    if (/paid in full|full amount/i.test(status)) {
+      paidAmount = Number(cancellingBooking.total) || 0;
     } else {
-      if (cancellingBooking.paymentStatus.includes("50%")) {
-        paidAmount = Math.round(cancellingBooking.total * 0.5);
-      } else {
-        paidAmount = Math.round(cancellingBooking.total * 0.25);
-      }
+      const match = status.match(/\(₹\s*(\d+)\)/);
+      if (match) paidAmount = parseInt(match[1], 10);
     }
   }
 
@@ -52,8 +45,7 @@ export const CancelBookingModal: React.FC<CancelBookingModalProps> = ({
   let refundAmount = paidAmount;
 
   if (diffHours < 12) {
-    const elapsed = 12 - diffHours;
-    penaltyPercent = Math.min(100, Math.round(elapsed * 10));
+    penaltyPercent = Math.min(100, Math.max(0, Math.round((12 - diffHours) * 10)));
     refundAmount = Math.max(0, Math.round(paidAmount * (1 - penaltyPercent / 100)));
   }
 

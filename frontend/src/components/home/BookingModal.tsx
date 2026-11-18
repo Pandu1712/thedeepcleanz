@@ -24,12 +24,13 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
+import { todayLocalStr,
   fetchAdminCatalog,
   postAdminBooking,
   createRazorpayOrder,
   validateCoupon,
-  fetchCoupons,
+  fetchActiveCoupons,
+  fetchMyProfile,
   fetchBlockedDates,
   fetchBookedSlots,
   normalizeTimeSlot,
@@ -185,6 +186,19 @@ export const BookingModal = memo(function BookingModal({
   const [editingContact, setEditingContact] = useState(false);
   const [avoidCalling, setAvoidCalling] = useState(false);
   const [discount, setDiscount] = useState(0);
+
+  // A coupon is validated for a specific cart (minimum order amount): reset it if the cart changes
+  const couponCartSignature = (cart || []).map((i) => `${i.id}:${i.qty}:${i.price}`).join("|");
+  const lastCouponCartRef = useRef(couponCartSignature);
+  useEffect(() => {
+    if (lastCouponCartRef.current !== couponCartSignature) {
+      lastCouponCartRef.current = couponCartSignature;
+      setDiscount((d) => {
+        if (d > 0) toast.info("Your cart changed - please apply the coupon again.");
+        return 0;
+      });
+    }
+  }, [couponCartSignature]);
   const [success, setSuccess] = useState(false);
   const [payMethod, setPayMethod] = useState("razorpay");
   const [showGunturSuggestions, setShowGunturSuggestions] = useState(false);
@@ -513,7 +527,7 @@ export const BookingModal = memo(function BookingModal({
       } catch (e) {}
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayLocalStr();
     if (!form.date) {
       toast.error("Please select a date for your cleaning appointment.");
       return;
@@ -631,13 +645,19 @@ export const BookingModal = memo(function BookingModal({
                 razorpayOrderId: response.razorpay_order_id,
                 razorpaySignature: response.razorpay_signature,
                 userId: currentUserId,
+                walletUsed: appliedWalletCredit,
               });
               setSuccess(true);
               setTimeout(() => {
                 onConfirm();
               }, 1800);
             } catch (err: any) {
-              toast.error(err?.message || "Payment received, but error creating booking. Contacting support...");
+              // The server refunds automatically when it cannot save the booking (message says so)
+              toast.error(
+                err?.message ||
+                  `Booking could not be confirmed. Please contact support with payment ID ${response.razorpay_payment_id}.`,
+                { duration: 12000 },
+              );
             } finally {
               setIsPaying(false);
             }
@@ -683,6 +703,7 @@ export const BookingModal = memo(function BookingModal({
           paymentStatus: isFreeAdvance ? "Free Advance (Pay after Service)" : "Pending Deposit (COD)",
           paymentId: null,
           userId: currentUserId,
+          walletUsed: appliedWalletCredit,
         });
         setSuccess(true);
         setTimeout(() => {
@@ -708,52 +729,31 @@ export const BookingModal = memo(function BookingModal({
     let verifiedUser: any = null;
 
     try {
-      // 1. Firebase Phone Auth Session Verification
+      // 1. Firebase phone auth: confirm the SMS code and get an ID token for the server
+      let firebaseIdToken = "";
       if (confirmationResult) {
         const userCredential = await confirmationResult.confirm(cleanOtp);
-        console.log("Firebase phone auth confirmed:", userCredential.user);
-
-        // Fetch or create profile on backend
-        try {
-          const profileRes = await fetch(`${ADMIN_API_URL}/api/auth/profile-by-phone?phone=${cleanPhone}`);
-          if (profileRes.ok) {
-            const pData = await profileRes.json();
-            if (pData.user) {
-              verifiedUser = pData.user;
-            }
-          }
-        } catch (e) {}
-
-        if (!verifiedUser) {
-          verifiedUser = {
-            id: userCredential.user?.uid || `usr_${cleanPhone}`,
-            name: form.name.trim() || "Customer",
-            phone: cleanPhone,
-            email: `${cleanPhone}@thedeepcleanerz.com`,
-            role: "user",
-            walletBalance: 0,
-          };
-        }
-      } else {
-        // 2. Backend Gateway OTP Verification
-        const res = await fetch(`${ADMIN_API_URL}/api/auth/mobile-otp/verify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: cleanPhone, otp: cleanOtp, name: form.name }),
-        });
-        const data = await res.json().catch(() => null);
-        if (!res.ok) {
-          throw new Error(data?.error || "Incorrect OTP code. Please check and try again.");
-        }
-        verifiedUser = data.user || {
-          id: `usr_${cleanPhone}`,
-          name: form.name.trim() || "Customer",
-          phone: cleanPhone,
-          email: `${cleanPhone}@thedeepcleanerz.com`,
-          role: "user",
-          walletBalance: 0,
-        };
+        firebaseIdToken = await userCredential.user.getIdToken();
       }
+
+      // 2. Server verifies (backend OTP or Firebase token) and returns a real account + login token
+      const res = await fetch(`${ADMIN_API_URL}/api/auth/mobile-otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: cleanPhone,
+          otp: firebaseIdToken ? undefined : cleanOtp,
+          firebaseIdToken: firebaseIdToken || undefined,
+          name: form.name,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.token || !data?.user) {
+        throw new Error(data?.error || "Incorrect OTP code. Please check and try again.");
+      }
+      verifiedUser = data.user;
+      sessionStorage.setItem("auth_token", data.token);
+      localStorage.setItem("auth_token", data.token);
 
       // Populate user info if profile had existing name or saved addresses
       if (verifiedUser.name && (!form.name || form.name === "Customer")) {
@@ -818,19 +818,24 @@ export const BookingModal = memo(function BookingModal({
       if (!res.ok) {
         throw new Error(data?.error || "Invalid credentials.");
       }
-      if (data && (data.user || data.email)) {
-        const u = data.user || { id: "user-1", name: authEmail.split("@")[0], email: authEmail, role: data.role || "user" };
+      // Booking checkout is for customer accounts; staff/admins have their own portals.
+      if (data?.role && data.role !== "user") {
+        throw new Error(
+          data.role === "admin"
+            ? "Administrator accounts must sign in from the Admin portal."
+            : "Staff accounts cannot book from here. Please use a customer account.",
+        );
+      }
+      if (data && data.user && data.token) {
+        const u = data.user;
+        sessionStorage.setItem("auth_token", data.token);
+        localStorage.setItem("auth_token", data.token);
         sessionStorage.setItem("user_authenticated", "true");
         sessionStorage.setItem("user_email", u.email || authEmail);
         sessionStorage.setItem("user_profile", JSON.stringify(u));
         localStorage.setItem("user_authenticated", "true");
         localStorage.setItem("user_email", u.email || authEmail);
         localStorage.setItem("user_profile", JSON.stringify(u));
-        if (data.role === "admin" || u.role === "admin") {
-          sessionStorage.setItem("user_role", "admin");
-          sessionStorage.setItem("admin_authenticated", "true");
-          localStorage.setItem("user_role", "admin");
-        }
         window.dispatchEvent(new Event("storage"));
         window.dispatchEvent(new Event("auth-state-change"));
         setOtpVerified(true);
@@ -881,6 +886,10 @@ export const BookingModal = memo(function BookingModal({
         throw new Error(data?.error || "Registration failed.");
       }
       if (data && data.user) {
+        if (data.token) {
+          sessionStorage.setItem("auth_token", data.token);
+          localStorage.setItem("auth_token", data.token);
+        }
         sessionStorage.setItem("user_authenticated", "true");
         sessionStorage.setItem("user_email", data.user.email);
         sessionStorage.setItem("user_profile", JSON.stringify(data.user));
@@ -1036,7 +1045,7 @@ export const BookingModal = memo(function BookingModal({
         .catch(() => {});
     }
 
-    Promise.all([fetchBlockedDates(), fetchCoupons()])
+    Promise.all([fetchBlockedDates(), fetchActiveCoupons()])
       .then(([bData, cData]) => {
         if (!isMounted) return;
         const list = Array.isArray(bData) ? bData : [];
@@ -1112,17 +1121,23 @@ export const BookingModal = memo(function BookingModal({
     ).slice(0, 8);
   }, [open, form.landmark]);
 
-  const userWalletBalance = useMemo(() => {
-    if (!open) return 0;
-    try {
-      const prof = sessionStorage.getItem("user_profile") || localStorage.getItem("user_profile");
-      if (prof) {
-        const u = JSON.parse(prof);
-        return u.walletBalance || 0;
-      }
-    } catch (e) {}
-    return 0;
-  }, [open]);
+  // Wallet balance always comes from the server (a value in localStorage can be stale or edited).
+  // The server deducts the credit atomically when the booking is created.
+  const [userWalletBalance, setUserWalletBalance] = useState(0);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetchMyProfile()
+      .then((p) => {
+        if (!cancelled) setUserWalletBalance(Math.max(0, Number(p?.walletBalance) || 0));
+      })
+      .catch(() => {
+        if (!cancelled) setUserWalletBalance(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, otpVerified]);
 
   // Calculations matching video payment breakdown:
   // Item Total + Taxes & Fees (5%) - Discount - Wallet = Total Amount
@@ -1151,7 +1166,10 @@ export const BookingModal = memo(function BookingModal({
   const grandTotal = Math.max(0, totalAfterDiscount - appliedWalletCredit);
   
   // Advance payment is standard ~15% (min ₹299, rounded) or full if item is small
-  const isFreeAdvance = isCustomQuote || cart.some((i) => i.paymentType === "free_advance");
+  // Pay-after-service only when EVERY item is pay-later (one such item must not waive the advance)
+  const isFreeAdvance =
+    isCustomQuote ||
+    (cart.length > 0 && cart.every((i) => i.paymentType === "free_advance" || i.paymentType === "custom_quote" || !i.price));
   const upfrontPayAmount = isFreeAdvance 
     ? 0 
     : grandTotal > 1500 
@@ -2230,7 +2248,7 @@ export const BookingModal = memo(function BookingModal({
                     <div className="p-3 bg-amber-50/90 border border-amber-200 rounded-xl text-amber-900 text-xs font-bold flex items-center gap-2.5 animate-in fade-in shadow-xs">
                       <span className="text-amber-700 text-base">🏖️</span>
                       <span>
-                        {form.date === new Date().toISOString().split("T")[0] ? "Today is a Holiday" : `Notice for ${form.date}`}:{" "}
+                        {form.date === todayLocalStr() ? "Today is a Holiday" : `Notice for ${form.date}`}:{" "}
                         <strong className="text-[#002A22]">{formatHolidayReason(blockedDates.find((b) => b.date === form.date)?.reason)}</strong>.
                         {" "}Bookings are unavailable on this date. Please select an upcoming available date.
                       </span>

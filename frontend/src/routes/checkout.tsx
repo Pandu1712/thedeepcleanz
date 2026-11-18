@@ -22,7 +22,7 @@ import Header from "@/components/Header";
 import { auth, isFirebaseConfigured } from "@/utils/firebase";
 import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
 import { fastReverseGeocode } from "@/utils/geocoding";
-import {
+import { todayLocalStr,
   ADMIN_API_URL,
   STANDARD_TIME_SLOTS,
   normalizeTimeSlot,
@@ -131,6 +131,7 @@ function CheckoutPage() {
   // Coupon state
   const [couponCode, setCouponCode] = useState("");
   const [couponDiscount, setCouponDiscount] = useState(0);
+  const [verifiedUserId, setVerifiedUserId] = useState<string | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
   // OTP Verification state
@@ -288,8 +289,30 @@ function CheckoutPage() {
     return itemTotal === 0 || (cart.length > 0 && cart.every((i) => i.price === 0));
   }, [itemTotal, cart]);
 
+  // A coupon was validated against a specific cart total (minimum order amount),
+  // so it must be re-applied whenever the cart changes.
+  const cartSignature = useMemo(
+    () => cart.map((i) => `${i.id}:${i.qty}:${i.price}`).join("|"),
+    [cart],
+  );
+  const lastCouponCartRef = useRef(cartSignature);
+  useEffect(() => {
+    if (lastCouponCartRef.current !== cartSignature) {
+      lastCouponCartRef.current = cartSignature;
+      if (couponDiscount > 0) {
+        setCouponDiscount(0);
+        toast.info("Your cart changed - please apply the coupon again.");
+      }
+    }
+  }, [cartSignature, couponDiscount]);
+
   const grandTotal = Math.max(0, itemTotal - couponDiscount);
-  const isFreeAdvance = isCustomQuote || cart.some((i) => i.paymentType === "free_advance");
+  // "Pay after service" only when EVERY item is pay-later; one free-advance item must not
+  // make an otherwise prepaid cart free of advance.
+  const isFreeAdvance =
+    isCustomQuote ||
+    (cart.length > 0 &&
+      cart.every((i) => i.paymentType === "free_advance" || i.paymentType === "custom_quote" || !i.price));
 
   const upfrontPayAmount = isFreeAdvance
     ? 0
@@ -422,7 +445,7 @@ function CheckoutPage() {
       navigate({ to: "/services" });
       return false;
     }
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayLocalStr();
     if (!selectedDate || selectedDate < todayStr) {
       toast.error("Please select a valid upcoming service date");
       return false;
@@ -532,13 +555,13 @@ function CheckoutPage() {
     }
 
     setOtpLoading(true);
-    let verified = false;
+    let firebaseIdToken = "";
 
-    // Firebase confirmation
+    // Firebase confirmation -> get an ID token the server can verify
     if (confirmationResult) {
       try {
-        await confirmationResult.confirm(cleanOtp);
-        verified = true;
+        const cred = await confirmationResult.confirm(cleanOtp);
+        firebaseIdToken = await cred.user.getIdToken();
       } catch (fbErr: any) {
         toast.error("Incorrect verification code from SMS. Please check and try again.");
         setOtpLoading(false);
@@ -546,14 +569,15 @@ function CheckoutPage() {
       }
     }
 
-    // Sync user with backend
+    // Verify with backend (backend OTP, or the Firebase ID token) and get a login token
     try {
       const res = await fetch(`${ADMIN_API_URL}/api/auth/mobile-otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phone: cleanPhone,
-          otp: cleanOtp,
+          otp: firebaseIdToken ? undefined : cleanOtp,
+          firebaseIdToken: firebaseIdToken || undefined,
           name: name.trim(),
           email: email.trim(),
           address: address.trim(),
@@ -565,22 +589,16 @@ function CheckoutPage() {
         }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok && !verified) {
+      // Never continue with a made-up user: without a server token the customer could
+      // not see or manage the booking afterwards.
+      if (!res.ok || !data?.token || !data?.user) {
         throw new Error(data?.error || "Incorrect verification code.");
       }
 
-      const user = data?.user || {
-        id: `usr_${cleanPhone}`,
-        name: name.trim() || "Customer",
-        phone: cleanPhone,
-        email: email.trim() || `${cleanPhone}@thedeepcleanerz.com`,
-      };
-
-      // Save auth token
-      if (data?.token) {
-        sessionStorage.setItem("auth_token", data.token);
-        localStorage.setItem("auth_token", data.token);
-      }
+      const user = data.user;
+      setVerifiedUserId(user.id);
+      sessionStorage.setItem("auth_token", data.token);
+      localStorage.setItem("auth_token", data.token);
 
       // Save user session
       sessionStorage.setItem("user_authenticated", "true");
@@ -668,7 +686,9 @@ function CheckoutPage() {
     };
 
     const finalNotes = `${avoidCalling ? "[Avoid calling before arrival] " : ""}${notes}`.trim();
-    const userId = userProfileOverride?.id || null;
+    // Kept across retries (e.g. customer closed the Razorpay window and tried again).
+    // The server links the booking to the logged-in account from the token anyway.
+    const userId = userProfileOverride?.id || verifiedUserId || null;
 
     // Online Razorpay Payment (for advance deposit)
     if (upfrontPayAmount > 0 && !isFreeAdvance) {
@@ -725,7 +745,13 @@ function CheckoutPage() {
               toast.success("Booking confirmed successfully!", { icon: "🎉" });
               navigate({ to: "/my-bookings" });
             } catch (err: any) {
-              toast.error(err?.message || "Payment recorded. Contact support to confirm your slot.");
+              // The server automatically refunds the payment if the booking can't be saved,
+              // and its error message says so.
+              toast.error(
+                err?.message ||
+                  `Booking could not be confirmed. Please contact support with payment ID ${response.razorpay_payment_id}.`,
+                { duration: 12000 },
+              );
             } finally {
               isSubmittingRef.current = false;
               setIsProcessing(false);

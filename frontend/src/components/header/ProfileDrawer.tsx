@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
-import { ADMIN_API_URL } from "@/api/admin-api";
+import { ADMIN_API_URL, getAuthHeaders } from "@/api/admin-api";
 
 interface ProfileDrawerProps {
   open: boolean;
@@ -78,7 +78,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
       const updatedAddresses = [...currentAddresses, newAddress];
       const response = await fetch(`${ADMIN_API_URL}/api/users/${userProfile.id}/addresses`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ addresses: updatedAddresses }),
       });
 
@@ -119,7 +119,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
     try {
       const response = await fetch(`${ADMIN_API_URL}/api/users/${userProfile.id}/addresses`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ addresses: updatedAddresses }),
       });
 
@@ -151,7 +151,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
     try {
       const response = await fetch(`${ADMIN_API_URL}/api/users/${userProfile.id}/addresses`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ addresses: updatedAddresses }),
       });
 
@@ -185,7 +185,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
     try {
       const response = await fetch(`${ADMIN_API_URL}/api/auth/change-password`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           userId: userProfile.id,
           currentPassword,

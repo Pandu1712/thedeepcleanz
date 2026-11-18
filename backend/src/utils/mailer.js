@@ -30,7 +30,7 @@ function getTransporter() {
  * Sends HTML confirmation and official Tax Invoice emails to the customer and admin.
  * @param {object} booking The created booking record.
  */
-async function sendBookingEmails(booking) {
+async function sendBookingEmailsUnsafe(booking) {
   const customer =
     typeof booking.customer === "string"
       ? JSON.parse(booking.customer)
@@ -806,7 +806,7 @@ async function sendForgotPasswordOtpEmail(email, otp) {
  * Sends notification email to admin when a new inquiry or custom quote request is submitted.
  * @param {object} inquiry
  */
-async function sendAdminInquiryEmail(inquiry) {
+async function sendAdminInquiryEmailUnsafe(inquiry) {
   const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || "thedeepcleanerz.info@gmail.com";
   const senderEmail = process.env.EMAIL_USER || "thedeepcleanerz.info@gmail.com";
   const transporter = getTransporter();
@@ -864,11 +864,57 @@ async function sendAdminInquiryEmail(inquiry) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// HTML escaping: every user-supplied value (names, notes, addresses, item titles)
+// is escaped before it is interpolated into an email template, so customers
+// cannot inject links/markup into emails sent from the company mailbox.
+// ---------------------------------------------------------------------------
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function escapeDeep(value) {
+  if (typeof value === "string") {
+    // JSON-encoded objects are parsed first so each field is escaped individually
+    const trimmed = value.trim();
+    if (
+      (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+      (trimmed.startsWith("[") && trimmed.endsWith("]"))
+    ) {
+      try {
+        return escapeDeep(JSON.parse(trimmed));
+      } catch (e) {}
+    }
+    return escapeHtml(value);
+  }
+  if (Array.isArray(value)) return value.map(escapeDeep);
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = escapeDeep(v);
+    return out;
+  }
+  return value;
+}
+
+async function sendBookingEmails(booking) {
+  return sendBookingEmailsUnsafe(escapeDeep(booking || {}));
+}
+
+async function sendAdminInquiryEmail(inquiry) {
+  return sendAdminInquiryEmailUnsafe(escapeDeep(inquiry || {}));
+}
+
 module.exports = {
   sendBookingEmails,
   sendAdminOtpEmail,
   sendMobileOtpEmail,
   sendForgotPasswordOtpEmail,
   sendAdminInquiryEmail,
+  escapeHtml,
 };
 

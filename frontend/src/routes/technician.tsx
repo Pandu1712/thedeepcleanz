@@ -26,7 +26,7 @@ import {
   MessageSquare,
   Navigation,
 } from "lucide-react";
-import {
+import { todayLocalStr,
   fetchTechnicianBookings,
   fetchAvailableTechnicianJobs,
   claimTechnicianJob,
@@ -35,6 +35,8 @@ import {
   updateTechnician,
   type AdminTechnician,
   ADMIN_API_URL,
+  getAuthToken,
+  getAuthHeaders,
 } from "@/api/admin-api";
 
 export const Route = createFileRoute("/technician")({
@@ -85,10 +87,26 @@ function TechnicianPortal() {
   const [loginError, setLoginError] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
+  // Expired staff token: return to the login screen with a clear message
+  useEffect(() => {
+    const onExpired = () => {
+      ["technician_authenticated", "technician_profile", "technician_token"].forEach((k) => {
+        sessionStorage.removeItem(k);
+        localStorage.removeItem(k);
+      });
+      setIsAuthenticated(false);
+      setProfile(null);
+      toast.error("Your staff session has expired. Please log in again.", { id: "tech-session-expired" });
+    };
+    window.addEventListener("portal-session-expired", onExpired);
+    return () => window.removeEventListener("portal-session-expired", onExpired);
+  }, []);
+
   useEffect(() => {
     const isAuthed =
-      sessionStorage.getItem("technician_authenticated") === "true" ||
-      localStorage.getItem("technician_authenticated") === "true";
+      !!getAuthToken() &&
+      (sessionStorage.getItem("technician_authenticated") === "true" ||
+        localStorage.getItem("technician_authenticated") === "true");
     const rawProfile =
       sessionStorage.getItem("technician_profile") ||
       localStorage.getItem("technician_profile");
@@ -130,7 +148,7 @@ function TechnicianPortal() {
           try {
             await fetch(`${ADMIN_API_URL}/api/technicians/${profile.id}/location`, {
               method: "PUT",
-              headers: { "Content-Type": "application/json" },
+              headers: getAuthHeaders({ "Content-Type": "application/json" }),
               body: JSON.stringify({ lat: latitude, lng: longitude }),
             });
             console.log(`GPS Ping sent: ${latitude}, ${longitude}`);
@@ -266,11 +284,9 @@ function TechnicianPortal() {
         body: JSON.stringify({ emailOrPhone: loginEmail.trim(), password: loginPassword }),
       });
       const data = await res.json().catch(() => null);
-      if (res.ok && (data?.role === "technician" || data?.role === "admin") && data?.user) {
-        if (data?.token) {
-          sessionStorage.setItem("auth_token", data.token);
-          localStorage.setItem("auth_token", data.token);
-        }
+      if (res.ok && data?.role === "technician" && data?.user && data?.token) {
+        sessionStorage.setItem("technician_token", data.token);
+        localStorage.setItem("technician_token", data.token);
         sessionStorage.setItem("technician_authenticated", "true");
         sessionStorage.setItem("technician_profile", JSON.stringify(data.user));
         localStorage.setItem("technician_authenticated", "true");
@@ -296,10 +312,10 @@ function TechnicianPortal() {
   const handleLogout = () => {
     sessionStorage.removeItem("technician_authenticated");
     sessionStorage.removeItem("technician_profile");
-    sessionStorage.removeItem("auth_token");
+    sessionStorage.removeItem("technician_token");
     localStorage.removeItem("technician_authenticated");
     localStorage.removeItem("technician_profile");
-    localStorage.removeItem("auth_token");
+    localStorage.removeItem("technician_token");
     setIsAuthenticated(false);
     setProfile(null);
     setBookings([]);
@@ -428,7 +444,7 @@ function TechnicianPortal() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const token = sessionStorage.getItem("auth_token") || localStorage.getItem("auth_token");
+      const token = getAuthToken();
       const res = await fetch(`${ADMIN_API_URL}/api/upload`, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -1242,7 +1258,16 @@ function TechnicianPortal() {
                   typeof b.paymentStatus === "string" &&
                   (b.paymentStatus.includes("Paid") || b.paymentStatus.includes("Success"));
 
-                const paidAmount = isFullyPaid ? b.total : isPaid ? Math.round(b.total * 0.25) : 0;
+                // Use the amount actually paid online (stored by the server), not a guess
+                const storedPaid = (Number(b.amountPaid) || 0) + (Number(b.balancePaid) || 0);
+                const statusMatch = typeof b.paymentStatus === "string" ? b.paymentStatus.match(/\(₹\s*(\d+)\)/) : null;
+                const paidAmount = isFullyPaid
+                  ? b.total
+                  : storedPaid > 0
+                    ? Math.min(b.total, storedPaid)
+                    : isPaid && statusMatch
+                      ? Math.min(b.total, parseInt(statusMatch[1], 10))
+                      : 0;
                 const balanceAmount = b.total - paidAmount;
                 const isCompleted = (b.jobStatus || "Pending") === "Completed";
 
@@ -1735,7 +1760,7 @@ function TechnicianPortal() {
                 </label>
                 <input
                   type="date"
-                  min={new Date().toISOString().slice(0, 10)}
+                  min={todayLocalStr()}
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-700 outline-none focus:border-[#002a22]"

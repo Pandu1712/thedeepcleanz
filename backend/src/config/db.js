@@ -175,28 +175,6 @@ async function initDb() {
       console.log("Altered users table to add addresses JSON column.");
     }
 
-    // Seed a sample default address for pandu1@gmail.com if they have no addresses saved
-    const sampleAddresses = [
-      {
-        id: "addr-sample1",
-        address: "Flat 402, Lotus Towers, Arundelpet",
-        landmark: "Opposite Guntur Public School",
-        city: "Guntur",
-        pincode: "522002",
-        type: "Home",
-        isDefault: true
-      }
-    ];
-    try {
-      await query("UPDATE users SET addresses = ? WHERE email = ? AND (addresses IS NULL OR addresses = '[]' OR JSON_LENGTH(addresses) = 0)", [
-        JSON.stringify(sampleAddresses),
-        "pandu1@gmail.com"
-      ]);
-      console.log("Seeded sample addresses for user pandu1@gmail.com.");
-    } catch (e) {
-      console.error("Failed to seed sample address:", e);
-    }
-
     // Create customized_services table
     await query(`
       CREATE TABLE IF NOT EXISTS customized_services (
@@ -431,12 +409,56 @@ async function initDb() {
       console.log("Altered users table to add referral_code & wallet_balance columns.");
     }
 
-    // Insert default referral settings
+    // Insert default settings (each key independently, so a fresh install gets all of them)
     await query(`
-      INSERT IGNORE INTO settings (key_name, key_value) VALUES 
+      INSERT IGNORE INTO settings (key_name, key_value) VALUES
       ('referral_reward_amount', '200'),
-      ('referral_enabled', '1')
+      ('referral_enabled', '1'),
+      ('travel_rate_per_km', '10'),
+      ('travel_free_radius_km', '5')
     `);
+
+    // settings.key_value was VARCHAR(255), which truncated long promo texts
+    try {
+      const settingCols = await query("SHOW COLUMNS FROM settings LIKE 'key_value'");
+      if (settingCols && settingCols[0] && !/text/i.test(settingCols[0].Type)) {
+        await query("ALTER TABLE settings MODIFY key_value TEXT NOT NULL");
+        console.log("Widened settings.key_value to TEXT.");
+      }
+    } catch (e) {
+      console.warn("Could not widen settings.key_value:", e.message);
+    }
+
+    // Payment / refund tracking columns on bookings
+    try {
+      const bCols = (await query("SHOW COLUMNS FROM bookings")).map((c) => c.Field);
+      const addBookingCol = async (name, ddl) => {
+        if (!bCols.includes(name)) {
+          await query(`ALTER TABLE bookings ADD COLUMN ${name} ${ddl}`);
+          console.log(`Added column '${name}' to bookings table.`);
+        }
+      };
+      await addBookingCol("amountPaid", "INT DEFAULT 0");
+      await addBookingCol("balancePaymentId", "VARCHAR(255) DEFAULT NULL");
+      await addBookingCol("balancePaid", "INT DEFAULT 0");
+      await addBookingCol("refundAmount", "INT DEFAULT NULL");
+      await addBookingCol("refundedAt", "VARCHAR(100) DEFAULT NULL");
+    } catch (e) {
+      console.warn("Could not add payment tracking columns to bookings:", e.message);
+    }
+
+    // Referral tracking columns on users (reward is paid after the friend's first completed job)
+    try {
+      const uCols = (await query("SHOW COLUMNS FROM users")).map((c) => c.Field);
+      if (!uCols.includes("referred_by")) {
+        await query("ALTER TABLE users ADD COLUMN referred_by VARCHAR(255) DEFAULT NULL");
+      }
+      if (!uCols.includes("referral_rewarded")) {
+        await query("ALTER TABLE users ADD COLUMN referral_rewarded TINYINT(1) NOT NULL DEFAULT 0");
+      }
+    } catch (e) {
+      console.warn("Could not add referral tracking columns to users:", e.message);
+    }
 
     // Alter table technicians to add password column if it doesn't exist
     const techColumns = await query("SHOW COLUMNS FROM technicians");
@@ -3011,6 +3033,52 @@ function setCache(key, data) {
   memCache.set(key, { data, time: Date.now() });
 }
 
+// Tolerant JSON column parser: one corrupt row must never break a whole listing
+function safeJson(value, fallback) {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value !== "string") return value;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed === null || parsed === undefined ? fallback : parsed;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+// Phone numbers are stored as 10-digit Indian mobiles; older rows may carry +91/91/0 prefixes
+function phoneVariants(phone) {
+  const raw = String(phone || "").trim();
+  const digits = raw.replace(/\D/g, "");
+  const last10 = digits.slice(-10);
+  const variants = new Set([raw, digits]);
+  if (last10.length === 10) {
+    [last10, `91${last10}`, `+91${last10}`, `0${last10}`, `+91 ${last10}`].forEach((v) => variants.add(v));
+  }
+  return Array.from(variants).filter(Boolean);
+}
+
+function mapBookingRow(r, logsByBooking = {}) {
+  return {
+    ...r,
+    customer: safeJson(r.customer, {}),
+    schedule: safeJson(r.schedule, {}),
+    items: safeJson(r.items, []),
+    jobStatus: r.jobStatus || "Pending",
+    statusNote: r.statusNote || null,
+    beforeImage: r.before_image || null,
+    afterImage: r.after_image || null,
+    amountPaid: Number(r.amountPaid) || 0,
+    balancePaid: Number(r.balancePaid) || 0,
+    rescheduleLogs: logsByBooking[r.id] || [],
+  };
+}
+
+function notFound(message) {
+  const e = new Error(message);
+  e.status = 404;
+  return e;
+}
+
 function invalidateCache(...keys) {
   if (keys.length === 0) {
     memCache.clear();
@@ -3038,17 +3106,27 @@ module.exports = {
     invalidateCache("recent_transformations");
     await query(
       "INSERT INTO recent_transformations (id, title, location, beforeImage, afterImage) VALUES (?, ?, ?, ?, ?)",
-      [id, title, location, beforeImage, afterImage]
+      [id, title || "", location || "", beforeImage || "", afterImage || ""],
     );
     return { id, title, location, beforeImage, afterImage };
   },
-  async updateRecentTransformation(id, { title, location, beforeImage, afterImage }) {
+  async updateRecentTransformation(id, patch) {
     invalidateCache("recent_transformations");
+    const rows = await query("SELECT * FROM recent_transformations WHERE id = ? LIMIT 1", [id]);
+    if (!rows || rows.length === 0) throw notFound("Transformation not found.");
+    const ex = rows[0];
+    const v = (k) => (patch[k] !== undefined && patch[k] !== null ? patch[k] : ex[k]);
+    const next = {
+      title: v("title") || "",
+      location: v("location") || "",
+      beforeImage: v("beforeImage") || "",
+      afterImage: v("afterImage") || "",
+    };
     await query(
       "UPDATE recent_transformations SET title = ?, location = ?, beforeImage = ?, afterImage = ? WHERE id = ?",
-      [title, location, beforeImage, afterImage, id]
+      [next.title, next.location, next.beforeImage, next.afterImage, id],
     );
-    return { id, title, location, beforeImage, afterImage };
+    return { id, ...next, createdAt: ex.createdAt };
   },
   async deleteRecentTransformation(id) {
     invalidateCache("recent_transformations");
@@ -3070,60 +3148,77 @@ module.exports = {
     return result;
   },
   async addCategory({ id, title, tagline, emoji, image, parentId, includes, paymentType }) {
-    invalidateCache("categories", "catalog");
-    const pType = paymentType || "fixed";
-    await query(
-      "INSERT INTO categories (id, title, tagline, emoji, image, parentId, includes, payment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      [id, title, tagline, emoji, image || null, parentId || null, JSON.stringify(includes || []), pType],
-    );
-    return { id, title, tagline, emoji, image, parentId, includes, paymentType: pType };
-  },
-  async updateCategory(id, { title, tagline, emoji, image, parentId, includes, paymentType, cascadeToServices }) {
     invalidateCache("categories", "services", "catalog");
     const pType = paymentType || "fixed";
     await query(
+      "INSERT INTO categories (id, title, tagline, emoji, image, parentId, includes, payment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, title, tagline || "", emoji || "✨", image || null, parentId || null, JSON.stringify(includes || []), pType],
+    );
+    return { id, title, tagline: tagline || "", emoji: emoji || "✨", image: image || null, parentId: parentId || null, includes: includes || [], paymentType: pType };
+  },
+  async updateCategory(id, patch) {
+    invalidateCache("categories", "services", "catalog");
+    const rows = await query("SELECT * FROM categories WHERE id = ? LIMIT 1", [id]);
+    if (!rows || rows.length === 0) throw notFound("Category not found. It may have been deleted - please refresh.");
+    const ex = rows[0];
+    const has = (k) => patch[k] !== undefined;
+    if (has("parentId") && patch.parentId === id) {
+      const e = new Error("A category cannot be its own parent.");
+      e.status = 400;
+      throw e;
+    }
+    const next = {
+      title: has("title") && String(patch.title).trim() ? String(patch.title).trim() : ex.title,
+      tagline: has("tagline") ? patch.tagline || "" : ex.tagline || "",
+      emoji: has("emoji") ? patch.emoji || "✨" : ex.emoji || "✨",
+      image: has("image") ? patch.image || null : ex.image || null,
+      parentId: has("parentId") ? patch.parentId || null : ex.parentId || null,
+      includes: has("includes") ? patch.includes || [] : safeJson(ex.includes, []) || [],
+      paymentType: has("paymentType") && patch.paymentType ? patch.paymentType : ex.payment_type || "fixed",
+    };
+    await query(
       "UPDATE categories SET title = ?, tagline = ?, emoji = ?, image = ?, parentId = ?, includes = ?, payment_type = ? WHERE id = ?",
-      [title, tagline, emoji, image, parentId || null, JSON.stringify(includes || []), pType, id],
+      [next.title, next.tagline, next.emoji, next.image, next.parentId, JSON.stringify(next.includes), next.paymentType, id],
     );
 
-    // Cascade to child services if requested or if paymentType is specified
-    if (cascadeToServices !== false && paymentType) {
+    // Cascade pricing mode to this category's services (and sub-categories) when it changed
+    const pType = next.paymentType;
+    if (patch.cascadeToServices !== false && has("paymentType") && patch.paymentType) {
       try {
-        // Collect this category ID and all subcategory IDs under it
         const subCats = await query("SELECT id FROM categories WHERE parentId = ?", [id]);
         const targetCatIds = [id, ...(subCats || []).map((sc) => sc.id)];
-
-        // If parent category is set to custom_quote, also mark subcategories as custom_quote
         if (pType === "custom_quote" && subCats && subCats.length > 0) {
-          const placeholdersSub = subCats.map(() => "?").join(",");
           await query(
-            `UPDATE categories SET payment_type = 'custom_quote' WHERE id IN (${placeholdersSub})`,
-            subCats.map((sc) => sc.id)
+            `UPDATE categories SET payment_type = 'custom_quote' WHERE id IN (${subCats.map(() => "?").join(",")})`,
+            subCats.map((sc) => sc.id),
           );
         }
-
         const placeholders = targetCatIds.map(() => "?").join(",");
         if (pType === "custom_quote") {
           await query(
             `UPDATE services SET payment_type = 'custom_quote', price = 0 WHERE categoryId IN (${placeholders})`,
-            targetCatIds
+            targetCatIds,
           );
         } else if (pType === "fixed" || pType === "full") {
           await query(
             `UPDATE services SET payment_type = 'full' WHERE categoryId IN (${placeholders}) AND payment_type = 'custom_quote'`,
-            targetCatIds
+            targetCatIds,
           );
         }
       } catch (cascadeErr) {
         console.warn("Cascade category paymentType error:", cascadeErr.message);
       }
     }
-
-    return { id, title, tagline, emoji, image, parentId, includes, paymentType: pType };
+    invalidateCache("categories", "services", "catalog");
+    return { id, ...next };
   },
   async deleteCategory(id) {
-    invalidateCache("categories", "catalog");
+    // services.categoryId has ON DELETE CASCADE, so the services go too. Sub-categories are
+    // moved to the top level instead of being left pointing at a missing parent.
+    await query("UPDATE categories SET parentId = NULL WHERE parentId = ?", [id]);
+    await query("DELETE FROM services WHERE categoryId = ?", [id]);
     await query("DELETE FROM categories WHERE id = ?", [id]);
+    invalidateCache("categories", "services", "catalog");
     return true;
   },
 
@@ -3197,57 +3292,44 @@ module.exports = {
       precautions,
     };
   },
-  async updateService(
-    id,
-    {
-      categoryId,
-      title,
-      price,
-      description,
-      includes,
-      image,
-      plans,
-      disclaimer,
-      requirements,
-      paymentType,
-      precautions,
-    },
-  ) {
+  async updateService(id, patch) {
     invalidateCache("services", "catalog");
-    const incString = JSON.stringify(includes || []);
-    const plansString = JSON.stringify(plans || []);
-    const precautionsString = JSON.stringify(precautions || []);
+    const rows = await query("SELECT * FROM services WHERE id = ? LIMIT 1", [id]);
+    if (!rows || rows.length === 0) throw notFound("Service not found. It may have been deleted - please refresh.");
+    const ex = rows[0];
+    const has = (k) => patch[k] !== undefined;
+    const next = {
+      categoryId: has("categoryId") && patch.categoryId ? patch.categoryId : ex.categoryId,
+      title: has("title") && String(patch.title).trim() ? String(patch.title).trim() : ex.title,
+      price: has("price") ? Math.max(0, Math.round(Number(patch.price) || 0)) : Number(ex.price) || 0,
+      description: has("description") ? patch.description || "" : ex.description || "",
+      includes: has("includes") ? patch.includes || [] : safeJson(ex.includes, []) || [],
+      image: has("image") ? patch.image || null : ex.image || null,
+      plans: has("plans") ? patch.plans || [] : safeJson(ex.plans, []) || [],
+      disclaimer: has("disclaimer") ? patch.disclaimer || null : ex.disclaimer || null,
+      requirements: has("requirements") ? patch.requirements || null : ex.requirements || null,
+      paymentType: has("paymentType") && patch.paymentType ? patch.paymentType : ex.payment_type || "full",
+      precautions: has("precautions") ? patch.precautions || [] : safeJson(ex.precautions, []) || [],
+    };
     await query(
       "UPDATE services SET categoryId = ?, title = ?, price = ?, description = ?, includes = ?, image = ?, plans = ?, disclaimer = ?, requirements = ?, payment_type = ?, precautions = ? WHERE id = ?",
       [
-        categoryId,
-        title,
-        price,
-        description,
-        incString,
-        image || null,
-        plansString,
-        disclaimer || null,
-        requirements || null,
-        paymentType || "full",
-        precautionsString,
+        next.categoryId,
+        next.title,
+        next.price,
+        next.description,
+        JSON.stringify(next.includes),
+        next.image,
+        JSON.stringify(next.plans),
+        next.disclaimer,
+        next.requirements,
+        next.paymentType,
+        JSON.stringify(next.precautions),
         id,
       ],
     );
-    return {
-      id,
-      categoryId,
-      title,
-      price,
-      description,
-      includes,
-      image,
-      plans,
-      disclaimer,
-      requirements,
-      paymentType: paymentType || "full",
-      precautions,
-    };
+    invalidateCache("services", "catalog");
+    return { id, ...next };
   },
   async deleteService(id) {
     invalidateCache("services", "catalog");
@@ -3298,21 +3380,7 @@ module.exports = {
     });
 
     return rows.map((r) => ({
-      ...r,
-      customer:
-        typeof r.customer === "string"
-          ? JSON.parse(r.customer)
-          : r.customer || {},
-      schedule:
-        typeof r.schedule === "string"
-          ? JSON.parse(r.schedule)
-          : r.schedule || {},
-      items: typeof r.items === "string" ? JSON.parse(r.items) : r.items || [],
-      jobStatus: r.jobStatus || "Pending",
-      statusNote: r.statusNote || null,
-      beforeImage: r.before_image || null,
-      afterImage: r.after_image || null,
-      rescheduleLogs: logsByBooking[r.id] || [],
+      ...mapBookingRow(r, logsByBooking),
       technician: r.technicianId
         ? {
             id: r.technicianId,
@@ -3327,6 +3395,41 @@ module.exports = {
           }
         : null,
     }));
+  },
+  async getBookingById(id) {
+    const rows = await query(
+      `SELECT b.*, t.name as technicianName, t.phone as technicianPhone
+       FROM bookings b LEFT JOIN technicians t ON b.technicianId = t.id
+       WHERE b.id = ? LIMIT 1`,
+      [id],
+    );
+    if (!rows || rows.length === 0) return null;
+    return mapBookingRow(rows[0]);
+  },
+  async findBookingByPaymentId(paymentId) {
+    if (!paymentId) return null;
+    const rows = await query(
+      "SELECT * FROM bookings WHERE paymentId = ? OR balancePaymentId = ? LIMIT 1",
+      [paymentId, paymentId],
+    );
+    return rows && rows.length > 0 ? mapBookingRow(rows[0]) : null;
+  },
+  async recordBalancePayment(id, { paymentStatus, balancePaymentId, balancePaid }) {
+    await query(
+      "UPDATE bookings SET paymentStatus = ?, balancePaymentId = ?, balancePaid = ? WHERE id = ?",
+      [paymentStatus, balancePaymentId, Number(balancePaid) || 0, id],
+    );
+    return true;
+  },
+  // Marks a booking cancelled exactly once. Returns false if it was already cancelled
+  // (prevents double refunds when cancel is clicked twice or by two people).
+  async markBookingCancelled(id, { statusNote, paymentStatus, refundAmount }) {
+    const res = await query(
+      `UPDATE bookings SET jobStatus = 'Cancelled', statusNote = ?, paymentStatus = ?, refundAmount = ?, refundedAt = ?
+       WHERE id = ? AND (jobStatus IS NULL OR jobStatus <> 'Cancelled')`,
+      [statusNote || null, paymentStatus, Number(refundAmount) || 0, new Date().toISOString(), id],
+    );
+    return !!(res && res.affectedRows > 0);
   },
   async updateBookingMedia(id, { beforeImage, afterImage }) {
     if (beforeImage !== undefined) {
@@ -3350,9 +3453,10 @@ module.exports = {
     paymentStatus,
     paymentId,
     userId,
+    amountPaid,
   }) {
     await query(
-      "INSERT INTO bookings (id, createdAt, customer, schedule, notes, coupon, discount, total, items, paymentStatus, paymentId, userId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO bookings (id, createdAt, customer, schedule, notes, coupon, discount, total, items, paymentStatus, paymentId, userId, amountPaid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         id,
         createdAt,
@@ -3366,6 +3470,7 @@ module.exports = {
         paymentStatus || "Pending",
         paymentId || null,
         userId || null,
+        Number(amountPaid) || 0,
       ],
     );
     return {
@@ -3381,6 +3486,7 @@ module.exports = {
       paymentStatus,
       paymentId,
       userId,
+      amountPaid: Number(amountPaid) || 0,
     };
   },
   async deleteBooking(id) {
@@ -3397,28 +3503,81 @@ module.exports = {
 
   // Users Authentication helper methods
   async getUserByEmail(email) {
-    const rows = await query("SELECT * FROM users WHERE email = ?", [email]);
+    if (!email) return null;
+    const rows = await query("SELECT * FROM users WHERE LOWER(email) = ?", [
+      String(email).trim().toLowerCase(),
+    ]);
     return rows[0] || null;
   },
   async getUserByPhone(phone) {
-    const rows = await query("SELECT * FROM users WHERE phone = ?", [phone]);
+    const variants = phoneVariants(phone);
+    if (variants.length === 0) return null;
+    const placeholders = variants.map(() => "?").join(",");
+    const rows = await query(`SELECT * FROM users WHERE phone IN (${placeholders})`, variants);
     return rows[0] || null;
   },
   async getUserById(id) {
+    if (!id) return null;
     const rows = await query("SELECT * FROM users WHERE id = ?", [id]);
     return rows[0] || null;
   },
   async getUsers() {
-    const rows = await query("SELECT id, name, phone, email, referral_code, wallet_balance, created_at FROM users ORDER BY created_at DESC");
+    const rows = await query(
+      "SELECT id, name, phone, email, role, referral_code, wallet_balance, createdAt FROM users ORDER BY createdAt DESC",
+    );
     return rows.map((r) => ({
       id: r.id,
       name: r.name,
       phone: r.phone,
       email: r.email,
+      role: r.role || "user",
       referralCode: r.referral_code,
       walletBalance: Number(r.wallet_balance) || 0,
-      createdAt: r.created_at,
+      createdAt: r.createdAt,
     }));
+  },
+  // Atomically deducts wallet credit. Returns true only if the full amount was available.
+  async deductWalletAtomic(userId, amount) {
+    const amt = Math.floor(Number(amount) || 0);
+    if (!userId || amt <= 0) return amt === 0;
+    const res = await query(
+      "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
+      [amt, userId, amt],
+    );
+    return !!(res && res.affectedRows > 0);
+  },
+  async creditWalletAtomic(userId, amount) {
+    const amt = Math.floor(Number(amount) || 0);
+    if (!userId || amt <= 0) return false;
+    await query("UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0) + ? WHERE id = ?", [amt, userId]);
+    return true;
+  },
+  async isReferralCodeTaken(code) {
+    const rows = await query("SELECT id FROM users WHERE UPPER(referral_code) = ? LIMIT 1", [
+      String(code || "").trim().toUpperCase(),
+    ]);
+    return !!(rows && rows.length > 0);
+  },
+  async setUserReferredBy(userId, referrerId) {
+    await query("UPDATE users SET referred_by = ?, referral_rewarded = 0 WHERE id = ?", [referrerId, userId]);
+    return true;
+  },
+  // Claims the pending referral reward exactly once; returns the referrer id or null
+  async claimReferralReward(userId) {
+    const rows = await query(
+      "SELECT referred_by FROM users WHERE id = ? AND referred_by IS NOT NULL AND referral_rewarded = 0 LIMIT 1",
+      [userId],
+    );
+    if (!rows || rows.length === 0) return null;
+    const res = await query(
+      "UPDATE users SET referral_rewarded = 1 WHERE id = ? AND referral_rewarded = 0",
+      [userId],
+    );
+    return res && res.affectedRows > 0 ? rows[0].referred_by : null;
+  },
+  async updateUserPassword(userId, hashedPassword) {
+    const res = await query("UPDATE users SET password = ? WHERE id = ?", [hashedPassword, userId]);
+    return !!(res && res.affectedRows > 0);
   },
   async saveVisitorLocation({ userId, latitude, longitude }) {
     await query(
@@ -3447,21 +3606,31 @@ module.exports = {
   },
   async addCustomizedService({ id, title, price, image, plans, paymentType }) {
     invalidateCache("customized_services");
-    const plansString = JSON.stringify(plans || []);
     await query(
       "INSERT INTO customized_services (id, title, price, image, plans, payment_type) VALUES (?, ?, ?, ?, ?, ?)",
-      [id, title, price, image || null, plansString, paymentType || "full"],
+      [id, title || "Custom Service", Math.max(0, Math.round(Number(price) || 0)), image || null, JSON.stringify(plans || []), paymentType || "full"],
     );
-    return { id, title, price, image, plans, paymentType: paymentType || "full" };
+    return { id, title, price: Math.max(0, Math.round(Number(price) || 0)), image: image || null, plans: plans || [], paymentType: paymentType || "full" };
   },
-  async updateCustomizedService(id, { title, price, image, plans, paymentType }) {
+  async updateCustomizedService(id, patch) {
     invalidateCache("customized_services");
-    const plansString = JSON.stringify(plans || []);
+    const rows = await query("SELECT * FROM customized_services WHERE id = ? LIMIT 1", [id]);
+    if (!rows || rows.length === 0) throw notFound("Customized service not found. It may have been deleted - please refresh.");
+    const ex = rows[0];
+    const has = (k) => patch[k] !== undefined;
+    const next = {
+      title: has("title") && String(patch.title).trim() ? String(patch.title).trim() : ex.title,
+      price: has("price") ? Math.max(0, Math.round(Number(patch.price) || 0)) : Number(ex.price) || 0,
+      image: has("image") ? patch.image || null : ex.image || null,
+      plans: has("plans") ? patch.plans || [] : safeJson(ex.plans, []) || [],
+      paymentType: has("paymentType") && patch.paymentType ? patch.paymentType : ex.payment_type || "full",
+    };
     await query(
       "UPDATE customized_services SET title = ?, price = ?, image = ?, plans = ?, payment_type = ? WHERE id = ?",
-      [title, price, image || null, plansString, paymentType || "full", id],
+      [next.title, next.price, next.image, JSON.stringify(next.plans), next.paymentType, id],
     );
-    return { id, title, price, image, plans, paymentType: paymentType || "full" };
+    invalidateCache("customized_services");
+    return { id, ...next };
   },
   async deleteCustomizedService(id) {
     invalidateCache("customized_services");
@@ -3513,12 +3682,6 @@ module.exports = {
     return { id, name, phone, email, password, createdAt, referral_code, wallet_balance: wallet_balance || 0 };
   },
 
-  async getUsers() {
-    const users = await query(
-      "SELECT id, name, email, phone, createdAt FROM users ORDER BY createdAt DESC",
-    );
-    return users;
-  },
   async getAdmins() {
     const admins = await query(
       "SELECT id, name, email, phone, role, createdAt FROM users WHERE role = 'admin' ORDER BY createdAt DESC"
@@ -3526,7 +3689,7 @@ module.exports = {
     return admins;
   },
   async createAdmin({ name, phone, email, password }) {
-    const id = "admin-" + Math.random().toString(36).substr(2, 9);
+    const id = "admin-" + require("crypto").randomBytes(6).toString("hex");
     const createdAt = new Date().toISOString();
     await query(
       "INSERT INTO users (id, name, phone, email, password, role, createdAt) VALUES (?, ?, ?, ?, ?, 'admin', ?)",
@@ -3587,11 +3750,13 @@ module.exports = {
   },
   async updateCoupon(code, { discount, minAmount, expiryDate, isActive }) {
     invalidateCache("coupons");
-    await query(
+    const res = await query(
       "UPDATE coupons SET discount = ?, minAmount = ?, expiryDate = ?, isActive = ? WHERE code = ?",
-      [Number(discount), Number(minAmount), expiryDate, isActive ? 1 : 0, code],
+      [Number(discount) || 0, Number(minAmount) || 0, expiryDate, isActive ? 1 : 0, code],
     );
-    return { code, discount, minAmount, expiryDate, isActive };
+    if (!res || res.affectedRows === 0) throw notFound("Coupon not found. It may have been deleted - please refresh.");
+    invalidateCache("coupons");
+    return { code, discount: Number(discount) || 0, minAmount: Number(minAmount) || 0, expiryDate, isActive: isActive ? 1 : 0 };
   },
   async deleteCoupon(code) {
     invalidateCache("coupons");
@@ -3639,9 +3804,11 @@ module.exports = {
     return res && res.length > 0 ? res[0] : null;
   },
   async getTechnicianByPhone(phone) {
+    const variants = phoneVariants(phone);
+    if (variants.length === 0) return null;
     const res = await query(
-      "SELECT * FROM technicians WHERE phone = ? LIMIT 1",
-      [phone.trim()],
+      `SELECT * FROM technicians WHERE phone IN (${variants.map(() => "?").join(",")}) LIMIT 1`,
+      variants,
     );
     return res && res.length > 0 ? res[0] : null;
   },
@@ -3650,21 +3817,15 @@ module.exports = {
       "SELECT * FROM bookings WHERE (technicianId IS NULL OR technicianId = '') AND (jobStatus IS NULL OR (jobStatus != 'Cancelled' AND jobStatus != 'Completed')) ORDER BY createdAt DESC, id DESC",
     );
     return (rows || []).map((b) => {
-      let customer = {};
-      let schedule = {};
-      let items = [];
-      try {
-        customer = typeof b.customer === "string" ? JSON.parse(b.customer) : b.customer || {};
-      } catch (e) {}
-      try {
-        schedule = typeof b.schedule === "string" ? JSON.parse(b.schedule) : b.schedule || {};
-      } catch (e) {}
-      try {
-        items = typeof b.items === "string" ? JSON.parse(b.items) : b.items || [];
-      } catch (e) {}
+      const customer = safeJson(b.customer, {}) || {};
+      const schedule = safeJson(b.schedule, {}) || {};
+      const items = Array.isArray(safeJson(b.items, [])) ? safeJson(b.items, []) : [];
 
-      // MASK PRIVATE BUSINESS DATA (Prices, amounts, full customer phone)
-      // Only include area, city, landmark, date, time, service names, and clean inclusions
+      // MASK PRIVATE DATA for unclaimed leads: no prices, no email, masked phone, first name only.
+      // Full contact details are only visible after the technician claims the job.
+      const rawPhone = String(customer.phone || "").replace(/\D/g, "");
+      const maskedPhone = rawPhone.length >= 4 ? `XXXXXX${rawPhone.slice(-4)}` : "";
+      const firstName = String(customer.name || "Customer").trim().split(/\s+/)[0] || "Customer";
       const sanitizedItems = items.map((it) => ({
         title: it.title || it.serviceTitle || "Cleaning Service",
         category: it.category || it.categoryTitle || "",
@@ -3679,9 +3840,9 @@ module.exports = {
         id: b.id,
         createdAt: b.createdAt,
         customer: {
-          name: customer.name || "Customer",
-          phone: customer.phone || "",
-          email: customer.email || "",
+          name: firstName,
+          phone: maskedPhone,
+          email: "",
           address: customer.address || customer.locality || "",
           landmark: customer.landmark || "",
           city: customer.city || "Guntur",
@@ -3701,8 +3862,6 @@ module.exports = {
           mapsLink: customer.mapsLink || "",
         },
         items: sanitizedItems,
-        total: b.total,
-        paymentStatus: b.paymentStatus,
         jobStatus: b.jobStatus || "Open",
         technicianId: null,
       };
@@ -3729,21 +3888,7 @@ module.exports = {
       logsByBooking[log.bookingId].push(log);
     });
 
-    return rows.map((r) => ({
-      ...r,
-      customer:
-        typeof r.customer === "string"
-          ? JSON.parse(r.customer)
-          : r.customer || {},
-      schedule:
-        typeof r.schedule === "string"
-          ? JSON.parse(r.schedule)
-          : r.schedule || {},
-      items: typeof r.items === "string" ? JSON.parse(r.items) : r.items || [],
-      jobStatus: r.jobStatus || "Pending",
-      statusNote: r.statusNote || null,
-      rescheduleLogs: logsByBooking[r.id] || [],
-    }));
+    return rows.map((r) => mapBookingRow(r, logsByBooking));
   },
   async addTechnician({ id, name, phone, email, specialty, status, password }) {
     const createdAt = new Date().toISOString();
@@ -3767,10 +3912,21 @@ module.exports = {
     );
     return { id, name, phone, email, specialty, status, createdAt };
   },
-  async updateTechnician(
-    id,
-    { name, phone, email, specialty, status, password },
-  ) {
+  async updateTechnician(id, patch) {
+    // Merge with the stored record so a partial update (e.g. technician editing only
+    // name/phone/specialty) never wipes email or status.
+    const existingRows = await query("SELECT * FROM technicians WHERE id = ? LIMIT 1", [id]);
+    if (!existingRows || existingRows.length === 0) {
+      throw new Error("Technician not found.");
+    }
+    const ex = existingRows[0];
+    const pick = (key) => (patch[key] !== undefined ? patch[key] : ex[key]);
+    const name = pick("name");
+    const phone = pick("phone");
+    const email = pick("email");
+    const specialty = pick("specialty");
+    const status = pick("status");
+    const password = patch.password;
     if (password) {
       const salt = bcrypt.genSaltSync(10);
       const hashedPassword = bcrypt.hashSync(password, salt);

@@ -766,8 +766,8 @@ function ServiceDetailPage() {
         setNewReviewComment("");
         toast.success("Review submitted successfully!", { icon: "🎉" });
       }
-    } catch (err) {
-      toast.error("Failed to submit review");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to submit review");
     } finally {
       setIsSubmittingReview(false);
     }
